@@ -52,8 +52,8 @@ button, input, select { font: inherit; color: inherit; }
 @keyframes entre-gauche { from { transform: translateX(-32%); opacity: 0; } to { transform: none; opacity: 1; } }
 html, body { overflow-x: hidden; }
 @supports (overflow: clip) { html, body { overflow-x: clip; } }
-.page.va-avant { animation: entre-droite .42s cubic-bezier(.2, .8, .2, 1) both; }
-.page.va-arriere { animation: entre-gauche .42s cubic-bezier(.2, .8, .2, 1) both; }
+.page.va-avant { animation: entre-droite .42s cubic-bezier(.2, .8, .2, 1) backwards; }
+.page.va-arriere { animation: entre-gauche .42s cubic-bezier(.2, .8, .2, 1) backwards; }
 .anim { animation: monte .38s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
 @media (prefers-reduced-motion: reduce) { .anim, .sheet, .voile, .tiroir, .page.va-avant, .page.va-arriere { animation: none !important; } .bloc, .carte, .sous { transition: none !important; } }
 h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(40px, 8vw, 68px); line-height: .98; text-transform: uppercase; text-wrap: balance; }
@@ -392,6 +392,10 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .cs-champ select { width: 100%; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
 .cs-champ input, .cs-champ textarea { border-radius: 10px; border: 1px solid var(--line); }
 .cs-haut { border-bottom-width: 3px; }
+.desc-parties { display: flex; flex-direction: column; gap: 12px; }
+.desc-partie h3 { margin: 0 0 2px; font-size: 14px; font-weight: 700; color: var(--ct); }
+.desc-partie p { margin: 0; }
+.desc-partie.consigne { padding: 10px 12px; border-radius: 10px; background: var(--chip); font-size: 15px; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1164,7 +1168,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 16h06';
+  var VERSION_APP = '13/10/2026 à 16h13';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1215,17 +1219,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         (p.tous ? [h('option', { key: '', value: '' }, p.tous)] : []).concat(p.options.map(function (o) { var v = o.value || o; return h('option', { key: v, value: v }, o.label || o); }))));
   }
 
+  // Description découpée en parties titrées quand elle suit le modèle du catalogue (Analyse technique, Mise en pédagogie…)
+  var PARTIES = ['Kumi-kata', 'Analyse technique', 'Mise en pédagogie', 'Exercice de transfert', 'Forme enfants'];
+  function Description(p) {
+    var t = String(p.texte || ''), re = /(Analyse technique|Mise en pédagogie|Exercice de transfert|Forme enfants)\s*:\s*/g, morceaux = [], m, debut = 0, titre = null;
+    while ((m = re.exec(t))) { var avant = t.slice(debut, m.index).trim().replace(/[.,]\s*$/, ''); if (avant) morceaux.push([titre, avant]); titre = m[1]; debut = re.lastIndex; }
+    var fin = t.slice(debut).trim(); if (fin) morceaux.push([titre, fin]);
+    if (morceaux.length < 2) return h('p', null, t);
+    return h('div', { className: 'desc-parties' }, morceaux.map(function (x, i) {
+      var txt = x[1].charAt(0).toUpperCase() + x[1].slice(1) + (/[.!?]$/.test(x[1]) ? '' : '.');
+      return h('div', { key: i, className: 'desc-partie' + (x[0] ? '' : ' consigne') }, x[0] ? h('h3', null, x[0]) : null, h('p', null, txt));
+    }));
+  }
   function Fiche(p) {
     var e = p.e, judo = p.espace.key === 'judo';
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
-    return h('div', { className: 'voile', onClick: p.fermer },
+    return ReactDOM.createPortal(h('div', { className: 'voile', onClick: p.fermer },
       h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': e.nom, tabIndex: -1, ref: function (n) { if (n) n.focus(); }, style: teinte(p.espace.couleur),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } },
         h('button', { type: 'button', className: 'btn', style: { alignSelf: 'flex-start' }, onClick: p.fermer }, 'Fermer'),
         h('div', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
         h('h2', null, e.nom),
-        h('p', null, e.description),
+        h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1))) : null,
           fait('Dosage de base', e.dosage),
@@ -1236,7 +1252,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           [['Thématique', e.thematique], ['Technique ou famille préparée', e.technique], ['Moment de la séance', e.moment], ['Critère de réussite', e.critere], ['Variante plus facile', e.varianteFacile], ['Variante plus difficile', e.varianteDifficile], ['Précision 12 ans et plus', e.precisionPublic], ['Famille', e.famille], ['Accessibilité', e.accessibilite], ['Inspiration', e.inspiration], ['Précaution ostéoporose', e.precaution]].map(function (x) { return x[1] ? h('div', { key: x[0] }, h('dt', { className: 'etiq' }, x[0]), h('dd', null, x[1])) : null; }),
           fait('Groupe musculaire', e.groupeMusculaire),
           fait('Format', e.format),
-          fait('Type', type))));
+          fait('Type', type)))), document.body);
   }
 
   var telechargements = window.claude && window.claude.use ? window.claude.use('downloads').catch(function () { return null; }) : Promise.resolve(null);
