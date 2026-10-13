@@ -51,6 +51,7 @@ button, input, select { font: inherit; color: inherit; }
 @keyframes entre-droite { from { transform: translateX(32%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes entre-gauche { from { transform: translateX(-32%); opacity: 0; } to { transform: none; opacity: 1; } }
 html, body { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
 .page.va-avant { animation: entre-droite .42s cubic-bezier(.2, .8, .2, 1) both; }
 .page.va-arriere { animation: entre-gauche .42s cubic-bezier(.2, .8, .2, 1) both; }
 .anim { animation: monte .38s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
@@ -1163,7 +1164,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 14h53';
+  var VERSION_APP = '13/10/2026 à 16h06';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
