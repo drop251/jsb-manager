@@ -396,6 +396,55 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .desc-partie h3 { margin: 0 0 2px; font-size: 14px; font-weight: 700; color: var(--ct); }
 .desc-partie p { margin: 0; }
 .desc-partie.consigne { padding: 10px 12px; border-radius: 10px; background: var(--chip); font-size: 15px; }
+.cx { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, var(--sol, var(--bg)) 0, var(--bg) 60%); }
+.cx-in { width: min(440px, 100%); display: flex; flex-direction: column; gap: 22px; }
+.cx-marque { display: flex; align-items: center; gap: 12px; }
+.cx-marque div { display: flex; flex-direction: column; line-height: 1.2; }
+.cx-marque strong { font-size: 18px; font-weight: 750; font-stretch: 90%; }
+.cx-marque small { font-size: 13px; color: var(--muted); }
+.cx-carte { display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--ombre); }
+.cx-carte h1 { font-size: 30px; margin: 0; }
+.cx-centre { align-items: center; text-align: center; }
+.cx-intro { margin: -8px 0 0; color: var(--muted); }
+.cx-consigne { margin: 4px 0 0; font-weight: 600; }
+.cx-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cx-champs label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.cx-champs label.large { grid-column: 1 / -1; }
+.cx-champs input { min-height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; font-weight: 400; }
+.cx-champs input:disabled { opacity: .5; }
+.cx-note { margin: 0; font-size: 13px; color: var(--muted); }
+.cx-msg { margin: 0; font-weight: 600; color: var(--ko-t, #B91C1C); }
+.cx-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cx-btn { min-height: 48px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 650; cursor: pointer; }
+.cx-btn.plein { background: var(--ink); border-color: var(--ink); color: var(--bg); flex: 1; }
+.cx-avatar { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--judo); color: #fff; font-weight: 700; font-size: 16px; }
+.cx-avatar.grand { width: 72px; height: 72px; font-size: 26px; }
+.cx-avatar.petit { width: 36px; height: 36px; font-size: 14px; border: none; cursor: pointer; }
+.cx-points { display: flex; gap: 14px; justify-content: center; margin: 4px 0; }
+.cx-points i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); }
+.cx-points i.plein { background: var(--ink); }
+.cx-points.erreur { animation: cx-secoue .35s; }
+.cx-points.erreur i { border-color: var(--ko-t, #B91C1C); }
+@keyframes cx-secoue { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+.cx-clavier-bloc { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.cx-clavier { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+.cx-touche { width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 26px; font-weight: 500; cursor: pointer; }
+.cx-touche:active { background: var(--chip); }
+.cx-touche.eff { border: none; background: none; font-size: 22px; }
+.cx-liens { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+.cx-lien { border: none; background: none; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; cursor: pointer; min-height: 44px; }
+.cx-profils { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cx-profil { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cx-profil span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.cx-profil small { color: var(--muted); font-size: 13px; }
+.cx-menu-w { margin-left: auto; position: relative; }
+.cx-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 220px; padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .15); display: flex; flex-direction: column; }
+.cx-menu-tete { display: flex; flex-direction: column; padding: 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.cx-menu-tete small { color: var(--muted); font-size: 13px; }
+.cx-menu button { min-height: 44px; padding: 0 12px; border: none; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cx-menu button:hover { background: var(--chip); }
+@media (prefers-reduced-motion: reduce) { .cx-points.erreur { animation: none; } }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1168,7 +1217,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 16h13';
+  var VERSION_APP = '13/10/2026 à 16h38';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2194,6 +2243,140 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, 'Enregistrer ces exercices'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
   }
+  // ---- Connexion : profils d'éducateurs sur l'appareil (prénom, nom, club, code facultatif à 4 chiffres).
+  // Chaque profil a ses propres licenciés, présences, séances et exercices ajoutés. Le premier profil garde
+  // les clés de stockage d'origine (données existantes conservées) ; les suivants ont un suffixe « :id ».
+  // Le code verrouille l'interface ; il ne chiffre pas les données de l'appareil.
+  var CLE_PROFILS = 'jsb-profils', CLE_ACTIF = 'jsb-profil-actif';
+  var PROFIL = null;
+  function lireProfils() { try { var p = JSON.parse(localStorage.getItem(CLE_PROFILS)); return Array.isArray(p) ? p : []; } catch (err) { return []; } }
+  function ecrireProfils(p) { try { localStorage.setItem(CLE_PROFILS, JSON.stringify(p)); return true; } catch (err) { return false; } }
+  function hacher(texte) {
+    try {
+      if (window.crypto && crypto.subtle && window.TextEncoder) return crypto.subtle.digest('SHA-256', new TextEncoder().encode(texte)).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      });
+    } catch (err) {}
+    var h1 = 5381; for (var i = 0; i < texte.length; i++) h1 = ((h1 << 5) + h1 + texte.charCodeAt(i)) | 0;
+    return Promise.resolve('d' + (h1 >>> 0).toString(16));
+  }
+  function suffixeDe(p, liste) { return liste.length && liste[0].id === p.id ? '' : ':' + p.id; }
+  function activerProfil(p, liste) {
+    PROFIL = p;
+    var s = suffixeDe(p, liste);
+    CLE_PRES = 'jsb-presences' + s; CLE_AJOUTS = 'jsb-ajouts' + s; CLE_SEL = 'jsb-seances' + s;
+    try { localStorage.setItem(CLE_ACTIF, p.id); sessionStorage.setItem('jsb-ouvert', p.id); } catch (err) {}
+  }
+  function initiales(p) { return ((p.prenom || '').charAt(0) + (p.nom || '').charAt(0)).toUpperCase() || '?'; }
+  function nomProfil(p) { return [p.prenom, p.nom].filter(Boolean).join(' ') || 'Profil'; }
+
+  function Clavier(p) {
+    var s = React.useState(''), code = s[0], setCode = s[1], ref = React.useRef('');
+    function taper(c) {
+      if (p.occupe) return;
+      var n = c === 'eff' ? ref.current.slice(0, -1) : (ref.current + c).slice(0, 4);
+      ref.current = n; setCode(n);
+      if (n.length === 4) { ref.current = ''; p.valider(n); setTimeout(function () { setCode(''); }, 250); }
+    }
+    React.useEffect(function () {
+      function k(ev) { if (/^[0-9]$/.test(ev.key)) taper(ev.key); else if (ev.key === 'Backspace') taper('eff'); }
+      window.addEventListener('keydown', k); return function () { window.removeEventListener('keydown', k); };
+    });
+    return h('div', { className: 'cx-clavier-bloc' },
+      h('div', { className: 'cx-points' + (p.erreur ? ' erreur' : ''), 'aria-label': code.length + ' chiffres saisis sur 4' }, [0, 1, 2, 3].map(function (i) { return h('i', { key: i, className: i < code.length ? 'plein' : '' }); })),
+      h('div', { className: 'cx-clavier' }, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'eff'].map(function (c, i) {
+        if (!c) return h('span', { key: i });
+        return h('button', { key: i, type: 'button', className: 'cx-touche' + (c === 'eff' ? ' eff' : ''), 'aria-label': c === 'eff' ? 'Effacer' : c, onClick: function () { taper(c); } }, c === 'eff' ? '⌫' : c);
+      })));
+  }
+
+  function Connexion(p) {
+    var s1 = React.useState(lireProfils), profils = s1[0], setProfils = s1[1];
+    var s2 = React.useState(function () { var l = lireProfils(); if (!l.length) return { vue: 'creer' }; var a = null; try { a = localStorage.getItem(CLE_ACTIF); } catch (err) {} var x = l.filter(function (q) { return q.id === a; })[0]; return x ? { vue: 'code', id: x.id } : { vue: 'liste' }; }), etat = s2[0], setEtat = s2[1];
+    var s3 = React.useState({ prenom: '', nom: '', club: '', code: '', code2: '' }), form = s3[0], setForm = s3[1];
+    var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
+    var s5 = React.useState(false), erreur = s5[0], setErreur = s5[1];
+    var choisi = profils.filter(function (q) { return q.id === etat.id; })[0];
+    function entrer(q, liste) { activerProfil(q, liste || profils); p.entrer(q); }
+    // Profil sans code : ouverture directe
+    React.useEffect(function () { if (etat.vue === 'code' && choisi && !choisi.code) entrer(choisi); }, [etat.vue, etat.id]);
+    function maj(k, v) { var n = Object.assign({}, form); n[k] = v.replace && k.indexOf('code') === 0 ? v.replace(/\D/g, '').slice(0, 4) : v; setForm(n); }
+    function creer(ev) {
+      ev.preventDefault();
+      if (!form.prenom.trim()) { setMsg('Indiquez votre prénom.'); return; }
+      if (form.code && form.code.length !== 4) { setMsg('Le code doit faire 4 chiffres, ou laissez-le vide.'); return; }
+      if (form.code !== form.code2) { setMsg('Les deux codes ne sont pas identiques.'); return; }
+      var q = { id: Date.now().toString(36), prenom: form.prenom.trim(), nom: form.nom.trim(), club: form.club.trim(), cree: new Date().toISOString() };
+      (form.code ? hacher(q.id + ':' + form.code) : Promise.resolve('')).then(function (hc) {
+        if (hc) q.code = hc;
+        var l = profils.concat([q]);
+        if (!ecrireProfils(l)) { setMsg('Enregistrement du profil impossible sur cet appareil.'); return; }
+        setProfils(l); entrer(q, l);
+      });
+    }
+    function verifier(code) {
+      hacher(choisi.id + ':' + code).then(function (hc) {
+        if (hc === choisi.code) { setErreur(false); entrer(choisi); }
+        else { setErreur(true); setMsg('Code incorrect.'); setTimeout(function () { setErreur(false); }, 600); }
+      });
+    }
+    function supprimer() {
+      if (!window.confirm('Supprimer le profil « ' + nomProfil(choisi) + ' » ? Ses licenciés, présences et séances enregistrés sur cet appareil ne seront plus accessibles.')) return;
+      var l = profils.filter(function (q) { return q.id !== choisi.id; });
+      if (profils[0].id === choisi.id && l.length) { setMsg('Le premier profil ne peut être supprimé tant que d\'autres profils existent.'); return; }
+      ecrireProfils(l); setProfils(l); setMsg(''); setEtat(l.length ? { vue: 'liste' } : { vue: 'creer' });
+    }
+    var marque = h('div', { className: 'cx-marque' }, h('span', { className: 'marque', 'aria-hidden': 'true' }, 'JSB'), h('div', null, h('strong', null, 'JSB Manager'), h('small', null, 'Judo Sans Barrières')));
+    var corps;
+    if (etat.vue === 'creer') {
+      corps = h('form', { className: 'cx-carte', onSubmit: creer },
+        h('h1', null, profils.length ? 'Nouveau profil' : 'Bienvenue'),
+        h('p', { className: 'cx-intro' }, profils.length ? 'Ce profil aura ses propres licenciés, présences et séances.' : 'Créez votre profil d\'éducateur. Vos licenciés, présences et séances restent sur cet appareil.'),
+        h('div', { className: 'cx-champs' },
+          h('label', null, 'Prénom', h('input', { value: form.prenom, onChange: function (e) { maj('prenom', e.target.value); }, autoComplete: 'given-name', required: true })),
+          h('label', null, 'Nom', h('input', { value: form.nom, onChange: function (e) { maj('nom', e.target.value); }, autoComplete: 'family-name' })),
+          h('label', { className: 'large' }, 'Club', h('input', { value: form.club, onChange: function (e) { maj('club', e.target.value); }, autoComplete: 'organization', placeholder: 'Nom du club' })),
+          h('label', null, 'Code à 4 chiffres (facultatif)', h('input', { value: form.code, onChange: function (e) { maj('code', e.target.value); }, inputMode: 'numeric', type: 'password', autoComplete: 'new-password' })),
+          h('label', null, 'Confirmer le code', h('input', { value: form.code2, onChange: function (e) { maj('code2', e.target.value); }, inputMode: 'numeric', type: 'password', autoComplete: 'new-password', disabled: !form.code }))),
+        h('p', { className: 'cx-note' }, 'Le code verrouille l\'app à chaque ouverture. Il n\'est pas récupérable : en cas d\'oubli, le profil doit être supprimé.'),
+        msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
+        h('div', { className: 'cx-actions' },
+          h('button', { type: 'submit', className: 'cx-btn plein' }, 'Créer le profil'),
+          profils.length ? h('button', { type: 'button', className: 'cx-btn', onClick: function () { setMsg(''); setEtat({ vue: 'liste' }); } }, 'Annuler') : null));
+    } else if (etat.vue === 'code' && choisi && choisi.code) {
+      corps = h('div', { className: 'cx-carte cx-centre' },
+        h('span', { className: 'cx-avatar grand', 'aria-hidden': 'true' }, initiales(choisi)),
+        h('h1', null, nomProfil(choisi)), choisi.club ? h('p', { className: 'cx-intro' }, choisi.club) : null,
+        h('p', { className: 'cx-consigne' }, 'Saisissez votre code'),
+        h(Clavier, { valider: verifier, erreur: erreur }),
+        msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
+        h('div', { className: 'cx-liens' },
+          h('button', { type: 'button', className: 'cx-lien', onClick: function () { setMsg(''); setEtat({ vue: 'liste' }); } }, 'Changer de profil'),
+          h('button', { type: 'button', className: 'cx-lien', onClick: supprimer }, 'Code oublié')));
+    } else {
+      corps = h('div', { className: 'cx-carte' },
+        h('h1', null, 'Qui utilise l\'app ?'),
+        h('ul', { className: 'cx-profils' }, profils.map(function (q) {
+          return h('li', { key: q.id }, h('button', { type: 'button', className: 'cx-profil', onClick: function () { setMsg(''); setEtat({ vue: 'code', id: q.id }); } },
+            h('span', { className: 'cx-avatar', 'aria-hidden': 'true' }, initiales(q)),
+            h('span', null, h('strong', null, nomProfil(q)), h('small', null, (q.club || 'Club non renseigné') + (q.code ? ' · protégé par un code' : '')))));
+        })),
+        h('button', { type: 'button', className: 'cx-btn', onClick: function () { setForm({ prenom: '', nom: '', club: '', code: '', code2: '' }); setMsg(''); setEtat({ vue: 'creer' }); } }, 'Ajouter un profil'));
+    }
+    return h('main', { className: 'cx' }, h('div', { className: 'cx-in' }, marque, corps));
+  }
+
+  // Menu du profil dans la barre du haut : nom, club, verrouiller, changer de profil
+  function MenuProfil() {
+    var s = React.useState(false), ouvert = s[0], setOuvert = s[1];
+    if (!PROFIL) return null;
+    return h('div', { className: 'cx-menu-w' },
+      h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
+      ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
+        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), h('small', null, PROFIL.club || 'Club non renseigné')),
+        PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
+        h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null);
+  }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
   function texteErreur(e) { return e ? String(e.message || e) + (e.stack ? '\n' + String(e.stack).split('\n').slice(0, 4).join('\n') : '') : ''; }
@@ -2274,7 +2457,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           : h('span', { className: 'marque', 'aria-hidden': 'true' }, 'JSB'),
         h('div', { className: 'appbar-titre' },
           h('strong', null, esp ? (f.sous || esp.label) : 'JSB Manager'),
-          h('small', null, esp ? (f.sous ? esp.label : 'Judo Sans Barrières') : 'Judo Sans Barrières')));
+          h('small', null, esp ? (f.sous ? esp.label : (PROFIL && PROFIL.club) || 'Judo Sans Barrières') : (PROFIL && PROFIL.club) || 'Judo Sans Barrières')),
+        h(MenuProfil, null));
     };
     var onglets = h('nav', { className: 'onglets', 'aria-label': 'Navigation principale' }, NAV.map(function (o) {
       var actif = (cle || '') === o[0], esp0 = ESPACES.filter(function (x) { return x.key === o[0]; })[0];
@@ -2376,9 +2560,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),
       fiche ? h(Fiche, { e: fiche, espace: esp, fermer: function () { setOuverte(null); } }) : null)));
   }
-  function demarrer() { ReactDOM.createRoot(document.getElementById('app')).render(h(Garde, null, h(App))); }
-  // Exercices ajoutés depuis l'app sur cet appareil : fusionnés avec la base au démarrage
+  // Démarrage : base d'exercices, puis connexion (profil), puis exercices ajoutés du profil, puis l'app
+  function Racine() {
+    var s = React.useState(function () {
+      var l = lireProfils(), ouvert = null; try { ouvert = sessionStorage.getItem('jsb-ouvert'); } catch (err) {}
+      var q = l.filter(function (x) { return x.id === ouvert; })[0];
+      if (q) { activerProfil(q, l); return 'chargement'; }
+      return 'connexion';
+    }), phase = s[0], setPhase = s[1];
+    React.useEffect(function () { if (phase === 'chargement') ajouterLocaux().then(function () { setPhase('app'); }); }, [phase]);
+    if (phase === 'connexion') return h(Connexion, { entrer: function () { setPhase('chargement'); } });
+    if (phase === 'chargement') return null;
+    return h(App);
+  }
+  function demarrer() { ReactDOM.createRoot(document.getElementById('app')).render(h(Garde, null, h(Racine))); }
+  var BASE_ORIGINE = null;
+  // Exercices ajoutés depuis l'app (propres au profil actif) : fusionnés avec la base
   function ajouterLocaux() {
+    if (!BASE_ORIGINE) BASE_ORIGINE = BASE;
+    BASE = BASE_ORIGINE;
     return Stockage.lire(CLE_AJOUTS).then(function (a) {
       if (!Array.isArray(a) || !a.length) return;
       var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
@@ -2386,7 +2586,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }).catch(function () {});
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
-    .then(ajouterLocaux).then(demarrer, demarrer);
+    .then(demarrer, demarrer);
 })();
 </script>
 
