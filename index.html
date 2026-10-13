@@ -1009,9 +1009,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 13h33';
+  var VERSION_APP = '13/10/2026 à 13h50';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
-  function momentsDe(e) { return e.moment ? [e.moment] : []; }
+  // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
+  function momentsDe(e) {
+    var m = String(e.moment || '').normalize('NFC').toLowerCase(), r = [];
+    if (m.indexOf('échauffement') >= 0 || m.indexOf('echauffement') >= 0 || m.indexOf('mobilité articulaire') >= 0) r.push('Échauffement');
+    if (m.indexOf('corps') >= 0) r.push('Corps de séance');
+    if (m.indexOf('fin de séance') >= 0 || m.indexOf('retour au calme') >= 0) r.push('Fin de séance');
+    return r;
+  }
   function court(c) { return (c || '').replace('Préparation judo – ', ''); }
   function uniq(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
   var ORDRE_NIV = ['Blanche', 'Blanche à blanche-jaune', 'Blanche-jaune à jaune-orange', 'Jaune à orange-verte', 'Blanche à orange', 'Orange à noire', 'Verte à bleue', 'Marron à noire', 'Débutant', 'Intermédiaire', 'Confirmé', 'Expert'];
