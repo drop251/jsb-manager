@@ -237,6 +237,16 @@ h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(
 .pr-rappel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #c2410c; background: color-mix(in srgb, #c2410c 10%, var(--surface)); color: var(--ink); font-weight: 600; }
 .pr-rappel span { flex: 1 1 240px; }
 .pr-autor input { width: 20px; height: 20px; accent-color: var(--c); }
+.gestion { margin-top: 28px; padding: 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.gestion h2 { margin: 0; font-family: var(--display); font-size: 24px; text-transform: uppercase; letter-spacing: .02em; }
+.gestion p { margin: 0; color: var(--muted); font-size: 15px; }
+.gestion-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gestion-msg { color: var(--ink) !important; font-weight: 600; }
+.gestion-rapport { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 10px; background: var(--chip); }
+.gestion-rapport ul { margin: 0; padding-left: 18px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.gestion-rapport details { font-size: 14px; }
+.gestion-rapport ol { max-height: 40vh; overflow: auto; padding-left: 22px; }
+.btn.plein { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1009,7 +1019,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 13h58';
+  var VERSION_APP = '13/10/2026 à 14h03';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1708,6 +1718,292 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, corps, aide);
   }
+  // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
+  // (public, catégorie d'âge, moment, catégorie, grade/niveau, famille de technique) et formes enfants.
+  // Les ajouts sont gardés sur l'appareil (clé jsb-ajouts) et fusionnés avec la base au démarrage.
+  var CLE_AJOUTS = 'jsb-ajouts';
+  function sansAcc(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function cle(s) { return sansAcc(s).replace(/[^a-z0-9]/g, ''); }
+  var CHAMPS = {
+    nom: ['nom', 'nomexercice', 'exercice', 'intitule', 'titre', 'name'],
+    description: ['description', 'executiondecoupee', 'execution', 'consignes', 'deroulement', 'consigne'],
+    categorie: ['categorie', 'famille', 'familleexercice', 'familleexercicejudo', 'qualite', 'qualitephysique', 'type'],
+    categorieAge: ['categorieage', 'categoriedage', 'age', 'ages', 'publiccible', 'tranchedage', 'sousgroupes', 'sousgroupe'],
+    public: ['public', 'discipline', 'espace', 'activite'],
+    moment: ['moment', 'momentdelaseance', 'phase', 'partie'],
+    niveau: ['niveau', 'niveaugrade', 'grade', 'difficulte'],
+    muscles: ['muscles', 'musclescibles', 'groupesmusculaires'],
+    equipement: ['equipement', 'materiel'],
+    format: ['format', 'organisation'],
+    pilote: ['pilote', 'pilotestructure', 'typedetravail', 'structure'],
+    vigilance: ['vigilance', 'securite', 'securiteprophylaxie', 'precautions', 'precaution', 'pointdesecurite'],
+    dosage: ['dosage', 'volume', 'series', 'repetitions'],
+    thematique: ['thematique', 'thematiquetechnicotactique', 'theme', 'objectif'],
+    ref: ['ref', 'id', 'code', 'numero'],
+    inspiration: ['reference', 'source', 'inspiration'],
+    varianteFacile: ['variantefacile', 'simplification'],
+    varianteDifficile: ['variantedifficile', 'complexification'],
+    critere: ['critere', 'criteredereussite']
+  };
+  function normaliserLigne(o) {
+    var k = {}; Object.keys(o).forEach(function (c) { k[cle(c)] = o[c]; });
+    var r = {};
+    Object.keys(CHAMPS).forEach(function (champ) {
+      if (o[champ] != null && o[champ] !== '') { r[champ] = o[champ]; return; }
+      for (var i = 0; i < CHAMPS[champ].length; i++) { var v = k[CHAMPS[champ][i]]; if (v != null && v !== '') { r[champ] = v; return; } }
+    });
+    ['sousGroupes', 'grade', 'technique', 'isometrique', 'unilateral', 'polyarticulaire', 'materielDetail', 'precisionPublic', 'groupeMusculaire', 'categorieSecondaire']
+      .forEach(function (c) { if (o[c] != null) r[c] = o[c]; });
+    return r;
+  }
+  function lireFichierExercices(fichier) {
+    if (/\.json$/i.test(fichier.name)) return fichier.text().then(function (t) {
+      var d = JSON.parse(t); if (d && !Array.isArray(d)) d = d.exercices || d.exercises || [];
+      if (!Array.isArray(d)) throw new Error('format'); return d;
+    });
+    if (/\.(csv|txt)$/i.test(fichier.name)) return fichier.text().then(function (t) {
+      if (!window.XLSX) throw new Error('outil');
+      var wb = XLSX.read(t.replace(/^\uFEFF/, ''), { type: 'string' });
+      return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    });
+    return fichier.arrayBuffer().then(function (buf) {
+      if (!window.XLSX) throw new Error('outil');
+      var wb = XLSX.read(buf, { type: 'array' });
+      return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    });
+  }
+  // --- Règles de classement
+  var MOTS_JUDO = /waza|kumi|tori|\buke\b|tatami|ukemi|randori|judogi|\bgari\b|goshi|nage|otoshi|gatame|osaekomi|harai|kuzushi|tsukuri|judo/;
+  var FAMILLES = {
+    'Te-waza': 'seoi-nage ippon-seoi-nage seoi-otoshi tai-otoshi kata-guruma sukui-nage obi-otoshi uki-otoshi sumi-otoshi yama-arashi morote-gari kuchiki-taoshi kibisu-gaeshi ko-uchi-gaeshi uchi-mata-sukashi',
+    'Koshi-waza': 'uki-goshi o-goshi koshi-guruma tsurikomi-goshi sode-tsurikomi-goshi harai-goshi tsuri-goshi hane-goshi utsuri-goshi ushiro-goshi',
+    'Ashi-waza': 'de-ashi-harai hiza-guruma sasae-tsurikomi-ashi o-soto-gari o-uchi-gari ko-soto-gari ko-uchi-gari okuri-ashi-harai uchi-mata ko-soto-gake ashi-guruma harai-tsurikomi-ashi o-guruma o-soto-guruma o-soto-otoshi tsubame-gaeshi o-soto-gaeshi o-uchi-gaeshi hane-goshi-gaeshi harai-goshi-gaeshi',
+    'Sutemi-waza': 'tomoe-nage sumi-gaeshi hikikomi-gaeshi tawara-gaeshi ura-nage obi-tori-gaeshi yoko-otoshi yoko-gake yoko-wakare daki-wakare soto-makikomi uchi-makikomi harai-makikomi uchi-mata-makikomi ko-uchi-makikomi kani-basami tani-otoshi yoko-guruma uki-waza',
+    'Ne-waza (Osaekomi-waza)': 'kesa-gatame kuzure-kesa-gatame ushiro-kesa-gatame kata-gatame kami-shiho-gatame kuzure-kami-shiho-gatame yoko-shiho-gatame tate-shiho-gatame uki-gatame ura-gatame',
+    'Kansetsu-waza': 'ude-garami juji-gatame ude-hishigi-juji-gatame waki-gatame hara-gatame ashi-gatame te-gatame sankaku-gatame hiza-gatame',
+    'Shime-waza': 'nami-juji-jime gyaku-juji-jime kata-juji-jime hadaka-jime okuri-eri-jime kataha-jime sode-guruma-jime tsukkomi-jime sankaku-jime ryote-jime'
+  };
+  var FAMILLE_DE = {}; Object.keys(FAMILLES).forEach(function (f) { FAMILLES[f].split(' ').forEach(function (t) { FAMILLE_DE[t] = f; }); });
+  function techniquesDe(nom) {
+    return String(nom || '').split(' : ')[0].split(/ puis | avec | et /).map(function (x) { return sansAcc(x).trim(); }).filter(Boolean);
+  }
+  function familleDe(nom, texte) {
+    var ts = techniquesDe(nom);
+    if (ts.length > 1 && ts.every(function (t) { return FAMILLE_DE[t]; })) return 'Renraku-waza (enchaînements)';
+    if (FAMILLE_DE[ts[0]]) return FAMILLE_DE[ts[0]];
+    var t = sansAcc(texte);
+    var trouve = Object.keys(FAMILLE_DE).filter(function (k) { return t.indexOf(k) >= 0; }).sort(function (a, b) { return b.length - a.length; })[0];
+    return trouve ? FAMILLE_DE[trouve] : 'Préparation physique générale';
+  }
+  var AGES = [['Éveils (4-5 ans)', /eveil|baby|4.?5 ans|4 ans|5 ans/], ['Pré-poussins', /pre.?poussin|mini.?poussin|poussinet|6.?7 ans/],
+    ['Poussins', /(^|[^e-])poussin|8.?9 ans/], ['Benjamins', /benjamin|10.?11 ans/], ['Adultes', /adulte|minime|cadet|junior|senior|12 ans|13 ans|ado/]];
+  var AGE_TXT = { 'Éveils (4-5 ans)': 'Éveils (4-5 ans)', 'Pré-poussins': 'Pré-poussins (6-7 ans)', 'Poussins': 'Poussins (8-9 ans)', 'Benjamins': 'Benjamins (10-11 ans)', 'Adultes': 'Adultes (12 ans et plus)' };
+  function agesDe(x) {
+    var s = sansAcc([].concat(x.sousGroupes || []).join(' ') + ' ' + (x.categorieAge || ''));
+    var r = AGES.filter(function (a) { return a[1].test(s); }).map(function (a) { return a[0]; });
+    if (/adaptable/.test(s) && r.indexOf('Adultes') >= 0) r = ['Adultes'];  // « Adultes (adaptable poussins…) » : rangé en Adultes, formes enfants créées ensuite
+    return r.length ? r : ['Adultes'];
+  }
+  var CATS = {
+    'Judo': [['Pliométrie', /pliom|saut|bond|rebond/], ['Gainage', /gainage|planche|isom|gaine/], ['Cardio', /cardio|endurance|fraction|course|intermittent|randori|kakari|jeu|reagi|reaction|vitesse|poursuite/],
+      ['Mobilité', /mobilit|souplesse|etirement|assoupl/], ['Équilibre', /equilibre|coordination|proprio|appui|deplacement/], ['Force-Puissance', /force|puissance|renfor|tirage|poussee|explosi/]],
+    'Taïso': [['Pliométrie (impact)', /pliom|saut|bond|rebond/], ['Gainage', /gainage|planche|isom/], ['Cardio', /cardio|endurance|fraction|course/],
+      ['Mobilité articulaire (routine)', /mobilite articulaire|routine/], ['Mobilité complémentaire', /mobilit|souplesse|etirement|assoupl|yoga|stretch/],
+      ['Équilibre et coordination', /equilibre|coordination|proprio/], ['Renforcement', /force|renfor|puissance|muscu/]]
+  };
+  var CATS_OK = { 'Judo': ['Équilibre', 'Mobilité', 'Force-Puissance', 'Cardio', 'Gainage', 'Pliométrie'],
+    'Taïso': ['Renforcement', 'Gainage', 'Mobilité complémentaire', 'Équilibre et coordination', 'Cardio', 'Pliométrie (impact)', 'Mobilité articulaire (routine)'] };
+  function categorieDe(pub, x, texte) {
+    if (CATS_OK[pub].indexOf(x.categorie) >= 0) return x.categorie;
+    var s = sansAcc((x.categorie || '') + ' ');
+    var c = CATS[pub].filter(function (r) { return r[1].test(s); })[0] || CATS[pub].filter(function (r) { return r[1].test(sansAcc(texte)); })[0];
+    return c ? c[0] : (pub === 'Judo' ? 'Force-Puissance' : 'Renforcement');
+  }
+  var ETIRE = /etirement|stretch|posture tenue|retour au calme|relaxation|respiration|savasana|balasana|pince|pigeon|papillon|torsion|contracte.?relache|recuperation/;
+  var ECHAUF = /echauffement|activation|mobilite articulaire|mise en route|cercles|jeu d.echauffement|chat.?vache|rotations?/;
+  function momentDe(pub, cat, x, texte) {
+    var m = sansAcc(x.moment || '');
+    if (/fin|calme|retour/.test(m)) return 'Fin de séance';
+    if (/echauff|mobilite articulaire/.test(m)) return 'Échauffement';
+    if (/corps/.test(m)) return 'Corps de séance';
+    var t = sansAcc(texte);
+    if (ETIRE.test(sansAcc(x.nom)) || (cat.indexOf('Mobilit') === 0 && ETIRE.test(t))) return 'Fin de séance';
+    if (pub === 'Taïso' && cat.indexOf('Mobilit') === 0) return 'Échauffement';
+    if (ECHAUF.test(t) || cat === 'Mobilité') return 'Échauffement';
+    return 'Corps de séance';
+  }
+  function gradeDe(x) {
+    var s = sansAcc(x.grade || x.niveau || '');
+    if (/marron|noire|expert|confirm/.test(s)) return 'Marron à noire';
+    if (/verte|bleue|intermed/.test(s)) return 'Verte à bleue';
+    if (/orange/.test(s) && /jaune/.test(s)) return 'Jaune à orange-verte';
+    if (/blanche|jaune|debutant/.test(s)) return 'Blanche à orange';
+    return 'Blanche à orange';
+  }
+  function niveauDe(x) {
+    var s = sansAcc(x.niveau || x.grade || '');
+    return /expert/.test(s) ? 'Expert' : /confirm|marron|noire/.test(s) ? 'Confirmé' : /intermed|verte|bleue/.test(s) ? 'Intermédiaire' : 'Débutant';
+  }
+  function piloteDe(x) {
+    var s = sansAcc(x.pilote || '');
+    return /isom/.test(s) ? 'Isométrique' : /unilat/.test(s) ? 'Unilatéral' : /poly/.test(s) ? 'Poly-articulaire' : (x.pilote || '');
+  }
+  function formatDe(x, pub) {
+    var s = sansAcc(x.format || '');
+    return /trio/.test(s) ? 'Trio' : /collect|groupe/.test(s) ? 'Collectif' : /binome|deux|partenaire/.test(s) ? 'Binôme' : /solo|seul/.test(s) ? 'Solo' : (pub === 'Judo' ? 'Binôme' : 'Solo');
+  }
+  function equipementDe(x, pub) {
+    var m = sansAcc(x.equipement || ''), r = pub === 'Judo' ? ['Tatami'] : [];
+    if (/judogi|veste/.test(m)) r.push('Judogi'); if (/ceinture/.test(m)) r.push('Ceinture'); if (/elastique/.test(m)) r.push('Élastique');
+    if (pub === 'Judo' && formatDe(x, pub) !== 'Solo') r.push('Partenaire');
+    if (pub === 'Taïso') r.push(x.equipement && !/aucun/.test(m) ? String(x.equipement) : 'Poids du corps');
+    return r.join(' + ');
+  }
+  function classer(brut, pub0) {
+    var x = normaliserLigne(brut), texte = [x.nom, x.description, x.thematique, x.categorie, x.categorieAge, x.public].join(' ');
+    if (!x.nom) return null;
+    var p = sansAcc([].concat(x.public || []).join(' '));
+    var clesJudo = Object.keys(brut).some(function (c) { return /judo/i.test(c); });
+    var techniqueJudo = familleDe(x.nom, texte) !== 'Préparation physique générale';
+    var pub = /taiso/.test(p) ? 'Taïso' : /judo/.test(p) ? 'Judo' : pub0 || (clesJudo || techniqueJudo || MOTS_JUDO.test(sansAcc(texte)) ? 'Judo' : 'Taïso');
+    var cat = categorieDe(pub, x, texte), pil = piloteDe(x);
+    var e = {
+      ref: String(x.ref || ''), nom: String(x.nom).trim(), categorie: cat, categorieSecondaire: x.categorieSecondaire || '', public: [pub],
+      thematique: String(x.thematique || ''), description: String(x.description || '').trim() || String(x.nom),
+      dosage: String(x.dosage || ''), vigilance: String(x.vigilance || '').trim() || 'Exécution contrôlée ; arrêt en cas de douleur.',
+      muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.equipement || ''),
+      varianteFacile: String(x.varianteFacile || ''), varianteDifficile: String(x.varianteDifficile || ''), critere: String(x.critere || ''),
+      inspiration: x.inspiration ? String(x.inspiration).split(',')[0] : 'Ajouté depuis l\'app', groupeMusculaire: x.groupeMusculaire || '',
+      isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
+    };
+    e.moment = momentDe(pub, cat, x, texte);
+    if (pub === 'Judo') {
+      var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
+      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || familleDe(e.nom, texte);
+      e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
+    } else {
+      var s = sansAcc(texte + ' ' + [].concat(x.sousGroupes || []).join(' '));
+      e.sousGroupes = /gym douce|senior|doux|douce/.test(s) ? ['Gym douce'] : /training|crossfit|cross training|intense|hiit/.test(s) ? ['Training'] : ['Gym douce', 'Training'];
+      e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = '';
+    }
+    return e;
+  }
+  // --- Formes enfants (règles de Girma : pas de sutemi ni de kansetsu, kumi-kata manche-revers uniquement)
+  var EXCLUS_ENF = { 'morote-gari': 'saisie des jambes', 'kata-guruma': 'saisie de la jambe', 'kuchiki-taoshi': 'saisie de la jambe', 'kibisu-gaeshi': 'saisie du talon',
+    'sukui-nage': 'saisie des cuisses', 'obi-otoshi': 'saisie de la ceinture', 'ushiro-goshi': 'saisie du tronc', 'utsuri-goshi': 'saisie du tronc',
+    'tsuri-goshi': 'saisie de la ceinture', 'sode-tsurikomi-goshi': 'saisie des deux manches', 'yama-arashi': 'saisie du même côté',
+    'koshi-guruma': 'bras autour du cou', 'o-goshi': 'bras autour de la taille', 'uki-goshi': 'bras autour de la taille', 'ippon-seoi-nage': 'saisie du bras' };
+  var NIV_PP = 'de-ashi-harai o-soto-gari o-uchi-gari ko-uchi-gari ko-soto-gari tai-otoshi hiza-guruma sasae-tsurikomi-ashi seoi-nage kesa-gatame kuzure-kesa-gatame yoko-shiho-gatame kami-shiho-gatame tate-shiho-gatame'.split(' ');
+  var NIV_P = NIV_PP.concat('harai-goshi tsurikomi-goshi okuri-ashi-harai ko-soto-gake harai-tsurikomi-ashi uchi-mata hane-goshi ashi-guruma o-guruma o-soto-guruma o-soto-otoshi uki-otoshi sumi-otoshi kata-gatame ushiro-kesa-gatame uki-gatame ura-gatame kuzure-kami-shiho-gatame'.split(' '));
+  var REGLE_ENF = 'Kumi-kata manche-revers uniquement (pas de saisie du même côté, de la ceinture, du cou ni des jambes)';
+  function dosageEnfant(d, court) {
+    return String(d || '').replace(/(\d+)(\s*(?:s\b|répétitions|par côté|passages|fois)?)/g, function (m, n, u) {
+      n = parseInt(n, 10); return (u && /^\s*s/.test(u) ? Math.min(n, court ? 10 : 15) : Math.max(3, Math.round(n * 0.6))) + (u || '');
+    });
+  }
+  function formeEnfants(e) {
+    if (e.public[0] !== 'Judo' || e.sousGroupes.join() !== 'Adultes') return { exclu: null };
+    var ts = techniquesDe(e.nom), fams = ts.map(function (t) { return FAMILLE_DE[t]; });
+    if (!fams[0]) return { exclu: null };  // pas une technique de judo identifiée : préparation physique, pas d'adaptation automatique
+    if (fams.indexOf('Sutemi-waza') >= 0) return { exclu: 'sutemi-waza' };
+    if (fams.indexOf('Kansetsu-waza') >= 0 || fams.indexOf('Shime-waza') >= 0) return { exclu: 'kansetsu ou shime-waza' };
+    var r = ts.map(function (t) { return EXCLUS_ENF[t]; }).filter(Boolean)[0];
+    if (r) return { exclu: r };
+    var expert = e.grade === 'Marron à noire', contre = ts.some(function (t) { return /gaeshi|sukashi/.test(t); }), ench = ts.length > 1;
+    var g = [];
+    if (!expert && !contre && !ench && ts.every(function (t) { return NIV_PP.indexOf(t) >= 0; })) g.push('Pré-poussins');
+    if (!expert && !contre && ts.every(function (t) { return NIV_P.indexOf(t) >= 0; })) g.push('Poussins');
+    g.push('Benjamins');
+    var newaza = fams[0] === 'Ne-waza (Osaekomi-waza)', f = Object.assign({}, e);
+    f.nom = e.nom + ' (forme enfants)'; f.ref = (e.ref || '') + '-E'; f.sousGroupes = g; f.categorieAge = AGE_TXT[g[0]];
+    f.grade = g[0] === 'Pré-poussins' ? 'Blanche-jaune à jaune-orange' : 'Jaune à orange-verte';
+    f.precisionPublic = 'Forme enfants de « ' + e.nom + ' » : ' + g.join(', ');
+    f.equipement = 'Tatami + Judogi + Partenaire'; f.dosage = dosageEnfant(e.dosage, newaza || e.isometrique);
+    if (newaza) {
+      f.description = e.description + ' Forme enfants : opposition légère et progressive, Uke cherche à sortir sous forme de jeu (« sors en moins de 10 s »), arrêt immédiat à la tape.';
+      f.vigilance = 'Aucune pression sur la tête, le cou ou le thorax ; poids de Tori réparti sur ses appuis ; arrêt au premier signal ; pas de clé ni d\'étranglement.';
+      f.varianteFacile = 'Immobiliser un partenaire passif, 5 s'; f.varianteDifficile = 'Benjamins : sortie libre, Tori change d\'immobilisation pour garder le contrôle';
+    } else {
+      f.description = REGLE_ENF + ', garde naturelle (Shizen-tai). ' + e.description + ' Forme enfants : déséquilibre et placement d\'abord sans chute, puis chute accompagnée, manche tenue par Tori.';
+      f.vigilance = e.vigilance.replace(/[. ]+$/, '') + '. ' + REGLE_ENF + ' ; Tori garde la manche à la chute ; partenaires de même gabarit ; pas de projection à genoux.';
+      f.varianteFacile = 'Uke s\'arrête au déséquilibre, sans chute (Uchi-komi)'; f.varianteDifficile = 'Benjamins : en déplacement lent, avec chute contrôlée (Nage-komi)';
+    }
+    f.critere = newaza ? 'Uke est contrôlé sans douleur' : 'Kuzushi visible avant l\'entrée ; Uke chute en sécurité, manche tenue';
+    return { forme: f };
+  }
+  function preparerAjouts(lignes, base) {
+    var deja = {}, maxId = 5000;
+    base.forEach(function (e) { deja[cle(e.nom) + '|' + (e.public || [])[0]] = 1; if (e.id >= 5001 && e.id <= 8999 && e.id > maxId) maxId = e.id; });
+    var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {} };
+    lignes.forEach(function (l) {
+      var e = classer(l); if (!e) { r.ignores++; return; }
+      var k = cle(e.nom) + '|' + e.public[0];
+      if (deja[k]) { r.doublons.push(e.nom); return; }
+      deja[k] = 1; e.id = ++maxId; r.ajouts.push(e);
+      var fe = formeEnfants(e);
+      if (fe.forme && !deja[cle(fe.forme.nom) + '|Judo']) { fe.forme.id = ++maxId; deja[cle(fe.forme.nom) + '|Judo'] = 1; r.ajouts.push(fe.forme); r.formes++; }
+      else if (fe.exclu) r.exclus[fe.exclu] = (r.exclus[fe.exclu] || 0) + 1;
+    });
+    return r;
+  }
+  function GestionExercices(props) {
+    var s1 = React.useState(null), rapport = s1[0], setRapport = s1[1];
+    var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
+    var nbAjouts = BASE.filter(function (e) { return e.ajoute; }).length;
+    function choisir(ev) {
+      var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
+      setMsg('Lecture et classement…'); setRapport(null);
+      lireFichierExercices(f).then(function (lignes) {
+        var r = preparerAjouts(lignes, BASE);
+        if (!r.ajouts.length) { setMsg(r.doublons.length ? 'Aucun nouvel exercice : les ' + r.doublons.length + ' exercices du fichier sont déjà dans la base.' : 'Aucun exercice reconnu dans ce fichier (il faut au moins une colonne « Nom »).'); return; }
+        setMsg(''); setRapport(r);
+      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx ou .csv avec une colonne « Nom ».'); });
+    }
+    function enregistrer() {
+      Stockage.lire(CLE_AJOUTS).then(function (anciens) {
+        var tout = (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts);
+        return Stockage.ecrire(CLE_AJOUTS, tout);
+      }).then(function (ok) {
+        if (!ok) { setMsg('Enregistrement impossible sur cet appareil.'); return; }
+        setMsg(rapport.ajouts.length + ' exercices ajoutés.'); setTimeout(function () { location.reload(); }, 700);
+      });
+    }
+    function exporter() {
+      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; return c; });
+      enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
+    }
+    function retirer() {
+      if (!window.confirm('Retirer les ' + nbAjouts + ' exercices ajoutés depuis l\'app sur cet appareil ?')) return;
+      Stockage.ecrire(CLE_AJOUTS, []).then(function () { location.reload(); });
+    }
+    var compte = function (prop) {
+      var c = {}; (rapport ? rapport.ajouts : []).forEach(function (e) { [].concat(e[prop]).forEach(function (v) { if (v) c[v] = (c[v] || 0) + 1; }); });
+      return Object.keys(c).map(function (k) { return k + ' : ' + c[k]; }).join(' · ');
+    };
+    return h('section', { className: 'gestion' },
+      h('h2', null, 'Ajouter des exercices'),
+      h('p', null, 'Choisissez un fichier (.json, .xlsx ou .csv). L\'app range chaque exercice (espace, catégorie d\'âge, moment, catégorie, grade) et crée les formes enfants quand c\'est possible (sans sutemi ni kansetsu, kumi-kata manche-revers).'),
+      h('div', { className: 'gestion-actions' },
+        h('label', { className: 'btn pr-restaurer' }, h('input', { type: 'file', accept: '.json,.xlsx,.xls,.csv', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices' }), 'Choisir un fichier'),
+        h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
+        nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
+      msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
+      rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
+        h('strong', null, rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '')),
+        h('ul', null,
+          h('li', null, 'Espaces — ' + compte('public')),
+          h('li', null, 'Catégories d\'âge — ' + compte('sousGroupes')),
+          h('li', null, 'Moments — ' + compte('moment')),
+          h('li', null, 'Catégories — ' + compte('categorie')),
+          rapport.doublons.length ? h('li', null, rapport.doublons.length + ' déjà présents, ignorés') : null,
+          Object.keys(rapport.exclus).length ? h('li', null, 'Pas de forme enfants — ' + Object.keys(rapport.exclus).map(function (k) { return k + ' : ' + rapport.exclus[k]; }).join(' · ')) : null),
+        h('details', null, h('summary', null, 'Voir le détail'), h('ol', null, rapport.ajouts.map(function (e) {
+          return h('li', { key: e.id }, e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
+        }))),
+        h('div', { className: 'gestion-actions' },
+          h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, 'Enregistrer ces exercices'),
+          h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
+  }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
   function texteErreur(e) { return e ? String(e.message || e) + (e.stack ? '\n' + String(e.stack).split('\n').slice(0, 4).join('\n') : '') : ''; }
@@ -1802,6 +2098,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'La base est vide'),
           h('span', null, 'Les exercices arriveront avec la nouvelle structure. En attendant, vous pouvez voir la présentation avec quelques exemples.'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Voir avec des exemples')) : null,
+        h(GestionExercices, null),
         h('p', { className: 'version' }, 'Version du ' + VERSION_APP + ' · ' + BASE.length + ' exercices',
           BASE_LOCALE && BASE.length ? h(ImportBase, { discret: true, texte: 'Mettre à jour la base' }) : null)));
     }
@@ -1880,8 +2177,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       fiche ? h(Fiche, { e: fiche, espace: esp, fermer: function () { setOuverte(null); } }) : null));
   }
   function demarrer() { ReactDOM.createRoot(document.getElementById('app')).render(h(Garde, null, h(App))); }
-  if (BASE_LOCALE && !BASE.length) Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; demarrer(); }, demarrer);
-  else demarrer();
+  // Exercices ajoutés depuis l'app sur cet appareil : fusionnés avec la base au démarrage
+  function ajouterLocaux() {
+    return Stockage.lire(CLE_AJOUTS).then(function (a) {
+      if (!Array.isArray(a) || !a.length) return;
+      var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
+      BASE = BASE.concat(a.filter(function (e) { return e && !ids[e.id]; }).map(function (e) { return Object.assign({}, e, { ajoute: true }); }));
+    }).catch(function () {});
+  }
+  (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
+    .then(ajouterLocaux).then(demarrer, demarrer);
 })();
 </script>
 
