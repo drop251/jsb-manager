@@ -445,6 +445,31 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .cx-menu button { min-height: 44px; padding: 0 12px; border: none; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .cx-menu button:hover { background: var(--chip); }
 @media (prefers-reduced-motion: reduce) { .cx-points.erreur { animation: none; } }
+.gn-ouvrir { min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--c); background: var(--surface); color: var(--ct); font: inherit; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.gn-voile { position: fixed; inset: 0; z-index: 25; background: var(--voile); display: flex; align-items: flex-end; justify-content: center; }
+@media (min-width: 700px) { .gn-voile { align-items: center; } }
+.gn { width: min(560px, 100%); max-height: 92vh; max-height: 92dvh; overflow-y: auto; background: var(--surface); color: var(--ink); border-radius: 18px 18px 0 0;
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgba(0, 0, 0, .2); }
+@media (min-width: 700px) { .gn { border-radius: 18px; } }
+.gn-etape { display: flex; flex-direction: column; gap: 14px; }
+.gn h2 { margin: 0; font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size: 26px; line-height: 1.15; }
+.gn-num { margin: 0; font-size: 13px; font-weight: 600; color: var(--ct); }
+.gn-aide { margin: -6px 0 0; font-size: 14px; color: var(--muted); }
+.gn-progres { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.gn-progres i { height: 4px; border-radius: 2px; background: var(--line); }
+.gn-progres i.fait { background: var(--c); }
+.gn-choix { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.gn-choix.multi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.gn-option { min-height: 50px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.gn-option[aria-pressed="true"] { border-color: var(--c); background: var(--c); color: var(--on-c); }
+.gn-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.gn-phases { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.gn-phases > li { padding: 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.gn-ph-tete { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.gn-ph-tete small { color: var(--muted); font-size: 13px; }
+.gn-phases ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.gn-phases ul li { display: flex; flex-direction: column; padding-left: 10px; border-left: 3px solid var(--c); }
+.gn-phases ul li small { color: var(--muted); font-size: 13px; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1217,7 +1242,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 16h38';
+  var VERSION_APP = '13/10/2026 à 22h40';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1467,6 +1492,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s2 = React.useState({}), infos = s2[0], setInfos = s2[1];
     var s3 = React.useState({}), plan = s3[0], setPlan = s3[1];
     var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
+    // Séance proposée par le générateur : phases, durées et en-tête pré-remplis, puis ouverture
+    var jeton = p.genere && p.genere.jeton;
+    React.useEffect(function () { if (jeton) { setPlan(p.genere.plan || {}); setInfos(p.genere.infos || {}); setMsg(''); setOuvert(true); } }, [jeton]);
     var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace);
     var items = sel.ids.map(function (id) { return p.donnees.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
@@ -2377,6 +2405,143 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
         h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null);
   }
+  // ---- Générateur de séance en 5 questions : propose une séance par phases à partir de la base, puis la place dans « Ma séance ».
+  // Règles : exercices de la catégorie d'âge choisie uniquement (jamais ceux d'un autre âge), matériel disponible respecté,
+  // moments respectés (échauffement / corps / fin), thème et qualité physique privilégiés dans le corps de séance.
+  function hasard(graine) { var x = graine % 2147483647; if (x <= 0) x += 2147483646; return function () { x = x * 16807 % 2147483647; return (x - 1) / 2147483646; }; }
+  function melanger(t, r) { t = t.slice(); for (var i = t.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } return t; }
+  var DUREES = [45, 60, 75, 90];
+  var MOTS_RANDORI = /randori|kakari|combat|nage-komi|uchi-komi|kumi-kata|opposition|tachi-waza|ne-waza a theme|sortie/;
+  function sa(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function questionsDe(judo, tous) {
+    var compte = function (filtre) { return tous.filter(filtre).length; };
+    if (judo) return [
+      { k: 'groupe', titre: 'Pour quel groupe ?', choix: ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'] },
+      { k: 'duree', titre: 'Quelle durée ?', choix: DUREES.map(function (d) { return d + ' min'; }) },
+      { k: 'theme', titre: 'Quel thème technique ?', choix: ['Varié', 'Ukemi (chutes)', 'Ashi-waza', 'Koshi-waza', 'Te-waza', 'Ne-waza (Osaekomi-waza)', 'Renraku-waza (enchaînements)', 'Kumi-kata'] },
+      { k: 'qualite', titre: 'Quelle qualité physique travailler ?', choix: ['Variée', 'Force-Puissance', 'Pliométrie', 'Gainage', 'Cardio', 'Équilibre', 'Mobilité'] },
+      { k: 'materiel', titre: 'Quel matériel avez-vous ?', multi: true, aide: 'Tatami, judogi et partenaire sont toujours comptés.', choix: MATERIEL_JUDO }
+    ];
+    var eq = uniq([].concat.apply([], tous.map(function (e) { return (e.equipement || '').split(' + '); }))).filter(function (x) { return x && x !== 'Poids du corps'; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+    return [
+      { k: 'groupe', titre: 'Pour quel groupe ?', choix: ['Gym douce', 'Training'] },
+      { k: 'duree', titre: 'Quelle durée ?', choix: DUREES.map(function (d) { return d + ' min'; }) },
+      { k: 'niveau', titre: 'Quel niveau ?', choix: ['Débutant', 'Intermédiaire', 'Confirmé'] },
+      { k: 'qualite', titre: 'Quel objectif ?', choix: ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'] },
+      { k: 'materiel', titre: 'Quel matériel avez-vous ?', multi: true, aide: 'Le poids du corps est toujours compté.', choix: eq }
+    ];
+  }
+  function genererSeance(rep, judo, tous, graine) {
+    var r = hasard(graine), minutes = parseInt(rep.duree, 10) || 60, dispo = rep.materiel || [];
+    var socle = judo ? ['Tatami', 'Judogi', 'Partenaire', 'Poids du corps'] : ['Poids du corps'];
+    var niv = { 'Débutant': 0, 'Intermédiaire': 1, 'Confirmé': 2, 'Expert': 2 };
+    var base = tous.filter(function (e) {
+      if (sg(e).indexOf(rep.groupe) < 0) return false;
+      if (!(e.equipement || '').split(' + ').every(function (x) { return !x || socle.indexOf(x) >= 0 || dispo.indexOf(x) >= 0; })) return false;
+      if (!judo && rep.niveau && e.niveau && niv[e.niveau] > niv[rep.niveau]) return false;
+      return true;
+    });
+    var phases = judo ? [['Mobilité', .10, 4], ['Échauffement', .15, 5], ['Corps de séance', .45, 7], ['Randori', .20, 10], ['Étirement', .10, 4]]
+      : [['Échauffement et mobilité', .20, 4], ['Corps de séance', .65, 6], ['Fin de séance', .15, 4]];
+    var pris = {}, resultat = [], manques = [];
+    function score(e) {
+      var s = r() * 1.5;
+      if (rep.theme && rep.theme !== 'Varié' && e.technique === rep.theme) s += 3;
+      if (rep.qualite && rep.qualite.indexOf('Vari') !== 0 && e.categorie === rep.qualite) s += 2.5;
+      return s;
+    }
+    function choisir(pool, n, diversifier) {
+      var tri = melanger(pool.filter(function (e) { return !pris[e.id]; }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
+      var out = [], parCat = {};
+      tri.forEach(function (e) {
+        if (out.length >= n) return;
+        if (diversifier && (parCat[e.categorie] || 0) >= Math.ceil(n / 2) && !(rep.qualite && e.categorie === rep.qualite)) return;
+        out.push(e); parCat[e.categorie] = (parCat[e.categorie] || 0) + 1; pris[e.id] = 1;
+      });
+      if (out.length < n) tri.forEach(function (e) { if (out.length < n && !pris[e.id]) { out.push(e); pris[e.id] = 1; } });
+      return out;
+    }
+    var mom = function (m) { return function (e) { return momentsDe(e).indexOf(m) >= 0; }; };
+    phases.forEach(function (ph, i) {
+      var min = Math.round(minutes * ph[1]), n = Math.max(1, Math.round(min / ph[2])), pool;
+      if (judo) {
+        if (i === 0) pool = base.filter(function (e) { return mom('Échauffement')(e) && e.categorie === 'Mobilité'; });
+        else if (i === 1) pool = base.filter(function (e) { return mom('Échauffement')(e) && e.categorie !== 'Mobilité'; });
+        else if (i === 2) pool = base.filter(mom('Corps de séance'));
+        else if (i === 3) pool = base.filter(function (e) { return mom('Corps de séance')(e) && (e.categorie === 'Cardio' || MOTS_RANDORI.test(sa(e.nom + ' ' + e.thematique))); });
+        else pool = base.filter(mom('Fin de séance'));
+        if (i === 1 && !pool.length) pool = base.filter(mom('Échauffement'));
+      } else {
+        pool = base.filter(mom(['Échauffement', 'Corps de séance', 'Fin de séance'][i]));
+      }
+      var ex = choisir(pool, n, i === 2 || (!judo && i === 1));
+      if (ex.length < n) manques.push(ph[0]);
+      var d = ex.length ? Math.max(2, Math.round(min / ex.length)) : 0;
+      resultat.push({ nom: ph[0], minutes: min, exercices: ex.map(function (e) { return { e: e, duree: d }; }) });
+    });
+    return { phases: resultat, manques: manques };
+  }
+
+  function Generateur(p) {
+    var judo = p.espace === 'Judo', Q = questionsDe(judo, p.donnees);
+    var s1 = React.useState(0), etape = s1[0], setEtape = s1[1];
+    var init = { groupe: p.sous || '', duree: '60 min', materiel: [] };
+    var s2 = React.useState(init), rep = s2[0], setRep = s2[1];
+    var s3 = React.useState(null), res = s3[0], setRes = s3[1];
+    var s4 = React.useState(Date.now() % 100000 + 1), graine = s4[0], setGraine = s4[1];
+    var q = Q[etape];
+    function repondre(v) {
+      var n = Object.assign({}, rep);
+      if (q.multi) { var t = n[q.k] || []; n[q.k] = t.indexOf(v) >= 0 ? t.filter(function (x) { return x !== v; }) : t.concat([v]); setRep(n); return; }
+      n[q.k] = v; setRep(n); setTimeout(function () { suivant(n); }, 120);
+    }
+    function suivant(n) { if (etape < Q.length - 1) setEtape(etape + 1); else setRes(genererSeance(n || rep, judo, p.donnees, graine)); }
+    function autre() { var g = graine + 7919; setGraine(g); setRes(genererSeance(rep, judo, p.donnees, g)); }
+    function valider() {
+      var ids = [], plan = {};
+      res.phases.forEach(function (ph, i) { ph.exercices.forEach(function (x) { ids.push(x.e.id); plan[x.e.id] = { phase: i, duree: String(x.duree) }; }); });
+      var ex = ids.length ? p.donnees.filter(function (e) { return e.id === ids[0]; })[0] : null;
+      var infos = { groupe: rep.groupe, duree: rep.duree, intensite: judo ? 'Modérée' : (rep.niveau === 'Débutant' ? 'Faible' : 'Modérée'),
+        thematique: rep.theme && rep.theme !== 'Varié' ? rep.theme : (rep.qualite && rep.qualite.indexOf('Vari') !== 0 ? rep.qualite : ''),
+        objectif: [rep.theme && rep.theme !== 'Varié' ? 'Thème : ' + rep.theme : '', rep.qualite && rep.qualite.indexOf('Vari') !== 0 ? (judo ? 'Qualité : ' : 'Objectif : ') + rep.qualite : ''].filter(Boolean).join(' · ') };
+      if (infos.objectif) infos._objectif = true;
+      if (judo && ex) infos.public = ex.categorieAge;
+      p.valider(ids, plan, infos);
+    }
+    var total = res ? res.phases.reduce(function (a, ph) { return a + ph.exercices.length; }, 0) : 0;
+    var contenu;
+    if (!res) {
+      contenu = h('div', { className: 'gn-etape' },
+        h('div', { className: 'gn-progres', 'aria-label': 'Question ' + (etape + 1) + ' sur ' + Q.length }, Q.map(function (x, i) { return h('i', { key: i, className: i <= etape ? 'fait' : '' }); })),
+        h('p', { className: 'gn-num' }, 'Question ' + (etape + 1) + ' sur ' + Q.length),
+        h('h2', null, q.titre), q.aide ? h('p', { className: 'gn-aide' }, q.aide) : null,
+        h('div', { className: 'gn-choix' + (q.multi ? ' multi' : '') }, q.choix.map(function (c) {
+          var on = q.multi ? (rep[q.k] || []).indexOf(c) >= 0 : rep[q.k] === c;
+          return h('button', { key: c, type: 'button', className: 'gn-option', 'aria-pressed': on, onClick: function () { repondre(c); } }, c);
+        })),
+        h('div', { className: 'gn-actions' },
+          etape ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setEtape(etape - 1); } }, 'Précédent') : h('button', { type: 'button', className: 'cs-btn', onClick: p.fermer }, 'Annuler'),
+          q.multi || rep[q.k] ? h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { suivant(); } }, etape === Q.length - 1 ? 'Générer la séance' : 'Suivant') : null));
+    } else {
+      contenu = h('div', { className: 'gn-etape' },
+        h('p', { className: 'gn-num' }, rep.groupe + ' · ' + rep.duree + (rep.theme && rep.theme !== 'Varié' ? ' · ' + rep.theme : '') + (rep.qualite && rep.qualite.indexOf('Vari') !== 0 ? ' · ' + rep.qualite : '')),
+        h('h2', null, 'Séance proposée'),
+        res.manques.length ? h('p', { className: 'gn-aide' }, 'Peu d\'exercices disponibles pour : ' + res.manques.join(', ') + '. Complétez dans « Ma séance » ou ajoutez du matériel.') : null,
+        h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
+          return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min')),
+            ph.exercices.length ? h('ul', null, ph.exercices.map(function (x) {
+              return h('li', { key: x.e.id }, h('span', null, x.e.nom), h('small', null, x.duree + ' min · ' + court(x.e.categorie)));
+            })) : h('p', { className: 'gn-aide' }, 'Aucun exercice disponible.'));
+        })),
+        h('div', { className: 'gn-actions' },
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setRes(null); setEtape(0); } }, 'Modifier les réponses'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: autre }, 'Autre proposition'),
+          h('button', { type: 'button', className: 'cs-btn plein', disabled: !total, onClick: valider }, 'Valider dans « Ma séance »')));
+    }
+    return ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: p.fermer },
+      h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
+        onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } }, contenu)), document.body);
+  }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
   function texteErreur(e) { return e ? String(e.message || e) + (e.stack ? '\n' + String(e.stack).split('\n').slice(0, 4).join('\n') : '') : ''; }
@@ -2413,6 +2578,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s4 = useState(false), demo = s4[0], setDemo = s4[1];
     var s5 = useState(false), tiroir = s5[0], setTiroir = s5[1];
     var s6 = useState('cat'), tri = s6[0], setTri = s6[1];
+    var s7 = useState(false), genOuvert = s7[0], setGenOuvert = s7[1];
+    var s8 = useState(null), genere = s8[0], setGenere = s8[1];
     var sel = useSelection(cle || 'accueil');
     // Glissement entre écrans : vers la gauche quand on avance (accueil > espace > catégorie), vers la droite quand on revient
     var profondeur = !cle ? 0 : f.sous ? 2 : 1, ecran = (cle || 'accueil') + '|' + (f.sous || '');
@@ -2524,7 +2691,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'barre' },
         h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher un exercice', placeholder: 'Rechercher un exercice', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
         nbFiltres || f.q ? h('button', { type: 'button', className: 'btn lien', onClick: function () { setF(Object.assign({}, VIDE, { sous: f.sous })); setTri('cat'); } }, 'Tout effacer') : null,
-        (cle === 'taiso' || cle === 'judo') ? h(PanierSeance, { sel: sel, donnees: tous, espace: esp.label }) : null,
+        (cle === 'taiso' || cle === 'judo') ? h('button', { type: 'button', className: 'gn-ouvrir', onClick: function () { setGenOuvert(true); } }, 'Générer une séance') : null,
+        (cle === 'taiso' || cle === 'judo') ? h(PanierSeance, { sel: sel, donnees: tous, espace: esp.label, genere: genere }) : null,
         h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' exercices' : ' exercice'))),
       h('div', { className: 'filtres' },
         h(Champ, { id: 'f-categorie', label: 'Catégorie', tous: 'Toutes', options: cats, value: f.cat, onChange: function (v) { maj('cat', v); } }),
@@ -2558,7 +2726,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       })) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
         h('span', null, tous.length ? 'Aucun exercice ne correspond à ce sous-groupe et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),
-      fiche ? h(Fiche, { e: fiche, espace: esp, fermer: function () { setOuverte(null); } }) : null)));
+      fiche ? h(Fiche, { e: fiche, espace: esp, fermer: function () { setOuverte(null); } }) : null,
+      genOuvert ? h(Generateur, { espace: esp.label, donnees: tous, sous: f.sous, fermer: function () { setGenOuvert(false); },
+        valider: function (ids, plan, infos) {
+          if (sel.ids.length && !window.confirm('Remplacer les ' + sel.ids.length + ' exercices déjà dans « Ma séance » par la séance générée ?')) return;
+          sel.set(ids); setGenere({ jeton: Date.now(), plan: plan, infos: infos }); setGenOuvert(false);
+        } }) : null)));
   }
   // Démarrage : base d'exercices, puis connexion (profil), puis exercices ajoutés du profil, puis l'app
   function Racine() {
