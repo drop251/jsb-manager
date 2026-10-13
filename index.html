@@ -86,6 +86,7 @@ h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(
 .version { margin: 28px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
 #maj-dispo { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 9998; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #12161D; color: #fff; font: 600 14px/1.35 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.3); }
 #maj-dispo button { margin-left: auto; min-height: 40px; padding: 0 14px; border-radius: 8px; border: 0; background: #fff; color: #12161D; font: 700 14px system-ui, sans-serif; }
+.plus-filtres { justify-self: start; align-self: flex-start; }
 .filtres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .filtres select { min-width: 0; width: 100%; }
 .tiroir { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); animation: monte .25s both; }
@@ -1008,7 +1009,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 13h15';
+  var VERSION_APP = '13/10/2026 à 13h33';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   function momentsDe(e) { return e.moment ? [e.moment] : []; }
   function court(c) { return (c || '').replace('Préparation judo – ', ''); }
@@ -1820,7 +1821,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var nivOpts = presents(tous, 'grade', ORDRE_NIV).concat(presents(tous, 'niveau', ORDRE_NIV)), grpOpts = presents(tous, 'groupeMusculaire', ['Haut du corps', 'Bas du corps', 'Core', 'Full body']);
     var fmtOpts = presents(tous, 'format', ['Solo', 'Binôme', 'Trio', 'Collectif']), momOpts = MOMENTS.filter(function (m) { return tous.some(function (e) { return momentsDe(e).indexOf(m) >= 0; }); }), techOpts = presents(tous, 'technique');
     var accOpts = presents(tous, 'accessibilite', ['Tous publics', 'Avec la variante douce', 'Publics entraînés uniquement']), inspOpts = presents(tous, 'inspiration');
-    var nbFiltres = ['cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length;
+    var nbPlus = judo ? ['fmt', 'tech'].filter(function (k) { return f[k]; }).length + f.dispo.length + (f.iso ? 1 : 0) + (f.uni ? 1 : 0) + (f.poly ? 1 : 0) + (tri !== 'cat' ? 1 : 0) : 0;
+    var nbFiltres = ['cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length + nbPlus;
     function bascule(x) { maj('dispo', f.dispo.indexOf(x) >= 0 ? f.dispo.filter(function (y) { return y !== x; }) : f.dispo.concat([x])); }
     var fiche = ouverte ? donnees.filter(function (e) { return e.id === ouverte; })[0] : null;
 
@@ -1833,14 +1835,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       })) : null,
       h('div', { className: 'barre' },
         h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher un exercice', placeholder: 'Rechercher un exercice', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
-        nbFiltres || f.q ? h('button', { type: 'button', className: 'btn lien', onClick: function () { setF(Object.assign({}, VIDE, { sous: f.sous })); } }, 'Tout effacer') : null,
+        nbFiltres || f.q ? h('button', { type: 'button', className: 'btn lien', onClick: function () { setF(Object.assign({}, VIDE, { sous: f.sous })); setTri('cat'); } }, 'Tout effacer') : null,
         (cle === 'taiso' || cle === 'judo') ? h(PanierSeance, { sel: sel, donnees: tous, espace: esp.label }) : null,
         h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' exercices' : ' exercice'))),
       h('div', { className: 'filtres' },
         h(Champ, { id: 'f-categorie', label: 'Catégorie', tous: 'Toutes', options: cats, value: f.cat, onChange: function (v) { maj('cat', v); } }),
         h(Champ, { id: 'f-niveau', label: judo ? 'Grade' : 'Niveau', tous: 'Tous', options: nivOpts, value: f.niv, onChange: function (v) { maj('niv', v); } }),
         !momOpts.length ? null : h(Champ, { id: 'f-moment', label: 'Moment', tous: 'Tous', options: momOpts, value: f.mom, onChange: function (v) { maj('mom', v); } })),
-      liste.length ? h('div', { className: 'grille', key: [cle, f.sous, f.cat, f.niv, f.mom].join('|') }, liste.map(function (e, i) {
+      judo ? h('button', { type: 'button', className: 'btn plus-filtres', 'aria-expanded': tiroir, onClick: function () { setTiroir(!tiroir); } }, (tiroir ? 'Moins de filtres' : 'Plus de filtres') + (nbPlus ? ' (' + nbPlus + ')' : '')) : null,
+      judo && tiroir ? h('div', { className: 'tiroir' },
+        h('div', { className: 'champs' },
+          !techOpts.length ? null : h(Champ, { id: 'f-technique', label: 'Technique préparée', tous: 'Toutes', options: techOpts, value: f.tech, onChange: function (v) { maj('tech', v); } }),
+          h(Champ, { id: 'f-format', label: 'Format', tous: 'Tous', options: fmtOpts, value: f.fmt, onChange: function (v) { maj('fmt', v); } }),
+          h(Champ, { id: 'f-tri', label: 'Trier par', options: [{ value: 'cat', label: 'Catégorie' }, { value: 'nom', label: 'Nom (A à Z)' }, { value: 'niv', label: 'Grade' }], value: tri, onChange: setTri })),
+        h('div', { className: 'champ' }, h('span', { className: 'etiq' }, 'Type de travail'), h('div', { className: 'puces' },
+          [['iso', 'Isométriques'], ['uni', 'Unilatéraux'], ['poly', 'Poly-articulaires']].map(function (x) {
+            return h('button', { key: x[0], type: 'button', className: 'btn', 'aria-pressed': f[x[0]], onClick: function () { maj(x[0], !f[x[0]]); } }, x[1]);
+          }))),
+        h('div', { className: 'champ' }, h('span', { className: 'etiq' }, 'Matériel dont je dispose (en plus du tatami, du judogi et du partenaire)'),
+          h('div', { className: 'puces' }, eqs.map(function (x) {
+            return h('button', { key: x, type: 'button', className: 'btn', 'aria-pressed': f.dispo.indexOf(x) >= 0, onClick: function () { bascule(x); } }, x);
+          })))) : null,
+      liste.length ? h('div', { className: 'grille', key: [cle, f.sous, f.cat, f.niv, f.mom, f.tech, f.fmt, tri].join('|') }, liste.map(function (e, i) {
         var nv = niveauTexte(e, judo);
         return h('div', { key: e.id, className: 'carte-w anim', style: { '--i': Math.min(i, 12) } }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
           h('span', { className: 'carte-cat' }, court(e.categorie)),
