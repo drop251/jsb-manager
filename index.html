@@ -678,6 +678,10 @@ body { background: var(--bg); }
 .gn-choix.multi .gn-option::before { content: ""; flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--line); background: var(--surface); }
 .gn-choix.multi .gn-option[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 10%, var(--surface)); border-color: var(--c); color: var(--ink); }
 .gn-choix.multi .gn-option[aria-pressed="true"]::before { border-color: var(--c); background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.pr-mois { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; padding: 12px; border-radius: var(--r-carte); background: var(--surface); border: 1px solid var(--line); }
+.pr-mois .cs-champ { flex: 1 1 180px; }
+.pr-mois select { width: 100%; min-height: var(--h-ctrl); padding: 0 10px; border-radius: var(--r-ctrl); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
+.pr-mois .cs-btn { flex: 0 0 auto; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1450,7 +1454,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 14h36';
+  var VERSION_APP = '14/10/2026 à 19h01';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1944,7 +1948,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setN(d.judokas.length); }, function () {}); return function () { actif = false; }; }, []);
     return n == null ? '' : n + (n > 1 ? ' licenciés' : ' licencié');
   }
-  var JOURS_RAPPEL = 14;
+  var JOURS_RAPPEL = 30;  // sauvegarde complète conseillée une fois par mois
   function sauvegardeAncienne(d) { return d.judokas.length > 0 && (!d.sauvegardeLe || Date.now() - d.sauvegardeLe > JOURS_RAPPEL * 86400000); }
   function exporterSauvegarde(d, setMsg) {
     var contenu = { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances };
@@ -2022,7 +2026,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return { j: j, P: c.P, A: c.A, nb: nb, taux: nb ? Math.round(c.P * 100 / nb) : null };
     });
   }
-  function exporterExcel(donnees, setMsg) {
+  var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function moisTexte(m) { var p = m.split('-'); return MOIS[parseInt(p[1], 10) - 1] + ' ' + p[0]; }
+  // mois (« 2026-10 ») facultatif : n'exporte que les appels de ce mois-là
+  function exporterExcel(donnees0, setMsg, mois) {
+    var donnees = mois ? Object.assign({}, donnees0, { seances: donnees0.seances.filter(function (s) { return s.date.slice(0, 7) === mois; }) }) : donnees0;
     if (!window.XLSX) { setMsg("L'outil Excel n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
     var lib = { P: 'Présent', A: 'Absent' }, parId = {};
     donnees.judokas.forEach(function (j) { parId[j.id] = j; });
@@ -2044,7 +2052,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     seances.forEach(function (s) { Object.keys(s.statuts).forEach(function (id) { var j = parId[id]; if (j && lib[s.statuts[id]]) appels.push({ Date: s.date, Cours: s.groupe, 'Catégorie': catDe(j), 'N° de licence': j.licence || '', Nom: j.nom, 'Prénom': j.prenom, 'Date de naissance': j.naissance || '', Statut: lib[s.statuts[id]] }); }); });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(appels.length ? appels : [{ Date: '', Cours: '', 'Catégorie': '', 'N° de licence': '', Nom: '', 'Prénom': '', 'Date de naissance': '', Statut: '' }]), 'Appels');
     var data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    enregistrerFichier('presences-JSB-' + aujourdhui() + '.xlsx', new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), setMsg);
+    enregistrerFichier('presences-JSB-' + (mois || aujourdhui()) + '.xlsx', new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), setMsg);
   }
   function restaurerAppels(donnees, appels) {
     var code = { present: 'P', absent: 'A' }, d = { judokas: donnees.judokas.slice(), seances: donnees.seances.map(function (s) { return Object.assign({}, s, { statuts: Object.assign({}, s.statuts) }); }) }, n = 0;
@@ -2076,6 +2084,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s5 = React.useState(''), msg = s5[0], setMsg = s5[1];
     var s6 = React.useState(null), aConfirmer = s6[0], setAConfirmer = s6[1];
     var s7 = React.useState(null), selCours = s7[0], setSelCours = s7[1];
+    var s9 = React.useState(function () { return aujourdhui().slice(0, 7); }), moisSel = s9[0], setMoisSel = s9[1];
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'pr-aide', role: 'status' }, 'Chargement des présences…'));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
@@ -2152,7 +2161,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var importBtn = h('label', { className: 'pr-import pr-action' }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.json', onChange: importer }), 'Importer un classeur');
     var restaurerBtn = h('label', { className: 'pr-action pr-restaurer' }, h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
     var rappel = sauvegardeAncienne(donnees) ? h('div', { className: 'pr-rappel', role: 'status' },
-      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde complète le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à en refaire une.' : 'Aucune sauvegarde complète pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
+      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde complète le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à la sauvegarde du mois.' : 'Aucune sauvegarde complète pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
       h('button', { type: 'button', className: 'pr-rappel-btn', onClick: sauvegarder }, 'Sauvegarder')) : null;
     var confirmation = aConfirmer ? h('div', { className: 'pr-confirme', role: 'alertdialog', 'aria-label': 'Confirmation' },
       h('span', null, aConfirmer.texte),
@@ -2195,11 +2204,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             })));
         })));
     } else if (vue === 'bilan') {
+      var moisDispo = donnees.seances.map(function (x) { return x.date.slice(0, 7); }).concat([aujourdhui().slice(0, 7)]).filter(function (m, i, t) { return t.indexOf(m) === i; }).sort().reverse();
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
       var seancesG = donnees.seances.filter(function (s) { return s.groupe === g; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
       corps = h('div', { className: 'pr-bloc' },
         h('div', { className: 'pr-choix' }, choixCat('pr-groupe-b'),
           h('div', { className: 'pr-compte' }, nbS + (nbS > 1 ? ' séances enregistrées' : ' séance enregistrée'))),
+        h('div', { className: 'pr-mois' },
+          h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mois' }, 'Bilan du mois en Excel'),
+            h('select', { id: 'pr-mois', value: moisSel, onChange: function (ev) { setMoisSel(ev.target.value); } }, moisDispo.map(function (m) { return h('option', { key: m, value: m }, moisTexte(m) + ' (' + donnees.seances.filter(function (x) { return x.date.slice(0, 7) === m; }).length + ' appels)'); }))),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterExcel(donnees, setMsg, moisSel); } }, 'Exporter le mois')),
         h('div', { className: 'pr-tableau' }, h('table', null,
           h('thead', null, h('tr', null, [['Judoka', ''], ['Catégorie', 'pr-col-cat'], ['N° de licence', 'pr-col-lic'], ['Séances', 'num'], ['Présent', 'num'], ['Absent', 'num'], ['Taux', '']].map(function (t) { return h('th', { key: t[0], scope: 'col', className: t[1] }, t[0]); }))),
           h('tbody', null, lignes.map(function (b) {
