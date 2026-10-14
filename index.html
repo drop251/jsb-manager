@@ -809,6 +809,9 @@ body { background: var(--bg); }
 .sheet .illus-fiche .illus.perso { max-height: none; width: 100%; height: auto; border-radius: 12px; }
 .ia-image { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
 .ia-image input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.gestion-illus { margin: 6px 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.gestion-illus li { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.gestion-illus img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: #F7F8F4; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1581,7 +1584,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 21h44';
+  var VERSION_APP = '14/10/2026 à 22h38';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2624,14 +2627,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     f.critere = newaza ? 'Uke est contrôlé sans douleur' : 'Kuzushi visible avant l\'entrée ; Uke chute en sécurité, manche tenue';
     return { forme: f };
   }
+  // Illustration portée par une ligne du fichier : image (data:image/…) ou dessin SVG, sous plusieurs noms de colonne
+  var CHAMPS_ILLUS = ['image', 'illustration', 'photo', 'img', 'imagedata', 'visuel', 'schema', 'dessin'];
+  function illustrationDe(l) {
+    var k = {}; Object.keys(l || {}).forEach(function (c) { k[cle(c)] = l[c]; });
+    var r = { image: '', svg: '', lien: false };
+    CHAMPS_ILLUS.forEach(function (c) {
+      var v = k[c]; if (typeof v !== 'string' || !v) return; v = v.trim();
+      if (!r.image && /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(v)) r.image = v;
+      else if (!r.svg && v.indexOf('<svg') >= 0) { try { r.svg = nettoyerSvg(v); } catch (err) {} }
+      else if (!r.svg && /^data:image\/svg\+xml/i.test(v)) { try { var b = v.split(',').slice(1).join(','); r.svg = nettoyerSvg(/;base64/i.test(v.split(',')[0]) ? decodeURIComponent(escape(atob(b))) : decodeURIComponent(b)); } catch (err) {} }
+      else if (/^https?:\/\//i.test(v)) r.lien = true;
+    });
+    return r;
+  }
   function preparerAjouts(lignes, base) {
-    var deja = {}, maxId = 5000;
-    base.forEach(function (e) { deja[cle(e.nom) + '|' + (e.public || [])[0]] = 1; if (e.id >= 5001 && e.id <= 8999 && e.id > maxId) maxId = e.id; });
-    var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {} };
+    var deja = {}, maxId = 5000, parCle = {}, parNom = {}, parId = {};
+    base.forEach(function (e) { var k0 = cle(e.nom) + '|' + (e.public || [])[0]; deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
+      var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (e.id >= 5001 && e.id <= 8999 && e.id > maxId) maxId = e.id; });
+    var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0 };
     lignes.forEach(function (l) {
+      var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
       var e = classer(l); if (!e) { r.ignores++; return; }
       var k = cle(e.nom) + '|' + e.public[0];
-      if (deja[k]) { r.doublons.push(e.nom); return; }
+      if (deja[k]) {
+        r.doublons.push(e.nom);
+        // Exercice déjà dans la base : on garde seulement son illustration
+        var ex = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === cle(e.nom) ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
+        if (ex && (il.image || il.svg)) r.illustrations.push({ id: ex.id, nom: ex.nom, image: il.image, svg: il.svg });
+        return;
+      }
+      if (il.image) e.image = il.image;
+      if (il.svg) e.illustration = il.svg;
       deja[k] = 1; e.id = ++maxId; r.ajouts.push(e);
       var fe = formeEnfants(e);
       if (fe.forme && !deja[cle(fe.forme.nom) + '|Judo']) { fe.forme.id = ++maxId; deja[cle(fe.forme.nom) + '|Judo'] = 1; r.ajouts.push(fe.forme); r.formes++; }
@@ -2639,26 +2666,56 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     });
     return r;
   }
+  // Images choisies avec le fichier : rangées sur l'exercice dont elles portent le nom ou le numéro
+  function imagesParNom(fichiers, base) {
+    var parNom = {}, parId = {};
+    base.forEach(function (e) { parNom[cle(e.nom)] = parNom[cle(e.nom)] === undefined ? e : null; if (e.id) parId[e.id] = e; });
+    var res = { trouvees: [], sansExercice: [] };
+    return fichiers.reduce(function (pr, f) {
+      return pr.then(function () {
+        var nom = f.name.replace(/\.[a-z0-9]+$/i, ''), num = (nom.match(/^\s*#?(\d{4})(?!\d)/) || [])[1];
+        var e = (num && parId[Number(num)]) || parNom[cle(nom)] || parNom[cle(nom.replace(/^\s*#?\d{4}\s*[-_.]?\s*/, ''))];
+        if (!e) { res.sansExercice.push(f.name); return; }
+        if (/svg/i.test(f.type) || /\.svg$/i.test(f.name)) return f.text().then(function (t) { res.trouvees.push({ id: e.id, nom: e.nom, svg: nettoyerSvg(t) }); }).catch(function () { res.sansExercice.push(f.name); });
+        return reduireImage(f).then(function (d) { res.trouvees.push({ id: e.id, nom: e.nom, image: d }); }, function () { res.sansExercice.push(f.name); });
+      });
+    }, Promise.resolve()).then(function () { return res; });
+  }
   function GestionExercices(props) {
     var s1 = React.useState(null), rapport = s1[0], setRapport = s1[1];
     var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
     var nbAjouts = BASE.filter(function (e) { return e.ajoute; }).length;
     function choisir(ev) {
-      var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
+      var fs = Array.prototype.slice.call(ev.target.files || []); ev.target.value = ''; if (!fs.length) return;
       setMsg('Lecture et classement…'); setRapport(null);
-      lireFichierExercices(f).then(function (lignes) {
+      var imgs = fs.filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|svg)$/i.test(f.name); });
+      var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0; })[0];
+      (fichier ? lireFichierExercices(fichier) : Promise.resolve([])).then(function (lignes) {
         var r = preparerAjouts(lignes, BASE);
-        if (!r.ajouts.length) { setMsg(r.doublons.length ? 'Aucun nouvel exercice : les ' + r.doublons.length + ' exercices du fichier sont déjà dans la base.' : 'Aucun exercice reconnu dans ce fichier (il faut au moins une colonne « Nom »).'); return; }
-        setMsg(''); setRapport(r);
-      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx ou .csv avec une colonne « Nom ».'); });
+        return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
+          r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
+          if (!r.ajouts.length && !r.illustrations.length) {
+            setMsg(imgs.length && !fichier ? 'Aucune image reconnue : nommez chaque image comme l\'exercice (ex. « Planche ventrale sur avant-bras.png ») ou par son numéro (« 2073.jpg »).'
+              : r.doublons.length ? 'Aucun nouvel exercice ni illustration : les ' + r.doublons.length + ' exercices du fichier sont déjà dans la base' + (r.liens ? ' (' + r.liens + ' illustrations sont des liens internet, non intégrables : utilisez des images dans le fichier ou des fichiers image).' : ', et le fichier ne contient pas d\'illustration.') : 'Aucun exercice reconnu dans ce fichier (il faut au moins une colonne « Nom »).');
+            return;
+          }
+          setMsg(''); setRapport(r);
+        });
+      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx ou .csv avec une colonne « Nom », ou des images nommées comme les exercices.'); });
     }
     function enregistrer() {
-      Stockage.lire(CLE_AJOUTS).then(function (anciens) {
-        var tout = (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts);
-        return Stockage.ecrire(CLE_AJOUTS, tout);
+      var il = rapport.illustrations || [];
+      (rapport.ajouts.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
+        return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts));
+      }) : Promise.resolve(true)).then(function (ok) {
+        if (!ok || !il.length) return ok;
+        IMG_PERSO = Object.assign({}, IMG_PERSO); ILLUS_IA = Object.assign({}, ILLUS_IA);
+        il.forEach(function (x) { if (x.image) IMG_PERSO[x.id] = x.image; else if (x.svg) ILLUS_IA[x.id] = x.svg; });
+        return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA)]).then(function (t) { return t[0] && t[1]; });
       }).then(function (ok) {
         if (!ok) { setMsg('Enregistrement impossible sur cet appareil.'); return; }
-        setMsg(rapport.ajouts.length + ' exercices ajoutés.'); setTimeout(function () { location.reload(); }, 700);
+        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : ''].filter(Boolean).join(', ') + '.');
+        setTimeout(function () { location.reload(); }, 700);
       });
     }
     function exporter() {
@@ -2679,26 +2736,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('ul', { className: 'gestion-regles' },
         h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
-        h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.')),
+        h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
+        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.')),
       h('div', { className: 'gestion-actions' },
-        h('label', { className: 'btn pr-restaurer' }, h('input', { type: 'file', accept: '.json,.xlsx,.xls,.csv', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices' }), 'Choisir un fichier'),
+        h('label', { className: 'btn pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices ou des images' }), 'Choisir un fichier ou des images'),
         h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
-        h('strong', null, rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '')),
-        h('ul', null,
+        h('strong', null, [rapport.ajouts.length ? rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '') : '',
+          rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : ''].filter(Boolean).join(' · ')),
+        rapport.illustrations.length ? h('ol', { className: 'gestion-illus' }, rapport.illustrations.map(function (x) {
+          return h('li', { key: x.id }, h('img', { className: 'illus', src: x.image || urlSvg(x.svg), alt: '' }), x.nom);
+        })) : null,
+        (rapport.sansExercice || []).length ? h('p', { className: 'gestion-msg' }, 'Images sans exercice correspondant (renommez-les comme l\'exercice) : ' + rapport.sansExercice.join(', ')) : null,
+        rapport.liens ? h('p', { className: 'gestion-msg' }, rapport.liens + ' illustrations sont des liens internet : elles ne peuvent pas être intégrées (l\'app fonctionne hors ligne).') : null,
+        rapport.ajouts.length ? h('ul', null,
           h('li', null, 'Espaces — ' + compte('public')),
           h('li', null, 'Catégories d\'âge — ' + compte('sousGroupes')),
           h('li', null, 'Moments — ' + compte('moment')),
           h('li', null, 'Catégories — ' + compte('categorie')),
           rapport.doublons.length ? h('li', null, rapport.doublons.length + ' déjà présents, ignorés') : null,
-          Object.keys(rapport.exclus).length ? h('li', null, 'Pas de forme enfants — ' + Object.keys(rapport.exclus).map(function (k) { return k + ' : ' + rapport.exclus[k]; }).join(' · ')) : null),
-        h('details', null, h('summary', null, 'Voir le détail'), h('ol', null, rapport.ajouts.map(function (e) {
+          Object.keys(rapport.exclus).length ? h('li', null, 'Pas de forme enfants — ' + Object.keys(rapport.exclus).map(function (k) { return k + ' : ' + rapport.exclus[k]; }).join(' · ')) : null) : null,
+        rapport.ajouts.length ? h('details', null, h('summary', null, 'Voir le détail'), h('ol', null, rapport.ajouts.map(function (e) {
           return h('li', { key: e.id }, h(Illustration, { e: e, petit: true }), e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
-        }))),
+        }))) : null,
         h('div', { className: 'gestion-actions' },
-          h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, 'Enregistrer ces exercices'),
+          h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, rapport.ajouts.length ? 'Enregistrer' : 'Intégrer les illustrations'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
   }
   // ---- Connexion : profils d'éducateurs sur l'appareil (prénom, nom, club, code facultatif à 4 chiffres).
