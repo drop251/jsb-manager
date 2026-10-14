@@ -720,6 +720,42 @@ body { background: var(--bg); }
 }
 @media (prefers-reduced-motion: reduce) { .ile { animation: none; display: none; } .onglet-nav, .onglet-txt { transition: none; } }
 @media (max-width: 959px) { .onglets .onglet-nav:nth-child(2)[aria-current="page"], .onglets .onglet-nav:nth-child(5)[aria-current="page"] { background: #46577F; } }
+
+/* ===== Couleurs du logo partout (14/10/2026) : bleu nuit #1F2839, argent #B4B4B4, crème #F4F5EF.
+   Les sections ne se distinguent plus par la couleur mais par leur icône ; seuls le vert/rouge de l'appel
+   et les couleurs de ceinture restent, car ils portent un sens. ===== */
+:root {
+  --taiso: #1F2839; --judo: #1F2839; --suivi: #1F2839; --seance: #1F2839; --pres: #1F2839; --on-c: #F4F5EF;
+  --taiso-t: #1F2839; --judo-t: #1F2839; --suivi-t: #1F2839; --seance-t: #1F2839; --pres-t: #1F2839;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --taiso: #F4F5EF; --judo: #F4F5EF; --suivi: #F4F5EF; --seance: #F4F5EF; --pres: #F4F5EF; --on-c: #1F2839;
+  --taiso-t: #F4F5EF; --judo-t: #F4F5EF; --suivi-t: #F4F5EF; --seance-t: #F4F5EF; --pres-t: #F4F5EF; } }
+:root[data-theme="dark"] {
+  --taiso: #F4F5EF; --judo: #F4F5EF; --suivi: #F4F5EF; --seance: #F4F5EF; --pres: #F4F5EF; --on-c: #1F2839;
+  --taiso-t: #F4F5EF; --judo-t: #F4F5EF; --suivi-t: #F4F5EF; --seance-t: #F4F5EF; --pres-t: #F4F5EF; }
+/* Filet argent sous l'en-tête et sur les cartes au survol */
+.appbar::after { background: var(--argent); height: 2px; }
+.bloc::before { background: var(--argent); }
+.bloc-ico { background: color-mix(in srgb, var(--argent) 22%, var(--surface)); color: var(--ink); }
+.cx-avatar, .cx-avatar.petit { background: var(--argent); color: var(--nuit); }
+.appbar .cx-avatar.petit { background: var(--creme); color: var(--nuit); box-shadow: 0 0 0 2px var(--argent); }
+/* Barre d'onglets : capsule bleu nuit, onglet actif crème avec texte bleu nuit */
+@media (max-width: 959px) {
+  .onglet-nav[aria-current="page"], .onglets .onglet-nav:nth-child(2)[aria-current="page"], .onglets .onglet-nav:nth-child(5)[aria-current="page"] { background: var(--creme); color: var(--nuit); }
+  .onglet-nav[aria-current="page"] svg { color: var(--nuit); }
+  .onglets { box-shadow: 0 10px 30px rgba(15, 20, 30, .35), inset 0 0 0 1px rgba(180, 180, 180, .35); }
+}
+@media (min-width: 960px) { .onglet-nav[aria-current="page"] svg { color: var(--ink); } .onglet-nav[aria-current="page"]::after { background: var(--argent); } }
+/* Île : pastille noire, icône sur rond crème cerclé d'argent */
+.ile-ico { background: var(--creme); color: var(--nuit); box-shadow: 0 0 0 1.5px var(--argent); }
+/* Puces et boutons pleins : bleu nuit (crème en mode sombre) */
+.pr-puce small { background: color-mix(in srgb, var(--argent) 30%, var(--surface)); }
+.tuile-tete { color: var(--muted); }
+:root, .st { --st-on: var(--on-c); }
+.cs-ouvrir small { background: color-mix(in srgb, var(--on-c) 22%, transparent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gn-choix.multi .gn-option[aria-pressed="true"]::before { background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F2839' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; } }
+:root[data-theme="dark"] .gn-choix.multi .gn-option[aria-pressed="true"]::before { background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F2839' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1492,7 +1528,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 19h10';
+  var VERSION_APP = '14/10/2026 à 19h29';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {

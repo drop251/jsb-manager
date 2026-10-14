@@ -1,6 +1,6 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
-// a0279738c0 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-a0279738c0';
+// fb0ea2583f change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
+var CACHE = 'jsb-manager-fb0ea2583f';
 var FICHIERS = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
