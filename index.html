@@ -580,6 +580,104 @@ body { background: var(--bg); }
   padding: 12px 22px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line); }
 .sheet-ajout { width: 100%; min-height: 50px; border: none; border-radius: 12px; background: var(--c); color: var(--on-c); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 .sheet-ajout[aria-pressed="true"] { background: var(--chip); color: var(--ink); }
+
+/* ===== Harmonisation (14/10/2026) : mêmes hauteurs, rayons, tailles de texte partout ===== */
+:root { --h-ctrl: 44px; --h-mini: 36px; --r-ctrl: 10px; --r-carte: 12px; }
+.btn, .cs-btn, .gn-ouvrir, .cs-ouvrir { min-height: var(--h-ctrl); border-radius: var(--r-ctrl); font-size: 15px; }
+.cs-btn.mini { min-height: var(--h-mini); padding: 0 12px; font-size: 14px; }
+.cs-champ label, .cs-mini, .pr-etiq { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }
+.cs-champ input, .cs-champ select, .cs-champ textarea, .pr-choix select, .pr-choix input { min-height: var(--h-ctrl); border-radius: var(--r-ctrl); border: 1px solid var(--line); }
+.cs-vide strong { text-transform: none; font-size: 20px; }
+.cs-vide { border-width: 1px; padding: 28px 20px; gap: 10px; }
+
+/* ===== Présences ===== */
+.pr { gap: 12px; }
+.pr-barre { flex-direction: column; align-items: stretch; gap: 10px; }
+/* Onglets : contrôle segmenté, trois parts égales */
+.pr-onglets[role=tablist] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: var(--chip); }
+.pr-onglets[role=tablist] .pr-onglet { min-height: 40px; padding: 0 6px; border: none; border-radius: 9px; background: none; color: var(--muted); font-size: 15px; }
+.pr-onglets[role=tablist] .pr-onglet[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(31, 40, 57, .15); }
+/* Actions : grille de 4 boutons identiques */
+.pr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (min-width: 700px) { .pr-actions { grid-template-columns: repeat(4, 1fr); } }
+.pr-action { position: relative; display: flex; align-items: center; justify-content: center; min-height: var(--h-mini); padding: 0 10px; border-radius: var(--r-ctrl); border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; text-align: center; line-height: 1.2; cursor: pointer; overflow: hidden; }
+.pr-action:disabled { opacity: .45; cursor: default; }
+.pr-action input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pr-import.pr-action { min-height: var(--h-mini); border-width: 1px; }
+/* Rappel de sauvegarde : bandeau compact */
+.pr-rappel { padding: 10px 12px; border-radius: var(--r-carte); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+  font-size: 14px; font-weight: 500; gap: 10px; flex-wrap: nowrap; }
+.pr-rappel span { flex: 1; }
+.pr-rappel-btn { flex: none; min-height: var(--h-mini); padding: 0 12px; border-radius: var(--r-ctrl); border: none; background: var(--c); color: var(--on-c); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+/* Appel : cours en puces qui défilent, compteurs, liste */
+.pr-choix { gap: 10px; }
+.pr-puces { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; }
+.pr-puces::-webkit-scrollbar { display: none; }
+.pr-puce { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: var(--h-mini); padding: 0 12px; border-radius: 99px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.pr-puce small { min-width: 20px; padding: 0 6px; border-radius: 99px; background: var(--chip); color: var(--muted); font-size: 12px; text-align: center; }
+.pr-puce[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--on-c); }
+.pr-puce[aria-pressed="true"] small { background: rgba(255, 255, 255, .22); color: var(--on-c); }
+.pr-stats { flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pr-stat { display: flex; flex-direction: column; align-items: flex-start; padding: 8px 12px; border-radius: var(--r-carte); background: var(--surface); border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.pr-stat b { font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--ink); }
+.pr-stat.ok b { color: var(--ok-t); } .pr-stat.ko b { color: var(--ko-t); }
+.pr-choix > .cs-btn { flex: 1 1 100%; }
+.pr-liste { border-radius: var(--r-carte); }
+.pr-ligne { flex-wrap: nowrap; gap: 12px; padding: 10px 12px; min-height: 64px; }
+.pr-photo { width: 40px; height: 40px; border-radius: 50%; }
+.pr-photo.sans { font-family: var(--body); font-size: 14px; font-weight: 700; color: var(--ct); background: color-mix(in srgb, var(--c) 12%, var(--surface)); }
+.pr-ident { flex: 1 1 auto; gap: 3px; align-items: flex-start; }
+.pr-nomf { font-family: var(--body); font-size: 16px; font-weight: 700; letter-spacing: 0; line-height: 1.25; }
+.pr-nomf .pr-prenom { font-size: inherit; font-weight: 500; color: var(--ink); }
+.pr-cat { margin: 0; padding: 1px 8px; border-radius: 99px; background: var(--chip); color: var(--ct); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; vertical-align: 0; }
+.pr-statuts { flex: none; gap: 6px; }
+.pr-st { min-height: 0; min-width: 0; padding: 0; }
+.pr-rect { min-width: 0; width: 76px; height: var(--h-mini); padding: 0; border-radius: var(--r-ctrl); border: 1px solid var(--line) !important; background: var(--surface) !important;
+  color: var(--muted) !important; font-size: 14px; font-weight: 600; }
+.st-P[aria-pressed="true"] .pr-rect { background: #15803D !important; border-color: #15803D !important; color: #FFFFFF !important; }
+.st-A[aria-pressed="true"] .pr-rect { background: #B91C1C !important; border-color: #B91C1C !important; color: #FFFFFF !important; }
+@media (max-width: 360px) { .pr-rect { width: 64px; font-size: 13px; } }
+/* Licenciés : ligne en deux étages, commandes alignées */
+.pr-groupe .pr-ligne { flex-wrap: wrap; }
+.pr-groupe .pr-ident { flex: 1 1 calc(100% - 56px); }
+.pr-infos { font-size: 13px; }
+.pr-ctrl { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-left: 52px; }
+.pr-act { min-height: var(--h-mini); font-size: 14px; font-weight: 500; color: var(--ink); }
+.pr-act select { min-height: var(--h-mini); border-radius: var(--r-ctrl); border: 1px solid var(--line); }
+.pr-ctrl .cs-btn.mini, .pr-ctrl .pr-fichier { min-height: var(--h-mini); margin-left: 0; border-radius: var(--r-ctrl); border: 1px solid var(--line); font-size: 14px; }
+.pr-ctrl > .cs-btn.mini:last-child { margin-left: auto; }
+.pr-seances h3, .pr-groupe h3 { margin: 8px 0 8px; font-family: var(--display); font-size: 18px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.pr-groupe h3 small { font-size: 13px; text-align: right; }
+.pr-effacer { align-self: center; min-height: var(--h-mini); color: var(--ko-t); }
+/* Bilan */
+.pr-tableau { border-radius: var(--r-carte); }
+.pr-tableau table { min-width: 0; font-size: 14px; }
+.pr-tableau th, .pr-tableau td { padding: 9px 10px; }
+.pr-tableau thead th { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.pr-tableau .num { text-align: center; }
+.pr-tableau tbody th { font-weight: 600; }
+@media (max-width: 640px) { .pr-col-lic, .pr-col-cat { display: none; } .pr-jauge { width: 40px; } }
+.pr-seances li { padding: 8px 12px; border-radius: var(--r-carte); }
+/* Aide repliée */
+.pr-aide { font-size: 13px; color: var(--muted); }
+.pr-aide summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.pr-aide p { margin: 4px 0 0; }
+.pr-compte { font-size: 14px; }
+.pr-taux { white-space: nowrap; }
+.pr-seances h3, .pr-groupe h3 { flex-wrap: wrap; }
+.pr-ctrl .pr-autor { margin-right: auto; }
+.pr-ctrl > .cs-btn.mini:last-child { margin-left: 0; }
+/* Générateur : choix multiples compacts (cases cochées), choix simples à hauteur égale */
+.gn-option { min-height: var(--h-ctrl); border-radius: var(--r-ctrl); font-size: 15px; }
+.gn-choix.multi { grid-template-columns: 1fr; gap: 6px; }
+@media (min-width: 520px) { .gn-choix.multi { grid-template-columns: 1fr 1fr; } }
+.gn-choix.multi .gn-option { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 12px; font-size: 14px; font-weight: 500; line-height: 1.3; }
+.gn-choix.multi .gn-option::before { content: ""; flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--line); background: var(--surface); }
+.gn-choix.multi .gn-option[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 10%, var(--surface)); border-color: var(--c); color: var(--ink); }
+.gn-choix.multi .gn-option[aria-pressed="true"]::before { border-color: var(--c); background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1352,7 +1450,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 13h53';
+  var VERSION_APP = '14/10/2026 à 14h36';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2051,11 +2149,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('div', { className: 'cs-champ' }, h('label', { htmlFor: id }, 'Cours'),
         h('select', { id: id, value: g, onChange: function (ev) { setGroupe(ev.target.value); } }, groupes.map(function (x) { return h('option', { key: x, value: x }, x + ' (' + parCat[x].length + ')'); })));
     }
-    var importBtn = h('label', { className: 'pr-import' }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.json', onChange: importer }), 'Importer un classeur');
-    var restaurerBtn = h('label', { className: 'cs-btn pr-restaurer' }, h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
+    var importBtn = h('label', { className: 'pr-import pr-action' }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.json', onChange: importer }), 'Importer un classeur');
+    var restaurerBtn = h('label', { className: 'pr-action pr-restaurer' }, h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
     var rappel = sauvegardeAncienne(donnees) ? h('div', { className: 'pr-rappel', role: 'status' },
       h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde complète le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à en refaire une.' : 'Aucune sauvegarde complète pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
-      h('button', { type: 'button', className: 'cs-btn plein', onClick: sauvegarder }, 'Sauvegarder maintenant')) : null;
+      h('button', { type: 'button', className: 'pr-rappel-btn', onClick: sauvegarder }, 'Sauvegarder')) : null;
     var confirmation = aConfirmer ? h('div', { className: 'pr-confirme', role: 'alertdialog', 'aria-label': 'Confirmation' },
       h('span', null, aConfirmer.texte),
       h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { aConfirmer.action(); setAConfirmer(null); } }, 'Confirmer'),
@@ -2065,13 +2163,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
       h('div', { className: 'pr-actions' }, importBtn,
-        h('button', { type: 'button', className: 'cs-btn', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
-        h('button', { type: 'button', className: 'cs-btn', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde complète'), restaurerBtn));
-    var aide = h('p', { className: 'pr-aide' }, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde complète » (fichier .json, photos comprises) se restaure avec « Restaurer une sauvegarde » ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.');
+        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
+        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde complète'), restaurerBtn));
+    var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde complète » (fichier .json, photos comprises) se restaure avec « Restaurer une sauvegarde » ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     if (!donnees.judokas.length) {
       return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
-          h('span', null, 'Importez votre classeur de licenciés : une ligne par judoka, avec les colonnes Nom, Prénom, N° de licence et Date de naissance. Chaque judoka est rangé automatiquement dans son cours (Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes). Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso », et sa catégorie d\'âge s\'affiche sur sa fiche. Excel (.xlsx) ou .csv.'), importBtn), aide);
+          h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
+          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ».')), importBtn), aide);
     }
     var corps;
     if (vue === 'appel') {
@@ -2079,15 +2178,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'pr-choix' },
           h('div', { className: 'cs-champ pr-cours' }, h('span', { className: 'pr-etiq', id: 'pr-cours-titre' }, "Cours de l'appel : un ou plusieurs"),
             h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cours-titre' }, groupes.map(function (x) {
-              return h('button', { key: x, type: 'button', className: 'pr-onglet', 'aria-pressed': coursAppel.indexOf(x) >= 0, onClick: function () { basculeCours(x); } }, x + ' (' + parCat[x].length + ')');
+              return h('button', { key: x, type: 'button', className: 'pr-puce', 'aria-pressed': coursAppel.indexOf(x) >= 0, onClick: function () { basculeCours(x); } }, x, h('small', null, parCat[x].length));
             }))),
           h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-date' }, 'Date de la séance'), h('input', { id: 'pr-date', type: 'date', value: date, onChange: function (ev) { if (ev.target.value) setDate(ev.target.value); } })),
-          h('div', { className: 'pr-compte', 'aria-live': 'polite' }, compte.P + (compte.P > 1 ? ' présents · ' : ' présent · ') + compte.A + (compte.A > 1 ? ' absents · ' : ' absent · ') + (inscrits.length - compte.P - compte.A) + ' à noter'),
+          h('div', { className: 'pr-stats', 'aria-live': 'polite' },
+            h('span', { className: 'pr-stat ok' }, h('b', null, compte.P), compte.P > 1 ? 'présents' : 'présent'),
+            h('span', { className: 'pr-stat ko' }, h('b', null, compte.A), compte.A > 1 ? 'absents' : 'absent'),
+            h('span', { className: 'pr-stat' }, h('b', null, inscrits.length - compte.P - compte.A), 'à noter')),
           h('button', { type: 'button', className: 'cs-btn', onClick: function () { noter(inscrits.filter(function (it) { return !statutDe(it.j, it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Marquer les autres présents')),
         h('ul', { className: 'pr-liste' }, inscrits.map(function (it) {
           var j = it.j, st = statutDe(j, it.c);
           return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
-            h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, (j.nom || '').toUpperCase()), h('span', { className: 'pr-prenom' }, j.prenom, h('span', { className: 'pr-cat' }, catDe(j)))),
+            h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j))),
             h('div', { className: 'pr-statuts', role: 'group', 'aria-label': 'Appel de ' + nomComplet(j) }, STATUTS.map(function (s) {
               return h('button', { key: s[0], type: 'button', className: 'pr-st st-' + s[0], 'aria-pressed': st === s[0], 'aria-label': s[1] + ' : ' + nomComplet(j), onClick: function () { noter([[j.id, it.c]], s[0]); } }, h('span', { className: 'pr-rect' }, s[1]));
             })));
@@ -2099,9 +2201,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'pr-choix' }, choixCat('pr-groupe-b'),
           h('div', { className: 'pr-compte' }, nbS + (nbS > 1 ? ' séances enregistrées' : ' séance enregistrée'))),
         h('div', { className: 'pr-tableau' }, h('table', null,
-          h('thead', null, h('tr', null, ['Judoka', 'Catégorie', 'N° de licence', 'Séances', 'Présent', 'Absent', 'Taux'].map(function (t) { return h('th', { key: t, scope: 'col' }, t); }))),
+          h('thead', null, h('tr', null, [['Judoka', ''], ['Catégorie', 'pr-col-cat'], ['N° de licence', 'pr-col-lic'], ['Séances', 'num'], ['Présent', 'num'], ['Absent', 'num'], ['Taux', '']].map(function (t) { return h('th', { key: t[0], scope: 'col', className: t[1] }, t[0]); }))),
           h('tbody', null, lignes.map(function (b) {
-            return h('tr', { key: b.j.id }, h('th', { scope: 'row' }, nomComplet(b.j)), h('td', null, catDe(b.j)), h('td', null, b.j.licence || '–'), h('td', null, b.nb), h('td', null, b.P), h('td', null, b.A),
+            return h('tr', { key: b.j.id }, h('th', { scope: 'row' }, nomComplet(b.j)), h('td', { className: 'pr-col-cat' }, catDe(b.j)), h('td', { className: 'pr-col-lic' }, b.j.licence || '–'), h('td', { className: 'num' }, b.nb), h('td', { className: 'num' }, b.P), h('td', { className: 'num' }, b.A),
               h('td', null, b.taux == null ? '–' : h('span', { className: 'pr-taux' }, h('span', { className: 'pr-jauge', 'aria-hidden': 'true' }, h('span', { style: { width: b.taux + '%' } })), b.taux + ' %')));
           })))),
         seancesG.length ? h('div', { className: 'pr-seances' }, h('h3', null, 'Séances du cours'), h('ul', null, seancesG.map(function (s) {
@@ -2116,16 +2218,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return h('div', { key: x, className: 'pr-groupe' }, h('h3', null, x, h('small', null, js.length + (js.length > 1 ? ' judokas' : ' judoka') + (anneesCat(x) ? ' · ' + anneesCat(x) : ''))),
           h('ul', { className: 'pr-liste' }, js.map(function (j) {
             return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
-              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, (j.nom || '').toUpperCase()), h('span', { className: 'pr-prenom' }, j.prenom, h('span', { className: 'pr-cat' }, catDe(j))),
+              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)),
                 h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
+              h('div', { className: 'pr-ctrl' },
               peutTaiso(j) ? h('label', { className: 'pr-act' }, 'Activité', h('select', { value: j.activite || 'judo', 'aria-label': 'Activité de ' + nomComplet(j), onChange: function (ev) { activite(j, ev.target.value); } },
                 [['judo', 'Judo'], ['taiso', 'Taïso'], ['les deux', 'Judo + Taïso']].map(function (o) { return h('option', { key: o[0], value: o[0] }, o[1]); }))) : null,
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
               j.autorisationPhoto ? h('label', { className: 'cs-btn mini pr-fichier' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Photo de ' + nomComplet(j), onChange: function (ev) { photo(j, ev); } }), j.photo ? 'Changer la photo' : 'Ajouter une photo') : null,
               h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: 'Retirer ' + nomComplet(j) + ' de la liste ? Ses présences passées seront aussi effacées.', action: function () {
-                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }) }, 'Judoka retiré.'); } }); } }, 'Retirer'));
+                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }) }, 'Judoka retiré.'); } }); } }, 'Retirer')));
           })));
-      }), h('button', { type: 'button', className: 'cs-btn', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [] }, 'Tout a été effacé.'); } }); } }, 'Tout effacer'));
+      }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [] }, 'Tout a été effacé.'); } }); } }, 'Tout effacer'));
     }
     return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, corps, aide);
   }
