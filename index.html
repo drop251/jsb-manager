@@ -682,6 +682,44 @@ body { background: var(--bg); }
 .pr-mois .cs-champ { flex: 1 1 180px; }
 .pr-mois select { width: 100%; min-height: var(--h-ctrl); padding: 0 10px; border-radius: var(--r-ctrl); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
 .pr-mois .cs-btn { flex: 0 0 auto; }
+
+/* ===== Navigation « Dynamic Island » (14/10/2026) ===== */
+/* Glissement entre sections : l'écran arrive du côté de l'onglet choisi, avec un léger zoom */
+@keyframes entre-droite { from { transform: translateX(26%) scale(.985); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes entre-gauche { from { transform: translateX(-26%) scale(.985); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+.page.va-avant, .page.va-arriere { animation-duration: .46s; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+/* Île du haut : pastille noire qui s'élargit sur le nom de la section puis se referme */
+/* Sur iPhone (app installée) la pastille se pose exactement sur la Dynamic Island et s'élargit avec elle ; ailleurs, sous l'en-tête */
+.ile { position: fixed; z-index: 40; top: calc(70px - min(env(safe-area-inset-top, 0px), 1px) * 70 + max(env(safe-area-inset-top, 0px) - 48px, 0px)); height: 37px; left: 50%; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 7px;
+  border-radius: 99px; background: #000; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .28); white-space: nowrap; overflow: hidden; pointer-events: none;
+  transform: translateX(-50%); animation: ile 1.6s cubic-bezier(.22, 1, .36, 1) forwards; }
+.ile-ico { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c, #2148C0); color: #fff; }
+.ile-txt { font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+@keyframes ile {
+  0% { max-width: 36px; opacity: 0; transform: translateX(-50%) scale(.7); }
+  12% { opacity: 1; transform: translateX(-50%) scale(1); }
+  30% { max-width: 260px; }
+  78% { max-width: 260px; opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { max-width: 36px; opacity: 0; transform: translateX(-50%) scale(.85); }
+}
+/* Barre d'onglets flottante (téléphone) : capsule bleu nuit, l'onglet actif s'élargit et affiche son nom */
+@media (max-width: 959px) {
+  :root { --nav-h: 76px; }
+  .onglets { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding: 6px; gap: 4px; justify-content: stretch;
+    border: none; border-radius: 26px; background: var(--nuit); box-shadow: 0 10px 30px rgba(15, 20, 30, .35); }
+  .onglet-nav { flex: 1 1 0; max-width: none; min-height: 48px; flex-direction: row; gap: 6px; border-radius: 20px; color: rgba(244, 245, 239, .62);
+    transition: flex-grow .42s cubic-bezier(.22, 1, .36, 1), background-color .3s, color .3s; }
+  .onglet-nav svg { width: 22px; height: 22px; flex: none; }
+  .onglet-txt { max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; font-size: 13px; font-weight: 700; transition: max-width .42s cubic-bezier(.22, 1, .36, 1), opacity .25s; }
+  .onglet-nav[aria-current="page"] { flex-grow: 2.3; background: var(--c-nav, #3A4A72); color: #fff; }
+  .onglet-nav[aria-current="page"] svg { color: #fff; }
+  .onglet-nav[aria-current="page"] .onglet-txt { max-width: 90px; opacity: 1; }
+  .onglet-nav[aria-current="page"]::after { display: none; }
+  .onglet-nav:active { transform: scale(.94); }
+  #maj-dispo { bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { .ile { animation: none; display: none; } .onglet-nav, .onglet-txt { transition: none; } }
+@media (max-width: 959px) { .onglets .onglet-nav:nth-child(2)[aria-current="page"], .onglets .onglet-nav:nth-child(5)[aria-current="page"] { background: #46577F; } }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1454,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 19h01';
+  var VERSION_APP = '14/10/2026 à 19h10';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3142,12 +3180,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('small', null, esp ? (f.sous ? esp.label : (PROFIL && PROFIL.club) || 'Judo Sans Barrières') : (PROFIL && PROFIL.club) || 'Judo Sans Barrières')),
         h(MenuProfil, null));
     };
+    // Passage d'une section à l'autre par les onglets : glissement latéral dans le sens de la barre (Judo → Taïso vers la droite…)
+    function rangNav(k) { var i = NAV.map(function (o) { return o[0]; }).indexOf(k || ''); return i < 0 ? 2.5 : i; }
     var onglets = h('nav', { className: 'onglets', 'aria-label': 'Navigation principale' }, h('div', { className: 'onglets-marque', 'aria-hidden': 'true' }, h(Logo, { taille: 44 }), h('span', null, 'JSB Manager')), NAV.map(function (o) {
       var actif = (cle || '') === o[0], esp0 = ESPACES.filter(function (x) { return x.key === o[0]; })[0];
       return h('button', { key: o[2], type: 'button', className: 'onglet-nav', 'aria-current': actif ? 'page' : undefined, style: esp0 ? { '--c-nav': 'var(--' + esp0.couleur + ')' } : null,
-        onClick: function () { if (!actif || f.sous) aller(o[0] || null); } }, h(Icone, { nom: o[2] }), o[1]);
+        onClick: function () { if (!actif || f.sous) { if (!actif) memo.current.force = rangNav(o[0]) > rangNav(cle) ? 'va-avant' : 'va-arriere'; aller(o[0] || null); } } },
+        h(Icone, { nom: o[2] }), h('span', { className: 'onglet-txt' }, o[1]));
     }));
-    function cadre(main) { return h(React.Fragment, null, main, onglets); }
+    // « Île » façon Dynamic Island : pastille en haut de l'écran qui s'ouvre sur le nom de la section à chaque changement
+    var ile = memo.current.ile || (memo.current.ile = { cle: cle, n: 0 });
+    if (ile.cle !== cle) ile = memo.current.ile = { cle: cle, n: ile.n + 1 };
+    var espIle = ESPACES.filter(function (x) { return x.key === cle; })[0];
+    var ileEl = ile.n ? h('div', { key: 'ile' + ile.n, className: 'ile', 'aria-hidden': 'true', style: espIle ? teinte(espIle.couleur) : null },
+      h('span', { className: 'ile-ico' }, h(Icone, { nom: ICONES[cle] ? cle : 'accueil', taille: 16 })), h('span', { className: 'ile-txt' }, espIle ? espIle.label : 'Accueil')) : null;
+    function cadre(main) { return h(React.Fragment, null, main, ileEl, onglets); }
 
     if (!cle) {
       return cadre(h('main', glisse, h('div', { className: 'wrap' }, entete(null), bandeau,
