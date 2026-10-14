@@ -445,6 +445,9 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .cx-menu button { min-height: 44px; padding: 0 12px; border: none; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .cx-menu button:hover { background: var(--chip); }
 @media (prefers-reduced-motion: reduce) { .cx-points.erreur { animation: none; } }
+.cx-menu-ajout { border-bottom: 1px solid var(--line) !important; border-radius: 8px 8px 0 0 !important; margin-bottom: 4px; }
+.cx-gestion { display: flex; flex-direction: column; gap: 12px; }
+.cx-gestion .gestion { margin: 0; padding: 0; border: none; background: none; box-shadow: none; }
 .gn-ouvrir { min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--c); background: var(--surface); color: var(--ct); font: inherit; font-weight: 650; cursor: pointer; white-space: nowrap; }
 .gn-voile { position: fixed; inset: 0; z-index: 25; background: var(--voile); display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 700px) { .gn-voile { align-items: center; } }
@@ -479,10 +482,15 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .carte { position: relative; }
 .carte .illus.petit { position: absolute; right: 12px; bottom: 10px; width: 78px; height: 52px; padding: 4px; border-radius: 8px; background: var(--chip); }
 .carte-pied { padding-right: 92px; }
-.sheet .illus-fiche { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--chip); }
+.sheet .illus-fiche { flex: none; margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--chip); }
 .sheet .illus-fiche .illus { max-height: 150px; }
 .gestion-rapport ol li { display: flex; align-items: center; gap: 10px; }
 .gestion-rapport ol li .illus { flex: none; width: 60px; height: 40px; padding: 3px; border-radius: 6px; background: var(--surface); }
+.illus.photo { object-fit: cover; aspect-ratio: 4 / 3; }
+.carte .illus.photo.petit { padding: 0; width: 80px; height: 60px; }
+.sheet .illus-fiche:has(.photo) { padding: 0; overflow: hidden; display: flex; justify-content: center; background: var(--chip); }
+.sheet .illus-fiche .illus.photo { max-height: none; width: 100%; height: auto; max-width: 360px; border-radius: 12px; }
+.gestion-rapport ol li .illus.photo { padding: 0; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1255,7 +1263,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 13h03';
+  var VERSION_APP = '14/10/2026 à 13h24';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2157,6 +2165,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       inspiration: x.inspiration ? String(x.inspiration).split(',')[0] : 'Ajouté depuis l\'app', groupeMusculaire: x.groupeMusculaire || '',
       isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
     };
+    if (/^data:image\//.test(brut.image || '')) e.image = brut.image;
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
@@ -2411,13 +2420,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Menu du profil dans la barre du haut : nom, club, verrouiller, changer de profil
   function MenuProfil() {
     var s = React.useState(false), ouvert = s[0], setOuvert = s[1];
+    var g = React.useState(false), gestion = g[0], setGestion = g[1];
     if (!PROFIL) return null;
+    var fenetre = gestion ? ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: function () { setGestion(false); } },
+      h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Ajouter des exercices', onClick: function (ev) { ev.stopPropagation(); },
+        onKeyDown: function (ev) { if (ev.key === 'Escape') setGestion(false); } },
+        h('button', { type: 'button', className: 'btn', style: { alignSelf: 'flex-start' }, onClick: function () { setGestion(false); } }, 'Fermer'),
+        h(GestionExercices, null))), document.body) : null;
     return h('div', { className: 'cx-menu-w' },
       h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
         h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), h('small', null, PROFIL.club || 'Club non renseigné')),
+        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
         PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
-        h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null);
+        h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null, fenetre);
   }
   // ---- Générateur de séance en 5 questions (trame de Girma) :
   // 1. Mobilité : routine toujours la même, choisie une fois et gardée (par profil), modifiable
@@ -2680,6 +2696,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
   function Illustration(p) {
+    if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', width: 200, height: 150 });
     var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
     var deco = [];
     if (P.deco === 'saut') deco.push(h('line', { key: 'd1', x1: 48, y1: 68, x2: 72, y2: 68, stroke: gris, strokeWidth: 2, strokeDasharray: '3 4', strokeLinecap: 'round' }));
@@ -2813,7 +2830,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'La base est vide'),
           h('span', null, 'Les exercices arriveront avec la nouvelle structure. En attendant, vous pouvez voir la présentation avec quelques exemples.'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Voir avec des exemples')) : null,
-        h(GestionExercices, null),
         h('p', { className: 'version' }, 'Version du ' + VERSION_APP + ' · ' + BASE.length + ' exercices',
           BASE_LOCALE && BASE.length ? h(ImportBase, { discret: true, texte: 'Mettre à jour la base' }) : null))));
     }
