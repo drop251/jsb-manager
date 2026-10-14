@@ -448,6 +448,17 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .cx-menu-ajout { border-bottom: 1px solid var(--line) !important; border-radius: 8px 8px 0 0 !important; margin-bottom: 4px; }
 .cx-gestion { display: flex; flex-direction: column; gap: 12px; }
 .cx-gestion .gestion { margin: 0; padding: 0; border: none; background: none; box-shadow: none; }
+.cx-etape { margin: 0 0 -6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.cx-recap { margin: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.cx-recap > div { display: grid; grid-template-columns: minmax(120px, 40%) 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.cx-recap dt { font-size: 14px; color: var(--muted); }
+.cx-recap dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.cx-case { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--chip); font-size: 15px; line-height: 1.4; cursor: pointer; }
+.cx-case input { flex: none; width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--nuit, var(--ink)); }
+.cx-btn.plein:disabled { opacity: .45; cursor: not-allowed; }
+.cx-actions.colonne { flex-direction: column; align-items: stretch; }
+.cx-actions.colonne .cx-btn { width: 100%; min-height: 52px; font-size: 16px; }
+.cx-voir { align-self: center; margin-top: 4px; }
 .gn-ouvrir { min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--c); background: var(--surface); color: var(--ct); font: inherit; font-weight: 650; cursor: pointer; white-space: nowrap; }
 .gn-voile { position: fixed; inset: 0; z-index: 25; background: var(--voile); display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 700px) { .gn-voile { align-items: center; } }
@@ -1339,7 +1350,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 13h37';
+  var VERSION_APP = '14/10/2026 à 13h42';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2452,8 +2463,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   function Connexion(p) {
     var s1 = React.useState(lireProfils), profils = s1[0], setProfils = s1[1];
-    var s2 = React.useState(function () { var l = lireProfils(); if (!l.length) return { vue: 'creer' }; var a = null; try { a = localStorage.getItem(CLE_ACTIF); } catch (err) {} var x = l.filter(function (q) { return q.id === a; })[0]; return x ? { vue: 'code', id: x.id } : { vue: 'liste' }; }), etat = s2[0], setEtat = s2[1];
-    var s3 = React.useState({ prenom: '', nom: '', club: '', code: '', code2: '' }), form = s3[0], setForm = s3[1];
+    var s2 = React.useState(function () { var l = lireProfils(); if (!l.length) return { vue: 'choix' }; var a = null; try { a = localStorage.getItem(CLE_ACTIF); } catch (err) {} var x = l.filter(function (q) { return q.id === a; })[0]; return x ? { vue: 'code', id: x.id } : { vue: 'choix' }; }), etat = s2[0], setEtat = s2[1];
+    var s3 = React.useState({ prenom: '', nom: '', email: '', email2: '', club: '', code: '', code2: '', ok: false }), form = s3[0], setForm = s3[1];
     var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
     var s5 = React.useState(false), erreur = s5[0], setErreur = s5[1];
     var choisi = profils.filter(function (q) { return q.id === etat.id; })[0];
@@ -2461,12 +2472,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Profil sans code : ouverture directe
     React.useEffect(function () { if (etat.vue === 'code' && choisi && !choisi.code) entrer(choisi); }, [etat.vue, etat.id]);
     function maj(k, v) { var n = Object.assign({}, form); n[k] = v.replace && k.indexOf('code') === 0 ? v.replace(/\D/g, '').slice(0, 4) : v; setForm(n); }
-    function creer(ev) {
+    var MAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    // S'identifier : retrouver son profil sur cet appareil par l'adresse mail
+    function identifier(ev) {
+      ev.preventDefault();
+      var m = (form.email || '').trim().toLowerCase();
+      if (!MAIL.test(m)) { setMsg('Indiquez une adresse mail valide.'); return; }
+      var q = profils.filter(function (x) { return (x.email || '').toLowerCase() === m; })[0];
+      if (!q) { setMsg('Aucun profil avec cette adresse sur cet appareil. Créez votre profil.'); return; }
+      setMsg(''); setEtat({ vue: 'code', id: q.id });
+    }
+    function vers(vue) { setMsg(''); setForm({ prenom: '', nom: '', email: '', email2: '', club: '', code: '', code2: '', ok: false }); setEtat({ vue: vue }); }
+    // Étape 1 : contrôle du formulaire puis récapitulatif à confirmer
+    function controler(ev) {
       ev.preventDefault();
       if (!form.prenom.trim()) { setMsg('Indiquez votre prénom.'); return; }
+      if (!MAIL.test(form.email.trim())) { setMsg('Indiquez une adresse mail valide.'); return; }
+      if (form.email.trim().toLowerCase() !== form.email2.trim().toLowerCase()) { setMsg('Les deux adresses mail ne sont pas identiques.'); return; }
       if (form.code && form.code.length !== 4) { setMsg('Le code doit faire 4 chiffres, ou laissez-le vide.'); return; }
       if (form.code !== form.code2) { setMsg('Les deux codes ne sont pas identiques.'); return; }
-      var q = { id: Date.now().toString(36), prenom: form.prenom.trim(), nom: form.nom.trim(), club: form.club.trim(), cree: new Date().toISOString() };
+      setMsg(''); setForm(Object.assign({}, form, { ok: false })); setEtat({ vue: 'recap' });
+    }
+    // Étape 2 : création de l'espace après confirmation
+    function creer(ev) {
+      ev.preventDefault();
+      if (!form.ok) { setMsg('Cochez la case pour confirmer.'); return; }
+      var q = { id: Date.now().toString(36), prenom: form.prenom.trim(), nom: form.nom.trim(), email: form.email.trim().toLowerCase(), club: form.club.trim(), cree: new Date().toISOString() };
       (form.code ? hacher(q.id + ':' + form.code) : Promise.resolve('')).then(function (hc) {
         if (hc) q.code = hc;
         var l = profils.concat([q]);
@@ -2484,25 +2515,63 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!window.confirm('Supprimer le profil « ' + nomProfil(choisi) + ' » ? Ses licenciés, présences et séances enregistrés sur cet appareil ne seront plus accessibles.')) return;
       var l = profils.filter(function (q) { return q.id !== choisi.id; });
       if (profils[0].id === choisi.id && l.length) { setMsg('Le premier profil ne peut être supprimé tant que d\'autres profils existent.'); return; }
-      ecrireProfils(l); setProfils(l); setMsg(''); setEtat(l.length ? { vue: 'liste' } : { vue: 'creer' });
+      ecrireProfils(l); setProfils(l); setMsg(''); setEtat({ vue: 'choix' });
     }
     var marque = h('div', { className: 'cx-marque' }, h(Logo, { taille: 112, className: 'cx-logo' }), h('div', null, h('strong', null, 'JSB Manager'), h('small', null, 'Judo Sans Barrière · Progresser à sa manière')));
     var corps;
-    if (etat.vue === 'creer') {
-      corps = h('form', { className: 'cx-carte', onSubmit: creer },
+    if (etat.vue === 'choix') {
+      corps = h('div', { className: 'cx-carte cx-choix' },
+        h('h1', null, 'Bienvenue'),
+        h('p', { className: 'cx-intro' }, 'Connectez-vous à votre espace ou créez votre profil d\'éducateur. Vos licenciés, présences et séances restent sur cet appareil.'),
+        h('div', { className: 'cx-actions colonne' },
+          h('button', { type: 'button', className: 'cx-btn plein', onClick: function () { vers('identifier'); } }, 'S\'identifier'),
+          h('button', { type: 'button', className: 'cx-btn', onClick: function () { vers('creer'); } }, 'Créer un profil')),
+        profils.length ? h('button', { type: 'button', className: 'cx-lien cx-voir', onClick: function () { vers('liste'); } }, 'Profils de cet appareil (' + profils.length + ')') : null);
+    } else if (etat.vue === 'identifier') {
+      corps = h('form', { className: 'cx-carte', onSubmit: identifier },
+        h('h1', null, 'S\'identifier'),
+        h('p', { className: 'cx-intro' }, 'Saisissez l\'adresse mail de votre profil. Si un code protège votre espace, il vous sera demandé ensuite.'),
+        h('div', { className: 'cx-champs' },
+          h('label', { className: 'large' }, 'Adresse mail', h('input', { type: 'email', value: form.email, onChange: function (e) { maj('email', e.target.value); }, autoComplete: 'email', inputMode: 'email', required: true, autoFocus: true }))),
+        msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
+        h('div', { className: 'cx-actions' },
+          h('button', { type: 'submit', className: 'cx-btn plein' }, 'Continuer'),
+          h('button', { type: 'button', className: 'cx-btn', onClick: function () { vers('choix'); } }, 'Retour')),
+        h('button', { type: 'button', className: 'cx-lien cx-voir', onClick: function () { vers('creer'); } }, 'Pas encore de profil ? Créer un profil'));
+    } else if (etat.vue === 'creer') {
+      corps = h('form', { className: 'cx-carte', onSubmit: controler },
+        h('p', { className: 'cx-etape' }, 'Étape 1 sur 2 · Vos informations'),
         h('h1', null, profils.length ? 'Nouveau profil' : 'Bienvenue'),
         h('p', { className: 'cx-intro' }, profils.length ? 'Ce profil aura ses propres licenciés, présences et séances.' : 'Créez votre profil d\'éducateur. Vos licenciés, présences et séances restent sur cet appareil.'),
         h('div', { className: 'cx-champs' },
           h('label', null, 'Prénom', h('input', { value: form.prenom, onChange: function (e) { maj('prenom', e.target.value); }, autoComplete: 'given-name', required: true })),
           h('label', null, 'Nom', h('input', { value: form.nom, onChange: function (e) { maj('nom', e.target.value); }, autoComplete: 'family-name' })),
+          h('label', { className: 'large' }, 'Adresse mail', h('input', { type: 'email', value: form.email, onChange: function (e) { maj('email', e.target.value); }, autoComplete: 'email', inputMode: 'email', required: true, placeholder: 'prenom.nom@exemple.fr' })),
+          h('label', { className: 'large' }, 'Confirmer l\'adresse mail', h('input', { type: 'email', value: form.email2, onChange: function (e) { maj('email2', e.target.value); }, autoComplete: 'off', inputMode: 'email', required: true, onPaste: function (e) { e.preventDefault(); } })),
           h('label', { className: 'large' }, 'Club', h('input', { value: form.club, onChange: function (e) { maj('club', e.target.value); }, autoComplete: 'organization', placeholder: 'Nom du club' })),
           h('label', null, 'Code à 4 chiffres (facultatif)', h('input', { value: form.code, onChange: function (e) { maj('code', e.target.value); }, inputMode: 'numeric', type: 'password', autoComplete: 'new-password' })),
           h('label', null, 'Confirmer le code', h('input', { value: form.code2, onChange: function (e) { maj('code2', e.target.value); }, inputMode: 'numeric', type: 'password', autoComplete: 'new-password', disabled: !form.code }))),
         h('p', { className: 'cx-note' }, 'Le code verrouille l\'app à chaque ouverture. Il n\'est pas récupérable : en cas d\'oubli, le profil doit être supprimé.'),
         msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
         h('div', { className: 'cx-actions' },
-          h('button', { type: 'submit', className: 'cx-btn plein' }, 'Créer le profil'),
-          profils.length ? h('button', { type: 'button', className: 'cx-btn', onClick: function () { setMsg(''); setEtat({ vue: 'liste' }); } }, 'Annuler') : null));
+          h('button', { type: 'submit', className: 'cx-btn plein' }, 'Continuer'),
+          h('button', { type: 'button', className: 'cx-btn', onClick: function () { vers('choix'); } }, 'Annuler')));
+    } else if (etat.vue === 'recap') {
+      var ligne = function (t, v) { return h('div', null, h('dt', null, t), h('dd', null, v)); };
+      corps = h('form', { className: 'cx-carte', onSubmit: creer },
+        h('p', { className: 'cx-etape' }, 'Étape 2 sur 2 · Confirmation'),
+        h('h1', null, 'Vérifiez vos informations'),
+        h('dl', { className: 'cx-recap' },
+          ligne('Éducateur', [form.prenom.trim(), form.nom.trim()].filter(Boolean).join(' ')),
+          ligne('Adresse mail', form.email.trim().toLowerCase()),
+          ligne('Club', form.club.trim() || 'Non renseigné'),
+          ligne('Code de verrouillage', form.code ? 'Oui (4 chiffres)' : 'Aucun')),
+        h('label', { className: 'cx-case' }, h('input', { type: 'checkbox', checked: form.ok, onChange: function (e) { setForm(Object.assign({}, form, { ok: e.target.checked })); } }),
+          h('span', null, 'Je confirme ces informations. Mes licenciés, présences et séances restent sur cet appareil et ne sont pas partagés.')),
+        msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
+        h('div', { className: 'cx-actions' },
+          h('button', { type: 'submit', className: 'cx-btn plein', disabled: !form.ok }, 'Créer mon espace'),
+          h('button', { type: 'button', className: 'cx-btn', onClick: function () { setMsg(''); setEtat({ vue: 'creer' }); } }, 'Modifier')));
     } else if (etat.vue === 'code' && choisi && choisi.code) {
       corps = h('div', { className: 'cx-carte cx-centre' },
         h('span', { className: 'cx-avatar grand', 'aria-hidden': 'true' }, initiales(choisi)),
@@ -2511,7 +2580,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h(Clavier, { valider: verifier, erreur: erreur }),
         msg ? h('p', { className: 'cx-msg', role: 'alert' }, msg) : null,
         h('div', { className: 'cx-liens' },
-          h('button', { type: 'button', className: 'cx-lien', onClick: function () { setMsg(''); setEtat({ vue: 'liste' }); } }, 'Changer de profil'),
+          h('button', { type: 'button', className: 'cx-lien', onClick: function () { vers('choix'); } }, 'Changer de profil'),
           h('button', { type: 'button', className: 'cx-lien', onClick: supprimer }, 'Code oublié')));
     } else {
       corps = h('div', { className: 'cx-carte' },
@@ -2521,7 +2590,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('span', { className: 'cx-avatar', 'aria-hidden': 'true' }, initiales(q)),
             h('span', null, h('strong', null, nomProfil(q)), h('small', null, (q.club || 'Club non renseigné') + (q.code ? ' · protégé par un code' : '')))));
         })),
-        h('button', { type: 'button', className: 'cx-btn', onClick: function () { setForm({ prenom: '', nom: '', club: '', code: '', code2: '' }); setMsg(''); setEtat({ vue: 'creer' }); } }, 'Ajouter un profil'));
+        h('button', { type: 'button', className: 'cx-lien cx-voir', onClick: function () { vers('choix'); } }, 'Retour'),
+        h('button', { type: 'button', className: 'cx-btn', onClick: function () { setForm({ prenom: '', nom: '', email: '', email2: '', club: '', code: '', code2: '', ok: false }); setMsg(''); setEtat({ vue: 'creer' }); } }, 'Ajouter un profil'));
     }
     return h('main', { className: 'cx' }, h('div', { className: 'cx-in' }, marque, corps));
   }
@@ -2539,7 +2609,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('div', { className: 'cx-menu-w' },
       h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
-        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), h('small', null, PROFIL.club || 'Club non renseigné')),
+        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
         PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
         h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null, fenetre);
