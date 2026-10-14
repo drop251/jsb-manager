@@ -475,6 +475,14 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .gn-sous { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gn-durees { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .gn-durees .gn-option { min-height: 40px; padding: 6px; text-align: center; font-size: 14px; }
+.illus { display: block; width: 100%; height: auto; }
+.carte { position: relative; }
+.carte .illus.petit { position: absolute; right: 12px; bottom: 10px; width: 78px; height: 52px; padding: 4px; border-radius: 8px; background: var(--chip); }
+.carte-pied { padding-right: 92px; }
+.sheet .illus-fiche { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--chip); }
+.sheet .illus-fiche .illus { max-height: 150px; }
+.gestion-rapport ol li { display: flex; align-items: center; gap: 10px; }
+.gestion-rapport ol li .illus { flex: none; width: 60px; height: 40px; padding: 3px; border-radius: 6px; background: var(--surface); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1247,7 +1255,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '13/10/2026 à 22h46';
+  var VERSION_APP = '14/10/2026 à 13h03';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1320,6 +1328,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('button', { type: 'button', className: 'btn', style: { alignSelf: 'flex-start' }, onClick: p.fermer }, 'Fermer'),
         h('div', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
         h('h2', null, e.nom),
+        h('figure', { className: 'illus-fiche' }, h(Illustration, { e: e })),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1))) : null,
@@ -2270,7 +2279,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           rapport.doublons.length ? h('li', null, rapport.doublons.length + ' déjà présents, ignorés') : null,
           Object.keys(rapport.exclus).length ? h('li', null, 'Pas de forme enfants — ' + Object.keys(rapport.exclus).map(function (k) { return k + ' : ' + rapport.exclus[k]; }).join(' · ')) : null),
         h('details', null, h('summary', null, 'Voir le détail'), h('ol', null, rapport.ajouts.map(function (e) {
-          return h('li', { key: e.id }, e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
+          return h('li', { key: e.id }, h(Illustration, { e: e, petit: true }), e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
         }))),
         h('div', { className: 'gestion-actions' },
           h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, 'Enregistrer ces exercices'),
@@ -2598,6 +2607,105 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } }, contenu)), document.body);
   }
+  // ---- Illustration automatique de chaque exercice : schéma (figure en traits) choisi d'après le nom, la description,
+  // la catégorie et la technique ; matériel ajouté par-dessus (haie, échelle, cerceau, élastique, corde, ballon, kettlebell, step).
+  // Dessiné dans l'app : fonctionne hors ligne, aussi pour les exercices ajoutés depuis l'app.
+  // Chaque pose : t = traits de la personne (couleur de l'espace), u = traits du partenaire (gris), tete / teteU = têtes.
+  var POSES = {
+    debout: { tete: [60, 14], t: [[60, 20, 60, 44], [60, 44, 54, 72], [60, 44, 66, 72], [60, 26, 52, 43], [60, 26, 68, 43]] },
+    squat: { tete: [55, 28], t: [[55, 34, 50, 52], [50, 52, 66, 55], [66, 55, 63, 72], [50, 52, 62, 59], [62, 59, 58, 72], [55, 38, 76, 40], [55, 38, 76, 45]] },
+    fente: { tete: [60, 14], t: [[60, 20, 60, 45], [60, 45, 77, 52], [77, 52, 77, 72], [60, 45, 47, 63], [47, 63, 32, 70], [60, 26, 55, 43], [60, 26, 65, 43]] },
+    unipodal: { tete: [56, 12], t: [[56, 18, 58, 42], [58, 42, 58, 72], [58, 42, 71, 50], [71, 50, 68, 61], [56, 24, 38, 21], [56, 24, 74, 21]] },
+    saut: { tete: [60, 8], t: [[60, 14, 60, 36], [60, 36, 51, 49], [51, 49, 56, 58], [60, 36, 69, 49], [69, 49, 64, 58], [60, 18, 48, 4], [60, 18, 72, 4]], deco: 'saut' },
+    planche: { tete: [24, 50], t: [[30, 54, 68, 58], [68, 58, 102, 67], [33, 56, 35, 70], [35, 70, 48, 70]] },
+    lateral: { tete: [24, 38], t: [[29, 44, 102, 68], [33, 48, 33, 70], [33, 46, 33, 28]] },
+    pont: { tete: [18, 65], t: [[24, 66, 58, 50], [58, 50, 78, 54], [78, 54, 80, 71], [26, 67, 46, 71]] },
+    pompe: { tete: [26, 42], t: [[31, 46, 102, 65], [35, 48, 35, 71], [102, 65, 104, 71]] },
+    dos: { tete: [22, 64], t: [[28, 66, 80, 66], [80, 66, 106, 66], [36, 66, 52, 71]] },
+    quatre: { tete: [28, 40], t: [[34, 44, 76, 44], [40, 45, 40, 71], [76, 44, 76, 62], [76, 62, 96, 71]] },
+    assis: { tete: [47, 39], t: [[37, 66, 48, 45], [37, 66, 104, 68], [48, 49, 84, 62]] },
+    flexion: { tete: [45, 64], t: [[62, 44, 58, 72], [62, 44, 66, 72], [62, 44, 48, 59], [51, 58, 53, 72]] },
+    course: { tete: [63, 11], t: [[62, 17, 56, 40], [56, 40, 68, 50], [68, 50, 64, 63], [56, 40, 47, 53], [47, 53, 37, 51], [60, 23, 70, 31], [70, 31, 77, 25], [60, 23, 50, 31], [50, 31, 46, 40]], deco: 'vitesse' },
+    mobilite: { tete: [60, 14], t: [[60, 20, 60, 44], [60, 44, 54, 72], [60, 44, 66, 72], [60, 26, 46, 18], [60, 26, 74, 18]], deco: 'rotation' },
+    chute: { tete: [50, 49], t: [[54, 54, 72, 46], [72, 46, 88, 60], [88, 60, 100, 50], [54, 56, 44, 70]], deco: 'roulade' },
+    projection: { tete: [44, 22], t: [[45, 28, 54, 46], [54, 46, 47, 72], [54, 46, 63, 72], [47, 32, 66, 29], [47, 34, 64, 38]],
+      teteU: [62, 18], u: [[68, 22, 96, 16], [96, 16, 110, 8], [96, 16, 108, 22], [68, 24, 64, 33]], deco: 'projection' },
+    saisie: { tete: [42, 14], t: [[42, 20, 42, 44], [42, 44, 36, 72], [42, 44, 48, 72], [42, 26, 58, 30], [42, 28, 58, 36]],
+      teteU: [78, 14], u: [[78, 20, 78, 44], [78, 44, 72, 72], [78, 44, 84, 72], [78, 26, 62, 30], [78, 28, 62, 36]] },
+    sol: { tete: [58, 40], t: [[60, 46, 66, 60], [61, 50, 45, 63], [63, 50, 80, 63], [66, 60, 85, 70], [66, 60, 53, 70]],
+      teteU: [28, 64], u: [[34, 66, 98, 66]] }
+  };
+  var MOTS_POSE = [
+    ['sol', /gatame|osaekomi|immobilis|ne-waza|newaza|retournement|sortie d.immo|au sol a deux|kesa|shiho/],
+    ['chute', /ukemi|\bchutes?\b|roulade|kaiten|culbuto/],
+    ['dos', /\bebi\b|crevette/],
+    ['projection', /nage-komi|projection|projeter|fait chuter|faire chuter/],
+    ['saisie', /uchi-komi|tandoku|-goshi|-nage|-gari|-gake|-barai|-mata|-otoshi|seoi|placement de hanche|kumi-kata|tirer-pousser|tirage-poussee|saisie|garde|deseq|kuzushi|fauchage|entree|tori|uke/],
+    ['lateral', /planche laterale|gainage lateral|side plank|planche des adducteurs/],
+    ['planche', /planche|gainage ventral|gainage|hollow|position creuse|gaine/],
+    ['pont', /pont|bridge|releve de bassin|montees de bassin|fessier au sol/],
+    ['pompe', /pompe|push.?up|burpee/],
+    ['saut', /saut|bond|sauter|pliom|rebond|pogo|cloche-pied|ken-ken|haie/],
+    ['fente', /fente|lunge/],
+    ['squat', /squat|chaise|assis-debout|flexion de jambes|soulev|kettlebell|deadlift/],
+    ['unipodal', /unipodal|une jambe|un pied|flamant|equilibre|avion|arbre/],
+    ['quatre', /quatre pattes|quatre appuis|\bours\b|crabe|chat-vache|chat qui|quadrup|bear/],
+    ['dos', /allonge|sur le dos|respiration|savasana|relaxation|torsion couchee|decubitus|jambes au mur|bebe heureux/],
+    ['assis', /assis|pince|papillon|ecart|seated/],
+    ['flexion', /flexion avant|uttanasana|ischio|chien tete en bas/],
+    ['course', /course|courir|navette|montees de genoux|talons-fesses|pas chasses|deplacement|sprint|corde a sauter|jumping/],
+    ['mobilite', /mobilite|cercles|rotation|nuque|epaules|poignets|chevilles|hanches|routine/]
+  ];
+  var POSE_CAT = { 'Gainage': 'planche', 'Pliométrie': 'saut', 'Pliométrie (impact)': 'saut', 'Cardio': 'course', 'Force-Puissance': 'squat', 'Renforcement': 'squat',
+    'Équilibre': 'unipodal', 'Équilibre et coordination': 'unipodal', 'Mobilité': 'mobilite', 'Mobilité complémentaire': 'flexion', 'Mobilité articulaire (routine)': 'mobilite' };
+  function poseDe(e) {
+    // 1er passage sur le nom seul (le plus fiable), 2e sur le nom + la description.
+    var nom = sansAccent(e.nom || ''), t = sansAccent([e.nom, e.description, e.thematique].join(' '));
+    var nage = /waza/.test(e.technique || '') && !/Ne-waza|Préparation/.test(e.technique || '');
+    var binome = (nage || e.format === 'Binôme' || /tori|uke|partenaire|uchi-komi|nage-komi/.test(t)) && !/a vide|tandoku|seul|ombre/.test(nom);
+    var textes = [nom, t];
+    for (var j = 0; j < 2; j++) for (var i = 0; i < MOTS_POSE.length; i++) {
+      var k = MOTS_POSE[i][0];
+      if ((k === 'saisie' || k === 'projection') && !binome) continue;
+      if (MOTS_POSE[i][1].test(textes[j])) return k;
+    }
+    if (nage) return 'saisie';
+    return POSE_CAT[e.categorie] || 'debout';
+  }
+  function materielDe(e) {
+    var t = sansAccent((e.equipement || '') + ' ' + (e.materielDetail || '') + ' ' + e.nom), m = [];
+    [['haie', /haie/], ['echelle', /echelle/], ['cerceau', /cerceau/], ['elastique', /elastique/], ['corde', /corde a sauter|corde/], ['ballon', /ballon|medecine/], ['kettlebell', /kettlebell/], ['step', /step|marche|chaise/], ['baton', /baton/]]
+      .forEach(function (x) { if (x[1].test(t)) m.push(x[0]); });
+    return m.slice(0, 2);
+  }
+  function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
+  function Illustration(p) {
+    var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
+    var deco = [];
+    if (P.deco === 'saut') deco.push(h('line', { key: 'd1', x1: 48, y1: 68, x2: 72, y2: 68, stroke: gris, strokeWidth: 2, strokeDasharray: '3 4', strokeLinecap: 'round' }));
+    if (P.deco === 'vitesse') deco.push(h('path', { key: 'd2', d: 'M24 30h12M20 40h14M26 50h10', stroke: gris, strokeWidth: 2, strokeLinecap: 'round', fill: 'none' }));
+    if (P.deco === 'rotation') deco.push(h('path', { key: 'd3', d: 'M38 22a12 12 0 0 1 10-14M82 22a12 12 0 0 0-10-14', stroke: gris, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' }));
+    if (P.deco === 'roulade') deco.push(h('path', { key: 'd4', d: 'M44 34a26 26 0 0 1 50 4', stroke: gris, strokeWidth: 2, fill: 'none', strokeDasharray: '4 4', strokeLinecap: 'round' }));
+    if (P.deco === 'projection') deco.push(h('path', { key: 'd5', d: 'M106 30q8 18-4 34', stroke: gris, strokeWidth: 2, fill: 'none', strokeDasharray: '4 4', strokeLinecap: 'round' }));
+    var eq = [];
+    mat.forEach(function (m, i) {
+      var g = 'var(--muted)', s = { stroke: g, strokeWidth: 2.5, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+      if (m === 'haie') eq.push(h('path', Object.assign({ key: m, d: 'M86 72V58h16v14' }, s)));
+      if (m === 'echelle') eq.push(h('path', Object.assign({ key: m, d: 'M10 70h100M10 75h100M22 70v5M38 70v5M54 70v5M70 70v5M86 70v5M102 70v5' }, s, { strokeWidth: 1.5 })));
+      if (m === 'cerceau') eq.push(h('ellipse', Object.assign({ key: m, cx: 92, cy: 71, rx: 13, ry: 3.5 }, s)));
+      if (m === 'elastique') eq.push(h('path', Object.assign({ key: m, d: 'M76 42q10 6 20 0t16 6' }, s, { strokeWidth: 2 })));
+      if (m === 'corde') eq.push(h('path', Object.assign({ key: m, d: 'M47 6q-14 40 13 62q27-22 13-62' }, s, { strokeWidth: 1.5 })));
+      if (m === 'ballon') eq.push(h('circle', Object.assign({ key: m, cx: 84, cy: 34, r: 6 }, s)));
+      if (m === 'kettlebell') eq.push(h('path', Object.assign({ key: m, d: 'M72 60a6 6 0 1 0 0.1 0M69 55a3 3 0 0 1 6 0' }, s)));
+      if (m === 'step') eq.push(h('path', Object.assign({ key: m, d: 'M80 72v-8h28v8' }, s)));
+      if (m === 'baton') eq.push(h('line', { key: m, x1: 40, y1: 20, x2: 80, y2: 20, stroke: g, strokeWidth: 3, strokeLinecap: 'round' }));
+    });
+    return h('svg', { className: 'illus' + (p.petit ? ' petit' : ''), viewBox: '0 0 120 80', role: 'img', 'aria-label': 'Schéma : ' + e.nom },
+      h('line', { x1: 4, y1: 73, x2: 116, y2: 73, stroke: 'var(--line)', strokeWidth: 2 }),
+      deco, eq,
+      P.u ? traits(P.u, gris, w) : null, P.teteU ? h('circle', { cx: P.teteU[0], cy: P.teteU[1], r: 5.5, fill: gris }) : null,
+      traits(P.t, c, w), h('circle', { cx: P.tete[0], cy: P.tete[1], r: 5.5, fill: c }));
+  }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
   function texteErreur(e) { return e ? String(e.message || e) + (e.stack ? '\n' + String(e.stack).split('\n').slice(0, 4).join('\n') : '') : ''; }
@@ -2778,7 +2886,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             e.exemple ? h('span', { className: 'tag ex' }, 'Exemple') : null,
             nv ? h(Grade, { texte: nv }) : null,
             e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : null,
-            e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel }) : null);
+            e.pilote ? h('span', { className: 'tag' }, e.pilote) : null),
+          h(Illustration, { e: e, petit: true })), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel }) : null);
       })) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
         h('span', null, tous.length ? 'Aucun exercice ne correspond à ce sous-groupe et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),
