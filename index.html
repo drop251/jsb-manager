@@ -756,6 +756,45 @@ body { background: var(--bg); }
 .cs-ouvrir small { background: color-mix(in srgb, var(--on-c) 22%, transparent); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gn-choix.multi .gn-option[aria-pressed="true"]::before { background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F2839' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; } }
 :root[data-theme="dark"] .gn-choix.multi .gn-option[aria-pressed="true"]::before { background: var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F2839' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
+/* Assistant JSB (chatbot Claude) */
+.ch-ouvrir { position: fixed; z-index: 9; right: 16px; bottom: calc(var(--nav-h) + 22px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 50%;
+  border: none; display: grid; place-items: center; background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); cursor: pointer;
+  box-shadow: 0 8px 22px rgba(15, 20, 30, .35), inset 0 0 0 1.5px var(--argent, #B4B4B4); }
+.ch-ouvrir:active { transform: scale(.94); }
+@media (min-width: 960px) { .ch-ouvrir { bottom: 24px; right: 24px; } }
+.ch-voile { justify-content: center; align-items: flex-end; z-index: 30; }
+.ch { width: min(560px, 100%); height: min(88dvh, 760px); display: flex; flex-direction: column; background: var(--bg); color: var(--ink); border-radius: 20px 20px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); overflow: hidden; animation: monte .28s cubic-bezier(.22, 1, .36, 1) both; }
+@media (min-width: 700px) { .ch-voile { align-items: center; } .ch { border-radius: 20px; } }
+.ch-tete { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); }
+.ch-titre { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.ch-titre strong { font-size: 16px; }
+.ch-titre small { font-size: 12px; color: var(--argent, #B4B4B4); }
+.ch-tete .sheet-fermer { width: 40px; height: 40px; background: rgba(255, 255, 255, .1); color: var(--creme, #F4F5EF); }
+.ch-lien { border: none; background: none; color: var(--argent, #B4B4B4); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 8px; }
+.ch-fil { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+.ch-accueil p { margin: 0 0 12px; color: var(--muted); font-size: 15px; }
+.ch-sugg { display: flex; flex-direction: column; gap: 8px; }
+.ch-sugg button { min-height: 44px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.ch-msg { display: flex; }
+.ch-msg.moi { justify-content: flex-end; }
+.ch-texte { max-width: 86%; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ch-msg.moi .ch-texte { background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); border-bottom-right-radius: 4px; }
+.ch-msg.lui .ch-texte { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.ch-exo { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; padding: 0 8px; min-height: 24px; border-radius: 99px; border: 1px solid var(--argent, #B4B4B4);
+  background: var(--chip); color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; vertical-align: 1px; }
+.ch-exo[aria-pressed="true"] { background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); border-color: var(--nuit, #1F2839); }
+.ch-attente { display: inline-flex; gap: 5px; align-items: center; min-height: 22px; }
+.ch-attente i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: ch-point 1.2s infinite ease-in-out; }
+.ch-attente i:nth-child(2) { animation-delay: .15s; } .ch-attente i:nth-child(3) { animation-delay: .3s; }
+@keyframes ch-point { 0%, 80%, 100% { opacity: .25; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
+.ch-erreur { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--warn) 10%, var(--surface)); color: var(--ink); font-size: 14px; }
+.ch-saisie { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface); }
+.ch-saisie textarea { flex: 1; min-height: 44px; max-height: 140px; padding: 11px 14px; border-radius: 22px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; resize: none; }
+.ch-envoi { flex: none; width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); font-size: 20px; font-weight: 700; cursor: pointer; }
+.ch-envoi:disabled { opacity: .35; cursor: default; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ch-envoi, :root:not([data-theme="light"]) .ch-msg.moi .ch-texte { background: var(--creme, #F4F5EF); color: var(--nuit, #1F2839); } }
+@media (prefers-reduced-motion: reduce) { .ch, .ch-attente i { animation: none; } }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1528,7 +1567,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 19h29';
+  var VERSION_APP = '14/10/2026 à 19h40';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1701,6 +1740,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function lireSel() { try { return JSON.parse(localStorage.getItem(CLE_SEL)) || {}; } catch (err) { return {}; } }
   function useSelection(espace) {
     var s = React.useState(lireSel), tout = s[0], setTout = s[1];
+    // Ajout venu d'ailleurs (Assistant JSB) : relire la sélection enregistrée
+    React.useEffect(function () { function relire() { setTout(lireSel()); } window.addEventListener('jsb-sel', relire); return function () { window.removeEventListener('jsb-sel', relire); }; }, []);
     var ids = tout[espace] || [];
     function ecrire(n) { var t = Object.assign({}, tout); t[espace] = n; setTout(t); try { localStorage.setItem(CLE_SEL, JSON.stringify(t)); } catch (err) {} }
     function has(id) { return ids.indexOf(id) >= 0; }
@@ -3131,6 +3172,143 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       P.u ? traits(P.u, gris, w) : null, P.teteU ? h('circle', { cx: P.teteU[0], cy: P.teteU[1], r: 5.5, fill: gris }) : null,
       traits(P.t, c, w), h('circle', { cx: P.tete[0], cy: P.tete[1], r: 5.5, fill: c }));
   }
+  // ---- Assistant JSB : chatbot Claude (capacité « sample » de claude.ai).
+  // Disponible seulement quand l'app est ouverte dans claude.ai (window.claude) ; caché ailleurs (app installée, fichier).
+  // Claude ne reçoit QUE la question, l'écran en cours et des exercices de la base — jamais les licenciés ni les présences.
+  var REGLES_CHAT = [
+    'Tu es « Assistant JSB », l\'assistant de JSB Manager, l\'application de préparation de séances de Judo Sans Barrière (Girma Garnier, éducateur sportif judo, BPJEPS, Judo Club Aigrefeuille).',
+    'Réponds en français, de façon courte, concrète et bienveillante, comme un collègue éducateur expérimenté. Pas de tableau ; des listes courtes avec « • » si besoin, sans titres Markdown ni gras.',
+    'Domaines : judo (techniques, pédagogie par catégorie d\'âge, randori, ukemi), taïso (Gym douce, Training), préparation physique, organisation et contenu de séance, utilisation de l\'app.',
+    'Catégories d\'âge judo : Éveils (4-5 ans), Pré-poussins (6-7), Poussins (8-9), Benjamins (10-11), Adultes (12 ans et +). Règles enfants : pas de sutemi-waza, pas de kansetsu ni shime-waza, kumi-kata manche-revers uniquement.',
+    'Trame de séance judo : Mobilité, Échauffement, Corps de séance, Randori, Étirement. Taïso : Échauffement et mobilité, Corps de séance, Fin de séance.',
+    'Quand tu proposes des exercices, prends-les de préférence dans la base de l\'app (outil chercherExercices ou liste fournie) et cite chacun avec son identifiant entre crochets, exemple : Planche ventrale [#2073]. N\'invente jamais d\'identifiant.',
+    'Si l\'éducateur demande d\'ajouter des exercices à sa séance, utilise l\'outil ajouterASeance (s\'il est disponible) puis dis ce que tu as ajouté.',
+    'Sécurité : rappelle le point de vigilance quand c\'est utile ; pour une douleur, une blessure ou un problème de santé, oriente vers un professionnel de santé.',
+    'Utilisation de l\'app : onglets Accueil, Taïso, Judo, Séance (trame PDF), Présences (appel, bilan, export Excel du mois, sauvegarde complète mensuelle) ; « Générer une séance » en 5 questions ; « Ma séance » rassemble les exercices ajoutés ; ajout d\'exercices par le menu du profil.'
+  ].join('\n');
+  var SUGGESTIONS_CHAT = ['Un échauffement ludique pour des poussins', 'Séance taïso Gym douce de 45 min', 'Exercices de gainage sans matériel', 'Comment exporter le bilan du mois ?'];
+  function motsDe(t) { return sansAccent(t || '').split(/[^a-z0-9-]+/).filter(function (m) { return m.length > 2 && ['les', 'des', 'une', 'pour', 'avec', 'sans', 'dans', 'est', 'que', 'qui', 'mon', 'mes', 'son', 'ses', 'aux', 'par', 'sur', 'pas', 'moi', 'fais', 'donne', 'propose', 'quel', 'quels', 'quelle', 'comment', 'exercice', 'exercices', 'seance'].indexOf(m) < 0; }); }
+  function chercherDans(exos, texte, filtres, max) {
+    var mots = motsDe(texte), f = filtres || {};
+    var r = exos.filter(function (e) {
+      if (f.espace && (e.public || [])[0] !== f.espace) return false;
+      if (f.categorieAge && (e.sousGroupes || []).join(' ').indexOf(f.categorieAge) < 0) return false;
+      if (f.moment && e.moment !== f.moment) return false;
+      return true;
+    }).map(function (e) {
+      var t = sansAccent([e.nom, e.categorie, e.thematique, e.technique, e.equipement, (e.sousGroupes || []).join(' '), e.moment].join(' ')), s = 0;
+      mots.forEach(function (m) { if (t.indexOf(m) >= 0) s += sansAccent(e.nom).indexOf(m) >= 0 ? 3 : 1; });
+      return [s, e];
+    }).filter(function (x) { return !mots.length || x[0] > 0; }).sort(function (a, b) { return b[0] - a[0]; });
+    return r.slice(0, max || 12).map(function (x) { var e = x[1];
+      return { id: e.id, nom: e.nom, espace: (e.public || [])[0], groupes: (e.sousGroupes || []).join(', '), moment: e.moment, categorie: e.categorie,
+        materiel: e.equipement, dosage: e.dosage || '', resume: String(e.description || '').slice(0, 160) }; });
+  }
+  function ajouterSel(e) {
+    var esp = (e.public || [])[0] === 'Taïso' ? 'taiso' : 'judo', t = lireSel(), l = t[esp] || [];
+    if (l.indexOf(e.id) < 0) { t[esp] = l.concat([e.id]); try { localStorage.setItem(CLE_SEL, JSON.stringify(t)); } catch (err) {} window.dispatchEvent(new Event('jsb-sel')); }
+    return esp;
+  }
+  function TexteChat(p) {
+    // Les identifiants [#1234] cités par Claude deviennent des pastilles cliquables (ajout à « Ma séance »)
+    var morceaux = String(p.texte || '').split(/\[#(\d+)\]/);
+    return h('div', { className: 'ch-texte' }, morceaux.map(function (m, i) {
+      if (i % 2 === 0) return m;
+      var e = p.parId[m];
+      if (!e) return null;
+      var dans = (lireSel()[(e.public || [])[0] === 'Taïso' ? 'taiso' : 'judo'] || []).indexOf(e.id) >= 0;
+      return h('button', { key: i, type: 'button', className: 'ch-exo', 'aria-pressed': dans, title: dans ? 'Dans « Ma séance »' : 'Ajouter à « Ma séance »',
+        onClick: function () { ajouterSel(e); p.maj(); } }, dans ? '✓ Dans ma séance' : '+ Ajouter');
+    }));
+  }
+  function Chat(p) {
+    var s1 = React.useState(null), sample = s1[0], setSample = s1[1];
+    var s2 = React.useState(false), ouvert = s2[0], setOuvert = s2[1];
+    var s3 = React.useState([]), tours = s3[0], setTours = s3[1];
+    var s4 = React.useState(''), saisie = s4[0], setSaisie = s4[1];
+    var s5 = React.useState(null), enCours = s5[0], setEnCours = s5[1];   // { texte } pendant une réponse
+    var s6 = React.useState(''), erreur = s6[0], setErreur = s6[1];
+    var s7 = React.useState(0), rev = s7[0], setRev = s7[1];
+    var ctl = React.useRef(null), fil = React.useRef(null), outils = React.useRef(false);
+    React.useEffect(function () {
+      var actif = true;
+      if (window.claude && typeof window.claude.use === 'function') window.claude.use('sample').then(function (f) {
+        if (!actif || !f) return; setSample(function () { return f; });
+        if (f.limits) f.limits().then(function (l) { outils.current = !!(l && l.tools); }, function () {});
+      }, function () {});
+      return function () { actif = false; };
+    }, []);
+    React.useEffect(function () { if (fil.current) fil.current.scrollTop = fil.current.scrollHeight; }, [tours, enCours && enCours.texte, ouvert]);
+    if (!sample) return null;
+    var parId = {}; p.exos.forEach(function (e) { parId[e.id] = e; });
+    function envoyer(texte) {
+      texte = String(texte || '').trim(); if (!texte || enCours) return;
+      var esp = p.espace === 'taiso' ? 'Taïso' : p.espace === 'judo' ? 'Judo' : '';
+      var proches = chercherDans(p.exos, texte, esp ? { espace: esp } : null, 15);
+      var contexte = 'Écran ouvert : ' + (p.espace || 'accueil') + (p.sous ? ' / ' + p.sous : '') + '. Base : ' + p.exos.length + ' exercices.\n'
+        + (proches.length ? 'Exercices de la base proches de la question (JSON) :\n' + JSON.stringify(proches) : 'Aucun exercice proche trouvé par mots-clés.');
+      var nouveaux = tours.concat([{ role: 'user', content: texte }]);
+      var entree = [{ role: 'user', content: REGLES_CHAT + '\n\n' + contexte }].concat(nouveaux.slice(-12));
+      setTours(nouveaux); setSaisie(''); setErreur(''); setEnCours({ texte: '' });
+      ctl.current = new AbortController();
+      var opts = { cache: false, signal: ctl.current.signal, onText: function (u) { setEnCours({ texte: u.text }); } };
+      if (outils.current) {
+        delete opts.cache;
+        opts.tools = [
+          { name: 'chercherExercices', description: 'Cherche dans la base d\'exercices de l\'app. Renvoie jusqu\'à 12 exercices {id, nom, espace, groupes, moment, categorie, materiel, dosage, resume}.',
+            inputSchema: { type: 'object', properties: { texte: { type: 'string', description: 'mots-clés (ex. « gainage », « o-soto-gari », « mobilité épaules »)' },
+              espace: { type: 'string', enum: ['Judo', 'Taïso'] }, categorieAge: { type: 'string', description: 'Éveils, Pré-poussins, Poussins, Benjamins, Adultes, Gym douce ou Training' },
+              moment: { type: 'string', enum: ['Échauffement', 'Corps de séance', 'Fin de séance'] } }, required: ['texte'] },
+            execute: function (a) { return chercherDans(p.exos, String(a.texte || ''), { espace: a.espace ? String(a.espace) : '', categorieAge: a.categorieAge ? String(a.categorieAge) : '', moment: a.moment ? String(a.moment) : '' }, 12); } },
+          { name: 'ajouterASeance', description: 'Ajoute des exercices de la base à « Ma séance » de l\'éducateur (judo ou taïso selon l\'exercice). Renvoie la liste ajoutée. N\'utiliser que si l\'éducateur le demande.',
+            inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'number' } } }, required: ['ids'] },
+            execute: function (a) { var faits = []; [].concat(a.ids || []).forEach(function (id) { var e = parId[Number(id)]; if (e) { ajouterSel(e); faits.push(e.nom); } });
+              if (!faits.length) throw new Error('aucun identifiant connu'); setRev(function (n) { return n + 1; }); return { ajoutes: faits }; } }
+        ];
+      }
+      sample(entree, opts).then(function (r) {
+        setTours(nouveaux.concat([{ role: 'assistant', content: r.text + (r.truncated ? '\n(Réponse coupée : demandez moins à la fois.)' : '') }]));
+      }, function (e) {
+        var garde = e && e.text ? nouveaux.concat([{ role: 'assistant', content: e.text }]) : nouveaux;
+        setTours(garde);
+        var c = e && e.code;
+        if (c === 'cancelled') return;
+        setErreur(c === 'not_granted' || c === 'sampling_disabled' || c === 'not_declared' || c === 'capability_disabled' ? 'L\'assistant n\'est pas autorisé sur ce compte. Vous pouvez l\'autoriser dans les permissions de la page.'
+          : c === 'rate_limited' ? 'Trop de questions d\'un coup ou limite d\'usage atteinte : réessayez un peu plus tard.'
+          : c === 'session_expired' ? 'Session expirée : reconnectez-vous à claude.ai.'
+          : c === 'refused' ? 'Claude n\'a pas pu répondre à cette demande. Reformulez-la.'
+          : c === 'prompt_too_large' ? 'Conversation trop longue : effacez-la pour repartir.'
+          : 'La réponse a été interrompue. Réessayez.');
+      }).then(function () { setEnCours(null); ctl.current = null; });
+    }
+    var bouton = h('button', { type: 'button', className: 'ch-ouvrir', 'aria-label': 'Ouvrir l\'Assistant JSB', onClick: function () { setOuvert(true); } },
+      h('svg', { viewBox: '0 0 24 24', width: 26, height: 26, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
+        h('path', { d: 'M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z' }), h('path', { d: 'M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01' })));
+    if (!ouvert) return bouton;
+    return ReactDOM.createPortal(h('div', { className: 'voile ch-voile', onClick: function () { setOuvert(false); } },
+      h('section', { className: 'ch', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Assistant JSB', onClick: function (ev) { ev.stopPropagation(); },
+        onKeyDown: function (ev) { if (ev.key === 'Escape') setOuvert(false); } },
+        h('header', { className: 'ch-tete' },
+          h(Logo, { taille: 34 }),
+          h('div', { className: 'ch-titre' }, h('strong', null, 'Assistant JSB'), h('small', null, 'Propulsé par Claude · ne voit pas vos licenciés')),
+          tours.length ? h('button', { type: 'button', className: 'ch-lien', onClick: function () { if (ctl.current) ctl.current.abort(); setTours([]); setErreur(''); } }, 'Effacer') : null,
+          h('button', { type: 'button', className: 'sheet-fermer', 'aria-label': 'Fermer l\'assistant', onClick: function () { setOuvert(false); } },
+            h('svg', { viewBox: '0 0 24 24', width: 22, height: 22, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': 'true' }, h('path', { d: 'M6 6l12 12M18 6 6 18' })))),
+        h('div', { className: 'ch-fil', ref: fil, 'aria-live': 'polite' },
+          !tours.length ? h('div', { className: 'ch-accueil' },
+            h('p', null, 'Bonjour ! Je peux proposer des exercices de votre base, construire une séance, conseiller une progression ou expliquer l\'app.'),
+            h('div', { className: 'ch-sugg' }, SUGGESTIONS_CHAT.map(function (q) { return h('button', { key: q, type: 'button', onClick: function () { envoyer(q); } }, q); }))) : null,
+          tours.map(function (t, i) {
+            return h('div', { key: i, className: 'ch-msg ' + (t.role === 'user' ? 'moi' : 'lui') }, t.role === 'user' ? h('div', { className: 'ch-texte' }, t.content) : h(TexteChat, { texte: t.content, parId: parId, maj: function () { setRev(rev + 1); } }));
+          }),
+          enCours ? h('div', { className: 'ch-msg lui' }, enCours.texte ? h(TexteChat, { texte: enCours.texte, parId: parId, maj: function () { setRev(rev + 1); } }) : h('div', { className: 'ch-texte ch-attente' }, h('i'), h('i'), h('i'))) : null,
+          erreur ? h('p', { className: 'ch-erreur', role: 'alert' }, erreur) : null),
+        h('form', { className: 'ch-saisie', onSubmit: function (ev) { ev.preventDefault(); envoyer(saisie); } },
+          h('textarea', { value: saisie, rows: 1, placeholder: 'Votre question…', 'aria-label': 'Votre question', onChange: function (ev) { setSaisie(ev.target.value); },
+            onKeyDown: function (ev) { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); envoyer(saisie); } } }),
+          enCours ? h('button', { type: 'button', className: 'ch-envoi stop', 'aria-label': 'Arrêter la réponse', onClick: function () { if (ctl.current) ctl.current.abort(); } }, '■')
+            : h('button', { type: 'submit', className: 'ch-envoi', 'aria-label': 'Envoyer', disabled: !saisie.trim() }, '↑')))), document.body);
+  }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
   function texteErreur(e) { return e ? String(e.message || e) + (e.stack ? '\n' + String(e.stack).split('\n').slice(0, 4).join('\n') : '') : ''; }
@@ -3230,7 +3408,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var espIle = ESPACES.filter(function (x) { return x.key === cle; })[0];
     var ileEl = ile.n ? h('div', { key: 'ile' + ile.n, className: 'ile', 'aria-hidden': 'true', style: espIle ? teinte(espIle.couleur) : null },
       h('span', { className: 'ile-ico' }, h(Icone, { nom: ICONES[cle] ? cle : 'accueil', taille: 16 })), h('span', { className: 'ile-txt' }, espIle ? espIle.label : 'Accueil')) : null;
-    function cadre(main) { return h(React.Fragment, null, main, ileEl, onglets); }
+    function cadre(main) { return h(React.Fragment, null, main, ileEl, h(Chat, { exos: donnees, espace: cle, sous: f.sous }), onglets); }
 
     if (!cle) {
       return cadre(h('main', glisse, h('div', { className: 'wrap' }, entete(null), bandeau,
