@@ -1575,7 +1575,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 21h25';
+  var VERSION_APP = '14/10/2026 à 21h38';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3286,7 +3286,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         setTours(garde);
         var c = e && e.code;
         if (c === 'cancelled') return;
-        setErreur(c === 'not_granted' || c === 'sampling_disabled' || c === 'not_declared' || c === 'capability_disabled' ? 'L\'assistant n\'est pas autorisé sur ce compte. Vous pouvez l\'autoriser dans les permissions de la page.'
+        setErreur(REFUS_CLAUDE.indexOf(c) >= 0 ? 'refus'
           : c === 'rate_limited' ? 'Trop de questions d\'un coup ou limite d\'usage atteinte : réessayez un peu plus tard.'
           : c === 'session_expired' ? 'Session expirée : reconnectez-vous à claude.ai.'
           : c === 'refused' ? 'Claude n\'a pas pu répondre à cette demande. Reformulez-la.'
@@ -3315,7 +3315,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             return h('div', { key: i, className: 'ch-msg ' + (t.role === 'user' ? 'moi' : 'lui') }, t.role === 'user' ? h('div', { className: 'ch-texte' }, t.content) : h(TexteChat, { texte: t.content, parId: parId, maj: function () { setRev(rev + 1); } }));
           }),
           enCours ? h('div', { className: 'ch-msg lui' }, enCours.texte ? h(TexteChat, { texte: enCours.texte, parId: parId, maj: function () { setRev(rev + 1); } }) : h('div', { className: 'ch-texte ch-attente' }, h('i'), h('i'), h('i'))) : null,
-          erreur ? h('p', { className: 'ch-erreur', role: 'alert' }, erreur) : null),
+          erreur === 'refus' ? h('p', { className: 'ch-erreur', role: 'alert' }, 'Claude n\'est pas encore autorisé pour cette page. ',
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { autoriserClaude(setErreur); } }, 'Autoriser Claude')) : erreur ? h('p', { className: 'ch-erreur', role: 'alert' }, erreur) : null),
         h('form', { className: 'ch-saisie', onSubmit: function (ev) { ev.preventDefault(); envoyer(saisie); } },
           h('textarea', { value: saisie, rows: 1, placeholder: 'Votre question…', 'aria-label': 'Votre question', onChange: function (ev) { setSaisie(ev.target.value); },
             onKeyDown: function (ev) { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); envoyer(saisie); } } }),
@@ -3330,6 +3331,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function svgIA(e) {
     var s = ILLUS_IA[e.id] || e.illustration;
     return typeof s === 'string' && /^<svg[\s>]/.test(s) ? s : '';
+  }
+  // Autoriser Claude pour cette page : demande d'autorisation, ou panneau des autorisations si refusé
+  var REFUS_CLAUDE = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled'];
+  function autoriserClaude(setMsg) {
+    var aide = 'Ouvrez le menu de la page dans claude.ai (en haut à droite) › Autorisations, et activez Claude.';
+    if (!window.claude || !window.claude.use) { setMsg(aide); return; }
+    window.claude.use('permissions').then(function (perm) {
+      if (!perm) { setMsg(aide); return; }
+      return perm.state('sample').then(function (st) {
+        if (st === 'granted') { setMsg('Claude est autorisé : réessayez.'); return; }
+        if (st === 'prompt') return perm.request(['sample']).then(function (r) { setMsg(r.sample === 'granted' ? 'Claude est autorisé : réessayez.' : aide); });
+        if (st === 'unavailable') { setMsg('Claude n\'est pas disponible pour ce compte (réglage du compte ou de l\'organisation sur claude.ai).'); return; }
+        return perm.manage().then(function () { return perm.state('sample'); }).then(function (s2) { setMsg(s2 === 'granted' ? 'Claude est autorisé : réessayez.' : aide); }, function () { setMsg(aide); });
+      });
+    }, function () { setMsg(aide); });
   }
   function urlSvg(s) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }
   // Ne garde que du dessin : pas de script, d'objet étranger, de lien externe ni d'attribut d'événement
@@ -3391,7 +3407,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { setEtat(''); p.maj(); });
       }).catch(function (err) {
         var c = err && err.code;
-        setEtat(c === 'cancelled' ? '' : c === 'not_granted' || c === 'sampling_disabled' ? 'Claude n\'est pas autorisé pour cette page.' : c === 'rate_limited' ? 'Limite d\'usage atteinte : réessayez plus tard.'
+        setEtat(c === 'cancelled' ? '' : REFUS_CLAUDE.indexOf(c) >= 0 ? 'refus' : c === 'rate_limited' ? 'Limite d\'usage atteinte : réessayez plus tard.'
           : c ? 'Le dessin n\'a pas abouti. Réessayez.' : 'Le dessin reçu était illisible. Réessayez.');
       }).then(function () { ctl.current = null; });
     }
@@ -3401,7 +3417,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('div', { className: 'ia-barre' },
       h('button', { type: 'button', className: 'cs-btn mini ia-creer', onClick: creer }, existe ? 'Redessiner avec Claude' : 'Créer l\'illustration avec Claude'),
       existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
-      etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
+      etat === 'refus' ? h('span', { className: 'ia-msg', role: 'alert' }, 'Claude n\'est pas encore autorisé pour cette page. ',
+        h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { autoriserClaude(setEtat); } }, 'Autoriser Claude')) : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
