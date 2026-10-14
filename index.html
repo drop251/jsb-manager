@@ -795,6 +795,14 @@ body { background: var(--bg); }
 .ch-envoi:disabled { opacity: .35; cursor: default; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ch-envoi, :root:not([data-theme="light"]) .ch-msg.moi .ch-texte { background: var(--creme, #F4F5EF); color: var(--nuit, #1F2839); } }
 @media (prefers-reduced-motion: reduce) { .ch, .ch-attente i { animation: none; } }
+/* Illustration créée par Claude */
+.illus.ia { aspect-ratio: 16 / 9; object-fit: contain; background: #F7F8F4; }
+.carte .illus.ia.petit { padding: 0; object-fit: contain; background: #F7F8F4; }
+.sheet .illus-fiche:has(.ia) { padding: 0; overflow: hidden; background: #F7F8F4; }
+.sheet .illus-fiche .illus.ia { max-height: none; width: 100%; border-radius: 12px; }
+.ia-barre { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -6px; font-size: 14px; color: var(--muted); }
+.ia-creer::before { content: "✦ "; color: var(--ink); }
+.ia-msg { flex: 1 1 100%; color: var(--warn); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1567,7 +1575,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 19h40';
+  var VERSION_APP = '14/10/2026 à 21h25';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1634,6 +1642,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }));
   }
   function Fiche(p) {
+    var r0 = React.useState(0), rev = r0[0], setRev = r0[1];
     var e = p.e, judo = p.espace.key === 'judo';
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
@@ -1649,7 +1658,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           e.moment ? h('span', { className: 'pastille' }, e.moment) : null,
           e.format ? h('span', { className: 'pastille' }, e.format) : null,
           e.dosage ? h('span', { className: 'pastille' }, e.dosage) : null),
-        h('figure', { className: 'illus-fiche' }, h(Illustration, { e: e })),
+        h('figure', { className: 'illus-fiche' }, h(Illustration, { e: e, rev: rev })),
+        h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1))) : null,
@@ -2553,6 +2563,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
     };
     if (/^data:image\//.test(brut.image || '')) e.image = brut.image;
+    if (typeof brut.illustration === 'string' && brut.illustration.indexOf('<svg') >= 0) { try { e.illustration = nettoyerSvg(brut.illustration); } catch (err) {} }
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
@@ -2645,7 +2656,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
     }
     function exporter() {
-      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; return c; });
+      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
     }
     function retirer() {
@@ -3145,6 +3156,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
   function Illustration(p) {
+    var sIA = svgIA(p.e);
+    if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager' });
     if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', width: 200, height: 150 });
     var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
     var deco = [];
@@ -3308,6 +3321,87 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             onKeyDown: function (ev) { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); envoyer(saisie); } } }),
           enCours ? h('button', { type: 'button', className: 'ch-envoi stop', 'aria-label': 'Arrêter la réponse', onClick: function () { if (ctl.current) ctl.current.abort(); } }, '■')
             : h('button', { type: 'submit', className: 'ch-envoi', 'aria-label': 'Envoyer', disabled: !saisie.trim() }, '↑')))), document.body);
+  }
+  // ---- Illustration pédagogique créée par Claude (capacité « sample », seulement dans claude.ai).
+  // Claude dessine un SVG plat (titre + 2-3 vignettes) d'après la fiche ; le dessin est nettoyé puis gardé sur l'appareil
+  // (clé jsb-illustrations-ia), affiché partout ensuite et inclus dans « Exporter la base » (champ illustration).
+  var CLE_ILLUS_IA = 'jsb-illustrations-ia', ILLUS_IA = {};
+  function chargerIllusIA() { return Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}); }
+  function svgIA(e) {
+    var s = ILLUS_IA[e.id] || e.illustration;
+    return typeof s === 'string' && /^<svg[\s>]/.test(s) ? s : '';
+  }
+  function urlSvg(s) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }
+  // Ne garde que du dessin : pas de script, d'objet étranger, de lien externe ni d'attribut d'événement
+  function nettoyerSvg(texte) {
+    var t = String(texte || ''), i = t.indexOf('<svg'), j = t.lastIndexOf('</svg>');
+    if (i < 0 || j < i) throw new Error('pas de SVG');
+    var doc = new DOMParser().parseFromString(t.slice(i, j + 6), 'image/svg+xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('SVG illisible');
+    var svg = doc.documentElement;
+    Array.prototype.slice.call(svg.querySelectorAll('script, foreignObject, iframe, object, embed, audio, video, animate, set, animateTransform, animateMotion')).forEach(function (n) { n.remove(); });
+    Array.prototype.slice.call(svg.querySelectorAll('*')).concat([svg]).forEach(function (n) {
+      Array.prototype.slice.call(n.attributes).forEach(function (a) {
+        var nom = a.name.toLowerCase(), v = String(a.value || '');
+        if (nom.indexOf('on') === 0 || ((nom === 'href' || nom === 'xlink:href') && v.charAt(0) !== '#') || /url\(\s*['"]?(?!#)/i.test(v) || /javascript:/i.test(v)) n.removeAttribute(a.name);
+      });
+      if (n.tagName && n.tagName.toLowerCase() === 'style') n.textContent = n.textContent.replace(/@import[^;]*;?|url\([^)]*\)/gi, '');
+    });
+    if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', '0 0 960 540');
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    var out = new XMLSerializer().serializeToString(svg);
+    if (out.length > 200000) throw new Error('SVG trop lourd');
+    return out;
+  }
+  var CONSIGNE_ILLUS = [
+    'Tu es un illustrateur et concepteur graphique spécialisé dans les activités physiques, et plus particulièrement dans la représentation pédagogique du judo et du taïso.',
+    '## Mission\nJe te transmets la description d\'un exercice (issue du fichier exercices.json). Tu crées une illustration pédagogique claire, réutilisable dans une application de préparation physique.',
+    '## Référence visuelle\n- Style : illustration vectorielle plate, aplats de couleur, traits nets, sans dégradés, sans ombres portées, sans photo réaliste, sans visages détaillés.\n- Fond blanc ou très clair.\n- Sol : tatami gris-vert avec une fine bordure rouge.\n- Mur : bleu marine en arrière-plan.\n- Palette : blanc, gris-vert, bleu marine, rouge pour la bordure, orange pour les flèches et les points d\'attention.',
+    '## Personnages\n- Judo, pratiquant seul : judogi blanc, ceinture blanche (ou noire si l\'exercice concerne des adultes avancés).\n- Judo, binôme : Tori en judogi blanc avec ceinture noire, Uke en judogi bleu avec ceinture noire.\n- Taïso ou préparation physique sans partenaire : tenue simple bleu marine (débardeur et short sombre), sans judogi.\n- Silhouettes aux proportions réalistes, identifiables comme pratiquants.',
+    '## Contenu de l\'image\n1. Un titre en haut, qui reprend uniquement le nom de l\'exercice (champ « nom »), exactement tel qu\'écrit dans la fiche.\n2. Deux à trois vignettes côte à côte, numérotées avec de simples cercles 1, 2, 3, qui montrent la position de départ, le mouvement et, si utile, la position d\'arrivée.\n3. Flèches pointillées orange pour la trajectoire, flèche pleine orange pour l\'action principale.\n4. Prises (kumi-kata) : points ou traits de couleur sur la main, le revers, la manche ou le col, si l\'exercice est en binôme.',
+    '## Texte dans l\'image\n- Seul le titre (nom de l\'exercice) est écrit.\n- Aucune description, consigne, dosage, répétition, légende ni étiquette dans l\'image (pas de « Départ », « Descente », etc.). Les consignes restent dans la fiche de l\'application.',
+    '## Sécurité et adaptation\n- Enfants (Éveils, Pré-poussins, Poussins, Benjamins) : aucune projection (sutemi-waza), aucune immobilisation sur articulation (kansetsu-waza) ; prises manche et revers uniquement ; mouvements doux.\n- Adultes en binôme : la projection peut être suggérée (entrée, prise, position), sans montrer de chute violente.\n- Exercices à risque (charge, réception au sol) : la position représentée doit être sûre, avec les appuis et la posture correcte.',
+    '## Ce que tu ne fais pas\n- Pas de photo ni de personne réelle.\n- Pas de logo, de marque ni de personnage protégé.\n- Pas de texte autre que le titre.',
+    '## Format technique de la réponse (application)\nRéponds UNIQUEMENT par un élément <svg> complet, sans aucun texte avant ou après, sans bloc de code. Contraintes : xmlns="http://www.w3.org/2000/svg", viewBox="0 0 960 540", pas d\'attributs width/height ; formes vectorielles simples (rect, circle, ellipse, line, polyline, polygon, path, g, text) ; aucune image externe, aucun script, aucun lien, aucune police externe (font-family="Arial, Helvetica, sans-serif") ; moins de 35 000 caractères. Couleurs : blanc #FFFFFF, fond #F7F8F4, tatami gris-vert #A9B8A4, bordure rouge #C8382E, mur bleu marine #1F2839, judogi bleu #2F5DA8, orange #F08A24, ceinture noire #111111. Titre centré en haut (taille 30 environ, bleu marine). Vignettes encadrées de même taille, cercles numérotés orange en haut à gauche de chaque vignette. Personnages : tête ronde sans traits du visage, corps en formes pleines (tronc, bras, jambes), articulations plausibles, appuis au sol nets.'
+  ].join('\n\n');
+  function entreeIllus(e) {
+    return CONSIGNE_ILLUS + '\n\n## Entrée\nNom de l\'exercice : ' + e.nom
+      + '\nDescription : ' + String(e.description || '').slice(0, 1500)
+      + '\nPublic et format : ' + [(e.public || []).join(', '), e.categorieAge || (e.sousGroupes || []).join(', '), e.format || 'Solo'].filter(Boolean).join(' ; ')
+      + (e.equipement ? '\nMatériel : ' + e.equipement : '')
+      + '\nPoints clés : ' + (e.critere || e.vigilance || '—');
+  }
+  function BoutonIllusIA(p) {
+    var s1 = React.useState(null), sample = s1[0], setSample = s1[1];
+    var s2 = React.useState(''), etat = s2[0], setEtat = s2[1];   // '' | 'encours' | message
+    var ctl = React.useRef(null);
+    React.useEffect(function () {
+      var actif = true;
+      if (window.claude && typeof window.claude.use === 'function') window.claude.use('sample').then(function (f) { if (actif && f) setSample(function () { return f; }); }, function () {});
+      return function () { actif = false; if (ctl.current) ctl.current.abort(); };
+    }, []);
+    if (!sample) return null;
+    var e = p.e, existe = !!svgIA(e);
+    function creer() {
+      ctl.current = new AbortController(); setEtat('encours');
+      sample(entreeIllus(e), { signal: ctl.current.signal, cache: false }).then(function (r) {
+        var svg = nettoyerSvg(r.text);
+        ILLUS_IA = Object.assign({}, ILLUS_IA); ILLUS_IA[e.id] = svg;
+        return Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { setEtat(''); p.maj(); });
+      }).catch(function (err) {
+        var c = err && err.code;
+        setEtat(c === 'cancelled' ? '' : c === 'not_granted' || c === 'sampling_disabled' ? 'Claude n\'est pas autorisé pour cette page.' : c === 'rate_limited' ? 'Limite d\'usage atteinte : réessayez plus tard.'
+          : c ? 'Le dessin n\'a pas abouti. Réessayez.' : 'Le dessin reçu était illisible. Réessayez.');
+      }).then(function () { ctl.current = null; });
+    }
+    function retirer() { ILLUS_IA = Object.assign({}, ILLUS_IA); delete ILLUS_IA[e.id]; Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { p.maj(); }); }
+    if (etat === 'encours') return h('div', { className: 'ia-barre', role: 'status' }, h('span', { className: 'ch-attente' }, h('i'), h('i'), h('i')), h('span', null, 'Claude dessine l\'illustration… (30 s à 2 min)'),
+      h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { if (ctl.current) ctl.current.abort(); } }, 'Arrêter'));
+    return h('div', { className: 'ia-barre' },
+      h('button', { type: 'button', className: 'cs-btn mini ia-creer', onClick: creer }, existe ? 'Redessiner avec Claude' : 'Créer l\'illustration avec Claude'),
+      existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
+      etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
@@ -3530,7 +3624,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function ajouterLocaux() {
     if (!BASE_ORIGINE) BASE_ORIGINE = BASE;
     BASE = BASE_ORIGINE;
-    return Stockage.lire(CLE_AJOUTS).then(function (a) {
+    return chargerIllusIA().then(function () { return Stockage.lire(CLE_AJOUTS); }).then(function (a) {
       if (!Array.isArray(a) || !a.length) return;
       var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
       BASE = BASE.concat(a.filter(function (e) { return e && !ids[e.id]; }).map(function (e) { return Object.assign({}, e, { ajoute: true }); }));
