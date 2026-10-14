@@ -803,6 +803,12 @@ body { background: var(--bg); }
 .ia-barre { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -6px; font-size: 14px; color: var(--muted); }
 .ia-creer::before { content: "✦ "; color: var(--ink); }
 .ia-msg { flex: 1 1 100%; color: var(--warn); }
+.illus.perso { object-fit: contain; background: #F7F8F4; }
+.carte .illus.perso.petit { padding: 0; object-fit: cover; }
+.sheet .illus-fiche:has(.perso) { padding: 0; overflow: hidden; background: #F7F8F4; }
+.sheet .illus-fiche .illus.perso { max-height: none; width: 100%; height: auto; border-radius: 12px; }
+.ia-image { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+.ia-image input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1575,7 +1581,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '14/10/2026 à 21h38';
+  var VERSION_APP = '14/10/2026 à 21h44';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2656,7 +2662,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
     }
     function exporter() {
-      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; return c; });
+      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = imagePerso(e); if (ip) c.image = ip; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
     }
     function retirer() {
@@ -3156,6 +3162,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
   function Illustration(p) {
+    var iP = imagePerso(p.e);
+    if (iP) return h('img', { className: 'illus perso' + (p.petit ? ' petit' : ''), src: iP, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager' });
     var sIA = svgIA(p.e);
     if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager' });
     if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', width: 200, height: 150 });
@@ -3327,7 +3335,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Claude dessine un SVG plat (titre + 2-3 vignettes) d'après la fiche ; le dessin est nettoyé puis gardé sur l'appareil
   // (clé jsb-illustrations-ia), affiché partout ensuite et inclus dans « Exporter la base » (champ illustration).
   var CLE_ILLUS_IA = 'jsb-illustrations-ia', ILLUS_IA = {};
-  function chargerIllusIA() { return Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}); }
+  // Images choisies par l'éducateur (Canva, photo du dojo…) : redimensionnées, gardées sur l'appareil (clé jsb-images-perso)
+  var CLE_IMG_PERSO = 'jsb-images-perso', IMG_PERSO = {};
+  function chargerIllusIA() {
+    return Promise.all([Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}),
+      Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {})]);
+  }
+  function imagePerso(e) { return IMG_PERSO[e.id] || ''; }
+  function reduireImage(fichier) {
+    return new Promise(function (ok, ko) {
+      var url = URL.createObjectURL(fichier), img = new Image();
+      img.onload = function () {
+        var max = 1600, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        ok(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); ko(new Error('image')); };
+      img.src = url;
+    });
+  }
   function svgIA(e) {
     var s = ILLUS_IA[e.id] || e.illustration;
     return typeof s === 'string' && /^<svg[\s>]/.test(s) ? s : '';
@@ -3397,8 +3424,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (window.claude && typeof window.claude.use === 'function') window.claude.use('sample').then(function (f) { if (actif && f) setSample(function () { return f; }); }, function () {});
       return function () { actif = false; if (ctl.current) ctl.current.abort(); };
     }, []);
-    if (!sample) return null;
-    var e = p.e, existe = !!svgIA(e);
+    var e = p.e, existe = !!svgIA(e), perso = !!IMG_PERSO[e.id];
+    function choisirImage(ev) {
+      var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
+      reduireImage(f).then(function (d) { IMG_PERSO = Object.assign({}, IMG_PERSO); IMG_PERSO[e.id] = d; return Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO); })
+        .then(function () { setEtat(''); p.maj(); }, function () { setEtat('Cette image n\'a pas pu être lue.'); });
+    }
+    function retirerImage() { IMG_PERSO = Object.assign({}, IMG_PERSO); delete IMG_PERSO[e.id]; Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO).then(function () { p.maj(); }); }
+    var boutonsImage = [
+      h('label', { key: 'img', className: 'cs-btn mini ia-image' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Choisir une image pour ' + e.nom, onChange: choisirImage }), perso ? 'Changer l\'image' : 'Ajouter une image'),
+      perso ? h('button', { key: 'ret', type: 'button', className: 'cs-btn mini', onClick: retirerImage }, 'Retirer l\'image') : null];
+    if (!sample) return h('div', { className: 'ia-barre' }, boutonsImage, etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
     function creer() {
       ctl.current = new AbortController(); setEtat('encours');
       sample(entreeIllus(e), { signal: ctl.current.signal, cache: false }).then(function (r) {
@@ -3414,9 +3450,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function retirer() { ILLUS_IA = Object.assign({}, ILLUS_IA); delete ILLUS_IA[e.id]; Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { p.maj(); }); }
     if (etat === 'encours') return h('div', { className: 'ia-barre', role: 'status' }, h('span', { className: 'ch-attente' }, h('i'), h('i'), h('i')), h('span', null, 'Claude dessine l\'illustration… (30 s à 2 min)'),
       h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { if (ctl.current) ctl.current.abort(); } }, 'Arrêter'));
-    return h('div', { className: 'ia-barre' },
-      h('button', { type: 'button', className: 'cs-btn mini ia-creer', onClick: creer }, existe ? 'Redessiner avec Claude' : 'Créer l\'illustration avec Claude'),
-      existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
+    return h('div', { className: 'ia-barre' }, boutonsImage,
+      perso ? null : h('button', { type: 'button', className: 'cs-btn mini ia-creer', onClick: creer }, existe ? 'Redessiner avec Claude' : 'Créer l\'illustration avec Claude'),
+      !perso && existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
       etat === 'refus' ? h('span', { className: 'ia-msg', role: 'alert' }, 'Claude n\'est pas encore autorisé pour cette page. ',
         h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { autoriserClaude(setEtat); } }, 'Autoriser Claude')) : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
   }
