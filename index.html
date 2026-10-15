@@ -1033,6 +1033,25 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 52px); overflow-wrap: anywhere; hyph
 .pr-etat { padding: 2px 10px; border-radius: var(--r-full); font-size: var(--t-xs); font-weight: 700; border: 1px solid currentColor; }
 .pr-etat.ok { color: var(--ok-t); }
 .pr-etat.encours { color: var(--warn); }
+
+/* Planning, sauvegarde, créneaux du jour (16/10/2026) */
+.pr-onglets[role=tablist] { grid-template-columns: repeat(4, 1fr); }
+.pr-onglets[role=tablist] .pr-onglet { font-size: var(--t-s); padding: 0 2px; }
+.pr-bloc > *, .pr-svg > *, .pr-svg-mdp > *, .pr-edit-cren > *, .pr-creneaux > * { flex: none; }
+.pr-creneaux { flex: 1 1 100%; display: flex; flex-direction: column; gap: var(--e2); }
+.pr-creneaux .pr-puce small { font-weight: 500; background: none; padding: 0; color: inherit; opacity: .8; }
+.pr-astuce { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--e2); margin: 0; font-size: var(--t-s); color: var(--muted); }
+.pr-jour h3 { margin: var(--e2) 0; font-family: var(--display); font-size: var(--t-l); }
+.pr-cren-ligne { flex-wrap: wrap; }
+.pr-cren-ligne .pr-ident { flex: 1 1 140px; }
+.pr-cren-ligne .pr-ctrl { flex: 0 0 auto; padding-left: 0; flex-wrap: nowrap; }
+.pr-cren-champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e2); }
+.pr-cren-champs > :first-child { grid-column: 1 / -1; }
+:root[data-texte-grand] .pr-cren-champs { grid-template-columns: 1fr; }
+.pr-svg-mdp { display: flex; flex-direction: column; gap: var(--e3); }
+.pr-versions summary { cursor: pointer; font-weight: 600; font-size: var(--t-s); padding: var(--e2) 0; min-height: var(--h-mini); display: flex; align-items: center; }
+.pr-versions .pr-ligne { flex-wrap: wrap; }
+.pr-erreur { color: var(--ko-t) !important; font-weight: 600; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1805,7 +1824,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 23h30';
+  var VERSION_APP = '16/10/2026 à 00h23';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1908,11 +1927,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   function Aujourdhui(p) {
     var s = React.useState(null), appel = s[0], setAppel = s[1];
+    var sc = React.useState(null), cren = sc[0], setCren = sc[1];
     React.useEffect(function () {
       var actif = true;
       chargerPres().then(function (d) {
         var l = (d.seances || []).filter(function (x) { return Object.keys(x.statuts || {}).length; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
         if (actif) setAppel(l ? { date: l.date, groupe: l.groupe, n: Object.keys(l.statuts).filter(function (k) { return l.statuts[k] === 'P'; }).length } : false);
+        if (actif) setCren(creneauActuel(d.planning));
       }, function () { if (actif) setAppel(false); });
       return function () { actif = false; };
     }, []);
@@ -1924,7 +1945,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('section', { className: 'aujourdhui', 'aria-label': "Aujourd'hui" },
       tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Ma séance', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
         nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance'),
-      tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
+      cren ? tuile('presences', 'presences', 'Prochain cours', heureFr(cren.debut) + (cren.fin ? ' – ' + heureFr(cren.fin) : ''), cren.cours.join(', ') + ' · Faire l\'appel', 'pres') : tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
         appel ? dateFr(appel.date) + ' · ' + appel.groupe : 'Faites l\'appel depuis Présences', 'pres'));
   }
 
@@ -2398,19 +2419,84 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setN(d.judokas.filter(function (j) { return !j.archive; }).length); }, function () {}); return function () { actif = false; }; }, []);
     return n == null ? '' : n + (n > 1 ? ' licenciés' : ' licencié');
   }
-  var JOURS_RAPPEL = 30;  // sauvegarde complète conseillée une fois par mois
+  var JOURS_RAPPEL = 7;  // sauvegarde complète conseillée chaque semaine
   function sauvegardeAncienne(d) { return d.judokas.length > 0 && (!d.sauvegardeLe || Date.now() - d.sauvegardeLe > JOURS_RAPPEL * 86400000); }
+  function contenuSauvegarde(d) { return { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances, planning: d.planning || [] }; }
   function exporterSauvegarde(d, setMsg) {
-    var contenu = { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances };
-    enregistrerFichier('sauvegarde-presences-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(contenu)], { type: 'application/json' }), setMsg);
+    enregistrerFichier('sauvegarde-presences-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(contenuSauvegarde(d))], { type: 'application/json' }), setMsg);
+  }
+  // ===== Sauvegarde chiffrée (AES-GCM 256, clé dérivée du mot de passe par PBKDF2-SHA-256) =====
+  // Le fichier peut être rangé dans iCloud Drive ou Google Drive : sans le mot de passe, il est illisible.
+  var ITER_PBKDF2 = 250000;
+  function versB64(buf) { var b = new Uint8Array(buf), s = '', i; for (i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+  function depuisB64(t) { var s = atob(t), b = new Uint8Array(s.length), i; for (i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+  function cleChiffrement(mdp, sel, iter) {
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(mdp), 'PBKDF2', false, ['deriveKey']).then(function (k) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: sel, iterations: iter, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    });
+  }
+  function chiffrer(objet, mdp) {
+    var sel = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    return cleChiffrement(mdp, sel, ITER_PBKDF2).then(function (k) { return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, new TextEncoder().encode(JSON.stringify(objet))); })
+      .then(function (c) { return { format: 'jsb-presences-chiffre', version: 1, exporteLe: new Date().toISOString(), iter: ITER_PBKDF2, sel: versB64(sel), iv: versB64(iv), donnees: versB64(c) }; });
+  }
+  function dechiffrer(c, mdp) {
+    return cleChiffrement(mdp, depuisB64(c.sel), c.iter || ITER_PBKDF2).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: depuisB64(c.iv) }, k, depuisB64(c.donnees)); })
+      .then(function (b) { var o = JSON.parse(new TextDecoder().decode(b)); if (!o || o.format !== 'jsb-presences' || !valides(o)) throw new Error('format'); return nettoyer(o); });
+  }
+  function cleMdp() { return 'jsb-mdp-' + CLE_PRES; }
+  function lireMdp() { try { return localStorage.getItem(cleMdp()) || ''; } catch (e) { return ''; } }
+  function ecrireMdp(m) { try { if (m) localStorage.setItem(cleMdp(), m); else localStorage.removeItem(cleMdp()); return true; } catch (e) { return false; } }
+  // Téléphone : feuille de partage (iCloud Drive, Google Drive, Mail…) ; ordinateur : téléchargement
+  function partagerFichier(nom, blob, setMsg) {
+    try {
+      var f = new File([blob], nom, { type: 'application/json' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [f] }) && /Android|iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        return navigator.share({ files: [f], title: 'Sauvegarde JSB Manager' }).then(function () { setMsg('Sauvegarde envoyée. Rangez-la dans iCloud Drive ou Google Drive pour la garder hors du téléphone.'); },
+          function (e) { if (e && e.name === 'AbortError') setMsg('Partage annulé : la sauvegarde n\'a pas été rangée.'); else enregistrerFichier(nom, blob, setMsg); });
+      }
+    } catch (e) {}
+    enregistrerFichier(nom, blob, setMsg);
+  }
+  function sauvegarderChiffre(d, mdp, setMsg) {
+    setMsg('Chiffrement de la sauvegarde…');
+    return chiffrer(contenuSauvegarde(d), mdp).then(function (c) {
+      partagerFichier('sauvegarde-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(c)], { type: 'application/json' }), setMsg);
+    });
   }
   function lireSauvegarde(fichier) {
     return fichier.text().then(function (t) {
       var c = JSON.parse(t);
+      if (c && c.format === 'jsb-presences-chiffre' && c.donnees && c.iv && c.sel) return c;
       if (!c || c.format !== 'jsb-presences' || !valides(c)) throw new Error('format');
       return nettoyer(c);
     });
   }
+  // ===== Versions automatiques : l'état d'avant la première modification du jour, et avant chaque import ou effacement (7 gardées) =====
+  function cleVersions() { return CLE_PRES + '-versions'; }
+  function lireVersions() { return Stockage.lire(cleVersions()).then(function (l) { return Array.isArray(l) ? l.filter(function (v) { return v && v.donnees && valides(v.donnees); }) : []; }, function () { return []; }); }
+  function noterVersion(ancien, raison) {
+    if (!ancien || !valides(ancien) || !ancien.judokas.length) return Promise.resolve();
+    return lireVersions().then(function (l) {
+      if (!raison && l.length && l[0].jour === aujourdhui()) return;
+      l.unshift({ le: new Date().toISOString(), jour: aujourdhui(), raison: raison || 'Début de journée', donnees: ancien });
+      return Stockage.ecrire(cleVersions(), l.slice(0, 7));
+    }).catch(function () {});
+  }
+  // ===== Planning de la semaine : l'appel du bon cours s'ouvre tout seul =====
+  var JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'], ORDRE_JOURS = [1, 2, 3, 4, 5, 6, 0];
+  function minutes(hhmm) { var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || ''); return m ? +m[1] * 60 + +m[2] : 0; }
+  function heureFr(hhmm) { var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || ''); return m ? +m[1] + ' h' + (m[2] === '00' ? '' : ' ' + m[2]) : hhmm; }
+  function triCreneaux(a, b) { return ORDRE_JOURS.indexOf(a.jour) - ORDRE_JOURS.indexOf(b.jour) || minutes(a.debut) - minutes(b.debut); }
+  function creneauxDuJour(planning, quand) { var j = (quand || new Date()).getDay(); return (planning || []).filter(function (c) { return c.jour === j && c.cours && c.cours.length; }).sort(triCreneaux); }
+  // Le créneau en cours (de 45 min avant à 90 min après), sinon le prochain de la journée
+  function creneauActuel(planning, quand) {
+    quand = quand || new Date(); var m = quand.getHours() * 60 + quand.getMinutes(), l = creneauxDuJour(planning, quand);
+    var proches = l.filter(function (c) { return m >= minutes(c.debut) - 45 && m <= minutes(c.fin || c.debut) + 90; })
+      .sort(function (a, b) { return Math.abs(minutes(a.debut) - m) - Math.abs(minutes(b.debut) - m); });
+    return proches[0] || l.filter(function (c) { return minutes(c.debut) > m; })[0] || null;
+  }
+  function texteCreneau(c) { return JOURS[c.jour] + ' ' + heureFr(c.debut) + (c.fin ? '–' + heureFr(c.fin) : '') + ' · ' + c.cours.join(', '); }
   function oui(v) { var t = cleTexte(v); return t === 'oui' || t === 'o' || t === 'x' || t === 'yes' || t === '1' || t === 'vrai' || t === 'true'; }
   function deux(n) { return (n < 10 ? '0' : '') + n; }
   function aujourdhui() { var d = new Date(); return d.getFullYear() + '-' + deux(d.getMonth() + 1) + '-' + deux(d.getDate()); }
@@ -2579,6 +2665,75 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return { donnees: d, n: n, ignores: Object.keys(ignores).sort(), nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
   }
 
+  // Édition d'un créneau du planning
+  function EditionCreneau(p) {
+    var s = React.useState(p.c), c = s[0], setC = s[1];
+    function maj(x) { setC(Object.assign({}, c, x)); }
+    function bascule(g) { var l = c.cours.slice(), i = l.indexOf(g); if (i >= 0) l.splice(i, 1); else l.push(g); maj({ cours: l.sort(triCat) }); }
+    var ok = c.cours.length && /^\d{1,2}:\d{2}/.test(c.debut || '') && (!c.fin || minutes(c.fin) > minutes(c.debut));
+    return h('div', { className: 'pr-maj pr-edit-cren', role: 'region', 'aria-label': c.nouveau ? 'Nouveau créneau' : 'Modifier le créneau' },
+      h('strong', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, c.nouveau ? 'Nouveau créneau' : 'Modifier le créneau'),
+      h('div', { className: 'pr-cren-champs' },
+        h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'cr-jour' }, 'Jour'),
+          h('select', { id: 'cr-jour', value: c.jour, onChange: function (ev) { maj({ jour: +ev.target.value }); } }, ORDRE_JOURS.map(function (j) { return h('option', { key: j, value: j }, JOURS[j]); }))),
+        h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'cr-debut' }, 'Début'), h('input', { id: 'cr-debut', type: 'time', value: c.debut, step: 300, onChange: function (ev) { maj({ debut: ev.target.value }); } })),
+        h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'cr-fin' }, 'Fin'), h('input', { id: 'cr-fin', type: 'time', value: c.fin, step: 300, onChange: function (ev) { maj({ fin: ev.target.value }); } }))),
+      h('span', { className: 'pr-etiq', id: 'cr-cours' }, 'Groupes de ce créneau'),
+      p.groupes.length ? h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'cr-cours' }, p.groupes.map(function (g) {
+        return h('button', { key: g, type: 'button', className: 'pr-puce', 'aria-pressed': c.cours.indexOf(g) >= 0, onClick: function () { bascule(g); } }, g);
+      })) : h('p', { className: 'pr-mini' }, 'Importez d\'abord la liste des licenciés : les groupes viennent de leurs âges.'),
+      c.fin && minutes(c.fin) <= minutes(c.debut) ? h('p', { className: 'pr-mini', role: 'alert' }, 'L\'heure de fin doit être après l\'heure de début.') : null,
+      h('div', { className: 'gestion-actions' },
+        h('button', { type: 'button', className: 'cs-btn plein', disabled: !ok, onClick: function () { var x = Object.assign({}, c); delete x.nouveau; p.onEnregistrer(x); } }, 'Enregistrer le créneau'),
+        h('button', { type: 'button', className: 'cs-btn', onClick: p.onAnnuler }, 'Annuler')));
+  }
+  // Mot de passe demandé pour ouvrir une sauvegarde chiffrée
+  function DemandeMdp(p) {
+    var s = React.useState(''), m = s[0], setM = s[1];
+    return h('form', { className: 'pr-maj', role: 'region', 'aria-label': 'Ouvrir une sauvegarde chiffrée', onSubmit: function (ev) { ev.preventDefault(); if (m) p.onOuvrir(m); } },
+      h('strong', null, 'Sauvegarde chiffrée'),
+      h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mdp-ouvrir' }, 'Mot de passe de la sauvegarde'),
+        h('input', { id: 'pr-mdp-ouvrir', type: 'password', autoComplete: 'current-password', value: m, autoFocus: true, 'aria-invalid': p.erreur || undefined, 'aria-describedby': p.erreur ? 'pr-mdp-err' : undefined, onChange: function (ev) { setM(ev.target.value); } })),
+      p.erreur ? h('p', { id: 'pr-mdp-err', className: 'pr-mini pr-erreur', role: 'alert' }, 'Mot de passe incorrect : la sauvegarde ne peut pas être ouverte.') : null,
+      h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !m }, 'Ouvrir'), h('button', { type: 'button', className: 'cs-btn', onClick: p.onAnnuler }, 'Annuler')));
+  }
+  // Panneau « Sauvegarde » : mot de passe, sauvegarde chiffrée à ranger dans le cloud, versions automatiques
+  function PanneauSauvegarde(p) {
+    var s1 = React.useState(lireMdp()), mdp = s1[0], setMdp = s1[1];
+    var s2 = React.useState(!lireMdp()), choix = s2[0], setChoix = s2[1];
+    var s3 = React.useState(''), m1 = s3[0], setM1 = s3[1];
+    var s4 = React.useState(''), m2 = s4[0], setM2 = s4[1];
+    var s5 = React.useState(null), versions = s5[0], setVersions = s5[1];
+    var s6 = React.useState(false), occupe = s6[0], setOccupe = s6[1];
+    React.useEffect(function () { var actif = true; lireVersions().then(function (l) { if (actif) setVersions(l); }); return function () { actif = false; }; }, []);
+    var d = p.donnees, depuis = d.sauvegardeLe ? Math.floor((Date.now() - d.sauvegardeLe) / 86400000) : null;
+    var erreur = m1 && m1.length < 8 ? 'Au moins 8 caractères.' : m2 && m1 !== m2 ? 'Les deux mots de passe sont différents.' : '';
+    return h('div', { className: 'pr-maj pr-svg', role: 'region', 'aria-label': 'Sauvegarde' },
+      h('strong', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, 'Sauvegarde des présences'),
+      h('p', { className: 'pr-mini' }, depuis == null ? 'Aucune sauvegarde pour l\'instant : licenciés et appels ne sont que sur cet appareil.' : 'Dernière sauvegarde ' + (depuis === 0 ? 'aujourd\'hui' : 'il y a ' + depuis + ' jour' + (depuis > 1 ? 's' : '')) + '.'),
+      choix ? h('form', { className: 'pr-svg-mdp', onSubmit: function (ev) { ev.preventDefault(); if (!erreur && m1 && m1 === m2) { ecrireMdp(m1); setMdp(m1); setChoix(false); setM1(''); setM2(''); p.setMsg('Mot de passe de sauvegarde enregistré sur cet appareil.'); } } },
+          h('p', { className: 'pr-mini' }, 'Choisissez un mot de passe : la sauvegarde sera chiffrée et pourra être rangée sans risque dans iCloud Drive ou Google Drive. Notez-le bien : sans lui, la sauvegarde ne peut pas être ouverte.'),
+          h('input', { type: 'text', autoComplete: 'username', value: 'Sauvegarde JSB Manager', readOnly: true, hidden: true }),
+          h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mdp1' }, 'Mot de passe (8 caractères minimum)'), h('input', { id: 'pr-mdp1', type: 'password', autoComplete: 'new-password', value: m1, onChange: function (ev) { setM1(ev.target.value); } })),
+          h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mdp2' }, 'Confirmer le mot de passe'), h('input', { id: 'pr-mdp2', type: 'password', autoComplete: 'new-password', value: m2, 'aria-invalid': !!erreur || undefined, 'aria-describedby': erreur ? 'pr-mdp-msg' : undefined, onChange: function (ev) { setM2(ev.target.value); } })),
+          erreur ? h('p', { id: 'pr-mdp-msg', className: 'pr-mini pr-erreur', role: 'alert' }, erreur) : null,
+          h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !!erreur || !m1 || m1 !== m2 }, 'Enregistrer le mot de passe'),
+            mdp ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setChoix(false); } }, 'Annuler') : null))
+        : h('div', { className: 'gestion-actions' },
+          h('button', { type: 'button', className: 'cs-btn plein pr-svg-go', disabled: occupe || !d.judokas.length, onClick: function () { setOccupe(true); p.onSauvegarder(mdp).then(function () { setOccupe(false); }); } }, occupe ? 'Chiffrement…' : 'Sauvegarder maintenant'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setChoix(true); } }, 'Changer le mot de passe')),
+      choix ? null : h('p', { className: 'pr-mini' }, 'Sur téléphone, choisissez ensuite « Enregistrer dans Fichiers » (iCloud Drive) ou Google Drive : la sauvegarde sera à l\'abri même si le téléphone est perdu. Pour retrouver vos données sur un autre appareil, ouvrez ce fichier avec « Restaurer une sauvegarde ».'),
+      h('details', { className: 'pr-versions' }, h('summary', null, 'Versions automatiques' + (versions ? ' (' + versions.length + ')' : '')),
+        h('p', { className: 'pr-mini' }, 'L\'app garde seule, sur cet appareil, l\'état d\'avant la première modification de chaque journée et d\'avant chaque import ou effacement (7 dernières).'),
+        versions && versions.length ? h('ul', { className: 'pr-liste' }, versions.map(function (v, i) {
+          return h('li', { key: v.le + i, className: 'pr-ligne' }, h('span', { className: 'pr-ident' },
+            h('span', { className: 'pr-nomf' }, new Date(v.le).toLocaleString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })),
+            h('span', { className: 'pr-infos' }, v.raison + ' · ' + v.donnees.judokas.length + ' judokas, ' + v.donnees.seances.length + ' appels')),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { p.onRevenir(v); } }, 'Revenir à cette version'));
+        })) : h('p', { className: 'pr-mini' }, versions ? 'Aucune version pour l\'instant : la première sera prise à la prochaine modification.' : 'Chargement…')),
+      h('div', { className: 'gestion-actions' }, h('button', { type: 'button', className: 'cs-btn', onClick: p.onFermer }, 'Fermer')));
+  }
+
   function Presences() {
     var s1 = React.useState(null), donnees = s1[0], setDonnees = s1[1];
     var sV = React.useState(false), confValider = sV[0], setConfValider = sV[1];
@@ -2597,6 +2752,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s7 = React.useState(null), selCours = s7[0], setSelCours = s7[1];
     var s9 = React.useState(function () { return aujourdhui().slice(0, 7); }), moisSel = s9[0], setMoisSel = s9[1];
     var s10 = React.useState(null), miseAJour = s10[0], setMiseAJour = s10[1];   // { fu, fichier, archiver }
+    var s11 = React.useState(false), panneauSvg = s11[0], setPanneauSvg = s11[1];
+    var s12 = React.useState(null), demandeMdp = s12[0], setDemandeMdp = s12[1];  // sauvegarde chiffrée en attente du mot de passe
+    var s13 = React.useState(null), editCreneau = s13[0], setEditCreneau = s13[1];
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'sr-seul', role: 'status' }, 'Chargement des présences…'), h(Squelette, { n: 6 }));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
@@ -2604,22 +2762,41 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     actifs.forEach(function (j) { coursListe(j).forEach(function (c) { (parCat[c] = parCat[c] || []).push(j); }); });
     var groupes = Object.keys(parCat).sort(triCat);
     var g = groupe && groupes.indexOf(groupe) >= 0 ? groupe : (groupes[0] || '');
-    function maj(d, texte) {
+    function maj(d, texte, raison) {
+      noterVersion(donnees, raison);
       setDonnees(d); if (texte) setMsg(texte);
       Stockage.ecrire(CLE_PRES, d).then(function (ok) { if (!ok) setMsg("Enregistrement impossible sur cet appareil : faites une sauvegarde complète pour ne rien perdre."); });
       Stockage.proteger().then(function (p) { setProtege(!!p); });
     }
-    function sauvegarder() { exporterSauvegarde(donnees, setMsg); maj(Object.assign({}, donnees, { sauvegardeLe: Date.now() }), 'Sauvegarde complète enregistrée (licenciés, photos et appels). Gardez ce fichier en lieu sûr.'); }
+    function sauvegarder() { setPanneauSvg(true); setMsg(''); }
+    function sauvegarderMaintenant(mdp) {
+      return sauvegarderChiffre(donnees, mdp, setMsg).then(function () {
+        var d = Object.assign({}, donnees, { sauvegardeLe: Date.now() }); setDonnees(d); Stockage.ecrire(CLE_PRES, d);
+      }, function () { setMsg('Le chiffrement n\'est pas disponible dans ce navigateur : sauvegarde impossible ici.'); });
+    }
+    function proposerRestauration(c) {
+      setDemandeMdp(null);
+      setAConfirmer({ texte: 'Remplacer les données de cet appareil par la sauvegarde du ' + dateFr((c.exporteLe || '').slice(0, 10)) + ' (' + c.judokas.length + (c.judokas.length > 1 ? ' judokas, ' : ' judoka, ') + c.seances.length + (c.seances.length > 1 ? ' appels) ?' : ' appel) ?') + ' L\'état actuel est gardé dans les versions automatiques.',
+        action: function () { maj({ judokas: c.judokas, seances: c.seances, planning: c.planning && c.planning.length ? c.planning : (donnees.planning || []), sauvegardeLe: Date.now() }, 'Sauvegarde restaurée.', 'Avant restauration'); } });
+    }
+    function ouvrirChiffre(c, mdp) {
+      return dechiffrer(c, mdp).then(function (o) { o.exporteLe = c.exporteLe; if (!lireMdp()) ecrireMdp(mdp); proposerRestauration(o); }, function () { setDemandeMdp({ c: c, erreur: !!mdp }); });
+    }
     function restaurer(f) {
       lireSauvegarde(f).then(function (c) {
-        setAConfirmer({ texte: 'Remplacer les données de cet appareil par la sauvegarde du ' + dateFr((c.exporteLe || '').slice(0, 10)) + ' (' + c.judokas.length + (c.judokas.length > 1 ? ' judokas, ' : ' judoka, ') + c.seances.length + (c.seances.length > 1 ? ' appels) ?' : ' appel) ?'),
-          action: function () { maj({ judokas: c.judokas, seances: c.seances, sauvegardeLe: Date.now() }, 'Sauvegarde restaurée.'); } });
+        if (c.format === 'jsb-presences-chiffre') { var m = lireMdp(); if (m) ouvrirChiffre(c, m); else setDemandeMdp({ c: c }); return; }
+        proposerRestauration(c);
       }).catch(function () { setMsg("Ce fichier n'est pas une sauvegarde JSB Manager valide."); });
     }
+    function enregistrerCreneau(c) {
+      var l = (donnees.planning || []).filter(function (x) { return x.id !== c.id; }).concat([c]).sort(triCreneaux);
+      setEditCreneau(null); maj(Object.assign({}, donnees, { planning: l }), 'Créneau enregistré : ' + texteCreneau(c) + '.');
+    }
+    function supprimerCreneau(c) { maj(Object.assign({}, donnees, { planning: (donnees.planning || []).filter(function (x) { return x.id !== c.id; }) }), 'Créneau supprimé.'); }
     function importer(ev) {
       var f = ev.target.files && ev.target.files[0]; ev.target.value = '';
       if (!f) return;
-      if (/\.json$/i.test(f.name)) { restaurer(f); return; }
+      if (/\.(json|jsb)$/i.test(f.name)) { restaurer(f); return; }
       setMsg('Lecture du classeur…');
       lireClasseur(f).then(function (r) {
         if (r.appels.length) {
@@ -2628,7 +2805,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           setAConfirmer({ texte: 'Importer ' + res.n + ' présences sur ' + res.nbDates + (res.nbDates > 1 ? ' séances' : ' séance') + ' (du ' + dateFr(res.premiere) + ' au ' + dateFr(res.derniere) + ') pour ' + res.nbJudokas + ' licenciés'
             + (res.nouveaux ? ', dont ' + res.nouveaux + (res.nouveaux > 1 ? ' nouveaux ajoutés' : ' nouveau ajouté') + ' à la liste' : '')
             + (res.ignores.length ? '. Ignorés car non licenciés (absents de la liste ou sans N° de licence) : ' + res.ignores.join(', ') : '') + ' ? Les appels déjà notés aux mêmes dates sont complétés ou remplacés.',
-            action: function () { maj(res.donnees, res.n + ' présences importées depuis « ' + f.name + ' ».'); } });
+            action: function () { maj(res.donnees, res.n + ' présences importées depuis « ' + f.name + ' ».', 'Avant import de présences'); } });
           return;
         }
         var fu = fusionnerJudokas(donnees.judokas, r.lignes);
@@ -2644,7 +2821,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var t = [fu.ajoutes ? fu.ajoutes + (fu.ajoutes > 1 ? ' judokas ajoutés' : ' judoka ajouté') : '', fu.completes ? fu.completes + ' mis à jour' : '',
         archiver && fu.absents.length ? fu.absents.length + ' archivé' + (fu.absents.length > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + ' — tous reclassés par cours pour la saison ' + saison + '.';
       if (fu.sansDate) t += ' ' + fu.sansDate + ' sans date de naissance lisible : rangés selon leur colonne Groupe, ou dans « Sans catégorie ».';
-      setMiseAJour(null); maj(Object.assign({}, donnees, { judokas: liste }), t);
+      setMiseAJour(null); maj(Object.assign({}, donnees, { judokas: liste }), t, 'Avant mise à jour des licenciés');
     }
     function restaurerArchive(j) { modifier(j, { archive: '' }, nomComplet(j) + ' est de retour dans la liste.'); }
     function modifier(j, champs, texte) { maj(Object.assign({}, donnees, { judokas: donnees.judokas.map(function (x) { return x.id === j.id ? Object.assign({}, x, champs) : x; }) }), texte); }
@@ -2662,7 +2839,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         modifier(j, { photo: src }, 'Photo enregistrée.');
       }).catch(function () { setMsg("Cette image n'a pas pu être lue. Essayez une photo .jpg ou .png."); });
     }
-    var coursAppel = (selCours || [g]).filter(function (c) { return groupes.indexOf(c) >= 0; });
+    var planning = donnees.planning || [], creneau = date === aujourdhui() ? creneauActuel(planning) : null, creneauxAuj = date === aujourdhui() ? creneauxDuJour(planning) : [];
+    var coursAppel = (selCours || (creneau ? creneau.cours : null) || [g]).filter(function (c) { return groupes.indexOf(c) >= 0; });
     if (!coursAppel.length && g) coursAppel = [g];
     function seanceDe(c) { return donnees.seances.filter(function (s) { return s.date === date && s.groupe === c; })[0]; }
     function statutDe(j, c) { var s = seanceDe(c); return s ? s.statuts[j.id] : undefined; }
@@ -2714,24 +2892,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('select', { id: id, value: g, onChange: function (ev) { setGroupe(ev.target.value); } }, groupes.map(function (x) { return h('option', { key: x, value: x }, x + ' (' + parCat[x].length + ')'); })));
     }
     var importBtn = h('label', { className: 'pr-import pr-action' }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.json', onChange: importer }), 'Importer un classeur');
-    var restaurerBtn = h('label', { className: 'pr-action pr-restaurer' }, h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
+    var restaurerBtn = h('label', { className: 'pr-action pr-restaurer' }, h('input', { type: 'file', accept: '.json,.jsb,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
     var rappel = sauvegardeAncienne(donnees) ? h('div', { className: 'pr-rappel', role: 'status' },
-      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde complète le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à la sauvegarde du mois.' : 'Aucune sauvegarde complète pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
+      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à la sauvegarde de la semaine.' : 'Aucune sauvegarde pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
       h('button', { type: 'button', className: 'pr-rappel-btn', onClick: sauvegarder }, 'Sauvegarder')) : null;
     var confirmation = aConfirmer ? h('div', { className: 'pr-confirme', role: 'alertdialog', 'aria-label': 'Confirmation' },
       h('span', null, aConfirmer.texte),
       h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { aConfirmer.action(); setAConfirmer(null); } }, 'Confirmer'),
       h('button', { type: 'button', className: 'cs-btn', onClick: function () { setAConfirmer(null); } }, 'Annuler')) : null;
     var entetePr = h('div', { className: 'pr-barre' },
-      h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', "Faire l'appel"], ['bilan', 'Bilan'], ['judokas', 'Licenciés']].map(function (o) {
+      h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
       h('div', { className: 'pr-actions' }, importBtn,
         h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
-        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde complète'), restaurerBtn));
-    var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde complète » (fichier .json, photos comprises) se restaure avec « Restaurer une sauvegarde » ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
+        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn));
+    var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
+    var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
+    var panneauSauvegarde = panneauSvg ? h(PanneauSauvegarde, { donnees: donnees, setMsg: setMsg, onSauvegarder: sauvegarderMaintenant, onFermer: function () { setPanneauSvg(false); },
+      onRevenir: function (v) { setAConfirmer({ texte: 'Revenir à la version du ' + new Date(v.le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + ' (' + v.donnees.judokas.length + ' judokas, ' + v.donnees.seances.length + ' appels) ? L\'état actuel est gardé lui aussi.',
+        action: function () { setPanneauSvg(false); maj(Object.assign({}, v.donnees, { sauvegardeLe: donnees.sauvegardeLe }), 'Version du ' + new Date(v.le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + ' rétablie.', 'Avant retour à une version'); } }); } }) : null;
     if (!donnees.judokas.length) {
-      return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation,
+      return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
           h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), aide);
@@ -2740,6 +2922,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (vue === 'appel') {
       corps = h('div', { className: 'pr-bloc' },
         h('div', { className: 'pr-choix' },
+          creneauxAuj.length ? h('div', { className: 'pr-creneaux' }, h('span', { className: 'pr-etiq', id: 'pr-cren-titre' }, "Cours d'aujourd'hui"),
+            h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cren-titre' }, creneauxAuj.map(function (c) {
+              var actif = coursAppel.join() === c.cours.filter(function (x) { return groupes.indexOf(x) >= 0; }).join();
+              return h('button', { key: c.id, type: 'button', className: 'pr-puce pr-creneau', 'aria-pressed': actif, onClick: function () { setSelCours(c.cours.slice()); } }, heureFr(c.debut), h('small', null, c.cours.join(', ')));
+            })),
+            creneau && !selCours ? h('p', { className: 'pr-mini' }, 'Ouvert automatiquement d\'après votre planning : ' + texteCreneau(creneau) + '.') : null)
+          : !planning.length ? h('div', { className: 'pr-astuce' }, h('span', null, 'Astuce : avec votre planning de la semaine, le bon cours s\'ouvre tout seul à l\'heure du cours.'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setVue('planning'); } }, 'Renseigner mon planning')) : null,
           h('div', { className: 'cs-champ pr-cours' }, h('span', { className: 'pr-etiq', id: 'pr-cours-titre' }, "Cours de l'appel : un ou plusieurs"),
             h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cours-titre' }, groupes.map(function (x) {
               return h('button', { key: x, type: 'button', className: 'pr-puce', 'aria-pressed': coursAppel.indexOf(x) >= 0, onClick: function () { basculeCours(x); } }, x, h('small', null, parCat[x].length));
@@ -2761,7 +2950,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         inscrits.length ? (appelValide
           ? h('div', { className: 'pr-valider pr-valide', role: 'status' },
               h('span', null, h('b', null, '✓ Appel validé le ' + quandValide(seancesAppel[0].validee)), ' · ' + pluriel(compte.P, 'présent') + ', ' + pluriel(compte.A, 'absent')),
-              h('button', { type: 'button', className: 'cs-btn', onClick: rouvrirAppel }, "Modifier l'appel"))
+              h('div', { className: 'gestion-actions' },
+                sauvegardeAncienne(donnees) ? h('button', { type: 'button', className: 'cs-btn plein', onClick: sauvegarder }, donnees.sauvegardeLe ? 'Sauvegarder (dernière il y a ' + Math.floor((Date.now() - donnees.sauvegardeLe) / 86400000) + ' j)' : 'Faire une première sauvegarde') : null,
+                h('button', { type: 'button', className: 'cs-btn', onClick: rouvrirAppel }, "Modifier l'appel")))
           : confValider
             ? h('div', { className: 'pr-valider pr-valider-conf', role: 'alertdialog', 'aria-label': "Valider l'appel" },
                 h('strong', { tabIndex: -1, ref: function (n) { if (n) n.focus(); } }, "Valider l'appel du " + dateFr(date) + ' (' + coursAppel.join(', ') + ') ?'),
@@ -2796,6 +2987,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setDate(s.date); setGroupe(s.groupe); setSelCours([s.groupe]); setVue('appel'); } }, 'Modifier'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: "Supprimer l'appel du " + dateFr(s.date) + ' (' + s.groupe + ') ?', action: function () { maj(Object.assign({}, donnees, { seances: donnees.seances.filter(function (x) { return x.id !== s.id; }) }), 'Appel supprimé.'); } }); } }, 'Supprimer'));
         }))) : null);
+    } else if (vue === 'planning') {
+      var parJour = {}; planning.slice().sort(triCreneaux).forEach(function (c) { (parJour[c.jour] = parJour[c.jour] || []).push(c); });
+      corps = h('div', { className: 'pr-bloc pr-planning' },
+        h('p', { className: 'pr-mini' }, 'Indiquez vos créneaux de la semaine : à l\'heure du cours, l\'appel s\'ouvre directement sur les bons groupes, et l\'accueil affiche le prochain cours.'),
+        editCreneau ? h(EditionCreneau, { c: editCreneau, groupes: groupes, onEnregistrer: enregistrerCreneau, onAnnuler: function () { setEditCreneau(null); } }) : null,
+        ORDRE_JOURS.filter(function (j) { return parJour[j]; }).map(function (j) {
+          return h('div', { key: j, className: 'pr-jour' }, h('h3', null, JOURS[j]),
+            h('ul', { className: 'pr-liste' }, parJour[j].map(function (c) {
+              return h('li', { key: c.id, className: 'pr-ligne pr-cren-ligne' },
+                h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, heureFr(c.debut) + (c.fin ? ' – ' + heureFr(c.fin) : '')), h('span', { className: 'pr-infos' }, c.cours.join(', '))),
+                h('div', { className: 'pr-ctrl' },
+                  h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Modifier le créneau ' + texteCreneau(c), onClick: function () { setEditCreneau(c); } }, 'Modifier'),
+                  h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer le créneau ' + texteCreneau(c), onClick: function () { setAConfirmer({ texte: 'Supprimer le créneau ' + texteCreneau(c) + ' ?', action: function () { supprimerCreneau(c); } }); } }, 'Supprimer')));
+            })));
+        }),
+        !planning.length && !editCreneau ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun créneau'), h('span', null, 'Ajoutez par exemple « Mercredi 14 h – 15 h · Poussins ».')) : null,
+        editCreneau ? null : h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { setEditCreneau({ id: nouvelId(), jour: new Date().getDay(), debut: '18:00', fin: '19:00', cours: groupes.slice(0, 1), nouveau: true }); } }, '+ Ajouter un créneau'));
     } else {
       corps = h('div', { className: 'pr-bloc' }, groupes.map(function (x) {
         var js = parCat[x].slice().sort(triJudokas);
@@ -2810,9 +3018,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
               j.autorisationPhoto ? h('label', { className: 'cs-btn mini pr-fichier' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Photo de ' + nomComplet(j), onChange: function (ev) { photo(j, ev); } }), j.photo ? 'Changer la photo' : 'Ajouter une photo') : null,
               h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: 'Retirer ' + nomComplet(j) + ' de la liste ? Ses présences passées seront aussi effacées.', action: function () {
-                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }) }, 'Judoka retiré.'); } }); } }, 'Retirer')));
+                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer')));
           })));
-      }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [] }, 'Tout a été effacé.'); } }); } }, 'Tout effacer'));
+      }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer'));
     }
     var panneauMaj = null;
     if (miseAJour) {
@@ -2842,7 +3050,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-infos' }, 'Archivé en ' + j.archive + ' · ' + catDe(j))),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { restaurerArchive(j); } }, 'Remettre'));
       }))) : null;
-    return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMaj, corps, blocArchives, aide);
+    return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauMaj, corps, blocArchives, aide);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
   // (public, catégorie d'âge, moment, catégorie, grade/niveau, famille de technique) et formes enfants.
