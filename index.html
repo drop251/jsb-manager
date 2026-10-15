@@ -962,24 +962,23 @@ body { background: var(--bg); }
 :root[data-texte-grand] .aujourdhui { grid-template-columns: 1fr; }
 
 /* Squelettes : chatoiement pendant le chargement des images et des listes */
-@keyframes squelette { from { background-position: 150% 0; } to { background-position: -50% 0; } }
-.squelette, img.illus.photo, img.illus.ia, img.illus.perso { background-color: var(--chip);
-  background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--surface) 55%, transparent) 50%, transparent 70%);
-  background-size: 200% 100%; animation: squelette 1.4s linear infinite; }
-img.illus.charge { animation: none; background-image: none; }
-.squelette { display: block; border-radius: var(--r-s); }
+/* Images : simple fond neutre en attendant (aucune animation, aucun repeint continu) */
+img.illus.photo, img.illus.ia, img.illus.perso { background-color: var(--chip); }
+/* Squelettes : pulsation d'opacité seulement (gérée par la carte graphique) */
+@keyframes squelette { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+.squelette { display: block; border-radius: var(--r-s); background: var(--chip); animation: squelette 1.6s ease-in-out infinite; }
 .squelette-liste { display: flex; flex-direction: column; gap: var(--e3); }
 .squelette-ligne { height: 64px; border-radius: var(--r-m); }
 .squelette-carte { height: 220px; border-radius: var(--r-m); }
 
 /* Animations réduites : réglage du système ou de l'app */
-@media (prefers-reduced-motion: reduce) { .squelette, img.illus.photo, img.illus.ia, img.illus.perso { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .squelette { animation: none; } }
 :root[data-anim="reduit"] *, :root[data-anim="reduit"] *::before, :root[data-anim="reduit"] *::after {
   animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 :root[data-anim="reduit"] .ile { display: none; }
 
 /* Retour visuel à l'appui (en plus de la vibration) */
-@media (hover: none) { .btn:active, .cs-btn:active, .pr-action:active, .pr-puce:active, .sous:active, .gn-option:active, .carte-w .cs-plus:active, .sheet-ajout:active, .tuile:active, .bloc:active { transform: scale(.97); } }
+@media (hover: none) { .btn:active, .cs-btn:active, .pr-action:active, .pr-puce:active, .gn-option:active, .carte-w .cs-plus:active, .sheet-ajout:active { transform: scale(.97); } }
 
 /* Réglages d'affichage */
 .rg { display: flex; flex-direction: column; gap: var(--e4); }
@@ -1788,7 +1787,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 23h10';
+  var VERSION_APP = '15/10/2026 à 23h17';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1947,19 +1946,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (navigator.vibrate) { navigator.vibrate(MOTIFS[type] || 10); return; }
       if (!interrupteurIOS) {
         var l = document.createElement('label'), i = document.createElement('input');
-        i.type = 'checkbox'; i.setAttribute('switch', ''); l.appendChild(i); l.setAttribute('aria-hidden', 'true');
-        l.style.cssText = 'position:fixed;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+        i.type = 'checkbox'; i.tabIndex = -1; i.setAttribute('switch', ''); l.appendChild(i); l.setAttribute('aria-hidden', 'true');
+        // Dans l'écran (en haut à gauche) et invisible : un élément hors écran ferait défiler la page au focus
+        l.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;contain:strict';
         document.body.appendChild(l); interrupteurIOS = l;
       }
       interrupteurIOS.click();
       if (type === 'succes' || type === 'erreur') setTimeout(function () { interrupteurIOS.click(); }, 90);
     } catch (e) {}
   }
-  // Retour haptique sur les gestes fréquents, sans toucher à chaque composant
+  // Retour haptique réservé aux gestes qui enregistrent quelque chose (pas à la navigation, pour rester fluide)
   var HAPTIQUE = [
-    ['.pr-st, .carte-w .cs-plus, .sheet-ajout, .ch-exo, .cs-plus', 'leger'],
-    ['.pr-maj .cs-btn.plein, .pr-confirme .cs-btn.plein, .gestion-rapport .btn.plein, .cs-btn.plein', 'succes'],
-    ['.onglet-nav, .sous, .pr-puce, .gn-option, .pr-onglet, .rg-taille, .bloc, .tuile, .btn', 'selection']
+    ['.pr-st, .carte-w .cs-plus, .sheet-ajout, .ch-exo', 'leger'],
+    ['.pr-maj .cs-btn.plein, .pr-confirme .cs-btn.plein, .gestion-rapport .btn.plein', 'succes']
   ];
   document.addEventListener('click', function (ev) {
     var t = ev.target && ev.target.closest ? ev.target : null; if (!t) return;
@@ -3642,13 +3641,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return m.slice(0, 2);
   }
   function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
-  function chargee(ev) { try { ev.target.classList.add('charge'); } catch (e) {} }
   function Illustration(p) {
     var iP = imagePerso(p.e);
-    if (iP) return h('img', { className: 'illus perso' + (p.petit ? ' petit' : ''), src: iP, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', onLoad: chargee, onError: chargee });
+    if (iP) return h('img', { className: 'illus perso' + (p.petit ? ' petit' : ''), src: iP, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
     var sIA = svgIA(p.e);
-    if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', onLoad: chargee, onError: chargee });
-    if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', onLoad: chargee, onError: chargee, width: 200, height: 150 });
+    if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
+    if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', width: 200, height: 150 });
     var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
     var deco = [];
     if (P.deco === 'saut') deco.push(h('line', { key: 'd1', x1: 48, y1: 68, x2: 72, y2: 68, stroke: gris, strokeWidth: 2, strokeDasharray: '3 4', strokeLinecap: 'round' }));
