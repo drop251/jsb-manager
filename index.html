@@ -1679,7 +1679,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 10h43';
+  var VERSION_APP = '15/10/2026 à 10h47';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2213,8 +2213,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var lignes = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       var appels = wb.Sheets['Appels'] ? XLSX.utils.sheet_to_json(wb.Sheets['Appels'], { defval: '' }) : [];
       // Feuille de présences « en grille » : une ligne par licencié, une colonne par date (P/A, X, 1/0…)
-      if (!appels.length) wb.SheetNames.some(function (n) { appels = appelsDeGrille(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true })); return appels.length; });
-      return { lignes: lignes, appels: appels };
+      var grille = false;
+      if (!appels.length) wb.SheetNames.some(function (n) { appels = appelsDeGrille(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true })); return (grille = !!appels.length); });
+      return { lignes: lignes, appels: appels, grille: grille };
     });
   }
   function brut(ligne, noms) {
@@ -2334,14 +2335,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     });
     return out;
   }
-  function restaurerAppels(donnees, appels) {
-    var nouveaux = 0, dates = {}, vus = {};
+  // licencesSeules : feuille de présences (grille) → on ne garde que les licenciés déjà dans la liste avec un N° de licence
+  function restaurerAppels(donnees, appels, licencesSeules) {
+    var nouveaux = 0, dates = {}, vus = {}, ignores = {};
     var code = { present: 'P', absent: 'A' }, d = { judokas: donnees.judokas.slice(), seances: donnees.seances.map(function (s) { return Object.assign({}, s, { statuts: Object.assign({}, s.statuts) }); }) }, n = 0;
     appels.forEach(function (a) {
       var date = lireDate(brut(a, ['date'])), st = code[cleTexte(brut(a, ['statut']))], cat = colonne(a, ['cours', 'groupe', 'categorie']);
       if (!st || !date) return;
       var cible = { nom: colonne(a, ['nom']), prenom: colonne(a, ['prenom']), licence: colonne(a, COL_LICENCE), naissance: lireDate(brut(a, COL_NAISSANCE)) };
       var j = d.judokas.filter(function (x) { return memeJudoka(x, cible); })[0];
+      if (licencesSeules && (!j || !String(j.licence || '').trim())) { ignores[(cible.nom || '').toUpperCase() + ' ' + (cible.prenom || '')] = 1; return; }
       if (!j && !cat) return;
       if (!j) { j = Object.assign({ id: nouvelId(), groupe: cat }, cible); d.judokas.push(j); nouveaux++; }
       if (j.archive) { d.judokas = d.judokas.map(function (x) { return x.id === j.id ? Object.assign({}, x, { archive: '' }) : x; }); }
@@ -2352,7 +2355,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!s) { s = { id: nouvelId(), date: date, groupe: cat, statuts: {} }; d.seances.push(s); }
       s.statuts[j.id] = st; n++;
     });
-    return { donnees: d, n: n, nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
+    return { donnees: d, n: n, ignores: Object.keys(ignores).sort(), nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
   }
 
   function Presences() {
@@ -2398,10 +2401,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       setMsg('Lecture du classeur…');
       lireClasseur(f).then(function (r) {
         if (r.appels.length) {
-          var res = restaurerAppels(donnees, r.appels);
-          if (!res.n) { setMsg('Aucune présence reconnue : vérifiez les colonnes Nom, Prénom et les dates (P/A, X, 1/0).'); return; }
+          var res = restaurerAppels(donnees, r.appels, r.grille);
+          if (!res.n) { setMsg(res.ignores.length ? 'Aucune présence gardée : personne dans ce fichier n\'est licencié (absent de la liste ou sans N° de licence). Importez d\'abord la liste des licenciés.' : 'Aucune présence reconnue : vérifiez les colonnes Nom, Prénom et les dates (P/A, X, 1/0).'); return; }
           setAConfirmer({ texte: 'Importer ' + res.n + ' présences sur ' + res.nbDates + (res.nbDates > 1 ? ' séances' : ' séance') + ' (du ' + dateFr(res.premiere) + ' au ' + dateFr(res.derniere) + ') pour ' + res.nbJudokas + ' licenciés'
-            + (res.nouveaux ? ', dont ' + res.nouveaux + (res.nouveaux > 1 ? ' nouveaux ajoutés' : ' nouveau ajouté') + ' à la liste' : '') + ' ? Les appels déjà notés aux mêmes dates sont complétés ou remplacés.',
+            + (res.nouveaux ? ', dont ' + res.nouveaux + (res.nouveaux > 1 ? ' nouveaux ajoutés' : ' nouveau ajouté') + ' à la liste' : '')
+            + (res.ignores.length ? '. Ignorés car non licenciés (absents de la liste ou sans N° de licence) : ' + res.ignores.join(', ') : '') + ' ? Les appels déjà notés aux mêmes dates sont complétés ou remplacés.',
             action: function () { maj(res.donnees, res.n + ' présences importées depuis « ' + f.name + ' ».'); } });
           return;
         }
@@ -2483,7 +2487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
-          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par licencié et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent.')), importBtn), aide);
+          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), aide);
     }
     var corps;
     if (vue === 'appel') {
