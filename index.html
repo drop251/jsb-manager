@@ -1095,6 +1095,49 @@ html, body { overflow-x: clip; }
   .pr-valider-btn { min-height: 48px; }
 }
 .pr > .cs-msg:empty { display: none; }
+
+/* ===== Appel repensé (16/10/2026) : résumé, créneaux du jour, recherche, une touche par licencié ===== */
+.pr-appel { gap: var(--e2); }
+.pr-cren-grille { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: var(--e2); }
+.pr-cren-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: var(--h-ctrl); min-width: 0; padding: 6px 10px; border-radius: var(--r-s);
+  border: 1px solid var(--bord-ctrl); background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.pr-cren-btn b { font-size: var(--t-m); }
+.pr-cren-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-xs); color: var(--muted); }
+.pr-cren-btn[aria-pressed="true"] { background: var(--sel-bg); border-color: var(--sel-bord); box-shadow: inset 0 0 0 1px var(--sel-bord); }
+.pr-cren-etat { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.pr-cren-etat.encours { color: var(--ok-t); } .pr-cren-etat.avenir { color: var(--muted); } .pr-cren-etat.passe { color: var(--muted); opacity: .8; }
+.pr-resume { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); padding: 6px 6px 6px 12px; border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
+.pr-resume-txt { min-width: 0; font-size: var(--t-s); line-height: 1.3; }
+.pr-resume-txt b { font-size: var(--t-m); }
+.pr-reglage { padding: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); flex-direction: column; align-items: stretch; }
+.pr-outils { display: flex; gap: var(--e2); align-items: center; }
+.pr-cherche { flex: 1 1 auto; min-width: 0; min-height: var(--h-mini); padding: 0 12px; border-radius: var(--r-s); border: 1px solid var(--bord-ctrl); background: var(--surface); color: var(--ink); font: inherit; }
+.pr-compteur { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); font-size: var(--t-s); color: var(--muted); }
+.pr-compteur b { color: var(--ink); font-size: var(--t-m); }
+.pr-consigne { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+/* Une ligne = un bouton : toucher n'importe où sur le nom */
+.pr-appel-ligne { padding: 0 !important; min-height: 0 !important; }
+.pr-appel-btn { display: flex; align-items: center; gap: var(--e3); width: 100%; min-height: 56px; padding: 6px 12px; border: none; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pr-appel-btn .pr-ident { flex: 1 1 auto; min-width: 0; }
+/* Nom et prénom sur une seule ligne */
+.pr-appel-btn .pr-nomf, .pr-ligne .pr-nomf { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pr-etat-appel { flex: none; min-width: 92px; padding: 6px 10px; border-radius: var(--r-full); border: 1px solid var(--bord-ctrl); font-size: var(--t-s); font-weight: 700; text-align: center; color: var(--muted); }
+.pr-appel-ligne.st-P { background: color-mix(in srgb, var(--ok-bord) 12%, var(--surface)); box-shadow: inset 4px 0 0 var(--ok-bord); }
+.pr-appel-ligne.st-P .pr-etat-appel { border-color: var(--ok-bord); background: var(--ok-bord); color: var(--surface); }
+.pr-appel-ligne.st-A { background: color-mix(in srgb, var(--ko-bord) 10%, var(--surface)); box-shadow: inset 4px 0 0 var(--ko-bord); }
+.pr-appel-ligne.st-A .pr-etat-appel { border-color: var(--ko-bord); color: var(--ko-t); }
+.pr-appel-ligne.verrou .pr-appel-btn { cursor: not-allowed; }
+.pr-appel-ligne.verrou.st-0 { opacity: .6; }
+@media (hover: none) { .pr-appel-btn:active { transform: scale(.985); } }
+/* Bouton « Valider l'appel » sur une seule ligne, juste au-dessus de la barre d'onglets */
+.pr-valider { padding: 6px; }
+.pr-valider-btn { flex-direction: row; justify-content: space-between; gap: var(--e3); min-height: 48px; padding: 0 16px; }
+.pr-valider-btn small { font-weight: 600; }
+.pr-appel .pr-liste { margin-bottom: var(--e2); }
+@media (max-width: 380px) { .pr-etat-appel { min-width: 0; padding: 6px 8px; } }
+.pr-compteur .cs-btn.mini { flex: none; white-space: nowrap; }
+.pr-compteur > span { min-width: 0; }
+.pr > .pr-rappel, .pr > .pr-fichiers { margin-top: var(--e2); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1867,7 +1910,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '16/10/2026 à 00h44';
+  var VERSION_APP = '16/10/2026 à 00h58';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2041,7 +2084,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   // Retour haptique réservé aux gestes qui enregistrent quelque chose (pas à la navigation, pour rester fluide)
   var HAPTIQUE = [
-    ['.pr-st, .carte-w .cs-plus, .sheet-ajout, .ch-exo', 'leger'],
+    ['.pr-st, .pr-appel-btn, .carte-w .cs-plus, .sheet-ajout, .ch-exo', 'leger'],
     ['.pr-maj .cs-btn.plein, .pr-confirme .cs-btn.plein, .gestion-rapport .btn.plein', 'succes']
   ];
   document.addEventListener('click', function (ev) {
@@ -2541,6 +2584,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       .sort(function (a, b) { return Math.abs(minutes(a.debut) - m) - Math.abs(minutes(b.debut) - m); });
     return proches[0] || l.filter(function (c) { return minutes(c.debut) > m; })[0] || null;
   }
+  function etatCreneau(c, quand) {
+    quand = quand || new Date(); var m = quand.getHours() * 60 + quand.getMinutes(), d = minutes(c.debut), f = c.fin ? minutes(c.fin) : d + 60;
+    return m >= d - 15 && m <= f ? 'En cours' : m > f ? 'Passé' : 'À venir';
+  }
+  function dateCourte(iso) { var x = new Date(iso + 'T12:00:00'); var t = x.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }); return t.charAt(0).toUpperCase() + t.slice(1); }
   function texteCreneau(c) { return JOURS[c.jour] + ' ' + heureFr(c.debut) + (c.fin ? '–' + heureFr(c.fin) : '') + ' · ' + c.cours.join(', '); }
   function oui(v) { var t = cleTexte(v); return t === 'oui' || t === 'o' || t === 'x' || t === 'yes' || t === '1' || t === 'vrai' || t === 'true'; }
   function deux(n) { return (n < 10 ? '0' : '') + n; }
@@ -2800,6 +2848,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s11 = React.useState(false), panneauSvg = s11[0], setPanneauSvg = s11[1];
     var s12 = React.useState(null), demandeMdp = s12[0], setDemandeMdp = s12[1];  // sauvegarde chiffrée en attente du mot de passe
     var s13 = React.useState(null), editCreneau = s13[0], setEditCreneau = s13[1];
+    var s14 = React.useState(false), reglage = s14[0], setReglage = s14[1];
+    var s15 = React.useState(''), recherche = s15[0], setRecherche = s15[1];
+    var s16 = React.useState(false), filtreANoter = s16[0], setFiltreANoter = s16[1];
+    var s17 = React.useState(null), selCren = s17[0], setSelCren = s17[1];
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'sr-seul', role: 'status' }, 'Chargement des présences…'), h(Squelette, { n: 6 }));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
@@ -2945,16 +2997,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('span', null, aConfirmer.texte),
       h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { aConfirmer.action(); setAConfirmer(null); } }, 'Confirmer'),
       h('button', { type: 'button', className: 'cs-btn', onClick: function () { setAConfirmer(null); } }, 'Annuler')) : null;
+    // Fichiers : ouverts sur « Licenciés » et quand la liste est vide, repliés ailleurs ; sous la liste dans l'onglet Appel
+    var fichiers = h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: vue === 'judokas' || !donnees.judokas.length },
+        h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
+        h('div', { className: 'pr-actions' }, importBtn,
+          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
+          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn));
     var entetePr = h('div', { className: 'pr-barre' },
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      // Fichiers : ouverts sur « Licenciés » et quand la liste est vide, repliés ailleurs pour laisser la place à l'appel
-      h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: vue === 'judokas' || !donnees.judokas.length },
-        h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
-        h('div', { className: 'pr-actions' }, importBtn,
-          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
-          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn)));
+      vue === 'appel' && donnees.judokas.length ? null : fichiers);
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
     var panneauSauvegarde = panneauSvg ? h(PanneauSauvegarde, { donnees: donnees, setMsg: setMsg, onSauvegarder: sauvegarderMaintenant, onFermer: function () { setPanneauSvg(false); },
@@ -2968,33 +3021,46 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     var corps;
     if (vue === 'appel') {
-      corps = h('div', { className: 'pr-bloc' },
-        h('div', { className: 'pr-choix' },
-          creneauxAuj.length ? h('div', { className: 'pr-creneaux' }, h('span', { className: 'pr-etiq', id: 'pr-cren-titre' }, "Cours d'aujourd'hui"),
-            h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cren-titre' }, creneauxAuj.map(function (c) {
-              var actif = coursAppel.join() === c.cours.filter(function (x) { return groupes.indexOf(x) >= 0; }).join();
-              return h('button', { key: c.id, type: 'button', className: 'pr-puce pr-creneau', 'aria-pressed': actif, onClick: function () { setSelCours(c.cours.slice()); } }, heureFr(c.debut), h('small', null, c.cours.join(', ')));
-            })),
-            creneau && !selCours ? h('p', { className: 'pr-mini' }, 'Ouvert d\'après votre planning.') : null)
-          : !planning.length ? h('div', { className: 'pr-astuce' }, h('span', null, 'Astuce : avec votre planning de la semaine, le bon cours s\'ouvre tout seul à l\'heure du cours.'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setVue('planning'); } }, 'Renseigner mon planning')) : null,
+      // Appel : résumé en une ligne (réglages repliés), outils de recherche, puis la liste — une touche par licencié
+      var correspond = function (c) { return c && coursAppel.join() === c.cours.filter(function (x) { return groupes.indexOf(x) >= 0; }).join(); };
+      var cActif = creneauxAuj.filter(function (c) { return c.id === selCren && correspond(c); })[0] || (!selCours && correspond(creneau) ? creneau : null) || creneauxAuj.filter(correspond)[0];
+      var cle = cleTexte(recherche), nbNotes = inscrits.length - aNoter.length;
+      var visibles = inscrits.filter(function (it) { return (!filtreANoter || !statutDe(it.j, it.c)) && (!cle || cleTexte((it.j.prenom || '') + ' ' + (it.j.nom || '')).indexOf(cle) >= 0 || cleTexte((it.j.nom || '') + ' ' + (it.j.prenom || '')).indexOf(cle) >= 0); });
+      var ouvrirReglage = reglage || !groupes.length;
+      corps = h('div', { className: 'pr-bloc pr-appel' },
+        creneauxAuj.length > 1 ? h('div', { className: 'pr-cren-grille', role: 'group', 'aria-label': "Cours d'aujourd'hui", style: { '--n': Math.min(creneauxAuj.length, 3) } }, creneauxAuj.map(function (c) {
+          var actif = cActif === c, et = etatCreneau(c);
+          return h('button', { key: c.id, type: 'button', className: 'pr-cren-btn', 'aria-pressed': actif, 'aria-label': heureFr(c.debut) + ', ' + c.cours.join(', ') + ', ' + et, onClick: function () { setSelCours(c.cours.slice()); setSelCren(c.id); setRecherche(''); } },
+            h('b', null, heureFr(c.debut)), h('span', null, c.cours.join(', ')), h('small', { className: 'pr-cren-etat ' + (et === 'En cours' ? 'encours' : et === 'Passé' ? 'passe' : 'avenir') }, et));
+        })) : null,
+        h('div', { className: 'pr-resume' },
+          h('span', { className: 'pr-resume-txt' }, h('b', null, dateCourte(date) + (cActif ? ' · ' + heureFr(cActif.debut) : '')), ' · ' + coursAppel.join(', ') + ' (' + inscrits.length + ')'),
+          h('button', { type: 'button', className: 'cs-btn mini pr-resume-btn', 'aria-expanded': ouvrirReglage, 'aria-controls': 'pr-reglage', onClick: function () { setReglage(!reglage); } }, ouvrirReglage ? 'Fermer' : 'Changer')),
+        ouvrirReglage ? h('div', { className: 'pr-choix pr-reglage', id: 'pr-reglage' },
           h('div', { className: 'cs-champ pr-cours' }, h('span', { className: 'pr-etiq', id: 'pr-cours-titre' }, "Cours de l'appel : un ou plusieurs"),
             h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cours-titre' }, groupes.map(function (x) {
               return h('button', { key: x, type: 'button', className: 'pr-puce', 'aria-pressed': coursAppel.indexOf(x) >= 0, onClick: function () { basculeCours(x); } }, x, h('small', null, parCat[x].length));
             }))),
           h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-date' }, 'Date de la séance'), h('input', { id: 'pr-date', type: 'date', value: date, onChange: function (ev) { if (ev.target.value) setDate(ev.target.value); } })),
-          h('div', { className: 'pr-stats', 'aria-live': 'polite' },
-            h('span', { className: 'pr-stat ok' }, h('b', null, compte.P), compte.P > 1 ? 'présents' : 'présent'),
-            h('span', { className: 'pr-stat ko' }, h('b', null, compte.A), compte.A > 1 ? 'absents' : 'absent'),
-            h('span', { className: 'pr-stat' }, h('b', null, inscrits.length - compte.P - compte.A), 'à noter')),
-          appelValide ? null : h('button', { type: 'button', className: 'cs-btn', onClick: function () { noter(aNoter.map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Marquer les autres présents')),
-        h('ul', { className: 'pr-liste' }, inscrits.map(function (it) {
-          var j = it.j, st = statutDe(j, it.c);
-          return h('li', { key: j.id, className: 'pr-ligne' + (appelValide ? ' verrou' : '') }, h(Avatar, { j: j }),
-            h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j))),
-            h('div', { className: 'pr-statuts', role: 'group', 'aria-label': 'Appel de ' + nomComplet(j) }, STATUTS.map(function (s) {
-              return h('button', { key: s[0], type: 'button', className: 'pr-st st-' + s[0], 'aria-pressed': st === s[0], 'aria-disabled': appelValide || undefined, 'aria-label': s[1] + ' : ' + nomComplet(j) + (appelValide ? ' (appel validé)' : ''), onClick: function () { noter([[j.id, it.c]], s[0]); } }, h('span', { className: 'pr-rect' }, s[1]));
-            })));
+          !planning.length ? h('div', { className: 'pr-astuce' }, h('span', null, 'Astuce : avec votre planning de la semaine, le bon cours s\'ouvre tout seul à l\'heure du cours.'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setVue('planning'); } }, 'Renseigner mon planning')) : null) : null,
+        inscrits.length > 8 || recherche || filtreANoter ? h('div', { className: 'pr-outils' },
+          h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Rechercher un nom', 'aria-label': 'Rechercher un licencié dans l\'appel', value: recherche, onChange: function (ev) { setRecherche(ev.target.value); } }),
+          h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter', h('small', null, aNoter.length))) : null,
+        h('div', { className: 'pr-compteur' },
+          h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés · ' + pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent')),
+          appelValide || !aNoter.length ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
+        !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Touchez un nom : présent, puis absent, puis à noter.') : null,
+        h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
+          var j = it.j, st = statutDe(j, it.c), etiq = st === 'P' ? 'présent' : st === 'A' ? 'absent' : 'à noter';
+          return h('li', { key: j.id, className: 'pr-ligne pr-appel-ligne st-' + (st || '0') + (appelValide ? ' verrou' : '') },
+            h('button', { type: 'button', className: 'pr-appel-btn', 'aria-disabled': appelValide || undefined,
+              onClick: function () { noter([[j.id, it.c]], st === 'P' ? 'A' : st === 'A' ? 'A' : 'P'); } },
+              h(Avatar, { j: j }),
+              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j))),
+              h('span', { className: 'pr-etat-appel' }, h('span', { 'aria-hidden': 'true' }, st === 'P' ? '✓ ' : st === 'A' ? '✕ ' : ''), st === 'P' ? 'Présent' : st === 'A' ? 'Absent' : 'À noter'),
+              h('span', { className: 'sr-seul' }, appelValide ? ' (appel validé)' : '. Touchez pour ' + (st === 'P' ? 'noter absent' : st === 'A' ? 'remettre à noter' : 'noter présent'))));
         })),
+        cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null,
         inscrits.length ? (appelValide
           ? h('div', { className: 'pr-valider pr-valide', role: 'status' },
               h('span', null, h('b', null, '✓ Appel validé le ' + quandValide(seancesAppel[0].validee)), ' · ' + pluriel(compte.P, 'présent') + ', ' + pluriel(compte.A, 'absent')),
@@ -3010,7 +3076,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                   h('button', { type: 'button', className: 'cs-btn', onClick: function () { setConfValider(false); } }, 'Annuler')))
             : h('div', { className: 'pr-valider' },
                 h('button', { type: 'button', className: 'pr-valider-btn', onClick: function () { setConfValider(true); } },
-                  h('span', null, "Valider l'appel"), h('small', { 'aria-live': 'polite' }, pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent') + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null);
+                  h('span', null, "Valider l'appel"), h('small', null, compte.P + ' P · ' + compte.A + ' A' + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null);
     } else if (vue === 'bilan') {
       var moisDispo = donnees.seances.map(function (x) { return x.date.slice(0, 7); }).concat([aujourdhui().slice(0, 7)]).filter(function (m, i, t) { return t.indexOf(m) === i; }).sort().reverse();
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
@@ -3098,7 +3164,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-infos' }, 'Archivé en ' + j.archive + ' · ' + catDe(j))),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { restaurerArchive(j); } }, 'Remettre'));
       }))) : null;
-    return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauMaj, corps, blocArchives, aide);
+    var enBas = vue === 'appel';
+    return h('section', { className: 'pr' }, entetePr, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauMaj, corps, blocArchives,
+      enBas ? rappel : null, enBas ? fichiers : null, aide);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
   // (public, catégorie d'âge, moment, catégorie, grade/niveau, famille de technique) et formes enfants.
@@ -3672,11 +3740,37 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // Menu du profil dans la barre du haut : nom, club, verrouiller, changer de profil
+  // Modifier son profil (prénom, nom, nom du club affiché dans l'en-tête)
+  function EditionProfil(p) {
+    var s = React.useState({ prenom: PROFIL.prenom || '', nom: PROFIL.nom || '', club: PROFIL.club || '' }), f = s[0], setF = s[1];
+    function champ(cle, libelle, auto) {
+      return h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'mp-' + cle }, libelle),
+        h('input', { id: 'mp-' + cle, type: 'text', autoComplete: auto, value: f[cle], onChange: function (ev) { var x = Object.assign({}, f); x[cle] = ev.target.value; setF(x); } }));
+    }
+    function enregistrer(ev) {
+      ev.preventDefault();
+      var maj = Object.assign({}, PROFIL, { prenom: f.prenom.trim(), nom: f.nom.trim(), club: f.club.trim() });
+      var l = lireProfils(), i = -1; l.forEach(function (q, k) { if (q.id === maj.id) i = k; });
+      if (i >= 0) l[i] = maj; else l.unshift(maj);
+      ecrireProfils(l); PROFIL = maj; p.onFini();
+    }
+    return h('form', { className: 'rg', onSubmit: enregistrer },
+      h('h2', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, 'Mon profil'),
+      champ('prenom', 'Prénom', 'given-name'), champ('nom', 'Nom', 'family-name'), champ('club', 'Nom du club (affiché en haut de l\'écran)', 'organization'),
+      h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !f.prenom.trim() }, 'Enregistrer')));
+  }
   function MenuProfil() {
     var s = React.useState(false), ouvert = s[0], setOuvert = s[1];
     var g = React.useState(false), gestion = g[0], setGestion = g[1];
     var r = React.useState(false), reglages = r[0], setReglages = r[1];
+    var e = React.useState(false), edition = e[0], setEdition = e[1];
+    var v = React.useState(0), setVersion = v[1];
     if (!PROFIL) return null;
+    var fenProfil = edition ? ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: function () { setEdition(false); } },
+      h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mon profil', onClick: function (ev) { ev.stopPropagation(); },
+        onKeyDown: function (ev) { if (ev.key === 'Escape') setEdition(false); } },
+        h('button', { type: 'button', className: 'btn', style: { alignSelf: 'flex-start' }, onClick: function () { setEdition(false); } }, 'Fermer'),
+        h(EditionProfil, { onFini: function () { setEdition(false); setVersion(Date.now()); try { window.dispatchEvent(new Event('jsb-profil')); } catch (err) {} } }))), document.body) : null;
     var fenReglages = reglages ? ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: function () { setReglages(false); } },
       h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Affichage et accessibilité', onClick: function (ev) { ev.stopPropagation(); },
         onKeyDown: function (ev) { if (ev.key === 'Escape') setReglages(false); } },
@@ -3692,9 +3786,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
         h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
+        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition(true); } }, 'Mon profil (nom, club)'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité'),
         AUTH_ACTIVE && PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
-        AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null) : null, fenetre, fenReglages);
+        AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null) : null, fenetre, fenReglages, fenProfil);
   }
   // ---- Générateur de séance en 5 questions (trame de Girma) :
   // 1. Mobilité : routine toujours la même, choisie une fois et gardée (par profil), modifiable
@@ -4282,6 +4377,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   })();
   function App() {
     var s1 = useState(espaceInitial), cle = s1[0], setCle = s1[1];
+    var sP = useState(0), setTickProfil = sP[1];
+    React.useEffect(function () { function f() { setTickProfil(Date.now()); } window.addEventListener('jsb-profil', f); return function () { window.removeEventListener('jsb-profil', f); }; }, []);
     var s2 = useState(VIDE), f = s2[0], setF = s2[1];
     var s3 = useState(null), ouverte = s3[0], setOuverte = s3[1];
     var s4 = useState(false), demo = s4[0], setDemo = s4[1];
