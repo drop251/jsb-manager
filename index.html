@@ -1668,7 +1668,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 10h25';
+  var VERSION_APP = '15/10/2026 à 10h31';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2853,6 +2853,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Chaque profil a ses propres licenciés, présences, séances et exercices ajoutés. Le premier profil garde
   // les clés de stockage d'origine (données existantes conservées) ; les suivants ont un suffixe « :id ».
   // Le code verrouille l'interface ; il ne chiffre pas les données de l'appareil.
+  // Authentification (profils, adresse mail, code) : conservée mais désactivée pour l'instant (choix du 15/10/2026).
+  // Mettre AUTH_ACTIVE à true pour la réactiver : écran S'identifier / Créer un profil, verrouillage, changement de profil.
+  var AUTH_ACTIVE = false;
+  window.JSB_AUTH = AUTH_ACTIVE;
   var CLE_PROFILS = 'jsb-profils', CLE_ACTIF = 'jsb-profil-actif';
   var PROFIL = null;
   function lireProfils() { try { var p = JSON.parse(localStorage.getItem(CLE_PROFILS)); return Array.isArray(p) ? p : []; } catch (err) { return []; } }
@@ -3046,8 +3050,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
         h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
-        PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
-        h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil')) : null, fenetre);
+        AUTH_ACTIVE && PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
+        AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null) : null, fenetre);
   }
   // ---- Générateur de séance en 5 questions (trame de Girma) :
   // 1. Mobilité : routine toujours la même, choisie une fois et gardée (par profil), modifiable
@@ -3820,6 +3824,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function Racine() {
     var s = React.useState(function () {
       var l = lireProfils(), ouvert = null; try { ouvert = sessionStorage.getItem('jsb-ouvert'); } catch (err) {}
+      // Sans authentification : ouverture directe sur le premier profil de l'appareil (données d'origine), ou un espace local
+      if (!AUTH_ACTIVE) { var q0 = l[0] || { id: 'local', prenom: 'Mon espace', nom: '', club: 'Judo Sans Barrière' }; activerProfil(q0, l.length ? l : [q0]); return 'chargement'; }
       var q = l.filter(function (x) { return x.id === ouvert; })[0];
       if (q) { activerProfil(q, l); return 'chargement'; }
       return 'connexion';
