@@ -822,6 +822,24 @@ body { background: var(--bg); }
 .bloc, .tuile, .carte, .pr-liste, .pr-stat, .pr-tableau, .pr-mois, .pr-rappel, .gestion, .vide, .cs-vide, .securite, .desc-partie.consigne, .sheet .illus-fiche, .ch-sugg button, .cx-case, .pr-seances li { border-radius: var(--r-m); }
 .btn, .cs-btn, .gn-option, .pr-action, .pr-rect, .pr-rappel-btn, .cherche, .champ select, .cs-champ input, .cs-champ select, .pr-choix select, .pr-choix input, .pr-mois select, .sheet-ajout, .gn-ouvrir, .cs-ouvrir, .carte-w .cs-plus, .bloc-ico { border-radius: var(--r-s); }
 .tag, .pastille, .pr-cat, .pr-puce, .ch-exo, .pastille-bientot, .sous { border-radius: var(--r-full); }
+
+/* ===== Hiérarchie des états dans la palette du logo (15/10/2026) =====
+   Action principale = bleu nuit plein · Sélection = fond argent clair + liseré bleu nuit + coche · Repos = surface + filet */
+:root { --sel-bg: color-mix(in srgb, var(--argent) 26%, var(--surface)); --sel-bord: var(--nuit); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sel-bg: color-mix(in srgb, var(--argent) 18%, var(--surface)); --sel-bord: var(--creme); } }
+:root[data-theme="dark"] { --sel-bg: color-mix(in srgb, var(--argent) 18%, var(--surface)); --sel-bord: var(--creme); }
+.sous[aria-pressed="true"], .pr-puce[aria-pressed="true"], .gn-option[aria-pressed="true"], .btn[aria-pressed="true"], .carte-w .cs-plus[aria-pressed="true"], .ch-exo[aria-pressed="true"] {
+  background: var(--sel-bg); border-color: var(--sel-bord); color: var(--ink); box-shadow: inset 0 0 0 1px var(--sel-bord); }
+.sous[aria-pressed="true"] small, .pr-puce[aria-pressed="true"] small { color: var(--ink); opacity: .8; background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.sous[aria-pressed="true"]::before, .pr-puce[aria-pressed="true"]::before, .carte-w .cs-plus[aria-pressed="true"]::before { content: "✓"; font-weight: 800; margin-right: 6px; }
+.gn-choix:not(.multi) .gn-option[aria-pressed="true"]::after { content: "✓"; float: right; font-weight: 800; }
+/* L'en-tête porte l'icône de la section : on sait toujours où l'on est */
+.appbar-ico { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: rgba(244, 245, 239, .12); color: var(--creme); box-shadow: inset 0 0 0 1px rgba(180, 180, 180, .4); }
+/* Cartes allégées : bandeau d'image plus bas, titre sur 2 lignes maximum, une seule ligne d'informations */
+.carte .illus.petit, .carte .illus.photo.petit, .carte .illus.ia.petit, .carte .illus.perso.petit { height: 112px; }
+.carte-nom { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.carte-pied { flex-wrap: nowrap; overflow: hidden; }
+.carte-cat { color: var(--muted); font-weight: 600; letter-spacing: .02em; }
 /* Assistant JSB (chatbot Claude) */
 .ch-ouvrir { position: fixed; z-index: 9; right: 16px; bottom: calc(var(--nav-h) + 22px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 50%;
   border: none; display: grid; place-items: center; background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); cursor: pointer;
@@ -1650,7 +1668,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 10h18';
+  var VERSION_APP = '15/10/2026 à 10h25';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3675,6 +3693,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('header', { className: 'appbar' },
         esp ? h('button', { type: 'button', className: 'retour', 'aria-label': f.sous ? 'Retour à ' + esp.label : "Retour à l'accueil", onClick: retour }, h(Icone, { nom: 'retour' }))
           : h(Logo, { className: 'marque-logo' }),
+        esp ? h('span', { className: 'appbar-ico', 'aria-hidden': 'true' }, h(Icone, { nom: ICONES[esp.key] ? esp.key : 'seance', taille: 18 })) : null,
         h('div', { className: 'appbar-titre' },
           h('strong', null, esp ? (f.sous || esp.label) : 'JSB Manager'),
           h('small', null, esp ? (f.sous ? esp.label : (PROFIL && PROFIL.club) || 'Judo Sans Barrières') : (PROFIL && PROFIL.club) || 'Judo Sans Barrières')),
@@ -3783,7 +3802,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, court(e.categorie)),
           h('span', { className: 'carte-nom' }, e.nom),
-          e.thematique ? h('span', { style: { fontSize: '14px', color: 'var(--muted)' } }, e.thematique) : null,
           h('span', { className: 'carte-pied' },
             e.exemple ? h('span', { className: 'tag ex' }, 'Exemple') : null,
             nv ? h(Grade, { texte: nv }) : null,
