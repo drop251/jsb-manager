@@ -840,6 +840,17 @@ body { background: var(--bg); }
 .carte-nom { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .carte-pied { flex-wrap: nowrap; overflow: hidden; }
 .carte-cat { color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+/* Mise à jour des licenciés depuis un nouveau fichier */
+.pr-maj { display: flex; flex-direction: column; gap: var(--e3); padding: var(--e4); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--sel-bord); box-shadow: var(--ombre); }
+.pr-maj > strong { font-size: var(--t-m); }
+.pr-maj details summary { cursor: pointer; font-weight: 600; font-size: var(--t-s); }
+.pr-maj details p, .pr-maj-absents p { margin: var(--e1) 0 0; font-size: var(--t-s); color: var(--muted); }
+.pr-maj-absents { display: flex; flex-direction: column; gap: var(--e2); }
+.pr-archives { margin-top: var(--e2); }
+.pr-archives summary { cursor: pointer; font-weight: 600; font-size: var(--t-s); color: var(--muted); padding: var(--e2) 0; }
+.pr-archives .pr-ligne { opacity: .75; }
+.pr-maj > * { flex: none; }
+.pr-maj > * { flex: none; }
 /* Assistant JSB (chatbot Claude) */
 .ch-ouvrir { position: fixed; z-index: 9; right: 16px; bottom: calc(var(--nav-h) + 22px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 50%;
   border: none; display: grid; place-items: center; background: var(--nuit, #1F2839); color: var(--creme, #F4F5EF); cursor: pointer;
@@ -1668,7 +1679,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '15/10/2026 à 10h31';
+  var VERSION_APP = '15/10/2026 à 10h43';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2163,7 +2174,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function NbPresences() {
     var e = React.useState(null), n = e[0], setN = e[1];
-    React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setN(d.judokas.length); }, function () {}); return function () { actif = false; }; }, []);
+    React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setN(d.judokas.filter(function (j) { return !j.archive; }).length); }, function () {}); return function () { actif = false; }; }, []);
     return n == null ? '' : n + (n > 1 ? ' licenciés' : ' licencié');
   }
   var JOURS_RAPPEL = 30;  // sauvegarde complète conseillée une fois par mois
@@ -2201,6 +2212,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var wb = XLSX.read(buf, { type: 'array' });
       var lignes = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       var appels = wb.Sheets['Appels'] ? XLSX.utils.sheet_to_json(wb.Sheets['Appels'], { defval: '' }) : [];
+      // Feuille de présences « en grille » : une ligne par licencié, une colonne par date (P/A, X, 1/0…)
+      if (!appels.length) wb.SheetNames.some(function (n) { appels = appelsDeGrille(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true })); return appels.length; });
       return { lignes: lignes, appels: appels };
     });
   }
@@ -2219,7 +2232,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return cleTexte(a.nom) === cleTexte(b.nom) && cleTexte(a.prenom) === cleTexte(b.prenom) && (!a.naissance || !b.naissance || a.naissance === b.naissance);
   }
   function fusionnerJudokas(liste, lignes) {
-    var res = liste.slice(), ajoutes = 0, completes = 0, sansDate = 0;
+    var res = liste.slice(), ajoutes = 0, completes = 0, sansDate = 0, vus = {}, nouveaux = [], modifies = [], reactives = [];
     lignes.forEach(function (l) {
       var j = { nom: colonne(l, ['nom', 'nomdefamille']), prenom: colonne(l, ['prenom']), licence: colonne(l, COL_LICENCE),
         naissance: lireDate(brut(l, COL_NAISSANCE)), groupe: colonne(l, ['groupe', 'categorie', 'cours', 'section']) };
@@ -2229,15 +2242,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!j.nom && !j.prenom) return;
       if (!j.naissance) sansDate++;
       var i = -1; res.forEach(function (x, k) { if (i < 0 && memeJudoka(x, j)) i = k; });
-      if (i < 0) { j.id = nouvelId(); res.push(j); ajoutes++; return; }
-      var x = Object.assign({}, res[i]), change = false;
-      ['licence', 'naissance', 'groupe', 'activite', 'autorisationPhoto'].forEach(function (k) { if (j[k] && x[k] !== j[k]) { x[k] = j[k]; change = true; } });
-      if (change) { res[i] = x; completes++; }
+      if (i < 0) { j.id = nouvelId(); res.push(j); ajoutes++; vus[j.id] = 1; nouveaux.push(j); return; }
+      var x = Object.assign({}, res[i]), change = false, avantCat = catDe(res[i]);
+      vus[x.id] = 1;
+      ['nom', 'prenom', 'licence', 'naissance', 'groupe', 'activite', 'autorisationPhoto'].forEach(function (k) { if (j[k] && x[k] !== j[k]) { x[k] = j[k]; change = true; } });
+      if (x.archive) { delete x.archive; reactives.push(x); change = true; }
+      if (change) { res[i] = x; completes++; modifies.push({ j: x, avant: avantCat, apres: catDe(x) }); }
     });
-    return { liste: res, ajoutes: ajoutes, completes: completes, sansDate: sansDate };
+    // Licenciés de la liste actuelle absents du nouveau fichier : candidats à l'archivage (non réinscrits)
+    var absents = liste.filter(function (x) { return !vus[x.id] && !x.archive; });
+    return { liste: res, ajoutes: ajoutes, completes: completes, sansDate: sansDate, nouveaux: nouveaux, modifies: modifies, reactives: reactives, absents: absents };
   }
   function bilanDe(donnees, cat) {
-    var js = donnees.judokas.filter(function (j) { return !cat || coursListe(j).indexOf(cat) >= 0; }).sort(triJudokas);
+    var js = donnees.judokas.filter(function (j) { return !j.archive && (!cat || coursListe(j).indexOf(cat) >= 0); }).sort(triJudokas);
     return js.map(function (j) {
       var c = { P: 0, A: 0 }, nb = 0, cj = cat ? [cat] : coursListe(j);
       donnees.seances.forEach(function (s) { if (cj.indexOf(s.groupe) < 0) return; var st = s.statuts[j.id]; if (st === 'P' || st === 'A') { c[st]++; nb++; } });
@@ -2272,19 +2289,70 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     enregistrerFichier('presences-JSB-' + (mois || aujourdhui()) + '.xlsx', new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), setMsg);
   }
+  // En-tête de colonne qui désigne une séance : « 14/10/2026 », « 14/10 », « 14-10-26 Poussins », date Excel…
+  function dateEnTete(v) {
+    if (typeof v === 'number') { var d0 = lireDate(v); return d0 ? { date: d0, groupe: '' } : null; }
+    var s = String(v || '').trim(), m = /^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?(?:\s+(.*))?$/.exec(s);
+    if (!m) { var iso = /^(\d{4})-(\d{2})-(\d{2})(?:\s+(.*))?$/.exec(s); return iso ? { date: iso[1] + '-' + iso[2] + '-' + iso[3], groupe: (iso[4] || '').trim() } : null; }
+    var a = +m[1], b = +m[2], jour = a, mois = b;
+    if (b > 12 && a <= 12) { jour = b; mois = a; }                       // format américain mm/jj
+    if (mois < 1 || mois > 12 || jour < 1 || jour > 31) return null;
+    var an = m[3] ? parseInt(m[3], 10) : (mois >= 9 ? debutSaison() : debutSaison() + 1);
+    if (an < 100) an += 2000;
+    return { date: an + '-' + deux(mois) + '-' + deux(jour), groupe: (m[4] || '').trim() };
+  }
+  function statutCellule(v) {
+    var c = cleTexte(v);
+    if (!c) return '';
+    if (/^(p|x|1|oui|o|present|presente|ok|v)$/.test(c) || v === true || String(v).trim() === '✓' || String(v).trim() === '✔') return 'present';
+    if (/^(a|0|non|n|abs|absent|absente|e|exc|excuse|excusee)$/.test(c)) return 'absent';
+    return '';
+  }
+  function appelsDeGrille(rangs) {
+    var iEnTete = -1;
+    for (var r = 0; r < Math.min(rangs.length, 15) && iEnTete < 0; r++) if (rangs[r].some(function (c) { return /^(nom|nomdefamille|nomprenom|licencie|judoka)$/.test(cleTexte(c)); })) iEnTete = r;
+    if (iEnTete < 0) return [];
+    var tete = rangs[iEnTete], dates = [], col = {};
+    tete.forEach(function (c, k) {
+      var t = cleTexte(c), d = dateEnTete(c);
+      if (d) dates.push({ k: k, date: d.date, groupe: d.groupe });
+      else if (/^(nom|nomdefamille)$/.test(t)) col.nom = k; else if (t === 'prenom') col.prenom = k; else if (/^(nomprenom|licencie|judoka)$/.test(t)) col.complet = k;
+      else if (COL_LICENCE.indexOf(t) >= 0) col.licence = k; else if (/^(cours|groupe|categorie|section)$/.test(t)) col.cours = k;
+      else if (COL_NAISSANCE.indexOf(t) >= 0) col.naissance = k;
+    });
+    if (!dates.length) return [];
+    var out = [];
+    rangs.slice(iEnTete + 1).forEach(function (l) {
+      var nom = col.nom != null ? String(l[col.nom] || '').trim() : '', prenom = col.prenom != null ? String(l[col.prenom] || '').trim() : '';
+      if (!nom && col.complet != null) { var pc = String(l[col.complet] || '').trim().split(/\s+/); nom = pc.shift() || ''; prenom = pc.join(' '); }
+      if (!nom && !prenom) return;
+      dates.forEach(function (d) {
+        var st = statutCellule(l[d.k]); if (!st) return;
+        out.push({ Date: d.date, Cours: d.groupe || (col.cours != null ? String(l[col.cours] || '').trim() : ''), Nom: nom, 'Prénom': prenom,
+          'N° de licence': col.licence != null ? String(l[col.licence] || '').trim() : '', 'Date de naissance': col.naissance != null ? l[col.naissance] : '', Statut: st });
+      });
+    });
+    return out;
+  }
   function restaurerAppels(donnees, appels) {
+    var nouveaux = 0, dates = {}, vus = {};
     var code = { present: 'P', absent: 'A' }, d = { judokas: donnees.judokas.slice(), seances: donnees.seances.map(function (s) { return Object.assign({}, s, { statuts: Object.assign({}, s.statuts) }); }) }, n = 0;
     appels.forEach(function (a) {
       var date = lireDate(brut(a, ['date'])), st = code[cleTexte(brut(a, ['statut']))], cat = colonne(a, ['cours', 'groupe', 'categorie']);
-      if (!st || !date || !cat) return;
+      if (!st || !date) return;
       var cible = { nom: colonne(a, ['nom']), prenom: colonne(a, ['prenom']), licence: colonne(a, COL_LICENCE), naissance: lireDate(brut(a, COL_NAISSANCE)) };
       var j = d.judokas.filter(function (x) { return memeJudoka(x, cible); })[0];
-      if (!j) { j = Object.assign({ id: nouvelId(), groupe: cat }, cible); d.judokas.push(j); }
+      if (!j && !cat) return;
+      if (!j) { j = Object.assign({ id: nouvelId(), groupe: cat }, cible); d.judokas.push(j); nouveaux++; }
+      if (j.archive) { d.judokas = d.judokas.map(function (x) { return x.id === j.id ? Object.assign({}, x, { archive: '' }) : x; }); }
+      // Cours : celui de la colonne, sinon le cours du licencié pour la saison
+      if (!cat || coursListe(j).indexOf(cat) < 0 && ['Éveils 4 ans', 'Éveils 5 ans', 'Pré-poussins', 'Poussins', 'Benjamins', COURS_ADULTES, COURS_TAISO].indexOf(cat) < 0) cat = coursListe(j)[0] || coursDe(j);
+      dates[date] = 1; vus[j.id] = 1;
       var s = d.seances.filter(function (x) { return x.date === date && x.groupe === cat; })[0];
       if (!s) { s = { id: nouvelId(), date: date, groupe: cat, statuts: {} }; d.seances.push(s); }
       s.statuts[j.id] = st; n++;
     });
-    return { donnees: d, n: n };
+    return { donnees: d, n: n, nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
   }
 
   function Presences() {
@@ -2303,10 +2371,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s6 = React.useState(null), aConfirmer = s6[0], setAConfirmer = s6[1];
     var s7 = React.useState(null), selCours = s7[0], setSelCours = s7[1];
     var s9 = React.useState(function () { return aujourdhui().slice(0, 7); }), moisSel = s9[0], setMoisSel = s9[1];
+    var s10 = React.useState(null), miseAJour = s10[0], setMiseAJour = s10[1];   // { fu, fichier, archiver }
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'pr-aide', role: 'status' }, 'Chargement des présences…'));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
-    donnees.judokas.forEach(function (j) { coursListe(j).forEach(function (c) { (parCat[c] = parCat[c] || []).push(j); }); });
+    var actifs = donnees.judokas.filter(function (j) { return !j.archive; }), archives = donnees.judokas.filter(function (j) { return j.archive; });
+    actifs.forEach(function (j) { coursListe(j).forEach(function (c) { (parCat[c] = parCat[c] || []).push(j); }); });
     var groupes = Object.keys(parCat).sort(triCat);
     var g = groupe && groupes.indexOf(groupe) >= 0 ? groupe : (groupes[0] || '');
     function maj(d, texte) {
@@ -2327,14 +2397,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (/\.json$/i.test(f.name)) { restaurer(f); return; }
       setMsg('Lecture du classeur…');
       lireClasseur(f).then(function (r) {
-        if (r.appels.length) { var res = restaurerAppels(donnees, r.appels); maj(res.donnees, res.n + ' présences restaurées depuis l\'export.'); return; }
+        if (r.appels.length) {
+          var res = restaurerAppels(donnees, r.appels);
+          if (!res.n) { setMsg('Aucune présence reconnue : vérifiez les colonnes Nom, Prénom et les dates (P/A, X, 1/0).'); return; }
+          setAConfirmer({ texte: 'Importer ' + res.n + ' présences sur ' + res.nbDates + (res.nbDates > 1 ? ' séances' : ' séance') + ' (du ' + dateFr(res.premiere) + ' au ' + dateFr(res.derniere) + ') pour ' + res.nbJudokas + ' licenciés'
+            + (res.nouveaux ? ', dont ' + res.nouveaux + (res.nouveaux > 1 ? ' nouveaux ajoutés' : ' nouveau ajouté') + ' à la liste' : '') + ' ? Les appels déjà notés aux mêmes dates sont complétés ou remplacés.',
+            action: function () { maj(res.donnees, res.n + ' présences importées depuis « ' + f.name + ' ».'); } });
+          return;
+        }
         var fu = fusionnerJudokas(donnees.judokas, r.lignes);
-        if (!fu.ajoutes && !fu.completes) { setMsg('Aucun judoka ajouté : le classeur doit avoir des colonnes Nom, Prénom, N° de licence et Date de naissance, ou tous les judokas sont déjà dans la liste.'); return; }
-        var t = fu.ajoutes + (fu.ajoutes > 1 ? ' judokas ajoutés' : ' judoka ajouté') + (fu.completes ? ', ' + fu.completes + ' complétés' : '') + ' et classés par cours.';
-        if (fu.sansDate) t += ' ' + fu.sansDate + ' sans date de naissance lisible : rangés selon leur colonne Groupe, ou dans « Sans catégorie ».';
-        maj(Object.assign({}, donnees, { judokas: fu.liste }), t);
+        if (!fu.ajoutes && !fu.completes && !fu.absents.length) { setMsg('Aucun changement : le classeur doit avoir des colonnes Nom, Prénom, N° de licence et Date de naissance, ou la liste est déjà à jour.'); return; }
+        // Liste déjà remplie : on montre la mise à jour avant de l'appliquer
+        if (donnees.judokas.some(function (j) { return !j.archive; })) { setMsg(''); setMiseAJour({ fu: fu, fichier: f.name, archiver: true }); return; }
+        appliquerMiseAJour(fu, false);
       }).catch(function () { setMsg("Ce fichier n'a pas pu être lu. Utilisez un classeur Excel (.xlsx) ou un fichier .csv avec les colonnes Nom, Prénom, N° de licence et Date de naissance."); });
     }
+    function appliquerMiseAJour(fu, archiver) {
+      var ids = {}; if (archiver) fu.absents.forEach(function (x) { ids[x.id] = 1; });
+      var liste = fu.liste.map(function (j) { return ids[j.id] ? Object.assign({}, j, { archive: saison }) : j; });
+      var t = [fu.ajoutes ? fu.ajoutes + (fu.ajoutes > 1 ? ' judokas ajoutés' : ' judoka ajouté') : '', fu.completes ? fu.completes + ' mis à jour' : '',
+        archiver && fu.absents.length ? fu.absents.length + ' archivé' + (fu.absents.length > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + ' — tous reclassés par cours pour la saison ' + saison + '.';
+      if (fu.sansDate) t += ' ' + fu.sansDate + ' sans date de naissance lisible : rangés selon leur colonne Groupe, ou dans « Sans catégorie ».';
+      setMiseAJour(null); maj(Object.assign({}, donnees, { judokas: liste }), t);
+    }
+    function restaurerArchive(j) { modifier(j, { archive: '' }, nomComplet(j) + ' est de retour dans la liste.'); }
     function modifier(j, champs, texte) { maj(Object.assign({}, donnees, { judokas: donnees.judokas.map(function (x) { return x.id === j.id ? Object.assign({}, x, champs) : x; }) }), texte); }
     function activite(j, v) { modifier(j, { activite: v }, 'Activité enregistrée.'); }
     function autorisation(j, v) {
@@ -2397,7 +2483,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
-          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ».')), importBtn), aide);
+          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par licencié et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent.')), importBtn), aide);
     }
     var corps;
     if (vue === 'appel') {
@@ -2462,7 +2548,35 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           })));
       }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [] }, 'Tout a été effacé.'); } }); } }, 'Tout effacer'));
     }
-    return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, corps, aide);
+    var panneauMaj = null;
+    if (miseAJour) {
+      var fu = miseAJour.fu, apres = {};
+      fu.liste.forEach(function (j) { if (j.archive || (miseAJour.archiver && fu.absents.indexOf(j) >= 0)) return; coursListe(j).forEach(function (c) { apres[c] = (apres[c] || 0) + 1; }); });
+      var changements = fu.modifies.filter(function (m) { return m.avant !== m.apres; });
+      panneauMaj = h('div', { className: 'pr-maj', role: 'region', 'aria-label': 'Mise à jour des licenciés' },
+        h('strong', null, 'Mise à jour depuis « ' + miseAJour.fichier + ' »'),
+        h('div', { className: 'pr-stats' },
+          h('span', { className: 'pr-stat ok' }, h('b', null, fu.ajoutes), fu.ajoutes > 1 ? 'nouveaux' : 'nouveau'),
+          h('span', { className: 'pr-stat' }, h('b', null, fu.completes), 'mis à jour'),
+          h('span', { className: 'pr-stat ko' }, h('b', null, fu.absents.length), 'absent' + (fu.absents.length > 1 ? 's' : '') + ' du fichier')),
+        fu.nouveaux.length ? h('details', null, h('summary', null, 'Nouveaux licenciés'), h('p', null, fu.nouveaux.map(function (j) { return nomComplet(j) + ' (' + catDe(j) + ')'; }).join(' · '))) : null,
+        changements.length ? h('details', null, h('summary', null, changements.length + ' changement' + (changements.length > 1 ? 's' : '') + ' de catégorie'), h('p', null, changements.map(function (m) { return nomComplet(m.j) + ' : ' + m.avant + ' → ' + m.apres; }).join(' · '))) : null,
+        fu.absents.length ? h('div', { className: 'pr-maj-absents' },
+          h('p', null, fu.absents.length + (fu.absents.length > 1 ? ' licenciés de la liste actuelle ne sont pas dans le nouveau fichier' : ' licencié de la liste actuelle n\'est pas dans le nouveau fichier') + ' (non réinscrit ?) : ' + fu.absents.map(nomComplet).join(', ') + '.'),
+          h('label', { className: 'cx-case' }, h('input', { type: 'checkbox', checked: miseAJour.archiver, onChange: function (ev) { setMiseAJour(Object.assign({}, miseAJour, { archiver: ev.target.checked })); } }),
+            h('span', null, 'Les archiver : retirés de l\'appel et des listes, mais gardés avec leurs présences passées. Ils reviennent automatiquement s\'ils réapparaissent dans un prochain fichier.'))) : null,
+        h('p', { className: 'pr-mini' }, 'Classement saison ' + saison + ' après mise à jour : ' + Object.keys(apres).sort(triCat).map(function (c) { return c + ' ' + apres[c]; }).join(' · ')),
+        h('div', { className: 'gestion-actions' },
+          h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { appliquerMiseAJour(fu, miseAJour.archiver); } }, 'Appliquer la mise à jour'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setMiseAJour(null); setMsg('Mise à jour annulée : rien n\'a changé.'); } }, 'Annuler')));
+    }
+    var blocArchives = vue === 'judokas' && archives.length ? h('details', { className: 'pr-archives' }, h('summary', null, 'Archivés (' + archives.length + ') — non réinscrits'),
+      h('ul', { className: 'pr-liste' }, archives.slice().sort(triJudokas).map(function (j) {
+        return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
+          h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-infos' }, 'Archivé en ' + j.archive + ' · ' + catDe(j))),
+          h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { restaurerArchive(j); } }, 'Remettre'));
+      }))) : null;
+    return h('section', { className: 'pr' }, entetePr, rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMaj, corps, blocArchives, aide);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
   // (public, catégorie d'âge, moment, catégorie, grade/niveau, famille de technique) et formes enfants.
