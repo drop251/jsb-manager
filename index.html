@@ -1052,6 +1052,49 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 52px); overflow-wrap: anywhere; hyph
 .pr-versions summary { cursor: pointer; font-weight: 600; font-size: var(--t-s); padding: var(--e2) 0; min-height: var(--h-mini); display: flex; align-items: center; }
 .pr-versions .pr-ligne { flex-wrap: wrap; }
 .pr-erreur { color: var(--ko-t) !important; font-weight: 600; }
+
+/* ===== Téléphone : proportions resserrées (16/10/2026) =====
+   Texte courant 16 px, titres plus petits, marges réduites : plus de contenu visible sans défiler. */
+.pr-fichiers > summary { display: flex; align-items: center; min-height: var(--h-mini); cursor: pointer; font-weight: 600; font-size: var(--t-s); color: var(--muted); }
+.pr-fichiers[open] > summary { margin-bottom: var(--e2); }
+@media (max-width: 599px) {
+  .wrap { gap: var(--e4); }
+  .appbar { min-height: 56px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }
+  .appbar-titre strong { font-size: min(1.0625rem, 22px); }
+  .appbar-titre small { font-size: min(0.75rem, 16px); }
+  h1, .hero h1 { font-size: min(1.75rem, 36px); line-height: 1.15; }
+  .hero { gap: 2px; margin-top: 0; }
+  .hero p, .lead { font-size: var(--t-s); line-height: 1.4; margin-top: 2px; }
+  .sheet h2, .gn h2, .cs-haut h2, .rg h2 { font-size: min(1.5rem, 32px); }
+  .bloc { padding: var(--e3) var(--e3) var(--e3) var(--e4); column-gap: var(--e3); }
+  .bloc-nom, .pr-groupe h3, .pr-seances h3, .pr-jour h3, .gestion h2 { font-size: 1.125rem; }
+  .bloc-txt { font-size: 0.8125rem; line-height: 1.35; }
+  .bloc-ico { width: 40px; height: 40px; }
+  .tuile { padding: var(--e2) var(--e3); gap: 2px; }
+  .tuile strong, .pr-stat b { font-size: 1.125rem; }
+  .carte-nom { font-size: 0.9375rem; }
+  .carte .illus.petit, .carte .illus.photo.petit, .carte .illus.ia.petit, .carte .illus.perso.petit { height: 96px; }
+  .cs-champ label, .champ label, .etiq, .pr-etiq { font-size: var(--t-xs); }
+  .pr, .pr-bloc, .pr-choix { gap: var(--e2); }
+  .pr-ligne { min-height: 56px; padding: 6px 10px; gap: var(--e2); }
+  .pr-nomf { font-size: 0.9375rem; }
+  .pr-stat { padding: 6px 10px; }
+  .pr-rappel { padding: 8px 12px; font-size: var(--t-xs); gap: var(--e2); }
+  .pr-valider-btn { min-height: 52px; }
+}
+/* Aucune ligne ne dépasse la largeur de l'écran : les rangées de puces défilent, le texte passe à la ligne */
+.pr-creneaux, .pr-cours, .pr-choix > *, .pr-puces { min-width: 0; max-width: 100%; }
+.pr-creneaux .pr-mini, .pr-choix .pr-mini { overflow-wrap: anywhere; }
+.pr, .pr-bloc, .wrap { min-width: 0; }
+html, body { overflow-x: clip; }
+@media (max-width: 599px) {
+  /* Le titre de section est déjà dans l'en-tête : sur téléphone, il reste lisible par VoiceOver mais ne prend plus de place */
+  header.hero { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pr-bloc .pr-stats { display: none; }
+  .pr-valider { padding: var(--e2); }
+  .pr-valider-btn { min-height: 48px; }
+}
+.pr > .cs-msg:empty { display: none; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1824,7 +1867,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '' };
-  var VERSION_APP = '16/10/2026 à 00h23';
+  var VERSION_APP = '16/10/2026 à 00h44';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -1954,8 +1997,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var CLE_AFFICHAGE = 'jsb-affichage';
   var TAILLES_TEXTE = [[0, 'Système'], [100, 'Standard'], [115, 'Grand'], [130, 'Très grand'], [160, 'Énorme'], [200, 'Maximal']];
   function lireAffichage() {
-    var d = { texte: 0, vibrations: true, contraste: false, animations: false };
-    try { var x = JSON.parse(localStorage.getItem(CLE_AFFICHAGE) || '{}'); for (var k in d) if (x && x[k] !== undefined) d[k] = x[k]; } catch (e) {}
+    var d = { texte: 100, vibrations: true, contraste: false, animations: false };
+    try { var x = JSON.parse(localStorage.getItem(CLE_AFFICHAGE) || '{}'); for (var k in d) if (x && x[k] !== undefined) d[k] = x[k];
+      if (x && x.v !== 2 && d.texte === 0) d.texte = 100;  // l'ancien réglage par défaut « Système » grossissait trop le texte sur iPhone
+    } catch (e) {}
     return d;
   }
   function appliquerAffichage(a) {
@@ -1971,7 +2016,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var AFFICHAGE = lireAffichage();
   appliquerAffichage(AFFICHAGE);
   function changerAffichage(maj) {
-    AFFICHAGE = Object.assign({}, AFFICHAGE, maj);
+    AFFICHAGE = Object.assign({}, AFFICHAGE, maj, { v: 2 });
     try { localStorage.setItem(CLE_AFFICHAGE, JSON.stringify(AFFICHAGE)); } catch (e) {}
     appliquerAffichage(AFFICHAGE);
   }
@@ -2894,7 +2939,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var importBtn = h('label', { className: 'pr-import pr-action' }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.json', onChange: importer }), 'Importer un classeur');
     var restaurerBtn = h('label', { className: 'pr-action pr-restaurer' }, h('input', { type: 'file', accept: '.json,.jsb,application/json', 'aria-label': 'Restaurer une sauvegarde complète', onChange: function (ev) { var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (f) restaurer(f); } }), 'Restaurer une sauvegarde');
     var rappel = sauvegardeAncienne(donnees) ? h('div', { className: 'pr-rappel', role: 'status' },
-      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde le ' + new Date(donnees.sauvegardeLe).toLocaleDateString('fr-FR') + ' : pensez à la sauvegarde de la semaine.' : 'Aucune sauvegarde pour l\'instant : les présences ne sont enregistrées que sur cet appareil.'),
+      h('span', null, donnees.sauvegardeLe ? 'Dernière sauvegarde il y a ' + Math.floor((Date.now() - donnees.sauvegardeLe) / 86400000) + ' jours.' : 'Pas encore de sauvegarde : tout est sur cet appareil.'),
       h('button', { type: 'button', className: 'pr-rappel-btn', onClick: sauvegarder }, 'Sauvegarder')) : null;
     var confirmation = aConfirmer ? h('div', { className: 'pr-confirme', role: 'alertdialog', 'aria-label': 'Confirmation' },
       h('span', null, aConfirmer.texte),
@@ -2904,9 +2949,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      h('div', { className: 'pr-actions' }, importBtn,
-        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
-        h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn));
+      // Fichiers : ouverts sur « Licenciés » et quand la liste est vide, repliés ailleurs pour laisser la place à l'appel
+      h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: vue === 'judokas' || !donnees.judokas.length },
+        h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
+        h('div', { className: 'pr-actions' }, importBtn,
+          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
+          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn)));
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
     var panneauSauvegarde = panneauSvg ? h(PanneauSauvegarde, { donnees: donnees, setMsg: setMsg, onSauvegarder: sauvegarderMaintenant, onFermer: function () { setPanneauSvg(false); },
@@ -2927,7 +2975,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               var actif = coursAppel.join() === c.cours.filter(function (x) { return groupes.indexOf(x) >= 0; }).join();
               return h('button', { key: c.id, type: 'button', className: 'pr-puce pr-creneau', 'aria-pressed': actif, onClick: function () { setSelCours(c.cours.slice()); } }, heureFr(c.debut), h('small', null, c.cours.join(', ')));
             })),
-            creneau && !selCours ? h('p', { className: 'pr-mini' }, 'Ouvert automatiquement d\'après votre planning : ' + texteCreneau(creneau) + '.') : null)
+            creneau && !selCours ? h('p', { className: 'pr-mini' }, 'Ouvert d\'après votre planning.') : null)
           : !planning.length ? h('div', { className: 'pr-astuce' }, h('span', null, 'Astuce : avec votre planning de la semaine, le bon cours s\'ouvre tout seul à l\'heure du cours.'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setVue('planning'); } }, 'Renseigner mon planning')) : null,
           h('div', { className: 'cs-champ pr-cours' }, h('span', { className: 'pr-etiq', id: 'pr-cours-titre' }, "Cours de l'appel : un ou plusieurs"),
             h('div', { className: 'pr-puces', role: 'group', 'aria-labelledby': 'pr-cours-titre' }, groupes.map(function (x) {
@@ -2962,7 +3010,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                   h('button', { type: 'button', className: 'cs-btn', onClick: function () { setConfValider(false); } }, 'Annuler')))
             : h('div', { className: 'pr-valider' },
                 h('button', { type: 'button', className: 'pr-valider-btn', onClick: function () { setConfValider(true); } },
-                  h('span', null, "Valider l'appel"), h('small', null, pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent') + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null);
+                  h('span', null, "Valider l'appel"), h('small', { 'aria-live': 'polite' }, pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent') + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null);
     } else if (vue === 'bilan') {
       var moisDispo = donnees.seances.map(function (x) { return x.date.slice(0, 7); }).concat([aujourdhui().slice(0, 7)]).filter(function (m, i, t) { return t.indexOf(m) === i; }).sort().reverse();
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
