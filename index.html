@@ -1254,6 +1254,79 @@ html, body { overflow-x: clip; }
 .cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .pr-suivi p { margin: 0; }
 .pr-alerte details > summary { min-height: var(--h-mini); display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: var(--t-s); }
+/* ===== Mes séances, séance en direct, accueil allégé, tablette (16/10/2026) ===== */
+.ms { display: flex; flex-direction: column; gap: var(--e3); }
+.ms-h { margin: var(--e3) 0 0; font-family: var(--display); font-size: var(--t-l); }
+.ms-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); overflow: hidden; }
+.ms-ligne { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e2) var(--e3); padding: var(--e3); }
+.ms-ligne + .ms-ligne { border-top: 1px solid var(--line); }
+.ms-ligne.prevue { box-shadow: inset 4px 0 0 var(--ok-bord); }
+.ms-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.ms-texte span { font-size: var(--t-s); color: var(--muted); }
+.ms-ligne.prevue .ms-texte span { color: var(--ok-t); font-weight: 600; }
+.ms-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ms-actions .cs-btn.plein, .cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.ms-tuiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); }
+.ms-tuile { display: flex; flex-direction: column; gap: 4px; padding: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
+.ms-tuile b { font-family: var(--display); font-size: var(--t-l); }
+.ms-tuile span { font-size: var(--t-s); color: var(--muted); }
+.ms-vide { margin: 0; font-size: var(--t-s); color: var(--muted); }
+.ms-fiche { margin-top: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); padding: 0 var(--e3) var(--e2); }
+.ms-fiche > summary { min-height: var(--h-ctrl); display: flex; align-items: center; cursor: pointer; font-weight: 700; }
+.ms-fiche[open] { padding-bottom: var(--e4); }
+
+/* Séance en direct : plein écran, lisible à 2 m */
+.sd { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: var(--nuit); color: var(--creme);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+.sd.flash { animation: sd-flash .6s ease-out; }
+@keyframes sd-flash { 0% { background: #2E6B47; } 100% { background: var(--nuit); } }
+@media (prefers-reduced-motion: reduce) { .sd.flash { animation: none; } }
+.sd-haut { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); font-size: var(--t-s); font-weight: 600; color: var(--argent); }
+.sd-quitter { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(244, 245, 239, .35); background: none; color: var(--creme); font-size: 1.25rem; cursor: pointer; }
+.sd-progres { height: 4px; margin: 8px 0 0; border-radius: 2px; background: rgba(244, 245, 239, .18); overflow: hidden; }
+.sd-progres i { display: block; height: 100%; background: var(--creme); transform-origin: 0 50%; transition: transform .3s; }
+.sd-centre { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e3); text-align: center; padding: var(--e3) 0; }
+.sd-phase { margin: 0; font-size: var(--t-s); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--argent); }
+.sd-nom { margin: 0; font-family: var(--display); font-size: min(2.25rem, 9vw); line-height: 1.1; max-width: 22ch; }
+.sd-dosage { margin: 0; font-size: 1.125rem; font-weight: 700; }
+.sd-minuteur { position: relative; width: min(60vw, 260px); aspect-ratio: 1; }
+.sd-minuteur svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.sd-fond { fill: none; stroke: rgba(244, 245, 239, .15); stroke-width: 8; }
+.sd-reste { fill: none; stroke: var(--creme); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.sd-temps { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: min(4rem, 16vw); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sd-sans { margin: 0; font-size: 1rem; color: var(--argent); }
+.sd-consigne { margin: 0; max-width: 46ch; font-size: 1rem; line-height: 1.45; color: rgba(244, 245, 239, .9); }
+.sd-vigilance { margin: 0; max-width: 46ch; font-size: .9375rem; font-weight: 600; color: #F5C26B; }
+.sd-ensuite { margin: 0; font-size: .9375rem; color: var(--argent); }
+.sd-commandes { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: var(--e2); }
+.sd-btn { min-height: 64px; border-radius: var(--r-m); border: 1px solid rgba(244, 245, 239, .35); background: rgba(244, 245, 239, .08); color: var(--creme); font: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; }
+.sd-btn.principal { background: var(--creme); color: var(--nuit); border-color: var(--creme); }
+.sd-btn:disabled { opacity: .4; }
+.sd-btn:focus-visible, .sd-quitter:focus-visible { outline: 3px solid var(--creme); outline-offset: 2px; }
+.sd-fin { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e3); text-align: center; }
+.sd-fin strong { font-family: var(--display); font-size: 2rem; }
+.sd-fin .sd-btn { min-width: 200px; }
+.cs-lancer { font-weight: 700; }
+
+/* Accueil allégé : raccourcis compacts (la barre d'onglets mène déjà aux sections) */
+.blocs.raccourcis { grid-template-columns: 1fr 1fr; }
+.blocs.raccourcis .bloc { padding: var(--e3); grid-template-areas: "ico nb" "nom nom"; grid-template-columns: auto 1fr; row-gap: var(--e2); min-height: 0; }
+.blocs.raccourcis .bloc-txt, .blocs.raccourcis .bloc-sous { display: none; }
+.blocs.raccourcis .bloc-nom { font-size: 1.0625rem; }
+.blocs.raccourcis .bloc-nb { justify-self: end; font-size: var(--t-xs); color: var(--muted); }
+.blocs.raccourcis .bloc-ico { width: 40px; height: 40px; }
+
+/* Ajouter des exercices : le bouton d'abord, les explications repliées */
+.gestion-principal .btn.plein { min-height: var(--h-ctrl); background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.gestion-plus > summary { min-height: var(--h-mini); display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: var(--t-s); color: var(--muted); }
+
+/* Tablette et ordinateur : fiche à côté de la liste */
+@media (min-width: 900px) {
+  body.fiche-ouverte .page { padding-right: min(480px, 45vw); transition: padding-right .2s; }
+  .voile.voile-fiche { background: transparent; pointer-events: none; animation: none; }
+  .voile.voile-fiche .sheet { pointer-events: auto; width: min(480px, 45vw); box-shadow: -10px 0 30px rgba(15, 20, 30, .14); border-left: 1px solid var(--line); }
+}
+.cs-cours-aide { flex: 1 1 100%; margin: 0; font-size: var(--t-s); color: var(--muted); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2018,7 +2091,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     { key: 'taiso', label: 'Taïso', couleur: 'taiso', intro: 'Préparation du corps : gym douce pour entretenir, training pour renforcer.', sous: ['Gym douce', 'Training'], sousTous: 'Tout le taïso' },
     { key: 'judo', label: 'Judo', couleur: 'judo', intro: 'Chutes, déplacements, technique debout et au sol, randori.', sous: ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'], sousTous: 'Tous les âges' },
     { key: 'suivi', label: 'Suivi et reprise', couleur: 'suivi', intro: "Prévention, réathlétisation après blessure et tests d'évaluation.", sous: [], sousTous: '' },
-    { key: 'seance', label: 'Séance type', couleur: 'seance', intro: 'La trame standard JSB en 5 phases et sa fiche vierge à télécharger.', sous: ['Fiche PDF', '5 phases'], sousTous: '', special: true },
+    { key: 'seance', label: 'Mes séances', couleur: 'seance', intro: 'Vos cours de la semaine et leur séance, l\'historique, la fiche vierge.', sous: ['Semaine', 'Historique', 'Fiche PDF'], sousTous: '', special: true },
     { key: 'presences', label: 'Présences', couleur: 'pres', intro: "Faire l'appel de chaque groupe et suivre l'assiduité de chaque judoka.", sous: ['Appel', 'Bilan', 'Export Excel'], sousTous: '', special: true }
   ];
   var NIVEAUX = ['Débutant', 'Intermédiaire', 'Expert'];
@@ -2026,7 +2099,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '16/10/2026 à 09h40';
+  var VERSION_APP = '16/10/2026 à 10h06';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2071,7 +2144,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     retour: 'M15 5l-7 7 7 7'
   };
   function Icone(p) { return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true', width: p.taille || 24, height: p.taille || 24 }, h('path', { d: ICONES[p.nom] })); }
-  var NAV = [['', 'Accueil', 'accueil'], ['taiso', 'Taïso', 'taiso'], ['judo', 'Judo', 'judo'], ['seance', 'Séance', 'seance'], ['presences', 'Présences', 'presences']];
+  var NAV = [['', 'Accueil', 'accueil'], ['taiso', 'Taïso', 'taiso'], ['judo', 'Judo', 'judo'], ['seance', 'Séances', 'seance'], ['presences', 'Présences', 'presences']];
   function niveauTexte(e, judo) { return e.grade || (NIVEAUX.indexOf(e.niveau) < 0 ? '' : e.niveau); }
 
   function Champ(p) {
@@ -2097,8 +2170,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var e = p.e, judo = p.espace.key === 'judo';
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
-    return ReactDOM.createPortal(h('div', { className: 'voile', onClick: p.fermer },
-      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': e.nom, tabIndex: -1, ref: function (n) { if (n) n.focus(); }, style: teinte(p.espace.couleur),
+    // Tablette et ordinateur : la fiche s'affiche à côté de la liste (on peut toucher un autre exercice sans la fermer)
+    React.useEffect(function () { document.body.classList.add('fiche-ouverte'); return function () { document.body.classList.remove('fiche-ouverte'); }; }, []);
+    var cote = window.innerWidth >= 900;
+    return ReactDOM.createPortal(h('div', { className: 'voile voile-fiche', onClick: p.fermer },
+      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: function (n) { if (n) n.focus(); }, style: teinte(p.espace.couleur),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } },
         h('div', { className: 'sheet-barre' },
           h('span', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
@@ -2133,6 +2209,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s = React.useState(null), appel = s[0], setAppel = s[1];
     var sc = React.useState(null), cren = sc[0], setCren = sc[1];
     var sv = React.useState({ n: 0, inscrits: 0, liste: [] }), suivi = sv[0], setSuivi = sv[1];
+    var sd = React.useState(null), direct = sd[0], setDirect = sd[1];
     React.useEffect(function () {
       var actif = true;
       chargerPres().then(function (d) {
@@ -2164,10 +2241,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('ol', null, prevue.exos.map(function (x, i) { return h('li', { key: x.id + i }, x.nom + (x.duree ? ' · ' + x.duree + ' min' : '')); }))) : null,
       h('div', { className: 'cours-jour-actions' },
         h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { p.aller('presences'); } }, 'Commencer : faire l\'appel'),
-        prevue ? null : h('button', { type: 'button', className: 'cs-btn', onClick: function () { p.aller(cren.cours.some(function (c) { return /taïso|taiso/i.test(c); }) ? 'taiso' : 'judo'); } }, 'Préparer la séance'))) : null;
+        prevue ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setDirect(prevue); } }, 'Lancer la séance') : h('button', { type: 'button', className: 'cs-btn', onClick: function () { var c0 = prochainsCreneaux([cren], 1)[0]; if (c0) poserIntention({ type: 'preparer', cle: c0.cle }); p.aller(espaceDuCours(cren.cours)); } }, 'Préparer la séance'))) : null;
     var alerte = suivi.n ? h('button', { type: 'button', className: 'alerte-suivi', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'bilan'); } catch (e) {} p.aller('presences'); } },
       h('b', null, suivi.n + (suivi.n > 1 ? ' licenciés à surveiller' : ' licencié à surveiller')), h('span', null, '3 absences de suite ou plus : ' + suivi.liste.join(', ') + (suivi.n > 3 ? '…' : ''))) : null;
     return h('section', { className: 'aujourdhui', 'aria-label': "Aujourd'hui" }, carteCours, alerte,
+      direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null,
       tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Ma séance', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
         nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance'),
       tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
@@ -2346,6 +2424,147 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setPl(d.planning || []); }, function () {}); return function () { actif = false; }; }, []);
     return pl;
   }
+  // ===== Mes séances (16/10/2026) : semaine par créneau, Ma séance Judo/Taïso, historique, fiche vierge ; mode séance en direct =====
+  // Intentions passées d'un écran à l'autre (préparer pour un créneau, ouvrir Ma séance, générer, reprendre une séance)
+  function poserIntention(x) { try { sessionStorage.setItem('jsb-intent', JSON.stringify(x)); } catch (e) {} }
+  function prendreIntention(types) {
+    try { var x = JSON.parse(sessionStorage.getItem('jsb-intent') || 'null'); if (x && types.indexOf(x.type) >= 0) { sessionStorage.removeItem('jsb-intent'); return x; } } catch (e) {}
+    return null;
+  }
+  function espaceDuCours(cours) { return (cours || []).some(function (c) { return /ta[iï]so/i.test(c); }) ? 'taiso' : 'judo'; }
+  function seancePrevue(histo, date, cours) { return histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); })[0] || null; }
+
+  // --- Sons courts (Web Audio) et maintien de l'écran allumé
+  var audioCtx = null;
+  function bip(freq, ms, vol) {
+    try {
+      if (!audioCtx) { var A = window.AudioContext || window.webkitAudioContext; if (!A) return; audioCtx = new A(); }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime;
+      o.type = 'sine'; o.frequency.value = freq || 880; g.gain.setValueAtTime(vol || 0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + (ms || 180) / 1000);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + (ms || 180) / 1000 + 0.02);
+    } catch (e) {}
+  }
+  function useEcranAllume() {
+    React.useEffect(function () {
+      var verrou = null, actif = true;
+      function demander() { try { if (navigator.wakeLock && document.visibilityState === 'visible') navigator.wakeLock.request('screen').then(function (l) { if (actif) verrou = l; else l.release(); }, function () {}); } catch (e) {} }
+      demander(); document.addEventListener('visibilitychange', demander);
+      return function () { actif = false; document.removeEventListener('visibilitychange', demander); try { if (verrou) verrou.release(); } catch (e) {} };
+    }, []);
+  }
+  function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+
+  // --- Mode séance en direct : plein écran, minuteur, exercice en cours en grand, bip + vibration aux changements
+  function SeanceDirecte(p) {
+    var exos = (p.seance.exos || []).filter(function (x) { return x && x.nom; }), PH = phasesDe(p.seance.espace);
+    var parId = {}; (p.base || BASE).forEach(function (e) { parId[e.id] = e; });
+    function sec(x) { var m = parseFloat(x && x.duree); return m > 0 ? Math.round(m * 60) : 0; }
+    var s1 = React.useState(0), i = s1[0], setI = s1[1];
+    var s2 = React.useState(sec(exos[0])), reste = s2[0], setReste = s2[1];
+    var s3 = React.useState(null), finA = s3[0], setFinA = s3[1];      // horodatage de fin quand le minuteur tourne
+    var s4 = React.useState(false), termine = s4[0], setTermine = s4[1];
+    var dernierBip = React.useRef(-1);
+    useEcranAllume();
+    var x = exos[i], e = x ? parId[x.id] : null, total = sec(x);
+    function aller(n) {
+      if (n >= exos.length) { setTermine(true); setFinA(null); bip(660, 220); setTimeout(function () { bip(990, 380); }, 240); try { vibrer('succes'); annoncer('Séance terminée.'); } catch (err) {} return; }
+      if (n < 0) return;
+      var s = sec(exos[n]); setI(n); setReste(s); setFinA(s ? Date.now() + s * 1000 : null); dernierBip.current = -1;
+      try { annoncer('Exercice ' + (n + 1) + ' sur ' + exos.length + ' : ' + exos[n].nom); } catch (err) {}
+    }
+    function basculer() {
+      if (finA) { setFinA(null); return; }
+      if (!reste) return;
+      bip(880, 60, 0.05); setFinA(Date.now() + reste * 1000);
+    }
+    React.useEffect(function () {
+      if (!finA) return;
+      var t = setInterval(function () {
+        var r = Math.max(0, Math.ceil((finA - Date.now()) / 1000));
+        setReste(r);
+        if (r <= 3 && r > 0 && dernierBip.current !== r) { dernierBip.current = r; bip(740, 90); }
+        if (r === 0) { clearInterval(t); bip(1046, 420, 0.35); try { vibrer('erreur'); } catch (err) {} var el = document.querySelector('.sd'); if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } aller(i + 1); }
+      }, 200);
+      return function () { clearInterval(t); };
+    }, [finA, i]);
+    React.useEffect(function () { function k(ev) { if (ev.key === 'Escape') p.fermer(); else if (ev.key === ' ') { ev.preventDefault(); basculer(); } else if (ev.key === 'ArrowRight') aller(i + 1); else if (ev.key === 'ArrowLeft') aller(i - 1); }
+      window.addEventListener('keydown', k); return function () { window.removeEventListener('keydown', k); }; });
+    var frac = total ? reste / total : 0, R = 54, C = 2 * Math.PI * R;
+    var suivant = exos[i + 1];
+    var corps = termine
+      ? h('div', { className: 'sd-fin' }, h('strong', null, '✓ Séance terminée'), h('p', null, exos.length + ' exercices · ' + (p.seance.titre || p.seance.espace)),
+          h('button', { type: 'button', className: 'sd-btn principal', onClick: p.fermer }, 'Fermer'))
+      : !x ? h('div', { className: 'sd-fin' }, h('strong', null, 'Aucun exercice dans cette séance'), h('button', { type: 'button', className: 'sd-btn principal', onClick: p.fermer }, 'Fermer'))
+      : h(React.Fragment, null,
+          h('div', { className: 'sd-centre' },
+            h('p', { className: 'sd-phase' }, (PH[x.phase] || '') + ' · ' + (i + 1) + ' / ' + exos.length),
+            h('h2', { className: 'sd-nom', 'aria-live': 'polite' }, x.nom),
+            e && e.dosage ? h('p', { className: 'sd-dosage' }, e.dosage) : null,
+            total ? h('div', { className: 'sd-minuteur', role: 'timer', 'aria-label': 'Temps restant ' + mmss(reste) },
+              h('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' },
+                h('circle', { cx: 60, cy: 60, r: R, className: 'sd-fond' }),
+                h('circle', { cx: 60, cy: 60, r: R, className: 'sd-reste', style: { strokeDasharray: C, strokeDashoffset: C * (1 - frac) } })),
+              h('span', { className: 'sd-temps' }, mmss(reste)))
+              : h('p', { className: 'sd-sans' }, 'Sans durée : touchez « Suivant » quand c\'est fini.'),
+            e && e.description ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
+            e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + e.vigilance) : null,
+            h('p', { className: 'sd-ensuite' }, suivant ? 'Ensuite : ' + suivant.nom + (sec(suivant) ? ' (' + mmss(sec(suivant)) + ')' : '') : 'Dernier exercice')),
+          h('div', { className: 'sd-commandes' },
+            h('button', { type: 'button', className: 'sd-btn', disabled: i === 0, onClick: function () { aller(i - 1); } }, '‹ Précédent'),
+            total ? h('button', { type: 'button', className: 'sd-btn principal', onClick: basculer }, finA ? 'Pause' : reste === total ? 'Démarrer' : 'Reprendre') : null,
+            h('button', { type: 'button', className: 'sd-btn', onClick: function () { aller(i + 1); } }, suivant ? 'Suivant ›' : 'Terminer')));
+    return ReactDOM.createPortal(h('div', { className: 'sd', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Séance en direct : ' + (p.seance.titre || p.seance.espace) },
+      h('div', { className: 'sd-haut' },
+        h('span', null, p.seance.titre || p.seance.espace),
+        h('button', { type: 'button', className: 'sd-quitter', 'aria-label': 'Quitter la séance', onClick: p.fermer, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, '✕')),
+      h('div', { className: 'sd-progres', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + ((termine ? exos.length : i) / Math.max(1, exos.length)) + ')' } })),
+      corps), document.body);
+  }
+
+  // --- Onglet « Mes séances »
+  function MesSeances(p) {
+    var planning = usePlanning(), histo = useHisto();
+    var s1 = React.useState(null), direct = s1[0], setDirect = s1[1];
+    var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
+    var creneaux = prochainsCreneaux(planning, 8);
+    function ouvrir(espace, intention) { if (intention) poserIntention(intention); p.aller(espace); }
+    function ligneSeance(s) {
+      return h('li', { key: s.id, className: 'ms-ligne' },
+        h('div', { className: 'ms-texte' }, h('b', null, dateFr(s.date) + (s.heure ? ' · ' + heureFr(s.heure) : '') + ' · ' + (s.cours || []).join(', ')),
+          h('span', null, s.espace + ' · ' + s.titre + ' · ' + s.exos.length + ' exercices')),
+        h('div', { className: 'ms-actions' },
+          h('button', { type: 'button', className: 'cs-btn mini plein', onClick: function () { setDirect(s); } }, 'Lancer'),
+          h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(s.espace === 'Taïso' ? 'taiso' : 'judo', { type: 'reprendre', id: s.id }); } }, 'Reprendre'),
+          h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { supprimerHisto(s.id); } }, '✕')));
+    }
+    return h('section', { className: 'ms' },
+      h('h2', { className: 'ms-h' }, 'Cette semaine'),
+      creneaux.length ? h('ul', { className: 'ms-liste' }, creneaux.map(function (c) {
+        var pr = seancePrevue(histo, c.date, c.cours), esp = espaceDuCours(c.cours);
+        return h('li', { key: c.cle, className: 'ms-ligne' + (pr ? ' prevue' : '') },
+          h('div', { className: 'ms-texte' }, h('b', null, c.texte),
+            h('span', null, pr ? '✓ Séance prévue : ' + pr.titre + ' · ' + pr.exos.length + ' exercices' : 'À préparer')),
+          h('div', { className: 'ms-actions' },
+            pr ? h('button', { type: 'button', className: 'cs-btn mini plein', onClick: function () { setDirect(pr); } }, 'Lancer') : null,
+            h('button', { type: 'button', className: 'cs-btn mini' + (pr ? '' : ' plein'), onClick: function () { ouvrir(esp, pr ? { type: 'reprendre', id: pr.id, cle: c.cle } : { type: 'preparer', cle: c.cle }); } }, pr ? 'Modifier' : 'Préparer')));
+      })) : h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun cours dans votre planning'),
+        h('span', null, 'Renseignez vos créneaux de la semaine : chaque cours apparaîtra ici avec sa séance prévue.'),
+        h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'planning'); } catch (e) {} p.aller('presences'); } }, 'Renseigner mon planning')),
+      h('h2', { className: 'ms-h' }, 'Ma séance en cours'),
+      h('div', { className: 'ms-tuiles' }, [['judo', 'Judo', nJ], ['taiso', 'Taïso', nT]].map(function (x) {
+        return h('div', { key: x[0], className: 'ms-tuile' },
+          h('b', null, x[1]), h('span', null, x[2] ? x[2] + (x[2] > 1 ? ' exercices' : ' exercice') : 'Vide'),
+          h('div', { className: 'ms-actions' },
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'ouvrir' }); } }, 'Ouvrir'),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
+      })),
+      h('h2', { className: 'ms-h' }, 'Historique'),
+      histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, 30).map(ligneSeance))
+        : h('p', { className: 'ms-vide' }, 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
+      h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
+      direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
+  }
 
   var telechargements = window.claude && window.claude.use ? window.claude.use('downloads').catch(function () { return null; }) : Promise.resolve(null);
   function ficheBlob() {
@@ -2513,6 +2732,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s3 = React.useState({}), plan = s3[0], setPlan = s3[1];
     var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
     var planning = usePlanning(), histo = useHisto();
+    var s5 = React.useState(null), direct = s5[0], setDirect = s5[1];
+    // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
+    React.useEffect(function () {
+      var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
+      if (x.type === 'preparer') { setInfos({ _cours: x.cle }); setPlan({}); setMsg(''); }
+      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { reprendre(s); if (x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
+      setOuvert(true);
+    }, []);
     // Séance proposée par le générateur : phases, durées et en-tête pré-remplis, puis ouverture
     var jeton = p.genere && p.genere.jeton;
     React.useEffect(function () { if (jeton) { setPlan(p.genere.plan || {}); setInfos(p.genere.infos || {}); setMsg(''); setOuvert(true); } }, [jeton]);
@@ -2594,14 +2821,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('div', { className: 'cs-actions' },
               h('button', { type: 'button', className: 'cs-btn', onClick: function () { setOuvert(false); } }, 'Revenir aux exercices'),
               n ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { sel.clear(); setPlan({}); setMsg(''); } }, 'Vider la séance') : null,
-              h('button', { type: 'button', className: 'cs-btn plein', disabled: !n, onClick: telecharger }, 'Générer la fiche (PDF)'))),
+              h('button', { type: 'button', className: 'cs-btn plein', disabled: !n, onClick: telecharger }, 'Générer la fiche (PDF)'),
+              n ? h('button', { type: 'button', className: 'cs-btn cs-lancer', onClick: function () {
+                var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }); }); });
+                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos }); } }, '▶ Lancer la séance') : null)),
+          direct ? h(SeanceDirecte, { seance: direct, base: p.donnees, fermer: function () { setDirect(null); } }) : null,
           h('div', { className: 'cs-msg', role: 'status' }, msg),
           !n ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun exercice sélectionné'), h('span', null, 'Revenez aux exercices et touchez « Ajouter » sur ceux que vous voulez mettre dans la séance.')) : null,
-          n ? h('section', { className: 'cs-cours' },
+          h('section', { className: 'cs-cours' },
             h('label', { htmlFor: 'cs-cours', className: 'cs-cours-titre' }, 'Pour quel cours ?'),
             h('select', { id: 'cs-cours', value: infos._cours || '', onChange: function (ev) { majInfo('_cours', ev.target.value); } },
               [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
-            h('button', { type: 'button', className: 'cs-btn cs-enregistrer', onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance')) : null,
+            h('button', { type: 'button', className: 'cs-btn cs-enregistrer', disabled: !n, onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance'),
+            !n && coursChoisi ? h('p', { className: 'cs-cours-aide' }, 'Ajoutez des exercices (ou générez la séance), puis enregistrez-la pour ce cours.') : null),
           n ? h('details', { className: 'cs-infos' },
             h('summary', null, h('span', null, 'Informations de la fiche'), h('small', null, resume || 'à compléter')),
             h('div', { className: 'cs-champs' },
@@ -3826,14 +4058,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     };
     return h('section', { className: 'gestion' },
       h('h2', null, 'Ajouter des exercices'),
-      h('p', null, 'Choisissez un fichier (.json, .xlsx ou .csv). L\'app range automatiquement chaque exercice :'),
-      h('ul', { className: 'gestion-regles' },
+      h('p', null, 'Choisissez un fichier d\'exercices (.json, .xlsx, .csv), avec ou sans images : l\'app les range toute seule en Judo ou Taïso.'),
+      h('div', { className: 'gestion-actions gestion-principal' },
+        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices ou des images' }), 'Choisir un fichier ou des images')),
+      h('details', { className: 'gestion-plus' }, h('summary', null, 'Comment l\'app range les exercices'), h('ul', { className: 'gestion-regles' },
         h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
-        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.')),
+        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'))),
       h('div', { className: 'gestion-actions' },
-        h('label', { className: 'btn pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices ou des images' }), 'Choisir un fichier ou des images'),
         h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
@@ -4413,7 +4646,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     'Quand tu proposes des exercices, prends-les de préférence dans la base de l\'app (outil chercherExercices ou liste fournie) et cite chacun avec son identifiant entre crochets, exemple : Planche ventrale [#2073]. N\'invente jamais d\'identifiant.',
     'Si l\'éducateur demande d\'ajouter des exercices à sa séance, utilise l\'outil ajouterASeance (s\'il est disponible) puis dis ce que tu as ajouté.',
     'Sécurité : rappelle le point de vigilance quand c\'est utile ; pour une douleur, une blessure ou un problème de santé, oriente vers un professionnel de santé.',
-    'Utilisation de l\'app : onglets Accueil, Taïso, Judo, Séance (trame PDF), Présences (appel, bilan, export Excel du mois, sauvegarde complète mensuelle) ; « Générer une séance » en 5 questions ; « Ma séance » rassemble les exercices ajoutés ; ajout d\'exercices par le menu du profil.'
+    'Si l\'éducateur te demande de préparer la séance d\'un cours (ex. « prépare la séance de mercredi pour les Poussins »), compose une séance complète dans la trame (exercices de la base, durées en minutes réalistes pour la durée du créneau) puis enregistre-la avec l\'outil preparerSeance sur le bon créneau de la liste fournie ; résume ensuite la séance en quelques lignes.',
+    'Utilisation de l\'app : onglets Accueil (cours du jour, alerte de suivi), Taïso, Judo, Mes séances (séances de la semaine par créneau, historique, mode séance en direct avec minuteur, fiche vierge), Présences (appel en une touche, bilan, suivi des absences, planning, sauvegarde chiffrée) ; « Générer une séance » ; « Ma séance » rassemble les exercices ajoutés ; ajout d\'exercices par le menu du profil.'
   ].join('\n');
   var SUGGESTIONS_CHAT = ['Un échauffement ludique pour des poussins', 'Séance taïso Gym douce de 45 min', 'Exercices de gainage sans matériel', 'Comment exporter le bilan du mois ?'];
   function motsDe(t) { return sansAccent(t || '').split(/[^a-z0-9-]+/).filter(function (m) { return m.length > 2 && ['les', 'des', 'une', 'pour', 'avec', 'sans', 'dans', 'est', 'que', 'qui', 'mon', 'mes', 'son', 'ses', 'aux', 'par', 'sur', 'pas', 'moi', 'fais', 'donne', 'propose', 'quel', 'quels', 'quelle', 'comment', 'exercice', 'exercices', 'seance'].indexOf(m) < 0; }); }
@@ -4459,6 +4693,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s6 = React.useState(''), erreur = s6[0], setErreur = s6[1];
     var s7 = React.useState(0), rev = s7[0], setRev = s7[1];
     var ctl = React.useRef(null), fil = React.useRef(null), outils = React.useRef(false);
+    var planning = usePlanning();
     React.useEffect(function () {
       var actif = true;
       if (window.claude && typeof window.claude.use === 'function') window.claude.use('sample').then(function (f) {
@@ -4474,7 +4709,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       texte = String(texte || '').trim(); if (!texte || enCours) return;
       var esp = p.espace === 'taiso' ? 'Taïso' : p.espace === 'judo' ? 'Judo' : '';
       var proches = chercherDans(p.exos, texte, esp ? { espace: esp } : null, 15);
+      var creneaux = prochainsCreneaux(planning, 8);
       var contexte = 'Écran ouvert : ' + (p.espace || 'accueil') + (p.sous ? ' / ' + p.sous : '') + '. Base : ' + p.exos.length + ' exercices.\n'
+        + (creneaux.length ? 'Cours des 8 prochains jours (cle : texte, durée) : ' + creneaux.map(function (c) { return c.cle + ' : ' + c.texte + (c.fin ? ' (' + (minutes(c.fin) - minutes(c.heure)) + ' min)' : ''); }).join(' ; ') + '\n' : 'Aucun cours dans le planning.\n')
         + (proches.length ? 'Exercices de la base proches de la question (JSON) :\n' + JSON.stringify(proches) : 'Aucun exercice proche trouvé par mots-clés.');
       var nouveaux = tours.concat([{ role: 'user', content: texte }]);
       var entree = [{ role: 'user', content: REGLES_CHAT + '\n\n' + contexte }].concat(nouveaux.slice(-12));
@@ -4492,7 +4729,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           { name: 'ajouterASeance', description: 'Ajoute des exercices de la base à « Ma séance » de l\'éducateur (judo ou taïso selon l\'exercice). Renvoie la liste ajoutée. N\'utiliser que si l\'éducateur le demande.',
             inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'number' } } }, required: ['ids'] },
             execute: function (a) { var faits = []; [].concat(a.ids || []).forEach(function (id) { var e = parId[Number(id)]; if (e) { ajouterSel(e); faits.push(e.nom); } });
-              if (!faits.length) throw new Error('aucun identifiant connu'); setRev(function (n) { return n + 1; }); return { ajoutes: faits }; } }
+              if (!faits.length) throw new Error('aucun identifiant connu'); setRev(function (n) { return n + 1; }); return { ajoutes: faits }; } },
+          { name: 'preparerSeance', description: 'Enregistre une séance complète pour un cours du planning (visible dans « Mes séances », l\'appel et l\'accueil du jour). phase : judo 0 Mobilité, 1 Échauffement, 2 Corps de séance, 3 Randori, 4 Étirement ; taïso 0 Échauffement et mobilité, 1 Corps de séance, 2 Fin de séance. duree en minutes.',
+            inputSchema: { type: 'object', properties: { creneau: { type: 'string', description: 'cle du cours, prise dans la liste fournie' }, espace: { type: 'string', enum: ['Judo', 'Taïso'] }, titre: { type: 'string', description: 'thème court de la séance' },
+              exercices: { type: 'array', items: { type: 'object', properties: { id: { type: 'number' }, phase: { type: 'number' }, duree: { type: 'number' } }, required: ['id', 'phase'] } } }, required: ['creneau', 'espace', 'exercices'] },
+            execute: function (a) {
+              var c = prochainsCreneaux(planning, 8).filter(function (x) { return x.cle === String(a.creneau); })[0];
+              if (!c) throw new Error('créneau inconnu : utilise une cle de la liste fournie');
+              var esp = a.espace === 'Taïso' ? 'Taïso' : 'Judo', nPh = phasesDe(esp).length;
+              var exos = [].concat(a.exercices || []).map(function (x) { var e = parId[Number(x.id)]; return e ? { id: e.id, nom: e.nom, phase: Math.max(0, Math.min(nPh - 1, Number(x.phase) || 0)), duree: x.duree ? String(x.duree) : '' } : null; }).filter(Boolean);
+              if (!exos.length) throw new Error('aucun identifiant connu');
+              exos.sort(function (u, v) { return u.phase - v.phase; });
+              ajouterHisto({ id: 's-' + c.date + '-' + sa(esp) + '-' + sa(c.cours.join('-')), date: c.date, heure: c.heure, cours: c.cours, espace: esp, titre: String(a.titre || esp).slice(0, 80), exos: exos, infos: {}, enregistreLe: Date.now(), parAssistant: true });
+              setRev(function (n) { return n + 1; });
+              return { enregistree: c.texte, exercices: exos.length };
+            } }
         ];
       }
       sample(entree, opts).then(function (r) {
@@ -4719,6 +4970,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       io.observe(n); return function () { io.disconnect(); };
     });
     var sel = useSelection(cle || 'accueil');
+    React.useEffect(function () { if ((cle === 'judo' || cle === 'taiso') && prendreIntention(['generer'])) setGenOuvert(true); }, [cle]);
     // Glissement entre écrans : vers la gauche quand on avance (accueil > espace > catégorie), vers la droite quand on revient
     var profondeur = !cle ? 0 : f.sous ? 2 : 1, ecran = (cle || 'accueil') + '|' + (f.sous || '');
     var memo = React.useRef({ ecran: ecran, prof: profondeur, sens: '' });
@@ -4788,13 +5040,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'hero' }, h('h1', null, 'Préparer une séance'), h('p', { className: 'lead' }, 'Choisissez un espace pour parcourir les exercices, composer une séance ou faire l\'appel.')),
         BASE_LOCALE && BASE.length === 0 ? h(ImportBase, { texte: 'Choisir le fichier exercices.json' }) : null,
         h(Aujourdhui, { aller: aller }),
-        h('div', { className: 'blocs' }, ESPACES.map(function (esp, i) {
+        h('div', { className: 'blocs raccourcis' }, ESPACES.map(function (esp, i) {
           var n = de(esp).length;
           var bientot = !esp.special && n === 0;
+          if (bientot && !demo) return null;   // section encore vide (« Suivi et reprise ») : masquée tant qu'elle n'a pas d'exercices
           return h('button', { key: esp.key, type: 'button', className: 'bloc' + (bientot ? ' bientot' : ''), style: teinte(esp.couleur), onClick: function () { aller(esp.key); } },
             h('span', { className: 'bloc-ico' }, h(Icone, { nom: ICONES[esp.key] ? esp.key : 'seance', taille: 26 })),
             h('span', { className: 'bloc-nom' }, esp.label),
-            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Fiche PDF' : bientot ? 'Bientôt' : n + (n > 1 ? ' exercices' : ' exercice')),
+            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? 'Bientôt' : n + (n > 1 ? ' exercices' : ' exercice')),
             h('span', { className: 'bloc-txt' }, esp.intro),
             esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
         })),
@@ -4807,7 +5060,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
     var esp = ESPACES.filter(function (x) { return x.key === cle; })[0], judo = cle === 'judo';
     if (esp.special) return cadre(h('main', Object.assign({ style: teinte(esp.couleur) }, glisse), h('div', { className: 'wrap' }, entete(esp), bandeau,
-      h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), esp.key === 'presences' ? h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)) : h(SeanceType, null))));
+      h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), esp.key === 'presences' ? h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)) : h(MesSeances, { aller: aller }))));
     var tous = de(esp);
     var socle = judo ? ['Poids du corps', 'Tatami', 'Judogi', 'Partenaire'] : ['Poids du corps'];
     var q = sansAccent(f.q.trim());
