@@ -1327,6 +1327,7 @@ html, body { overflow-x: clip; }
   .voile.voile-fiche .sheet { pointer-events: auto; width: min(480px, 45vw); box-shadow: -10px 0 30px rgba(15, 20, 30, .14); border-left: 1px solid var(--line); }
 }
 .cs-cours-aide { flex: 1 1 100%; margin: 0; font-size: var(--t-s); color: var(--muted); }
+.pr-essai { margin-left: 4px; background: color-mix(in srgb, var(--warn) 14%, var(--surface)) !important; color: var(--warn) !important; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2099,7 +2100,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '16/10/2026 à 10h06';
+  var VERSION_APP = '16/10/2026 à 10h29';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3117,8 +3118,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var lignes = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       var appels = wb.Sheets['Appels'] ? XLSX.utils.sheet_to_json(wb.Sheets['Appels'], { defval: '' }) : [];
       // Feuille de présences « en grille » : une ligne par licencié, une colonne par date (P/A, X, 1/0…)
+      // Feuilles de présences « en grille » : toutes les feuilles du classeur (une par mois ou par cours), réunies
       var grille = false;
-      if (!appels.length) wb.SheetNames.some(function (n) { appels = appelsDeGrille(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true })); return (grille = !!appels.length); });
+      if (!appels.length) wb.SheetNames.forEach(function (n) { var a = appelsDeGrille(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true }), n); if (a.length) { grille = true; appels = appels.concat(a); } });
       return { lignes: lignes, appels: appels, grille: grille };
     });
   }
@@ -3147,15 +3149,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!j.nom && !j.prenom) return;
       if (!j.naissance) sansDate++;
       var i = -1; res.forEach(function (x, k) { if (i < 0 && memeJudoka(x, j)) i = k; });
+      // Personne venue à l'essai (ajoutée depuis une feuille de présences) : reliée par son nom, même avec une petite différence
+      if (i < 0) { var t = trouverJudoka(res.filter(function (x) { return x.essai; }), j); if (t) i = res.indexOf(t.j); }
       if (i < 0) { j.id = nouvelId(); res.push(j); ajoutes++; vus[j.id] = 1; nouveaux.push(j); return; }
       var x = Object.assign({}, res[i]), change = false, avantCat = catDe(res[i]);
       vus[x.id] = 1;
       ['nom', 'prenom', 'licence', 'naissance', 'groupe', 'activite', 'autorisationPhoto'].forEach(function (k) { if (j[k] && x[k] !== j[k]) { x[k] = j[k]; change = true; } });
       if (x.archive) { delete x.archive; reactives.push(x); change = true; }
+      if (x.essai && (j.licence || j.naissance)) { delete x.essai; change = true; }
       if (change) { res[i] = x; completes++; modifies.push({ j: x, avant: avantCat, apres: catDe(x) }); }
     });
     // Licenciés de la liste actuelle absents du nouveau fichier : candidats à l'archivage (non réinscrits)
-    var absents = liste.filter(function (x) { return !vus[x.id] && !x.archive; });
+    var absents = liste.filter(function (x) { return !vus[x.id] && !x.archive && !x.essai; });
     return { liste: res, ajoutes: ajoutes, completes: completes, sansDate: sansDate, nouveaux: nouveaux, modifies: modifies, reactives: reactives, absents: absents };
   }
   function bilanDe(donnees, cat) {
@@ -3213,7 +3218,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (/^(a|0|non|n|abs|absent|absente|e|exc|excuse|excusee)$/.test(c)) return 'absent';
     return '';
   }
-  function appelsDeGrille(rangs) {
+  // Cours reconnu dans un texte (nom de feuille, colonne Cours) : « Poussins », « poussin », « Taiso », « Adultes »…
+  function coursDepuisTexte(t) {
+    var c = cleTexte(t);
+    if (!c) return '';
+    if (c.indexOf('taiso') >= 0) return COURS_TAISO;
+    if (c.indexOf('prepoussin') >= 0) return 'Pré-poussins';
+    if (c.indexOf('poussin') >= 0) return 'Poussins';
+    if (c.indexOf('benjamin') >= 0) return 'Benjamins';
+    if (c.indexOf('eveil') >= 0) return c.indexOf('4') >= 0 ? 'Éveils 4 ans' : 'Éveils 5 ans';
+    if (/adulte|minime|cadet|junior|senior/.test(c)) return COURS_ADULTES;
+    return '';
+  }
+  function appelsDeGrille(rangs, nomFeuille) {
+    var coursFeuille = coursDepuisTexte(nomFeuille);
     var iEnTete = -1;
     for (var r = 0; r < Math.min(rangs.length, 15) && iEnTete < 0; r++) if (rangs[r].some(function (c) { return /^(nom|nomdefamille|nomprenom|licencie|judoka)$/.test(cleTexte(c)); })) iEnTete = r;
     if (iEnTete < 0) return [];
@@ -3233,22 +3251,58 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!nom && !prenom) return;
       dates.forEach(function (d) {
         var st = statutCellule(l[d.k]); if (!st) return;
-        out.push({ Date: d.date, Cours: d.groupe || (col.cours != null ? String(l[col.cours] || '').trim() : ''), Nom: nom, 'Prénom': prenom,
+        out.push({ Date: d.date, Cours: d.groupe || (col.cours != null ? String(l[col.cours] || '').trim() : '') || coursFeuille, Nom: nom, 'Prénom': prenom,
           'N° de licence': col.licence != null ? String(l[col.licence] || '').trim() : '', 'Date de naissance': col.naissance != null ? l[col.naissance] : '', Statut: st });
       });
     });
     return out;
   }
-  // licencesSeules : feuille de présences (grille) → on ne garde que les licenciés déjà dans la liste avec un N° de licence
-  function restaurerAppels(donnees, appels, licencesSeules) {
-    var nouveaux = 0, dates = {}, vus = {}, ignores = {};
+  // Rapprochement d'un nom du classeur avec un licencié de la liste : exact, nom/prénom inversés, puis faute de frappe ou prénom composé
+  function distance(a, b) {
+    if (a === b) return 0; if (Math.abs(a.length - b.length) > 2) return 9;
+    var v = []; for (var j = 0; j <= b.length; j++) v[j] = j;
+    for (var i = 1; i <= a.length; i++) { var prec = v[0]; v[0] = i; for (var k = 1; k <= b.length; k++) { var t = v[k]; v[k] = Math.min(v[k] + 1, v[k - 1] + 1, prec + (a[i - 1] === b[k - 1] ? 0 : 1)); prec = t; } }
+    return v[b.length];
+  }
+  function trouverJudoka(liste, cible) {
+    var exact = liste.filter(function (x) { return memeJudoka(x, cible); })[0];
+    if (exact) return { j: exact, approx: false };
+    var n = cleTexte(cible.nom), pr = cleTexte(cible.prenom);
+    if (!n && !pr) return null;
+    var inv = liste.filter(function (x) { return cleTexte(x.nom) === pr && cleTexte(x.prenom) === n; });
+    if (inv.length === 1) return { j: inv[0], approx: false };
+    var cand = liste.map(function (x) {
+      var xn = cleTexte(x.nom), xp = cleTexte(x.prenom), dn = distance(n, xn), dp = distance(pr, xp);
+      if (dp > 2 && xp && pr && (xp.indexOf(pr) === 0 || pr.indexOf(xp) === 0)) dp = 1;   // prénom composé : « Marie » / « Marie-Lou »
+      var s = dn + dp;
+      return { x: x, s: dn <= 2 && dp <= 2 ? s : 9 };
+    }).filter(function (c) { return c.s <= 2; }).sort(function (a, b) { return a.s - b.s; });
+    if (cand.length && (cand.length === 1 || cand[1].s > cand[0].s)) return { j: cand[0].x, approx: true };
+    return null;
+  }
+  // Feuille de présences (grille) : les licenciés reconnus par leur nom ; les autres sont des personnes à l'essai (début de saison),
+  // ajoutées avec le repère « À l'essai » si opts.garderEssais, sinon ignorées. Une fois licenciées, la mise à jour de la liste les relie toutes seules.
+  function restaurerAppels(donnees, appels, opts) {
+    opts = opts === true ? { grille: true, garderEssais: false } : (opts || {});
+    var nouveaux = 0, dates = {}, vus = {}, ignores = {}, essais = {}, approx = {}, cache = {};
     var code = { present: 'P', absent: 'A' }, d = { judokas: donnees.judokas.slice(), seances: donnees.seances.map(function (s) { return Object.assign({}, s, { statuts: Object.assign({}, s.statuts) }); }) }, n = 0;
     appels.forEach(function (a) {
       var date = lireDate(brut(a, ['date'])), st = code[cleTexte(brut(a, ['statut']))], cat = colonne(a, ['cours', 'groupe', 'categorie']);
+      if (opts.grille && cat) cat = coursDepuisTexte(cat) || cat;
       if (!st || !date) return;
       var cible = { nom: colonne(a, ['nom']), prenom: colonne(a, ['prenom']), licence: colonne(a, COL_LICENCE), naissance: lireDate(brut(a, COL_NAISSANCE)) };
-      var j = d.judokas.filter(function (x) { return memeJudoka(x, cible); })[0];
-      if (licencesSeules && (!j || !String(j.licence || '').trim())) { ignores[(cible.nom || '').toUpperCase() + ' ' + (cible.prenom || '')] = 1; return; }
+      var cleNom = cleTexte(cible.nom) + '|' + cleTexte(cible.prenom) + '|' + cleTexte(cible.licence), texteNom = (cible.nom || '').toUpperCase() + ' ' + (cible.prenom || '');
+      var t = cache[cleNom] !== undefined ? cache[cleNom] : (cache[cleNom] = opts.grille ? trouverJudoka(d.judokas, cible) : (function () { var x = d.judokas.filter(function (y) { return memeJudoka(y, cible); })[0]; return x ? { j: x } : null; })());
+      var j = t ? t.j : null;
+      if (t && t.approx) approx[texteNom] = (t.j.prenom || '') + ' ' + (t.j.nom || '').toUpperCase();
+      if (opts.grille && (!j || t.essaiNouveau)) {
+        var coursE = j ? j.groupe : coursDepuisTexte(cat) || opts.coursEssais || '';
+        var e = essais[texteNom] || (essais[texteNom] = { cours: coursE, n: 0 }); e.n++;
+        if (!j) {
+          if (!opts.garderEssais || !coursE) { ignores[texteNom] = 1; return; }
+          j = { id: nouvelId(), nom: cible.nom, prenom: cible.prenom, groupe: coursE, essai: true }; d.judokas.push(j); nouveaux++; cache[cleNom] = { j: j, essaiNouveau: true };
+        }
+      }
       if (!j && !cat) return;
       if (!j) { j = Object.assign({ id: nouvelId(), groupe: cat }, cible); d.judokas.push(j); nouveaux++; }
       if (j.archive) { d.judokas = d.judokas.map(function (x) { return x.id === j.id ? Object.assign({}, x, { archive: '' }) : x; }); }
@@ -3259,7 +3313,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!s) { s = { id: nouvelId(), date: date, groupe: cat, statuts: {} }; d.seances.push(s); }
       s.statuts[j.id] = st; n++;
     });
-    return { donnees: d, n: n, ignores: Object.keys(ignores).sort(), nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
+    return { donnees: d, n: n, ignores: Object.keys(ignores).sort(), essais: essais, approx: approx, nouveaux: nouveaux, nbDates: Object.keys(dates).length, nbJudokas: Object.keys(vus).length, premiere: Object.keys(dates).sort()[0], derniere: Object.keys(dates).sort().pop() };
   }
 
   // Édition d'un créneau du planning
@@ -3343,6 +3397,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }, []);
     var s2 = React.useState(function () { var v = null; try { v = sessionStorage.getItem('jsb-pr-vue'); sessionStorage.removeItem('jsb-pr-vue'); } catch (e) {} return v || 'appel'; }), vue = s2[0], setVue = s2[1];
     var s18 = React.useState(null), suiviId = s18[0], setSuiviId = s18[1];
+    var s19 = React.useState(null), importPres = s19[0], setImportPres = s19[1];   // { appels, fichier, garder, coursEssais }
     var s3 = React.useState(''), groupe = s3[0], setGroupe = s3[1];
     var s4 = React.useState(aujourdhui), date = s4[0], setDate = s4[1];
     var s5 = React.useState(''), msg = s5[0], setMsg = s5[1];
@@ -3402,7 +3457,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       setMsg('Lecture du classeur…');
       lireClasseur(f).then(function (r) {
         if (r.appels.length) {
-          var res = restaurerAppels(donnees, r.appels, r.grille);
+          // Feuille de présences (grille, souvent sans N° de licence) : aperçu avec rapprochements et personnes à l'essai avant d'appliquer
+          if (r.grille) { setMsg(''); setImportPres({ appels: r.appels, fichier: f.name, garder: true, coursEssais: '' }); return; }
+          var res = restaurerAppels(donnees, r.appels, false);
           if (!res.n) { setMsg(res.ignores.length ? 'Aucune présence gardée : personne dans ce fichier n\'est licencié (absent de la liste ou sans N° de licence). Importez d\'abord la liste des licenciés.' : 'Aucune présence reconnue : vérifiez les colonnes Nom, Prénom et les dates (P/A, X, 1/0).'); return; }
           setAConfirmer({ texte: 'Importer ' + res.n + ' présences sur ' + res.nbDates + (res.nbDates > 1 ? ' séances' : ' séance') + ' (du ' + dateFr(res.premiere) + ' au ' + dateFr(res.derniere) + ') pour ' + res.nbJudokas + ' licenciés'
             + (res.nouveaux ? ', dont ' + res.nouveaux + (res.nouveaux > 1 ? ' nouveaux ajoutés' : ' nouveau ajouté') + ' à la liste' : '')
@@ -3518,8 +3575,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var panneauSauvegarde = panneauSvg ? h(PanneauSauvegarde, { donnees: donnees, setMsg: setMsg, onSauvegarder: sauvegarderMaintenant, onFermer: function () { setPanneauSvg(false); },
       onRevenir: function (v) { setAConfirmer({ texte: 'Revenir à la version du ' + new Date(v.le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + ' (' + v.donnees.judokas.length + ' judokas, ' + v.donnees.seances.length + ' appels) ? L\'état actuel est gardé lui aussi.',
         action: function () { setPanneauSvg(false); maj(Object.assign({}, v.donnees, { sauvegardeLe: donnees.sauvegardeLe }), 'Version du ' + new Date(v.le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + ' rétablie.', 'Avant retour à une version'); } }); } }) : null;
+    var panneauImport = null;
+    if (importPres && !miseAJour) {
+      var rp = restaurerAppels(donnees, importPres.appels, { grille: true, garderEssais: importPres.garder, coursEssais: importPres.coursEssais });
+      var listeEssais = Object.keys(rp.essais).sort(), sansCours = listeEssais.filter(function (k) { return !rp.essais[k].cours; }), approxL = Object.keys(rp.approx).sort();
+      var majI = function (x) { setImportPres(Object.assign({}, importPres, x)); };
+      panneauImport = h('div', { className: 'pr-maj pr-import-pres', role: 'region', 'aria-label': 'Import de la feuille de présences' },
+        h('strong', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, 'Feuille de présences « ' + importPres.fichier + ' »'),
+        h('p', { className: 'pr-mini' }, rp.nbDates ? rp.nbDates + (rp.nbDates > 1 ? ' séances' : ' séance') + ' du ' + dateFr(rp.premiere) + ' au ' + dateFr(rp.derniere) + '. Les appels déjà notés aux mêmes dates sont complétés ou remplacés.' : 'Aucune séance reconnue.'),
+        h('div', { className: 'pr-stats' },
+          h('span', { className: 'pr-stat ok' }, h('b', null, rp.n), 'présences'),
+          h('span', { className: 'pr-stat' }, h('b', null, rp.nbJudokas - (importPres.garder ? listeEssais.length - sansCours.length : 0)), 'licenciés reconnus'),
+          h('span', { className: 'pr-stat' }, h('b', null, listeEssais.length), 'à l\'essai')),
+        approxL.length ? h('details', null, h('summary', null, approxL.length + ' nom' + (approxL.length > 1 ? 's' : '') + ' rapproché' + (approxL.length > 1 ? 's' : '') + ' malgré une petite différence'),
+          h('p', null, approxL.map(function (k) { return k + ' → ' + rp.approx[k]; }).join(' · '))) : null,
+        listeEssais.length ? h('div', { className: 'pr-maj-absents' },
+          h('p', null, listeEssais.length + (listeEssais.length > 1 ? ' personnes ne sont' : ' personne n\'est') + ' pas (encore) dans la liste des licenciés : sans doute des séances d\'essai. ' + listeEssais.map(function (k) { return k + (rp.essais[k].cours ? ' (' + rp.essais[k].cours + ')' : ''); }).join(', ') + '.'),
+          h('label', { className: 'cx-case' }, h('input', { type: 'checkbox', checked: importPres.garder, onChange: function (ev) { majI({ garder: ev.target.checked }); } }),
+            h('span', null, 'Les ajouter « à l\'essai » avec leurs présences. Quand ils prendront leur licence, la mise à jour de la liste les reliera tout seuls, sans rien ressaisir.')),
+          importPres.garder && sansCours.length ? h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-cours-essais' }, 'Cours pour ' + sansCours.length + (sansCours.length > 1 ? ' personnes sans cours indiqué' : ' personne sans cours indiqué')),
+            h('select', { id: 'pr-cours-essais', value: importPres.coursEssais, onChange: function (ev) { majI({ coursEssais: ev.target.value }); } },
+              [h('option', { key: '', value: '' }, 'Ne pas les ajouter')].concat(['Éveils 4 ans', 'Éveils 5 ans', 'Pré-poussins', 'Poussins', 'Benjamins', COURS_ADULTES, COURS_TAISO].map(function (c) { return h('option', { key: c, value: c }, c); })))) : null) : null,
+        h('div', { className: 'gestion-actions' },
+          h('button', { type: 'button', className: 'cs-btn plein', disabled: !rp.n, onClick: function () { setImportPres(null); maj(rp.donnees, rp.n + ' présences importées depuis « ' + importPres.fichier + ' »' + (rp.nouveaux ? ', ' + rp.nouveaux + (rp.nouveaux > 1 ? ' personnes ajoutées' : ' personne ajoutée') + ' à l\'essai' : '') + '.', 'Avant import de présences'); } }, 'Importer ' + rp.n + ' présences'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setImportPres(null); setMsg('Import annulé : rien n\'a changé.'); } }, 'Annuler')));
+    }
     if (!donnees.judokas.length) {
-      return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde,
+      return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
           h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), aide);
@@ -3571,7 +3653,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('button', { type: 'button', className: 'pr-appel-btn', 'aria-disabled': appelValide || undefined,
               onClick: function () { noter([[j.id, it.c]], st === 'P' ? 'A' : st === 'A' ? 'A' : 'P'); } },
               h(Avatar, { j: j }),
-              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j))),
+              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null),
               h('span', { className: 'pr-etat-appel' }, h('span', { 'aria-hidden': 'true' }, st === 'P' ? '✓ ' : st === 'A' ? '✕ ' : ''), st === 'P' ? 'Présent' : st === 'A' ? 'Absent' : 'À noter'),
               h('span', { className: 'sr-seul' }, appelValide ? ' (appel validé)' : '. Touchez pour ' + (st === 'P' ? 'noter absent' : st === 'A' ? 'remettre à noter' : 'noter présent'))));
         })),
@@ -3648,7 +3730,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return h('div', { key: x, className: 'pr-groupe' }, h('h3', null, x, h('small', null, js.length + (js.length > 1 ? ' judokas' : ' judoka') + (anneesCat(x) ? ' · ' + anneesCat(x) : ''))),
           h('ul', { className: 'pr-liste' }, js.map(function (j) {
             return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
-              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)),
+              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null,
                 h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
               h('div', { className: 'pr-ctrl' },
               h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(j), onClick: function () { setSuiviId(j.id); } }, 'Suivi'),
@@ -3703,7 +3785,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { restaurerArchive(j); } }, 'Remettre'));
       }))) : null;
     var enBas = vue === 'appel';
-    return h('section', { className: 'pr' }, entetePr, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauMaj, corps, blocArchives,
+    return h('section', { className: 'pr' }, entetePr, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps, blocArchives,
       enBas ? rappel : null, enBas ? fichiers : null, aide);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
