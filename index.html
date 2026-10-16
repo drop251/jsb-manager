@@ -1224,6 +1224,36 @@ html, body { overflow-x: clip; }
 .cs-phase li .cs-duree input { width: 56px; }
 .cs-phase li .cs-mini select { width: 100%; min-width: 0; max-width: 150px; }
 .cs-phase li .cs-ico { flex: none; width: 44px; min-width: 44px; padding: 0; font-size: 1.125rem; font-weight: 700; }
+
+/* Accueil : cours du jour et alerte de suivi (16/10/2026) */
+.cours-jour { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--e3); padding: var(--e4); border-radius: var(--r-m); background: var(--surface); border: 2px solid var(--sel-bord); box-shadow: var(--ombre); }
+.cours-jour-tete { display: flex; flex-direction: column; gap: 2px; }
+.cours-jour-tete strong { font-family: var(--display); font-size: var(--t-l); line-height: 1.2; }
+.cours-jour-tete small { font-size: var(--t-s); color: var(--muted); }
+.cours-jour-etat { align-self: flex-start; padding: 2px 10px; border-radius: var(--r-full); font-size: var(--t-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border: 1px solid currentColor; }
+.cours-jour-etat.encours { color: var(--ok-t); } .cours-jour-etat.avenir { color: var(--muted); }
+.cours-jour-seance > summary { min-height: var(--h-mini); display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: var(--t-s); }
+.cours-jour-seance ol { margin: 0; padding-left: 1.2em; font-size: var(--t-s); display: flex; flex-direction: column; gap: 2px; }
+.cours-jour-actions { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.cours-jour-actions .cs-btn { flex: 1 1 auto; }
+.alerte-suivi { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: var(--h-ctrl); padding: var(--e3) var(--e4); border-radius: var(--r-m);
+  border: 1px solid var(--ko-bord); background: color-mix(in srgb, var(--ko-bord) 8%, var(--surface)); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.alerte-suivi b { color: var(--ko-t); }
+.alerte-suivi span { font-size: var(--t-s); color: var(--muted); }
+/* Présences : à surveiller, fiche de suivi */
+.pr-alerte { display: flex; flex-direction: column; gap: var(--e2); padding: var(--e3); border-radius: var(--r-m); border: 1px solid var(--ko-bord); background: color-mix(in srgb, var(--ko-bord) 6%, var(--surface)); }
+.pr-alerte strong { color: var(--ko-t); font-size: var(--t-s); }
+.pr-alerte ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--e2); }
+.pr-alerte li { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); font-size: var(--t-s); }
+.pr-suivi .pr-suivi-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pr .pr-suivi .pr-suivi-stats { display: grid; }
+.cx-version { color: var(--muted); }
+/* Bandeau « Nouvelle version » : en haut, bien visible */
+#maj-dispo { top: calc(env(safe-area-inset-top, 0px) + 64px); bottom: auto !important; background: var(--creme) !important; color: var(--nuit) !important; border: 2px solid var(--nuit); font-size: 1rem; box-shadow: 0 10px 30px rgba(15, 20, 30, .35); }
+#maj-dispo button { background: var(--nuit) !important; color: var(--creme) !important; min-height: 44px; font-size: 1rem; }
+.cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pr-suivi p { margin: 0; }
+.pr-alerte details > summary { min-height: var(--h-mini); display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: var(--t-s); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -1996,7 +2026,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '16/10/2026 à 01h22';
+  var VERSION_APP = '16/10/2026 à 09h40';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2102,12 +2132,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function Aujourdhui(p) {
     var s = React.useState(null), appel = s[0], setAppel = s[1];
     var sc = React.useState(null), cren = sc[0], setCren = sc[1];
+    var sv = React.useState({ n: 0, inscrits: 0, liste: [] }), suivi = sv[0], setSuivi = sv[1];
     React.useEffect(function () {
       var actif = true;
       chargerPres().then(function (d) {
         var l = (d.seances || []).filter(function (x) { return Object.keys(x.statuts || {}).length; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
         if (actif) setAppel(l ? { date: l.date, groupe: l.groupe, n: Object.keys(l.statuts).filter(function (k) { return l.statuts[k] === 'P'; }).length } : false);
-        if (actif) setCren(creneauActuel(d.planning));
+        if (actif) {
+          var c = creneauActuel(d.planning); setCren(c);
+          var act = d.judokas.filter(function (j) { return !j.archive; }), surv = aSurveiller(d);
+          setSuivi({ n: surv.length, liste: surv.slice(0, 3).map(function (x) { return (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase(); }),
+            inscrits: c ? act.filter(function (j) { return coursListe(j).some(function (x) { return c.cours.indexOf(x) >= 0; }); }).length : 0 });
+        }
       }, function () { if (actif) setAppel(false); });
       return function () { actif = false; };
     }, []);
@@ -2116,10 +2152,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('button', { type: 'button', className: 'tuile', style: teinte(coul), onClick: function () { p.aller(cle); } },
         h('span', { className: 'tuile-tete' }, h(Icone, { nom: ico, taille: 18 }), titre), h('strong', null, valeur), h('small', null, detail));
     }
-    return h('section', { className: 'aujourdhui', 'aria-label': "Aujourd'hui" },
+    // Carte « Cours » : à l'heure du cours, l'appel et la séance prévue en un seul endroit
+    var auj = dateIsoLocale(new Date()), etat = cren ? etatCreneau(cren) : '';
+    var prevue = cren ? lireHisto().filter(function (s) { return s.date === auj && (s.cours || []).some(function (c) { return cren.cours.indexOf(c) >= 0; }); })[0] : null;
+    var carteCours = cren ? h('div', { className: 'cours-jour', role: 'region', 'aria-label': 'Cours de ' + heureFr(cren.debut) },
+      h('div', { className: 'cours-jour-tete' },
+        h('span', { className: 'cours-jour-etat ' + (etat === 'En cours' ? 'encours' : 'avenir') }, etat === 'En cours' ? 'En cours' : "Aujourd'hui"),
+        h('strong', null, heureFr(cren.debut) + (cren.fin ? ' – ' + heureFr(cren.fin) : '') + ' · ' + cren.cours.join(', ')),
+        h('small', null, suivi.inscrits + (suivi.inscrits > 1 ? ' licenciés' : ' licencié') + (prevue ? ' · séance prévue : ' + prevue.titre + ' (' + prevue.exos.length + ' exercices)' : ' · pas de séance prévue'))),
+      prevue ? h('details', { className: 'cours-jour-seance' }, h('summary', null, 'Voir la séance'),
+        h('ol', null, prevue.exos.map(function (x, i) { return h('li', { key: x.id + i }, x.nom + (x.duree ? ' · ' + x.duree + ' min' : '')); }))) : null,
+      h('div', { className: 'cours-jour-actions' },
+        h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { p.aller('presences'); } }, 'Commencer : faire l\'appel'),
+        prevue ? null : h('button', { type: 'button', className: 'cs-btn', onClick: function () { p.aller(cren.cours.some(function (c) { return /taïso|taiso/i.test(c); }) ? 'taiso' : 'judo'); } }, 'Préparer la séance'))) : null;
+    var alerte = suivi.n ? h('button', { type: 'button', className: 'alerte-suivi', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'bilan'); } catch (e) {} p.aller('presences'); } },
+      h('b', null, suivi.n + (suivi.n > 1 ? ' licenciés à surveiller' : ' licencié à surveiller')), h('span', null, '3 absences de suite ou plus : ' + suivi.liste.join(', ') + (suivi.n > 3 ? '…' : ''))) : null;
+    return h('section', { className: 'aujourdhui', 'aria-label': "Aujourd'hui" }, carteCours, alerte,
       tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Ma séance', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
         nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance'),
-      cren ? tuile('presences', 'presences', 'Prochain cours', heureFr(cren.debut) + (cren.fin ? ' – ' + heureFr(cren.fin) : ''), cren.cours.join(', ') + ' · Faire l\'appel', 'pres') : tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
+      tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
         appel ? dateFr(appel.date) + ' · ' + appel.groupe : 'Faites l\'appel depuis Présences', 'pres'));
   }
 
@@ -2711,7 +2762,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   var JOURS_RAPPEL = 7;  // sauvegarde complète conseillée chaque semaine
   function sauvegardeAncienne(d) { return d.judokas.length > 0 && (!d.sauvegardeLe || Date.now() - d.sauvegardeLe > JOURS_RAPPEL * 86400000); }
-  function contenuSauvegarde(d) { return { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances, planning: d.planning || [] }; }
+  function contenuSauvegarde(d) { return { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances, planning: d.planning || [], favoris: lireFavoris(), historique: lireHisto() }; }
+  // Favoris et séances enregistrées : restaurés avec la sauvegarde (fusion, rien n'est perdu sur l'appareil)
+  function restaurerExtras(c) {
+    if (Array.isArray(c.favoris)) { var f = lireFavoris(); c.favoris.forEach(function (id) { if (f.indexOf(id) < 0) f.push(id); }); ecrireJSON(cleFavoris(), f); try { window.dispatchEvent(new Event('jsb-fav')); } catch (e) {} }
+    if (Array.isArray(c.historique)) c.historique.filter(function (s) { return s && s.id && s.date && Array.isArray(s.exos); }).forEach(function (s) { ajouterHisto(s); });
+  }
+  // ===== Suivi des absences =====
+  function suiviDe(d, j) {
+    var notes = d.seances.filter(function (s) { return s.statuts && s.statuts[j.id]; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var serie = 0; for (var i = 0; i < notes.length; i++) { if (notes[i].statuts[j.id] === 'A') serie++; else break; }
+    var est = function (st) { return function (s) { return s.statuts[j.id] === st; }; };
+    var derP = notes.filter(est('P'))[0], mois = aujourdhui().slice(0, 7), deb = debutSaison() + '-09-01';
+    function taux(l) { var pr = l.filter(est('P')).length; return l.length ? { p: pr, n: l.length, t: Math.round(100 * pr / l.length) } : null; }
+    return { serie: serie, dernierePresence: derP ? derP.date : '', absences: notes.filter(est('A')).slice(0, 6).map(function (s) { return s.date; }),
+      mois: taux(notes.filter(function (s) { return s.date.slice(0, 7) === mois; })), saison: taux(notes.filter(function (s) { return s.date >= deb; })), total: notes.length };
+  }
+  function aSurveiller(d) {
+    return d.judokas.filter(function (j) { return !j.archive; }).map(function (j) { return { j: j, s: suiviDe(d, j) }; })
+      .filter(function (x) { return x.s.serie >= 3; }).sort(function (a, b) { return b.s.serie - a.s.serie; });
+  }
   function exporterSauvegarde(d, setMsg) {
     enregistrerFichier('sauvegarde-presences-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(contenuSauvegarde(d))], { type: 'application/json' }), setMsg);
   }
@@ -3039,7 +3109,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       Stockage.proteger().then(function (p) { if (actif) setProtege(!!p); });
       return function () { actif = false; };
     }, []);
-    var s2 = React.useState('appel'), vue = s2[0], setVue = s2[1];
+    var s2 = React.useState(function () { var v = null; try { v = sessionStorage.getItem('jsb-pr-vue'); sessionStorage.removeItem('jsb-pr-vue'); } catch (e) {} return v || 'appel'; }), vue = s2[0], setVue = s2[1];
+    var s18 = React.useState(null), suiviId = s18[0], setSuiviId = s18[1];
     var s3 = React.useState(''), groupe = s3[0], setGroupe = s3[1];
     var s4 = React.useState(aujourdhui), date = s4[0], setDate = s4[1];
     var s5 = React.useState(''), msg = s5[0], setMsg = s5[1];
@@ -3076,7 +3147,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function proposerRestauration(c) {
       setDemandeMdp(null);
       setAConfirmer({ texte: 'Remplacer les données de cet appareil par la sauvegarde du ' + dateFr((c.exporteLe || '').slice(0, 10)) + ' (' + c.judokas.length + (c.judokas.length > 1 ? ' judokas, ' : ' judoka, ') + c.seances.length + (c.seances.length > 1 ? ' appels) ?' : ' appel) ?') + ' L\'état actuel est gardé dans les versions automatiques.',
-        action: function () { maj({ judokas: c.judokas, seances: c.seances, planning: c.planning && c.planning.length ? c.planning : (donnees.planning || []), sauvegardeLe: Date.now() }, 'Sauvegarde restaurée.', 'Avant restauration'); } });
+        action: function () { restaurerExtras(c); maj({ judokas: c.judokas, seances: c.seances, planning: c.planning && c.planning.length ? c.planning : (donnees.planning || []), sauvegardeLe: Date.now() }, 'Sauvegarde restaurée (licenciés, appels, planning, favoris et séances).', 'Avant restauration'); } });
     }
     function ouvrirChiffre(c, mdp) {
       return dechiffrer(c, mdp).then(function (o) { o.exporteLe = c.exporteLe; if (!lireMdp()) ecrireMdp(mdp); proposerRestauration(o); }, function () { setDemandeMdp({ c: c, erreur: !!mdp }); });
@@ -3293,7 +3364,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var moisDispo = donnees.seances.map(function (x) { return x.date.slice(0, 7); }).concat([aujourdhui().slice(0, 7)]).filter(function (m, i, t) { return t.indexOf(m) === i; }).sort().reverse();
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
       var seancesG = donnees.seances.filter(function (s) { return s.groupe === g; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+      var surveiller = aSurveiller(donnees);
       corps = h('div', { className: 'pr-bloc' },
+        surveiller.length ? h('div', { className: 'pr-alerte', role: 'region', 'aria-label': 'Licenciés à surveiller' },
+          h('strong', null, 'À surveiller : ' + surveiller.length + (surveiller.length > 1 ? ' licenciés absents' : ' licencié absent') + ' 3 fois de suite ou plus'),
+          (function () {
+            var ligne = function (x) { return h('li', { key: x.j.id }, h('span', null, h('b', null, (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase()), ' · ' + x.s.serie + ' absences de suite' + (x.s.dernierePresence ? ' · dernière présence le ' + dateFr(x.s.dernierePresence) : ' · jamais présent')),
+              h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(x.j), onClick: function () { setSuiviId(x.j.id); } }, 'Suivi')); };
+            return [h('ul', { key: 'a' }, surveiller.slice(0, 5).map(ligne)),
+              surveiller.length > 5 ? h('details', { key: 'b' }, h('summary', null, 'Voir les ' + (surveiller.length - 5) + ' autres'), h('ul', null, surveiller.slice(5).map(ligne))) : null];
+          })()) : null,
         h('div', { className: 'pr-choix' }, choixCat('pr-groupe-b'),
           h('div', { className: 'pr-compte' }, nbS + (nbS > 1 ? ' séances enregistrées' : ' séance enregistrée'))),
         h('div', { className: 'pr-mois' },
@@ -3339,6 +3419,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)),
                 h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
               h('div', { className: 'pr-ctrl' },
+              h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(j), onClick: function () { setSuiviId(j.id); } }, 'Suivi'),
               peutTaiso(j) ? h('label', { className: 'pr-act' }, 'Activité', h('select', { value: j.activite || 'judo', 'aria-label': 'Activité de ' + nomComplet(j), onChange: function (ev) { activite(j, ev.target.value); } },
                 [['judo', 'Judo'], ['taiso', 'Taïso'], ['les deux', 'Judo + Taïso']].map(function (o) { return h('option', { key: o[0], value: o[0] }, o[1]); }))) : null,
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
@@ -3348,7 +3429,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           })));
       }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer'));
     }
-    var panneauMaj = null;
+    var panneauMaj = null, jSuivi = suiviId ? donnees.judokas.filter(function (x) { return x.id === suiviId; })[0] : null;
+    if (jSuivi && !miseAJour) {
+      var sv = suiviDe(donnees, jSuivi), tx = function (t) { return t ? t.p + ' sur ' + t.n : 'aucun appel'; };
+      panneauMaj = h('div', { className: 'pr-maj pr-suivi', role: 'region', 'aria-label': 'Suivi de ' + nomComplet(jSuivi) },
+        h('strong', { tabIndex: -1, ref: function (n) { if (n && n.dataset.vu !== jSuivi.id) { n.dataset.vu = jSuivi.id; n.focus(); try { n.scrollIntoView({ block: 'center' }); } catch (e) {} } } }, (jSuivi.prenom || '') + ' ' + (jSuivi.nom || '').toUpperCase()),
+        h('p', { className: 'pr-mini' }, catDe(jSuivi) + ' · cours : ' + coursListe(jSuivi).join(', ') + (jSuivi.licence ? ' · licence ' + jSuivi.licence : '')),
+        h('div', { className: 'pr-stats pr-suivi-stats' },
+          h('span', { className: 'pr-stat' }, h('b', null, sv.mois ? sv.mois.t + ' %' : '–'), 'ce mois · ' + tx(sv.mois)),
+          h('span', { className: 'pr-stat' }, h('b', null, sv.saison ? sv.saison.t + ' %' : '–'), 'saison · ' + tx(sv.saison)),
+          h('span', { className: 'pr-stat' + (sv.serie >= 3 ? ' ko' : '') }, h('b', null, sv.serie), sv.serie > 1 ? 'absences de suite' : 'absence de suite')),
+        h('p', { className: 'pr-mini' }, sv.dernierePresence ? 'Dernière présence le ' + dateFr(sv.dernierePresence) + '.' : 'Aucune présence notée.'),
+        sv.absences.length ? h('p', { className: 'pr-mini' }, 'Dernières absences : ' + sv.absences.map(dateFr).join(', ') + '.') : null,
+        h('div', { className: 'gestion-actions' }, h('button', { type: 'button', className: 'cs-btn', onClick: function () { setSuiviId(null); } }, 'Fermer')));
+    }
     if (miseAJour) {
       var fu = miseAJour.fu, apres = {};
       fu.liste.forEach(function (j) { if (j.archive || (miseAJour.archiver && fu.absents.indexOf(j) >= 0)) return; coursListe(j).forEach(function (c) { apres[c] = (apres[c] || 0) + 1; }); });
@@ -3996,7 +4090,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('div', { className: 'cx-menu-w' },
       h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
-        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
+        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné'), h('small', { className: 'cx-version' }, 'Version du ' + VERSION_APP)),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition(true); } }, 'Mon profil (nom, club)'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité'),
