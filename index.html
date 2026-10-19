@@ -2100,7 +2100,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '16/10/2026 à 10h29';
+  var VERSION_APP = '19/10/2026 à 22h50';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3839,8 +3839,73 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return fichier.arrayBuffer().then(function (buf) {
       if (!window.XLSX) throw new Error('outil');
       var wb = XLSX.read(buf, { type: 'array' });
-      return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      var lignes = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      if (!/\.xlsx$/i.test(fichier.name)) return lignes;
+      var parLigne = {}; try { parLigne = imagesDuClasseur(buf); } catch (e) { parLigne = {}; }
+      var rangs = Object.keys(parLigne); if (!rangs.length) return lignes;
+      var parRang = {}; lignes.forEach(function (l) { if (l.__rowNum__ != null) parRang[l.__rowNum__] = l; });
+      return rangs.reduce(function (pr, rg) {
+        var l = parRang[rg]; if (!l) return pr;
+        return pr.then(function () { return reduireImage(parLigne[rg]).then(function (d) { l.__imageXlsx = d; }, function () {}); });
+      }, Promise.resolve()).then(function () { return lignes; });
     });
+  }
+  // --- Images collées dans un classeur Excel (.xlsx) : { rang de ligne (0 = en-tête) : Blob }
+  // Deux cas : image posée sur la feuille (ancrée sur une ligne) et image « placée dans la cellule » (Excel 365).
+  function imagesDuClasseur(buf) {
+    var cfb = XLSX.CFB.read(new Uint8Array(buf), { type: 'array' }), fic = {};
+    cfb.FullPaths.forEach(function (p, i) { var c = cfb.FileIndex[i] && cfb.FileIndex[i].content; if (c && c.length) fic[p.replace(/^[^\/]*\//, '').replace(/^\//, '')] = c; });
+    function texte(p) { var c = fic[p]; if (!c) return null; try { return new TextDecoder('utf-8').decode(c instanceof Uint8Array ? c : new Uint8Array(c)); } catch (e) { return null; } }
+    function xml(p) { var t = texte(p); return t ? new DOMParser().parseFromString(t, 'application/xml') : null; }
+    function tous(doc, nom) { return doc ? Array.prototype.filter.call(doc.getElementsByTagName('*'), function (n) { return n.localName === nom; }) : []; }
+    function attr(n, nom) { for (var i = 0; i < n.attributes.length; i++) { var a = n.attributes[i]; if (a.localName === nom) return a.value; } return null; }
+    function dossier(p) { return p.replace(/[^\/]*$/, ''); }
+    function resoudre(base, cible) {
+      if (cible.charAt(0) === '/') return cible.slice(1);
+      var parts = (dossier(base) + cible).split('/'), out = [];
+      parts.forEach(function (x) { if (x === '..') out.pop(); else if (x && x !== '.') out.push(x); });
+      return out.join('/');
+    }
+    function rels(p) { var r = {}, chemin = dossier(p) + '_rels/' + p.split('/').pop() + '.rels';
+      tous(xml(chemin), 'Relationship').forEach(function (n) { r[attr(n, 'Id')] = { cible: resoudre(p, attr(n, 'Target') || ''), type: attr(n, 'Type') || '' }; }); return r; }
+    var TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' };
+    function blob(p) { var ext = (p.split('.').pop() || '').toLowerCase(), c = fic[p]; if (!c || !TYPES[ext]) return null; return new Blob([c instanceof Uint8Array ? c : new Uint8Array(c)], { type: TYPES[ext] }); }
+    var res = {};
+    // Première feuille du classeur
+    var wbRels = rels('xl/workbook.xml'), feuille = null;
+    var s0 = tous(xml('xl/workbook.xml'), 'sheet')[0]; if (s0) { var rid = attr(s0, 'id'); if (wbRels[rid]) feuille = wbRels[rid].cible; }
+    if (!feuille || !fic[feuille]) return res;
+    // 1) Images posées sur la feuille (dessin)
+    var fRels = rels(feuille);
+    Object.keys(fRels).forEach(function (id) {
+      if (!/\/drawing$/.test(fRels[id].type)) return;
+      var dess = fRels[id].cible, dRels = rels(dess), doc = xml(dess);
+      ['twoCellAnchor', 'oneCellAnchor'].forEach(function (t) { tous(doc, t).forEach(function (a) {
+        var from = tous(a, 'from')[0], row = from && tous(from, 'row')[0], blip = tous(a, 'blip')[0];
+        if (!row || !blip) return; var rg = parseInt(row.textContent, 10), e = attr(blip, 'embed');
+        if (isNaN(rg) || !e || !dRels[e] || res[rg]) return; var b = blob(dRels[e].cible); if (b) res[rg] = b;
+      }); });
+    });
+    // 2) Images placées dans la cellule : cellule vm=N → metadata → rich value → image
+    var meta = xml('xl/metadata.xml');
+    if (meta) {
+      var futurs = [], valeurs = [];
+      tous(meta, 'futureMetadata').forEach(function (f) { if (attr(f, 'name') === 'XLRICHVALUE') tous(f, 'bk').forEach(function (bk) { var rvb = tous(bk, 'rvb')[0]; futurs.push(rvb ? parseInt(attr(rvb, 'i'), 10) : -1); }); });
+      var vm0 = tous(meta, 'valueMetadata')[0]; tous(vm0, 'bk').forEach(function (bk) { var rc = tous(bk, 'rc')[0]; valeurs.push(rc ? parseInt(attr(rc, 'v'), 10) : -1); });
+      var structs = tous(xml('xl/richData/rdrichvaluestructure.xml'), 's').map(function (s) { var ks = tous(s, 'k').map(function (k) { return attr(k, 'n'); }); return ks.indexOf('_rvRel:LocalImageIdentifier'); });
+      var rvs = tous(xml('xl/richData/rdrichvalue.xml'), 'rv');
+      var relP = fic['xl/richData/richValueRel.xml'] ? 'xl/richData/richValueRel.xml' : null;
+      var rvRels = relP ? rels(relP) : {}, relIds = relP ? tous(xml(relP), 'rel').map(function (n) { return attr(n, 'id'); }) : [];
+      tous(xml(feuille), 'c').forEach(function (c) {
+        var vm = parseInt(attr(c, 'vm'), 10); if (!vm) return;
+        var m = (attr(c, 'r') || '').match(/(\d+)$/); if (!m) return; var rg = parseInt(m[1], 10) - 1; if (res[rg]) return;
+        var iv = futurs[valeurs[vm - 1]], rv = rvs[iv]; if (!rv) return;
+        var pos = structs[parseInt(attr(rv, 's'), 10)]; if (pos == null || pos < 0) return;
+        var v = tous(rv, 'v')[pos], ri = v ? relIds[parseInt(v.textContent, 10)] : null;
+        if (ri && rvRels[ri]) { var b = blob(rvRels[ri].cible); if (b) res[rg] = b; }
+      });
+    }
+    return res;
   }
   // --- Règles de classement
   var MOTS_JUDO = /waza|kumi|tori|\buke\b|tatami|ukemi|randori|judogi|\bgari\b|goshi|nage|otoshi|gatame|osaekomi|harai|kuzushi|tsukuri|judo/;
@@ -4039,7 +4104,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var CHAMPS_ILLUS = ['image', 'illustration', 'photo', 'img', 'imagedata', 'visuel', 'schema', 'dessin'];
   function illustrationDe(l) {
     var k = {}; Object.keys(l || {}).forEach(function (c) { k[cle(c)] = l[c]; });
-    var r = { image: '', svg: '', lien: false };
+    var r = { image: l && l.__imageXlsx || '', svg: '', lien: false };
     CHAMPS_ILLUS.forEach(function (c) {
       var v = k[c]; if (typeof v !== 'string' || !v) return; v = v.trim();
       if (!r.image && /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(v)) r.image = v;
@@ -4058,6 +4123,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
       var e = classer(l); if (!e) { r.ignores++; return; }
       var k = cle(e.nom) + '|' + e.public[0];
+      // Ligne réduite au nom d'un exercice de la base (pour lui ajouter une illustration) : c'est cet exercice
+      var seul = (!String(e.description || '').trim() || cle(e.description) === cle(e.nom)) && parNom[cle(e.nom)];
+      if (seul) { k = cle(seul.nom) + '|' + (seul.public || [])[0]; parCle[k] = seul; deja[k] = 1; }
       if (deja[k]) {
         r.doublons.push(e.nom);
         // Exercice déjà dans la base : on garde seulement son illustration
@@ -4147,7 +4215,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
-        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'))),
+        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'))),
       h('div', { className: 'gestion-actions' },
         h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
@@ -4165,6 +4233,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('li', null, 'Catégories d\'âge — ' + compte('sousGroupes')),
           h('li', null, 'Moments — ' + compte('moment')),
           h('li', null, 'Catégories — ' + compte('categorie')),
+          (function () { var n = rapport.ajouts.filter(function (e) { return e.image || e.illustration; }).length; return n ? h('li', null, n + (n > 1 ? ' nouveaux exercices illustrés' : ' nouvel exercice illustré')) : null; })(),
           rapport.doublons.length ? h('li', null, rapport.doublons.length + ' déjà présents, ignorés') : null,
           Object.keys(rapport.exclus).length ? h('li', null, 'Pas de forme enfants — ' + Object.keys(rapport.exclus).map(function (k) { return k + ' : ' + rapport.exclus[k]; }).join(' · ')) : null) : null,
         rapport.ajouts.length ? h('details', null, h('summary', null, 'Voir le détail'), h('ol', null, rapport.ajouts.map(function (e) {
