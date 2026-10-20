@@ -1285,7 +1285,7 @@ html, body { overflow-x: clip; }
 .sd-quitter { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(244, 245, 239, .35); background: none; color: var(--creme); font-size: 1.25rem; cursor: pointer; }
 .sd-progres { height: 4px; margin: 8px 0 0; border-radius: 2px; background: rgba(244, 245, 239, .18); overflow: hidden; }
 .sd-progres i { display: block; height: 100%; background: var(--creme); transform-origin: 0 50%; transition: transform .3s; }
-.sd-centre { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e3); text-align: center; padding: var(--e3) 0; }
+.sd-centre { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: var(--e3); text-align: center; padding: var(--e3) 0; }
 .sd-phase { margin: 0; font-size: var(--t-s); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--argent); }
 .sd-nom { margin: 0; font-family: var(--display); font-size: min(2.25rem, 9vw); line-height: 1.1; max-width: 22ch; }
 .sd-dosage { margin: 0; font-size: 1.125rem; font-weight: 700; }
@@ -1328,6 +1328,25 @@ html, body { overflow-x: clip; }
 }
 .cs-cours-aide { flex: 1 1 100%; margin: 0; font-size: var(--t-s); color: var(--muted); }
 .pr-essai { margin-left: 4px; background: color-mix(in srgb, var(--warn) 14%, var(--surface)) !important; color: var(--warn) !important; }
+
+/* Séance en direct (20/10/2026) : vidéo au centre, rectangle temps + répétitions dessous */
+.sd-media { width: min(100%, 720px); display: flex; justify-content: center; }
+.sd-media .video-exo.grand { width: 100%; max-height: 36vh; }
+.sd-illus { width: min(100%, 420px); border-radius: var(--r-m); background: #F7F8F4; padding: 8px; color: #1F2839; }
+.sd-illus .illus { width: 100%; max-height: 26vh; object-fit: contain; color: #1F2839; }
+.sd-mesures { width: min(100%, 720px); display: grid; grid-template-columns: 1fr 1fr; border: 2px solid rgba(244, 245, 239, .35); border-radius: var(--r-m); overflow: hidden; background: rgba(244, 245, 239, .06); }
+.sd-mesure { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px 10px; min-height: 108px; }
+.sd-mesure + .sd-mesure { border-left: 2px solid rgba(244, 245, 239, .25); }
+.sd-m-etiq { font-size: .8125rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--argent); }
+.sd-mesures .sd-temps { position: static; display: block; font-family: var(--display); font-size: min(3rem, 12vw); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sd-m-val { font-family: var(--display); font-size: min(1.75rem, 7vw); line-height: 1.15; font-weight: 800; overflow-wrap: anywhere; }
+.sd-m-note { font-size: .8125rem; color: var(--argent); }
+.sd-barre { width: 100%; max-width: 220px; height: 8px; border-radius: 4px; background: rgba(244, 245, 239, .18); overflow: hidden; margin-top: 4px; }
+.sd-barre i { display: block; height: 100%; background: var(--creme); transform-origin: 0 50%; transition: transform .25s linear; }
+@media (prefers-reduced-motion: reduce) { .sd-barre i { transition: none; } }
+.sd .etapes.compact { width: min(100%, 720px); }
+.sd-centre > * { flex: none; }
+.sd-m-val { text-wrap: balance; }
 /* ===== Vidéos d'exercices (20/10/2026) ===== */
 .video-exo { display: block; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 16 / 9; height: auto; border-radius: 12px; background: #0E1A2E; object-fit: contain; }
 .sheet .illus-fiche:has(.video-exo) { padding: 0; overflow: hidden; background: #0E1A2E; }
@@ -2146,7 +2165,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '20/10/2026 à 19h12';
+  var VERSION_APP = '20/10/2026 à 19h21';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2548,19 +2567,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'sd-btn principal', onClick: p.fermer }, 'Fermer'))
       : !x ? h('div', { className: 'sd-fin' }, h('strong', null, 'Aucun exercice dans cette séance'), h('button', { type: 'button', className: 'sd-btn principal', onClick: p.fermer }, 'Fermer'))
       : h(React.Fragment, null,
-          h('div', { className: 'sd-centre' },
+          h('div', { className: 'sd-centre', tabIndex: 0, role: 'region', 'aria-label': 'Exercice en cours' },
             h('p', { className: 'sd-phase' }, (PH[x.phase] || '') + ' · ' + (i + 1) + ' / ' + exos.length),
             h('h2', { className: 'sd-nom', 'aria-live': 'polite' }, x.nom),
-            e && aVideo(e) ? h(VideoExo, { key: 'v' + e.id, e: e, grand: true }) : null,
+            h('div', { className: 'sd-media' }, e && aVideo(e) ? h(VideoExo, { key: 'v' + e.id, e: e, grand: true })
+              : e ? h('div', { className: 'sd-illus' }, h(Illustration, { e: e })) : null),
+            h('div', { className: 'sd-mesures' },
+              h('div', { className: 'sd-mesure sd-m-temps' + (total ? '' : ' sans-duree') },
+                h('span', { className: 'sd-m-etiq' }, 'Temps'),
+                total ? h('span', { className: 'sd-temps', role: 'timer', 'aria-label': 'Temps restant ' + mmss(reste) }, mmss(reste)) : h('span', { className: 'sd-m-val' }, 'Libre'),
+                total ? h('span', { className: 'sd-barre', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + frac + ')' } })) : h('span', { className: 'sd-m-note' }, '« Suivant » quand c\'est fini')),
+              h('div', { className: 'sd-mesure sd-m-reps' },
+                h('span', { className: 'sd-m-etiq' }, e && e.dosage && !/[×x]\s*\d|rép|répét|par côté|fois|\d+\s*(à\s*\d+\s*)?(pas|sauts?|passages?|tours?)\b/i.test(e.dosage) ? 'Dosage' : 'Répétitions'),
+                h('span', { className: 'sd-m-val' }, e && e.dosage ? String(e.dosage).replace(/(\d) (s|sec|min|rép\.?|fois)\b/g, '$1\u00a0$2').replace(/ à /g, '\u00a0à\u00a0') : '—'))),
             e && !aVideo(e) && etapesDe(e).length > 1 ? h(EtapesExo, { key: 'et' + e.id, e: e, compact: true }) : null,
-            e && e.dosage ? h('p', { className: 'sd-dosage' }, e.dosage) : null,
-            total ? h('div', { className: 'sd-minuteur', role: 'timer', 'aria-label': 'Temps restant ' + mmss(reste) },
-              h('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' },
-                h('circle', { cx: 60, cy: 60, r: R, className: 'sd-fond' }),
-                h('circle', { cx: 60, cy: 60, r: R, className: 'sd-reste', style: { strokeDasharray: C, strokeDashoffset: C * (1 - frac) } })),
-              h('span', { className: 'sd-temps' }, mmss(reste)))
-              : h('p', { className: 'sd-sans' }, 'Sans durée : touchez « Suivant » quand c\'est fini.'),
-            e && e.description && (aVideo(e) || etapesDe(e).length < 2) ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
+            e && e.description && !aVideo(e) && etapesDe(e).length < 2 ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
             e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + e.vigilance) : null,
             h('p', { className: 'sd-ensuite' }, suivant ? 'Ensuite : ' + suivant.nom + (sec(suivant) ? ' (' + mmss(sec(suivant)) + ')' : '') : 'Dernier exercice')),
           h('div', { className: 'sd-commandes' },
