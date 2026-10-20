@@ -1328,6 +1328,21 @@ html, body { overflow-x: clip; }
 }
 .cs-cours-aide { flex: 1 1 100%; margin: 0; font-size: var(--t-s); color: var(--muted); }
 .pr-essai { margin-left: 4px; background: color-mix(in srgb, var(--warn) 14%, var(--surface)) !important; color: var(--warn) !important; }
+/* ===== Vidéos d'exercices (20/10/2026) ===== */
+.video-exo { display: block; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 16 / 9; height: auto; border-radius: 12px; background: #0E1A2E; object-fit: contain; }
+.sheet .illus-fiche:has(.video-exo) { padding: 0; overflow: hidden; background: #0E1A2E; }
+.video-exo.attente { position: relative; display: flex; align-items: center; justify-content: center; color: #fff; overflow: hidden; }
+.video-exo.attente img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: .55; }
+.video-exo.attente span { position: relative; padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.6); font-size: .9rem; }
+.video-exo.grand { width: min(100%, 720px); max-height: 38vh; }
+.video-barre { margin-top: 6px; }
+.video-ajout { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+.video-ajout input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.video-info { color: var(--muted); font-size: .85rem; align-self: center; }
+.gestion-videos { margin: 8px 0 0; padding-left: 1.2em; }
+.gestion-videos li { margin: 2px 0; }
+.tag.video { background: #0E1A2E; color: #fff; }
+@media (orientation: landscape) and (max-height: 520px) { .video-exo.grand { max-height: 46vh; } }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2100,7 +2115,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '19/10/2026 à 22h50';
+  var VERSION_APP = '20/10/2026 à 19h01';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2188,8 +2203,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           e.moment ? h('span', { className: 'pastille' }, e.moment) : null,
           e.format ? h('span', { className: 'pastille' }, e.format) : null,
           e.dosage ? h('span', { className: 'pastille' }, e.dosage) : null),
-        h('figure', { className: 'illus-fiche' }, h(Illustration, { e: e, rev: rev })),
+        h('figure', { className: 'illus-fiche' }, aVideo(e) ? h(VideoExo, { e: e, rev: rev }) : h(Illustration, { e: e, rev: rev })),
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
+        h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1))) : null,
@@ -2501,6 +2517,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('div', { className: 'sd-centre' },
             h('p', { className: 'sd-phase' }, (PH[x.phase] || '') + ' · ' + (i + 1) + ' / ' + exos.length),
             h('h2', { className: 'sd-nom', 'aria-live': 'polite' }, x.nom),
+            e && aVideo(e) ? h(VideoExo, { key: 'v' + e.id, e: e, grand: true }) : null,
             e && e.dosage ? h('p', { className: 'sd-dosage' }, e.dosage) : null,
             total ? h('div', { className: 'sd-minuteur', role: 'timer', 'aria-label': 'Temps restant ' + mmss(reste) },
               h('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' },
@@ -4164,14 +4181,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function choisir(ev) {
       var fs = Array.prototype.slice.call(ev.target.files || []); ev.target.value = ''; if (!fs.length) return;
       setMsg('Lecture et classement…'); setRapport(null);
-      var imgs = fs.filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|svg)$/i.test(f.name); });
-      var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0; })[0];
+      var vids = fs.filter(estVideo);
+      var imgs = fs.filter(function (f) { return vids.indexOf(f) < 0 && (/^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|svg)$/i.test(f.name)); });
+      var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0 && vids.indexOf(f) < 0; })[0];
       (fichier ? lireFichierExercices(fichier) : Promise.resolve([])).then(function (lignes) {
         var r = preparerAjouts(lignes, BASE);
         return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
           r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
-          if (!r.ajouts.length && !r.illustrations.length) {
-            setMsg(imgs.length && !fichier ? 'Aucune image reconnue : nommez chaque image comme l\'exercice (ex. « Planche ventrale sur avant-bras.png ») ou par son numéro (« 2073.jpg »).'
+          var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees; r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
+          if (!r.ajouts.length && !r.illustrations.length && !r.videos.length) {
+            setMsg(rv.lourdes.length && !fichier && !imgs.length ? 'Vidéo trop lourde (maximum ' + tailleTexte(VIDEO_MAX) + ') : exportez-la en 720p, sur 10 à 30 secondes.'
+              : (imgs.length || vids.length) && !fichier ? 'Aucune image ni vidéo reconnue : nommez chaque fichier comme l\'exercice (ex. « Chaise contre le mur.mp4 ») ou par son numéro (« 3071.mp4 »). Vous pouvez aussi ajouter la vidéo depuis la fiche de l\'exercice.'
+              : imgs.length && !fichier ? 'Aucune image reconnue : nommez chaque image comme l\'exercice (ex. « Planche ventrale sur avant-bras.png ») ou par son numéro (« 2073.jpg »).'
               : r.doublons.length ? 'Aucun nouvel exercice ni illustration : les ' + r.doublons.length + ' exercices du fichier sont déjà dans la base' + (r.liens ? ' (' + r.liens + ' illustrations sont des liens internet, non intégrables : utilisez des images dans le fichier ou des fichiers image).' : ', et le fichier ne contient pas d\'illustration.') : 'Aucun exercice reconnu dans ce fichier (il faut au moins une colonne « Nom »).');
             return;
           }
@@ -4189,8 +4210,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         il.forEach(function (x) { if (x.image) IMG_PERSO[x.id] = x.image; else if (x.svg) ILLUS_IA[x.id] = x.svg; });
         return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA)]).then(function (t) { return t[0] && t[1]; });
       }).then(function (ok) {
+        if (!ok) return ok;
+        var vs = rapport.videos || [], nOk = 0;
+        if (vs.length) setMsg('Enregistrement des vidéos…');
+        return vs.reduce(function (pr, v) { return pr.then(function () { return enregistrerVideo(v.id, v.fichier).then(function () { nOk++; }, function () {}); }); }, Promise.resolve())
+          .then(function () { rapport.nVideos = nOk; return ok; });
+      }).then(function (ok) {
         if (!ok) { setMsg('Enregistrement impossible sur cet appareil.'); return; }
-        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : ''].filter(Boolean).join(', ') + '.');
+        var vs = rapport.videos || [];
+        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
+          vs.length ? rapport.nVideos + (rapport.nVideos > 1 ? ' vidéos enregistrées' : ' vidéo enregistrée') + (rapport.nVideos < vs.length ? ' (' + (vs.length - rapport.nVideos) + ' non enregistrée' + (vs.length - rapport.nVideos > 1 ? 's' : '') + ' : espace insuffisant ?)' : '') : ''].filter(Boolean).join(', ') + '.');
         setTimeout(function () { location.reload(); }, 700);
       });
     }
@@ -4208,25 +4237,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     };
     return h('section', { className: 'gestion' },
       h('h2', null, 'Ajouter des exercices'),
-      h('p', null, 'Choisissez un fichier d\'exercices (.json, .xlsx, .csv), avec ou sans images : l\'app les range toute seule en Judo ou Taïso.'),
+      h('p', null, 'Choisissez un fichier d\'exercices (.json, .xlsx, .csv), avec ou sans images et vidéos : l\'app les range toute seule en Judo ou Taïso.'),
       h('div', { className: 'gestion-actions gestion-principal' },
-        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices ou des images' }), 'Choisir un fichier ou des images')),
+        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
       h('details', { className: 'gestion-plus' }, h('summary', null, 'Comment l\'app range les exercices'), h('ul', { className: 'gestion-regles' },
         h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
-        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'))),
+        h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'),
+        h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'))),
       h('div', { className: 'gestion-actions' },
         h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         h('strong', null, [rapport.ajouts.length ? rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '') : '',
-          rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : ''].filter(Boolean).join(' · ')),
+          rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : '',
+          (rapport.videos || []).length ? rapport.videos.length + (rapport.videos.length > 1 ? ' vidéos' : ' vidéo') : ''].filter(Boolean).join(' · ')),
+        (rapport.videos || []).length ? h('ul', { className: 'gestion-videos' }, rapport.videos.map(function (v) {
+          return h('li', { key: v.id + v.fichier.name }, '▶ ' + v.nom + ' — ' + tailleTexte(v.fichier.size) + (VIDEOS[v.id] ? ' (remplace la vidéo actuelle)' : ''));
+        })) : null,
+        (rapport.lourdes || []).length ? h('p', { className: 'gestion-msg' }, 'Vidéos trop lourdes, ignorées (maximum ' + tailleTexte(VIDEO_MAX) + ') : ' + rapport.lourdes.join(', ')) : null,
         rapport.illustrations.length ? h('ol', { className: 'gestion-illus' }, rapport.illustrations.map(function (x) {
           return h('li', { key: x.id }, h('img', { className: 'illus', src: x.image || urlSvg(x.svg), alt: '' }), x.nom);
         })) : null,
-        (rapport.sansExercice || []).length ? h('p', { className: 'gestion-msg' }, 'Images sans exercice correspondant (renommez-les comme l\'exercice) : ' + rapport.sansExercice.join(', ')) : null,
+        (rapport.sansExercice || []).length ? h('p', { className: 'gestion-msg' }, 'Fichiers sans exercice correspondant (renommez-les comme l\'exercice, ou ajoutez-les depuis sa fiche) : ' + rapport.sansExercice.join(', ')) : null,
         rapport.liens ? h('p', { className: 'gestion-msg' }, rapport.liens + ' illustrations sont des liens internet : elles ne peuvent pas être intégrées (l\'app fonctionne hors ligne).') : null,
         rapport.ajouts.length ? h('ul', null,
           h('li', null, 'Espaces — ' + compte('public')),
@@ -4949,9 +4984,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var CLE_IMG_PERSO = 'jsb-images-perso', IMG_PERSO = {};
   function chargerIllusIA() {
     return Promise.all([Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}),
-      Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {})]);
+      Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {}), chargerVideos()]);
   }
-  function imagePerso(e) { return IMG_PERSO[e.id] || ''; }
+  function imagePerso(e) { return IMG_PERSO[e.id] || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
   function reduireImage(fichier) {
     return new Promise(function (ok, ko) {
       var url = URL.createObjectURL(fichier), img = new Image();
@@ -5065,6 +5100,118 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       !perso && existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
       etat === 'refus' ? h('span', { className: 'ia-msg', role: 'alert' }, 'Claude n\'est pas encore autorisé pour cette page. ',
         h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { autoriserClaude(setEtat); } }, 'Autoriser Claude')) : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
+  }
+  // ===== Vidéos d'exercices (20/10/2026) : courtes vidéos de démonstration (format « fiche animée » JSB, 10-30 s) =====
+  // Gardées uniquement sur l'appareil (IndexedDB), une entrée par vidéo : jsb-video-<id> = { type, buf: ArrayBuffer }.
+  // L'index jsb-videos garde pour chaque exercice : type, taille, nom du fichier, date et vignette (1re image, JPEG).
+  // Jamais dans exercices.json, jamais publiées.
+  var CLE_VIDEOS = 'jsb-videos', VIDEOS = {}, VIDEO_MAX = 80 * 1024 * 1024;
+  var EXT_VIDEO = /\.(mp4|m4v|mov|webm)$/i;
+  function cleVideo(id) { return 'jsb-video-' + id; }
+  function chargerVideos() { return Stockage.lire(CLE_VIDEOS).then(function (d) { if (d && typeof d === 'object') VIDEOS = d; }, function () {}); }
+  function aVideo(e) { return !!(e && VIDEOS[e.id]); }
+  function estVideo(f) { return /^video\//.test(f.type || '') || EXT_VIDEO.test(f.name || ''); }
+  function typeVideo(f) { return f.type || (/\.webm$/i.test(f.name) ? 'video/webm' : /\.mov$/i.test(f.name) ? 'video/quicktime' : 'video/mp4'); }
+  function tailleTexte(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko'; }
+  // Vignette : une image prise au début de la vidéo (0,5 s), réduite à 640 px. Chaîne vide si le navigateur ne sait pas la lire.
+  function vignetteVideo(blob) {
+    return new Promise(function (ok) {
+      var url = URL.createObjectURL(blob), v = document.createElement('video'), fini = false;
+      function fin(r) { if (fini) return; fini = true; clearTimeout(t); try { v.removeAttribute('src'); v.load(); } catch (e) {} URL.revokeObjectURL(url); ok(r || ''); }
+      var t = setTimeout(function () { fin(''); }, 8000);
+      v.muted = true; v.playsInline = true; v.preload = 'auto';
+      v.onloadeddata = function () { try { v.currentTime = Math.min(0.5, (v.duration || 1) / 4); } catch (e) { fin(''); } };
+      v.onseeked = function () {
+        try {
+          var k = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight)), c = document.createElement('canvas');
+          c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
+          if (!c.width) { fin(''); return; }
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); fin(c.toDataURL('image/jpeg', 0.8));
+        } catch (e) { fin(''); }
+      };
+      v.onerror = function () { fin(''); };
+      v.src = url;
+    });
+  }
+  // Enregistre la vidéo d'un exercice (remplace l'ancienne). Rejette si l'appareil ne peut pas la garder.
+  function enregistrerVideo(id, fichier) {
+    if (fichier.size > VIDEO_MAX) return Promise.reject(new Error('lourde'));
+    if (!window.indexedDB) return Promise.reject(new Error('stockage'));
+    var type = typeVideo(fichier);
+    return Promise.all([fichier.arrayBuffer(), vignetteVideo(fichier)]).then(function (r) {
+      return Stockage.ecrire(cleVideo(id), { type: type, buf: r[0] }).then(function () { return Stockage.lire(cleVideo(id)); }).then(function (lu) {
+        if (!lu || !lu.buf || !lu.buf.byteLength) throw new Error('stockage');
+        VIDEOS = Object.assign({}, VIDEOS);
+        VIDEOS[id] = { type: type, taille: fichier.size, nom: fichier.name, date: new Date().toISOString().slice(0, 10), vignette: r[1] };
+        try { Stockage.proteger(); } catch (e) {}
+        return Stockage.ecrire(CLE_VIDEOS, VIDEOS);
+      });
+    });
+  }
+  function retirerVideo(id) {
+    VIDEOS = Object.assign({}, VIDEOS); delete VIDEOS[id];
+    return Promise.all([Stockage.ecrire(cleVideo(id), null), Stockage.ecrire(CLE_VIDEOS, VIDEOS)]);
+  }
+  // Vidéos choisies dans « Ajouter des exercices » : rangées sur l'exercice dont elles portent le nom ou le numéro
+  function nomDeFichierExo(nomFichier) {
+    return nomFichier.replace(/\.[a-z0-9]+$/i, '').replace(/[_]+/g, ' ').replace(/^\s*jsb\s+/i, '').replace(/\s+(video|vidéo|demo|démo)\s*$/i, '').trim();
+  }
+  function videosParNom(fichiers, base) {
+    var parNom = {}, parId = {};
+    base.forEach(function (e) { var k = cle(e.nom); parNom[k] = parNom[k] === undefined ? e : null; if (e.id) parId[e.id] = e; });
+    var res = { trouvees: [], sansExercice: [], lourdes: [] };
+    fichiers.forEach(function (f) {
+      if (f.size > VIDEO_MAX) { res.lourdes.push(f.name); return; }
+      var nom = nomDeFichierExo(f.name), num = (nom.match(/^\s*#?(\d{4})(?!\d)/) || [])[1];
+      var e = (num && parId[Number(num)]) || parNom[cle(nom)] || parNom[cle(nom.replace(/^\s*#?\d{4}\s*[-_.]?\s*/, ''))];
+      if (e) res.trouvees.push({ id: e.id, nom: e.nom, fichier: f }); else res.sansExercice.push(f.name);
+    });
+    return res;
+  }
+  function animationsReduites() {
+    try { return document.documentElement.getAttribute('data-anim') === 'reduit' || window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+  // Lecteur : en boucle, sans le son, lu dans la page (iPhone), commandes visibles. Lecture automatique sauf si les animations sont réduites.
+  function VideoExo(p) {
+    var id = p.e.id, info = VIDEOS[id] || {};
+    var s = React.useState(''), url = s[0], setUrl = s[1];
+    var s2 = React.useState(false), panne = s2[0], setPanne = s2[1];
+    React.useEffect(function () {
+      var actif = true, u = ''; setUrl(''); setPanne(false);
+      Stockage.lire(cleVideo(id)).then(function (d) {
+        if (!actif) return;
+        if (!d || !d.buf) { setPanne(true); return; }
+        u = URL.createObjectURL(new Blob([d.buf], { type: d.type || 'video/mp4' })); setUrl(u);
+      }, function () { if (actif) setPanne(true); });
+      return function () { actif = false; if (u) URL.revokeObjectURL(u); };
+    }, [id, p.rev]);
+    var auto = !animationsReduites();
+    if (!url) return h('div', { className: 'video-exo attente' + (p.grand ? ' grand' : '') },
+      info.vignette ? h('img', { src: info.vignette, alt: '' }) : null,
+      h('span', { role: panne ? 'alert' : 'status' }, panne ? 'Vidéo introuvable sur cet appareil.' : 'Chargement de la vidéo…'));
+    return h('video', { className: 'video-exo' + (p.grand ? ' grand' : ''), src: url, poster: info.vignette || undefined, loop: true, playsInline: true, controls: true, preload: 'auto',
+      'aria-label': 'Vidéo de démonstration : ' + p.e.nom,
+      ref: function (n) { if (!n || n.dataset.pret) return; n.dataset.pret = 1; n.muted = true; n.defaultMuted = true; n.setAttribute('muted', ''); n.setAttribute('webkit-playsinline', ''); if (auto) { var pr = n.play(); if (pr && pr.catch) pr.catch(function () {}); } },
+      onError: function () { setPanne(true); setUrl(''); } });
+  }
+  // Boutons de la fiche : ajouter, changer ou retirer la vidéo de l'exercice
+  function BoutonVideo(p) {
+    var e = p.e, a = aVideo(e);
+    var s = React.useState(''), etat = s[0], setEtat = s[1];
+    function choisir(ev) {
+      var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
+      if (!estVideo(f)) { setEtat('Ce fichier n\'est pas une vidéo (.mp4, .mov, .webm).'); return; }
+      setEtat('encours');
+      enregistrerVideo(e.id, f).then(function () { setEtat(''); try { vibrer('succes'); annoncer('Vidéo ajoutée.'); } catch (err) {} p.maj(); }, function (err) {
+        setEtat(err && err.message === 'lourde' ? 'Vidéo trop lourde (' + tailleTexte(f.size) + ', maximum ' + tailleTexte(VIDEO_MAX) + ') : exportez-la en 720p.' : 'Cette vidéo n\'a pas pu être enregistrée sur cet appareil (espace insuffisant ?).');
+      });
+    }
+    function retirer() { if (!window.confirm('Retirer la vidéo de « ' + e.nom + ' » de cet appareil ?')) return; retirerVideo(e.id).then(function () { p.maj(); }); }
+    return h('div', { className: 'ia-barre video-barre' },
+      h('label', { className: 'cs-btn mini video-ajout' }, h('input', { type: 'file', accept: 'video/*,.mp4,.mov,.m4v,.webm', 'aria-label': (a ? 'Changer la vidéo de ' : 'Ajouter une vidéo à ') + e.nom, onChange: choisir }), a ? 'Changer la vidéo' : 'Ajouter une vidéo'),
+      a ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer la vidéo') : null,
+      a && VIDEOS[e.id].taille ? h('span', { className: 'video-info' }, tailleTexte(VIDEOS[e.id].taille)) : null,
+      etat === 'encours' ? h('span', { className: 'ia-msg', role: 'status' }, 'Enregistrement de la vidéo…') : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
@@ -5302,6 +5449,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('span', { className: 'carte-nom' }, e.nom),
           h('span', { className: 'carte-pied' },
             e.exemple ? h('span', { className: 'tag ex' }, 'Exemple') : null,
+            aVideo(e) ? h('span', { className: 'tag video' }, '▶ Vidéo') : null,
             nv ? h(Grade, { texte: nv }) : null,
             u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null);
       }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
