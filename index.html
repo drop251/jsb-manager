@@ -1343,6 +1343,37 @@ html, body { overflow-x: clip; }
 .gestion-videos li { margin: 2px 0; }
 .tag.video { background: #0E1A2E; color: #fff; }
 @media (orientation: landscape) and (max-height: 520px) { .video-exo.grand { max-height: 46vh; } }
+/* ===== Étape par étape (fiche animée JSB) ===== */
+.etapes { --et-fond: #11203A; --et-carte: #18305A; --et-or: #E2B157; container-type: inline-size; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: var(--et-fond); color: #F4F5EF; text-align: left; width: 100%; }
+.et-haut { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--et-or); }
+.et-titre { display: block; font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; }
+.et-sous { display: block; font-size: .78rem; color: #E8D6AE; }
+.et-logo { width: 36px; height: 36px; border-radius: 50%; background: #fff; flex: none; }
+.et-corps { display: grid; gap: 10px; }
+.et-visuel { border: 2px solid var(--et-or); border-radius: 10px; background: #F7F8F4; display: flex; align-items: center; justify-content: center; overflow: hidden; max-height: 180px; }
+.et-visuel .illus { max-height: 176px; width: 100%; object-fit: contain; color: #1F2839; }
+.et-carte { background: var(--et-carte); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 9.5em; }
+.et-num-l { display: flex; align-items: center; gap: 10px; }
+.et-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--et-or); color: #11203A; font-weight: 800; flex: none; }
+.et-compte { font-size: .8rem; color: #E8D6AE; }
+.et-etape-titre { text-transform: uppercase; letter-spacing: .03em; font-size: .9rem; }
+.et-texte { margin: 0; font-size: 1.02rem; line-height: 1.4; font-weight: 600; }
+.et-vigil { background: rgba(255,255,255,.08); border-radius: 8px; padding: 8px 10px; }
+.et-vigil span { display: block; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--et-or); }
+.et-vigil p { margin: 2px 0 0; font-size: .88rem; }
+.et-pied { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.et-infos { font-size: .82rem; color: #E8D6AE; font-weight: 700; flex: 1 1 12em; }
+.et-commandes { display: flex; gap: 8px; margin-left: auto; }
+.et-btn { min-width: 44px; min-height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; font-size: 1.15rem; font-weight: 700; cursor: pointer; }
+.et-btn:focus-visible { outline: 3px solid var(--et-or); outline-offset: 2px; }
+.et-progres { height: 4px; border-radius: 4px; background: rgba(255,255,255,.18); overflow: hidden; }
+.et-progres i { display: block; height: 100%; background: var(--et-or); transform-origin: left; transition: transform .3s; }
+[data-anim="reduit"] .et-progres i { transition: none; }
+@container (min-width: 520px) { .et-corps { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .et-visuel { max-height: none; } .et-visuel .illus { max-height: 240px; } }
+.etapes.compact { width: min(100%, 560px); }
+.etapes.compact .et-carte { min-height: 7em; }
+.sheet .illus-fiche:has(.etapes) { padding: 0; background: transparent; }
+.etapes-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2115,7 +2146,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '20/10/2026 à 19h01';
+  var VERSION_APP = '20/10/2026 à 19h12';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2183,6 +2214,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function Fiche(p) {
     var r0 = React.useState(0), rev = r0[0], setRev = r0[1];
+    var r1 = React.useState(false), vueEtapes = r1[0], setVueEtapes = r1[1];
     var e = p.e, judo = p.espace.key === 'judo';
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
@@ -2203,7 +2235,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           e.moment ? h('span', { className: 'pastille' }, e.moment) : null,
           e.format ? h('span', { className: 'pastille' }, e.format) : null,
           e.dosage ? h('span', { className: 'pastille' }, e.dosage) : null),
-        h('figure', { className: 'illus-fiche' }, aVideo(e) ? h(VideoExo, { e: e, rev: rev }) : h(Illustration, { e: e, rev: rev })),
+        h('figure', { className: 'illus-fiche' }, vueEtapes ? h(EtapesExo, { e: e }) : aVideo(e) ? h(VideoExo, { e: e, rev: rev }) : h(Illustration, { e: e, rev: rev })),
+        etapesDe(e).length > 1 ? h('div', { className: 'ia-barre' }, h('button', { type: 'button', className: 'cs-btn mini etapes-btn', 'aria-pressed': vueEtapes, onClick: function () { setVueEtapes(!vueEtapes); } },
+          vueEtapes ? (aVideo(e) ? 'Revoir la vidéo' : 'Revoir l\'illustration') : '▶ Étape par étape')) : null,
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
         h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
         h(Description, { texte: e.description }),
@@ -2518,6 +2552,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('p', { className: 'sd-phase' }, (PH[x.phase] || '') + ' · ' + (i + 1) + ' / ' + exos.length),
             h('h2', { className: 'sd-nom', 'aria-live': 'polite' }, x.nom),
             e && aVideo(e) ? h(VideoExo, { key: 'v' + e.id, e: e, grand: true }) : null,
+            e && !aVideo(e) && etapesDe(e).length > 1 ? h(EtapesExo, { key: 'et' + e.id, e: e, compact: true }) : null,
             e && e.dosage ? h('p', { className: 'sd-dosage' }, e.dosage) : null,
             total ? h('div', { className: 'sd-minuteur', role: 'timer', 'aria-label': 'Temps restant ' + mmss(reste) },
               h('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' },
@@ -2525,7 +2560,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 h('circle', { cx: 60, cy: 60, r: R, className: 'sd-reste', style: { strokeDasharray: C, strokeDashoffset: C * (1 - frac) } })),
               h('span', { className: 'sd-temps' }, mmss(reste)))
               : h('p', { className: 'sd-sans' }, 'Sans durée : touchez « Suivant » quand c\'est fini.'),
-            e && e.description ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
+            e && e.description && (aVideo(e) || etapesDe(e).length < 2) ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
             e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + e.vigilance) : null,
             h('p', { className: 'sd-ensuite' }, suivant ? 'Ensuite : ' + suivant.nom + (sec(suivant) ? ' (' + mmss(sec(suivant)) + ')' : '') : 'Dernier exercice')),
           h('div', { className: 'sd-commandes' },
@@ -5212,6 +5247,59 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       a ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer la vidéo') : null,
       a && VIDEOS[e.id].taille ? h('span', { className: 'video-info' }, tailleTexte(VIDEOS[e.id].taille)) : null,
       etat === 'encours' ? h('span', { className: 'ia-msg', role: 'status' }, 'Enregistrement de la vidéo…') : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
+  }
+
+  // ===== Étape par étape (20/10/2026) : la fiche animée JSB générée à partir du texte de l'exercice, sans vidéo =====
+  var SECTIONS_DESC = /(Analyse technique|Mise en pédagogie|Exercice de transfert|Forme enfants)\s*:\s*/g;
+  var DOSAGE_SEUL = /^(pause\b|manches? de|\d+\s*[×x]\s*\d|\d+(\s*à\s*\d+)?\s*(s|sec|secondes?|min|minutes?|par côté|répétitions?|rép\.?|passages?|fois|tours?|séries?|allers?(-retours?)?)\b)/i;
+  function majuscule(s) { s = String(s || '').trim(); return s.charAt(0).toUpperCase() + s.slice(1) + (/[.!?…]$/.test(s) ? '' : '.'); }
+  function etapesDe(e) {
+    var t = String(e && e.description || '').replace(/\s+/g, ' ').trim(); if (!t) return [];
+    var parts = [], m, debut = 0, titre = null; SECTIONS_DESC.lastIndex = 0;
+    while ((m = SECTIONS_DESC.exec(t))) { var av = t.slice(debut, m.index).trim().replace(/[.,;]\s*$/, ''); if (av) parts.push({ titre: titre, texte: av }); titre = m[1]; debut = SECTIONS_DESC.lastIndex; }
+    var fin = t.slice(debut).trim(); if (fin) parts.push({ titre: titre, texte: fin });
+    if (parts.length >= 2) return parts.slice(0, 5).map(function (x) { return { titre: x.titre, texte: majuscule(x.texte) }; });
+    // Sinon : une étape par membre de phrase (virgule, point-virgule, point), sans les dosages, petits morceaux regroupés
+    var bouts = t.split(/[.;]\s+|,\s+(?=[a-zàâäéèêëîïôöûüç])/i).map(function (s) { return s.trim().replace(/[.,;]$/, ''); }).filter(Boolean);
+    bouts = bouts.filter(function (s, i) { return !(i > 0 && DOSAGE_SEUL.test(s)) && s !== String(e.dosage || ''); });
+    var out = [];
+    bouts.forEach(function (s) { if (out.length && (s.length < 18 || out[out.length - 1].length < 18 || /^(puis|et|ou|sans|avec)\b/i.test(s))) out[out.length - 1] += ', ' + s; else out.push(s); });
+    while (out.length > 5) { var k = 0, best = Infinity; for (var i = 0; i < out.length - 1; i++) { var l = out[i].length + out[i + 1].length; if (l < best) { best = l; k = i; } } out.splice(k, 2, out[k] + ', ' + out[k + 1]); }
+    return out.map(function (s) { return { titre: null, texte: majuscule(s) }; });
+  }
+  function premierePhrase(s) { s = String(s || '').trim(); var i = s.search(/[.;](\s|$)/); return majuscule(i > 0 ? s.slice(0, i) : s); }
+  function EtapesExo(p) {
+    var e = p.e, etapes = etapesDe(e), n = etapes.length;
+    var s1 = React.useState(0), i = s1[0], setI = s1[1];
+    var s2 = React.useState(animationsReduites() || p.arret), pause = s2[0], setPause = s2[1];
+    React.useEffect(function () { setI(0); }, [e.id]);
+    React.useEffect(function () {
+      if (pause || n < 2) return;
+      var t = setTimeout(function () { setI(function (x) { return (x + 1) % n; }); }, 5000);
+      return function () { clearTimeout(t); };
+    }, [i, pause, n]);
+    if (!n) return null;
+    var et = etapes[Math.min(i, n - 1)];
+    function aller(d) { setPause(true); setI(function (x) { return (x + d + n) % n; }); }
+    var sous = [(e.public || [])[0], (e.sousGroupes || []).slice(0, 2).join(' / '), e.niveau || e.grade].filter(Boolean);
+    return h('div', { className: 'etapes' + (p.compact ? ' compact' : ''), role: 'group', 'aria-roledescription': 'étapes', 'aria-label': 'Étape par étape : ' + e.nom },
+      p.compact ? null : h('div', { className: 'et-haut' },
+        h('div', null, h('strong', { className: 'et-titre' }, e.nom), sous.length ? h('span', { className: 'et-sous' }, sous.join(' • ')) : null),
+        typeof LOGO === 'string' && LOGO.length > 40 ? h('img', { className: 'et-logo', src: LOGO, alt: '' }) : null),
+      h('div', { className: 'et-corps' },
+        p.compact ? null : h('div', { className: 'et-visuel' }, h(Illustration, { e: e })),
+        h('div', { className: 'et-carte' },
+          h('div', { className: 'et-num-l' }, h('span', { className: 'et-num', 'aria-hidden': 'true' }, i + 1), h('span', { className: 'et-compte' }, 'Étape ' + (i + 1) + ' sur ' + n)),
+          et.titre ? h('b', { className: 'et-etape-titre' }, et.titre) : null,
+          h('p', { className: 'et-texte', 'aria-live': pause ? 'polite' : 'off' }, et.texte),
+          !p.compact && e.vigilance ? h('div', { className: 'et-vigil' }, h('span', null, 'Point de vigilance'), h('p', null, premierePhrase(e.vigilance))) : null)),
+      h('div', { className: 'et-pied' },
+        p.compact ? null : h('span', { className: 'et-infos' }, [e.dosage, String(e.muscles || '').split(/[;,]/).slice(0, 2).join(' •')].filter(Boolean).join(' · ')),
+        h('div', { className: 'et-commandes' },
+          h('button', { type: 'button', className: 'et-btn', 'aria-label': 'Étape précédente', onClick: function () { aller(-1); } }, '‹'),
+          n > 1 ? h('button', { type: 'button', className: 'et-btn', 'aria-label': pause ? 'Faire défiler les étapes' : 'Arrêter le défilement', onClick: function () { setPause(!pause); } }, pause ? '▶' : '❚❚') : null,
+          h('button', { type: 'button', className: 'et-btn', 'aria-label': 'Étape suivante', onClick: function () { aller(1); } }, '›'))),
+      h('div', { className: 'et-progres', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + ((i + 1) / n) + ')' } })));
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
