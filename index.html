@@ -2226,7 +2226,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '24/10/2026 à 19h13';
+  var VERSION_APP = '24/10/2026 à 19h16';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -4367,6 +4367,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s1 = React.useState(null), rapport = s1[0], setRapport = s1[1];
     var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
     var nbAjouts = BASE.filter(function (e) { return e.ajoute; }).length;
+    // Photos des exercices de Judo (ajoutées sur l'appareil ou portées par un exercice importé)
+    var photosJudo = BASE.filter(function (e) { return (e.public || []).indexOf('Judo') >= 0 && (IMG_PERSO[e.id] || (e.ajoute && /^data:image\//.test(e.image || ''))); });
+    function retirerPhotosJudo() {
+      if (!window.confirm('Supprimer les photos des ' + photosJudo.length + ' exercices de Judo sur cet appareil ?\n\nLes exercices restent ; seules leurs photos sont retirées (les vidéos et dessins sont gardés).')) return;
+      setMsg('Suppression des photos…');
+      var ids = {}; photosJudo.forEach(function (e) { ids[e.id] = 1; });
+      IMG_PERSO = Object.assign({}, IMG_PERSO); Object.keys(ids).forEach(function (id) { delete IMG_PERSO[id]; });
+      Stockage.lire(CLE_AJOUTS).then(function (a) {
+        var l = (Array.isArray(a) ? a : []).map(function (e) { if (e && ids[e.id] && e.image) { e = Object.assign({}, e); delete e.image; } return e; });
+        return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_AJOUTS, l)]);
+      }).then(function () { location.reload(); });
+    }
     function choisir(ev) {
       var fs = Array.prototype.slice.call(ev.target.files || []); ev.target.value = ''; if (!fs.length) return;
       setMsg('Lecture et classement…'); setRapport(null);
@@ -4450,6 +4462,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'gestion-actions' },
         h('button', { type: 'button', className: 'btn', onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches, photos et vidéos (.zip)'),
         h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
+        photosJudo.length ? h('button', { type: 'button', className: 'btn lien', onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
