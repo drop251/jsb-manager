@@ -2202,7 +2202,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '24/10/2026 à 07h00';
+  var VERSION_APP = '24/10/2026 à 14h14';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2296,6 +2296,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           vueEtapes ? (aVideo(e) ? 'Revoir la vidéo' : 'Revoir l\'illustration') : '▶ Étape par étape')) : null,
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
         h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
+        h(BoutonExportFiche, { e: e }),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, sansCesure(e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1)))) : null,
@@ -4008,6 +4009,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var wb = XLSX.read(t.replace(/^\uFEFF/, ''), { type: 'string' });
       return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     });
+    if (/\.zip$/i.test(fichier.name)) return fichier.arrayBuffer().then(function (buf) { if (!window.XLSX || !XLSX.CFB) throw new Error('outil'); return lireZipExercices(buf); });
     return fichier.arrayBuffer().then(function (buf) {
       if (!window.XLSX) throw new Error('outil');
       var wb = XLSX.read(buf, { type: 'array' });
@@ -4343,7 +4345,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var r = preparerAjouts(lignes, BASE);
         return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
           r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
-          var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees; r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
+          var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees.concat(videosDesLignes(lignes, r, BASE)); r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
           if (!r.ajouts.length && !r.illustrations.length && !r.videos.length) {
             setMsg(rv.lourdes.length && !fichier && !imgs.length ? 'Vidéo trop lourde (maximum ' + tailleTexte(VIDEO_MAX) + ') : exportez-la en 720p, sur 10 à 30 secondes.'
               : (imgs.length || vids.length) && !fichier ? 'Aucune image ni vidéo reconnue : nommez chaque fichier comme l\'exercice (ex. « Chaise contre le mur.mp4 ») ou par son numéro (« 3071.mp4 »). Vous pouvez aussi ajouter la vidéo depuis la fiche de l\'exercice.'
@@ -4353,7 +4355,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           }
           setMsg(''); setRapport(r);
         });
-      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx ou .csv avec une colonne « Nom », ou des images nommées comme les exercices.'); });
+      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx, .csv ou un export .zip, avec une colonne « Nom », ou des images nommées comme les exercices.'); });
     }
     function enregistrer() {
       var il = rapport.illustrations || [];
@@ -4379,7 +4381,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
     }
     function exporter() {
-      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = imagePerso(e); if (ip) c.image = ip; return c; });
+      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = IMG_PERSO[e.id]; if (ip) c.image = ip; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
     }
     function retirer() {
@@ -4394,15 +4396,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('h2', null, 'Ajouter des exercices'),
       h('p', null, 'Choisissez un fichier d\'exercices (.json, .xlsx, .csv), avec ou sans images et vidéos : l\'app les range toute seule en Judo ou Taïso.'),
       h('div', { className: 'gestion-actions gestion-principal' },
-        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
+        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,.zip,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
       h('details', { className: 'gestion-plus' }, h('summary', null, 'Comment l\'app range les exercices'), h('ul', { className: 'gestion-regles' },
         h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
         h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'),
-        h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'))),
+        h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'),
+        h('li', null, h('strong', null, 'Export complet'), ' — « Exporter tout » crée un .zip avec chaque fiche lisible (description, sécurité, détails), les photos, les dessins et les vidéos. Pour tout retrouver sur un autre appareil, choisissez ce .zip ici. Chaque fiche s\'exporte aussi seule depuis l\'exercice.'))),
       h('div', { className: 'gestion-actions' },
-        h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base (' + BASE.length + ')'),
+        h('button', { type: 'button', className: 'btn', onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches, photos et vidéos (.zip)'),
+        h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
@@ -5420,6 +5424,155 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           n > 1 ? h('button', { type: 'button', className: 'et-btn', 'aria-label': pause ? 'Faire défiler les étapes' : 'Arrêter le défilement', onClick: function () { setPause(!pause); } }, pause ? '▶' : '❚❚') : null,
           h('button', { type: 'button', className: 'et-btn', 'aria-label': 'Étape suivante', onClick: function () { aller(1); } }, '›'))),
       h('div', { className: 'et-progres', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + ((i + 1) / n) + ')' } })));
+  }
+  // ===== Export complet (24/10/2026) : fiche(s) exercice avec photo, dessin et vidéo, dans un fichier .zip =====
+  // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
+  // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
+  // Le .zip se réimporte dans « Ajouter des exercices » (autre appareil) : photos, dessins et vidéos reviennent avec.
+  var CHAMPS_FICHE = [['Moment de la séance', 'moment'], ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Format', 'format'],
+    ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
+    ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
+    ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'],
+    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration']];
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function nomSur(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'exercice'; }
+  function octetsTexte(t) { return new TextEncoder().encode(t); }
+  function dataUrlOctets(d) {
+    var m = String(d || '').match(/^data:([^;,]+)(;base64)?,(.*)$/); if (!m) return null;
+    var bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]), o = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i) & 255;
+    var ext = /png/.test(m[1]) ? 'png' : /webp/.test(m[1]) ? 'webp' : /gif/.test(m[1]) ? 'gif' : 'jpg';
+    return { ext: ext, octets: o };
+  }
+  function extVideo(type) { return /webm/.test(type) ? 'webm' : /quicktime/.test(type) ? 'mov' : 'mp4'; }
+  // Médias d'un exercice : photo (ajoutée sur l'appareil ou dans la base), dessin SVG, vidéo
+  function mediasDe(e) {
+    var ph = IMG_PERSO[e.id] || (/^data:image\//.test(e.image || '') ? e.image : ''), svg = svgIA(e);
+    var r = { photo: ph ? dataUrlOctets(ph) : null, svg: svg || '', video: null };
+    if (!VIDEOS[e.id]) return Promise.resolve(r);
+    return Stockage.lire(cleVideo(e.id)).then(function (d) {
+      if (d && d.buf) r.video = { ext: extVideo(d.type || ''), type: d.type || 'video/mp4', octets: new Uint8Array(d.buf) };
+      return r;
+    }, function () { return r; });
+  }
+  function ficheDonnees(e, chemins) {
+    var c = Object.assign({}, e); delete c.ajoute; delete c.exemple;
+    delete c.image; delete c.illustration;
+    if (chemins.photo) c.image = chemins.photo;
+    if (chemins.svg) c.illustration = chemins.svg;
+    if (chemins.video) c.video = chemins.video;
+    return c;
+  }
+  function ficheHtml(e, chemins, retour) {
+    var pastilles = [(e.public || []).join(', '), (e.sousGroupes || []).join(', '), e.grade || e.niveau, e.moment, e.format, e.dosage].filter(Boolean);
+    var lignes = CHAMPS_FICHE.map(function (x) { return e[x[1]] ? '<dt>' + esc(x[0]) + '</dt><dd>' + esc(e[x[1]]) + '</dd>' : ''; }).join('');
+    return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(e.nom) + '</title>'
+      + '<style>:root{color-scheme:light}body{margin:0;background:#F4F5EF;color:#1F2839;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}'
+      + 'main{max-width:760px;margin:0 auto;padding:24px 16px 48px}header{border-bottom:3px solid #E2B157;padding-bottom:12px;margin-bottom:16px}'
+      + '.marque{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6B7280}h1{margin:4px 0 10px;font-size:1.75rem;line-height:1.15;text-wrap:balance}'
+      + '.p{display:flex;flex-wrap:wrap;gap:6px}.p span{padding:3px 10px;border-radius:999px;background:#E6E8E0;font-size:.85rem}'
+      + 'figure{margin:16px 0;border-radius:12px;overflow:hidden;background:#fff}figure img,figure video{display:block;width:100%;height:auto}'
+      + 'h2{font-size:1.05rem;margin:22px 0 6px}.vig{padding:12px 14px;border-radius:10px;background:#FBF1DE;color:#7A4B00;font-weight:600}'
+      + 'dl{display:grid;grid-template-columns:minmax(9em,30%) 1fr;gap:6px 14px;margin:0}dt{color:#6B7280;font-size:.875rem}dd{margin:0}'
+      + 'a{color:#1F2839}@media(max-width:520px){dl{grid-template-columns:1fr}dd{margin-bottom:6px}}@media print{body{background:#fff}video{display:none}}</style></head><body><main>'
+      + (retour ? '<p><a href="' + esc(retour) + '">‹ Toutes les fiches</a></p>' : '')
+      + '<header><div class="marque">JSB Manager · fiche exercice' + (e.id ? ' n° ' + esc(e.id) : '') + '</div><h1>' + esc(e.nom) + '</h1><div class="p">' + pastilles.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div></header>'
+      + (chemins.video ? '<figure><video src="' + esc(chemins.video) + '" controls loop muted playsinline' + (chemins.photo ? ' poster="' + esc(chemins.photo) + '"' : '') + '></video></figure>' : '')
+      + (chemins.photo ? '<figure><img src="' + esc(chemins.photo) + '" alt="Illustration : ' + esc(e.nom) + '"></figure>' : '')
+      + (chemins.svg ? '<figure><img src="' + esc(chemins.svg) + '" alt="Dessin : ' + esc(e.nom) + '"></figure>' : '')
+      + '<h2>Description</h2><p>' + esc(e.description) + '</p>'
+      + (e.vigilance ? '<h2>Point de sécurité</h2><p class="vig">' + esc(e.vigilance) + '</p>' : '')
+      + (lignes ? '<h2>Détails</h2><dl>' + lignes + '</dl>' : '')
+      + '</main></body></html>';
+  }
+  function zipBlob(fichiers) {
+    var c = XLSX.CFB.utils.cfb_new();
+    fichiers.forEach(function (f) { XLSX.CFB.utils.cfb_add(c, '/' + f.chemin, typeof f.data === 'string' ? octetsTexte(f.data) : f.data); });
+    return new Blob([XLSX.CFB.write(c, { fileType: 'zip', type: 'array' })], { type: 'application/zip' });
+  }
+  // Médias d'un exercice → fichiers du zip + chemins (relatifs à la racine du zip)
+  function ajouterMedias(e, m, dossier, nomBase, fichiers) {
+    var ch = {};
+    if (m.photo) { ch.photo = dossier + nomBase + (nomBase ? '.' : 'photo.') + m.photo.ext; fichiers.push({ chemin: ch.photo, data: m.photo.octets }); }
+    if (m.svg) { ch.svg = dossier + nomBase + (nomBase ? '-dessin.svg' : 'illustration.svg'); fichiers.push({ chemin: ch.svg, data: m.svg }); }
+    if (m.video) { ch.video = dossier + nomBase + (nomBase ? '.' : 'video.') + m.video.ext; fichiers.push({ chemin: ch.video, data: m.video.octets }); }
+    return ch;
+  }
+  function exporterFiche(e, setMsg) {
+    if (!window.XLSX || !XLSX.CFB) { setMsg('Export indisponible : outil de fichiers non chargé.'); return; }
+    setMsg('Préparation de la fiche…');
+    mediasDe(e).then(function (m) {
+      var fichiers = [], ch = ajouterMedias(e, m, '', '', fichiers);
+      fichiers.unshift({ chemin: 'fiche.html', data: ficheHtml(e, ch) }, { chemin: 'fiche.json', data: JSON.stringify(ficheDonnees(e, ch), null, 2) });
+      enregistrerFichier('fiche-' + e.id + '-' + nomSur(e.nom) + '.zip', zipBlob(fichiers), setMsg);
+    }).catch(function () { setMsg('La fiche n\'a pas pu être exportée.'); });
+  }
+  function exporterTout(base, setMsg) {
+    if (!window.XLSX || !XLSX.CFB) { setMsg('Export indisponible : outil de fichiers non chargé.'); return; }
+    var fichiers = [], donnees = [], liens = [], nPh = 0, nV = 0, nS = 0, k = 0;
+    setMsg('Préparation de l\'export…');
+    base.reduce(function (pr, e) {
+      return pr.then(function () {
+        return mediasDe(e).then(function (m) {
+          k++; if (k % 100 === 0) setMsg('Préparation de l\'export… ' + k + ' / ' + base.length);
+          var nb = e.id + '-' + nomSur(e.nom), ch = ajouterMedias(e, m, 'medias/', nb, fichiers);
+          if (ch.photo) nPh++; if (ch.video) nV++; if (ch.svg) nS++;
+          donnees.push(ficheDonnees(e, ch));
+          if (ch.photo || ch.video || ch.svg) {
+            var rel = {}; Object.keys(ch).forEach(function (c) { rel[c] = '../' + ch[c]; });
+            fichiers.push({ chemin: 'fiches/' + nb + '.html', data: ficheHtml(e, rel, '../index.html') });
+            liens.push('<li><a href="fiches/' + esc(nb) + '.html">' + esc(e.nom) + '</a> <small>' + [ch.video ? 'vidéo' : '', ch.photo ? 'photo' : '', ch.svg ? 'dessin' : ''].filter(Boolean).join(', ') + '</small></li>');
+          }
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      var date = new Date().toISOString().slice(0, 10);
+      fichiers.unshift(
+        { chemin: 'exercices.json', data: JSON.stringify(donnees, null, 2) },
+        { chemin: 'index.html', data: '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fiches exercices JSB</title><style>body{margin:0;background:#F4F5EF;color:#1F2839;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}main{max-width:760px;margin:0 auto;padding:24px 16px}h1{font-size:1.5rem}li{margin:6px 0}small{color:#6B7280}</style></head><body><main><h1>Fiches exercices illustrées (' + liens.length + ')</h1><p>Export JSB Manager du ' + date + ' · ' + base.length + ' exercices au total dans exercices.json.</p><ul>' + liens.join('') + '</ul></main></body></html>' },
+        { chemin: 'LISEZMOI.txt', data: 'Export complet JSB Manager du ' + date + '\r\n\r\n- index.html : liste des fiches illustrées, à ouvrir dans un navigateur.\r\n- fiches/ : une fiche par exercice illustré (description, sécurité, détails, photo, vidéo).\r\n- exercices.json : tous les exercices (' + base.length + '), avec le chemin de leurs médias.\r\n- medias/ : photos, dessins et vidéos.\r\n\r\nPour retrouver tout cela sur un autre appareil : JSB Manager > Ajouter des exercices > choisir ce fichier .zip.\r\nDocument privé : à ne pas publier.\r\n' });
+      setMsg('Compression…');
+      enregistrerFichier('exercices-complet-' + date + '.zip', zipBlob(fichiers), function (t) { setMsg(/Téléchargement lancé|enregistrée/.test(t) ? 'Export prêt : ' + base.length + ' exercices, ' + nPh + ' photos, ' + nS + ' dessins, ' + nV + ' vidéos. ' + t : t); });
+    }).catch(function () { setMsg('L\'export n\'a pas pu être préparé (mémoire insuffisante ?).'); });
+  }
+  // Réimport d'un .zip exporté : lignes d'exercices avec photo (__imageXlsx), dessin (illustration) et vidéo (__videoFichier)
+  function lireZipExercices(buf) {
+    var cfb = XLSX.CFB.read(new Uint8Array(buf), { type: 'array' }), fic = {};
+    cfb.FullPaths.forEach(function (p, i) { var c = cfb.FileIndex[i] && cfb.FileIndex[i].content; if (c && c.length) fic[p.replace(/^[^\/]*\//, '').replace(/^\//, '')] = c instanceof Uint8Array ? c : new Uint8Array(c); });
+    var cleJson = fic['exercices.json'] ? 'exercices.json' : fic['fiche.json'] ? 'fiche.json' : Object.keys(fic).filter(function (k) { return /\.json$/i.test(k); })[0];
+    if (!cleJson) throw new Error('format');
+    var d = JSON.parse(new TextDecoder('utf-8').decode(fic[cleJson]));
+    if (d && !Array.isArray(d)) d = d.exercices || [d];
+    var TYPES_IMG = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
+    function chemin(c) { c = String(c || '').replace(/^\.\.\//, '').replace(/^\.\//, ''); return fic[c] ? c : null; }
+    return d.reduce(function (pr, l) {
+      return pr.then(function () {
+        var cp = chemin(l.image), cs = chemin(l.illustration), cv = chemin(l.video), ext;
+        if (cs) l.illustration = new TextDecoder('utf-8').decode(fic[cs]);
+        if (cv) { ext = cv.split('.').pop().toLowerCase(); l.__videoFichier = new File([fic[cv]], cv.split('/').pop(), { type: ext === 'webm' ? 'video/webm' : ext === 'mov' ? 'video/quicktime' : 'video/mp4' }); }
+        delete l.video;
+        if (cp) { ext = cp.split('.').pop().toLowerCase(); delete l.image;
+          if (TYPES_IMG[ext]) return reduireImage(new Blob([fic[cp]], { type: TYPES_IMG[ext] })).then(function (u) { l.__imageXlsx = u; }, function () {}); }
+      });
+    }, Promise.resolve()).then(function () { return d; });
+  }
+  // Après le classement : relie chaque vidéo du zip à son exercice (déjà dans la base ou nouvellement ajouté)
+  function videosDesLignes(lignes, r, base) {
+    var parId = {}, parNom = {};
+    base.concat(r.ajouts).forEach(function (e) { parId[e.id] = e; var k = cle(e.nom); parNom[k] = parNom[k] === undefined ? e : null; });
+    var out = [];
+    lignes.forEach(function (l) {
+      if (!l.__videoFichier) return;
+      var nom = cle(l.nom || l.Nom || ''), e = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === nom ? parId[Number(l.id)] : null) || parNom[nom];
+      if (e) out.push({ id: e.id, nom: e.nom, fichier: l.__videoFichier });
+    });
+    return out;
+  }
+  function BoutonExportFiche(p) {
+    var s = React.useState(''), msg = s[0], setMsg = s[1];
+    return h('div', { className: 'ia-barre export-barre' },
+      h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { exporterFiche(p.e, setMsg); } }, 'Exporter la fiche complète'),
+      msg ? h('span', { className: 'ia-msg', role: 'status' }, msg) : null);
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
