@@ -2226,7 +2226,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '24/10/2026 à 15h24';
+  var VERSION_APP = '24/10/2026 à 19h13';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -4312,10 +4312,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     });
     return r;
   }
+  var CLE_ID_MAX = 'jsb-id-max';
+  function lireIdMax() { try { return parseInt(localStorage.getItem(CLE_ID_MAX), 10) || 0; } catch (e) { return 0; } }
+  function ecrireIdMax(n) { try { if (n > lireIdMax()) localStorage.setItem(CLE_ID_MAX, String(n)); } catch (e) {} }
   function preparerAjouts(lignes, base) {
-    var deja = {}, maxId = 5000, parCle = {}, parNom = {}, parId = {};
+    // Numéros des exercices ajoutés : jamais réutilisés (compteur gardé sur l'appareil), jamais celui d'une photo ou vidéo déjà rangée
+    var deja = {}, maxId = Math.max(5000, lireIdMax()), parCle = {}, parNom = {}, parId = {};
+    function suivant() {
+      do { maxId++; if (maxId >= 9000 && maxId < 20001) maxId = 20001; } while (IMG_PERSO[maxId] || ILLUS_IA[maxId] || VIDEOS[maxId] || parId[maxId]);
+      return maxId;
+    }
     base.forEach(function (e) { var k0 = cle(e.nom) + '|' + (e.public || [])[0]; deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
-      var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (e.id >= 5001 && e.id <= 8999 && e.id > maxId) maxId = e.id; });
+      var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
     var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0 };
     lignes.forEach(function (l) {
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
@@ -4333,9 +4341,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }
       if (il.image) e.image = il.image;
       if (il.svg) e.illustration = il.svg;
-      deja[k] = 1; e.id = ++maxId; r.ajouts.push(e);
+      deja[k] = 1; e.id = suivant(); r.ajouts.push(e);
       var fe = formeEnfants(e);
-      if (fe.forme && !deja[cle(fe.forme.nom) + '|Judo']) { fe.forme.id = ++maxId; deja[cle(fe.forme.nom) + '|Judo'] = 1; r.ajouts.push(fe.forme); r.formes++; }
+      if (fe.forme && !deja[cle(fe.forme.nom) + '|Judo']) { fe.forme.id = suivant(); deja[cle(fe.forme.nom) + '|Judo'] = 1; r.ajouts.push(fe.forme); r.formes++; }
       else if (fe.exclu) r.exclus[fe.exclu] = (r.exclus[fe.exclu] || 0) + 1;
     });
     return r;
@@ -4383,6 +4391,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function enregistrer() {
       var il = rapport.illustrations || [];
+      if (rapport.ajouts.length) ecrireIdMax(Math.max.apply(null, rapport.ajouts.map(function (e) { return e.id; })));
       (rapport.ajouts.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
         return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts));
       }) : Promise.resolve(true)).then(function (ok) {
@@ -4408,9 +4417,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = IMG_PERSO[e.id]; if (ip) c.image = ip; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
     }
+    // Retire les exercices ajoutés ET leurs photos, dessins et vidéos (sinon un prochain import pourrait en hériter)
     function retirer() {
-      if (!window.confirm('Retirer les ' + nbAjouts + ' exercices ajoutés depuis l\'app sur cet appareil ?')) return;
-      Stockage.ecrire(CLE_AJOUTS, []).then(function () { location.reload(); });
+      var ids = BASE.filter(function (e) { return e.ajoute; }).map(function (e) { return e.id; });
+      var nMed = ids.filter(function (id) { return IMG_PERSO[id] || ILLUS_IA[id] || VIDEOS[id]; }).length;
+      if (!window.confirm('Retirer les ' + nbAjouts + ' exercices ajoutés sur cet appareil' + (nMed ? ', avec les photos, dessins et vidéos de ' + nMed + ' d\'entre eux' : '') + ' ?\n\nPensez à « Exporter tout » avant : c\'est votre sauvegarde.')) return;
+      setMsg('Suppression…');
+      if (ids.length) ecrireIdMax(Math.max.apply(null, ids));
+      IMG_PERSO = Object.assign({}, IMG_PERSO); ILLUS_IA = Object.assign({}, ILLUS_IA);
+      var vids = [];
+      ids.forEach(function (id) { delete IMG_PERSO[id]; delete ILLUS_IA[id]; if (VIDEOS[id]) vids.push(id); });
+      vids.reduce(function (pr, id) { return pr.then(function () { return retirerVideo(id); }); }, Promise.resolve())
+        .then(function () { return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA), Stockage.ecrire(CLE_AJOUTS, [])]); })
+        .then(function () { location.reload(); });
     }
     var compte = function (prop) {
       var c = {}; (rapport ? rapport.ajouts : []).forEach(function (e) { [].concat(e[prop]).forEach(function (v) { if (v) c[v] = (c[v] || 0) + 1; }); });
