@@ -1396,6 +1396,40 @@ html, body { overflow-x: clip; }
 .etapes.compact .et-carte { min-height: 7em; }
 .sheet .illus-fiche:has(.etapes) { padding: 0; background: transparent; }
 .etapes-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+/* ===== Typographie (24/10/2026) : texte lissé, tailles plus sobres, aucun mot coupé =====
+   Chargé en dernier : prend le pas sur les règles de césure (hyphens, overflow-wrap: anywhere) des modules précédents. */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-kerning: normal; }
+*, *::before, *::after { -webkit-hyphens: manual !important; hyphens: manual !important; word-break: normal !important; }
+h1, h2, h3, .hero h1, .sheet h2, .gn h2, .cs-haut h2, .rg h2, .st-phases b, .pr-nomf, .sd-m-val, .sd-nom, .carte-nom, .et-titre, .pr-creneaux .pr-mini, .pr-choix .pr-mini { overflow-wrap: normal !important; }
+h1, h2, h3, .sd-nom, .carte-nom, .et-titre, .sd-m-val { text-wrap: balance; }
+p, li, dd, .et-texte, .sd-consigne, .sd-vigilance { text-wrap: pretty; }
+/* Grands titres : plus sobres */
+h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
+@media (max-width: 420px) { h1, .hero h1 { font-size: min(1.875rem, 40px); } }
+.sheet h2 { font-size: min(1.75rem, 7.2vw); line-height: 1.08; letter-spacing: -.005em; }
+/* Séance en direct : hiérarchie resserrée, rien ne déborde ni ne se coupe */
+.sd-phase { font-size: .8125rem; }
+.sd-nom { font-size: min(1.75rem, 7vw); line-height: 1.12; max-width: 24ch; }
+.sd-mesure { min-height: 92px; padding: 10px 8px; }
+.sd-m-etiq { font-size: .75rem; }
+.sd-mesures .sd-temps { font-size: min(2.5rem, 10.5vw); }
+.sd-m-val { font-size: min(1.25rem, 5.4vw); line-height: 1.2; }
+.sd-reps { font-size: min(1.5rem, 6.2vw); }
+.sd-m-note { font-size: .75rem; }
+.sd-consigne { font-size: .9375rem; }
+.sd-vigilance { font-size: .875rem; line-height: 1.4; max-width: 52ch; }
+.sd-ensuite { font-size: .875rem; }
+.sd-btn { min-height: 56px; padding: 0 10px; font-size: .9375rem; white-space: nowrap; }
+.sd-fin strong { font-size: 1.625rem; }
+.sd-haut { font-size: .8125rem; }
+/* Fiche animée : un cran plus discret */
+.et-texte { font-size: .9375rem; }
+.et-titre { font-size: .9375rem; }
+/* Fiche : texte courant un cran plus petit, interligne confortable */
+.sheet p, .sheet .faits dd, .sheet .desc-partie p, .sheet .securite dd { font-size: .9375rem; line-height: 1.5; }
+.sheet .etiq { font-size: .8125rem; }
+.sheet .cs-btn.mini { font-size: .875rem; }
+.sheet .pastille { font-size: .8125rem; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2168,7 +2202,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false };
-  var VERSION_APP = '24/10/2026 à 06h49';
+  var VERSION_APP = '24/10/2026 à 07h00';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2225,7 +2259,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Description découpée en parties titrées quand elle suit le modèle du catalogue (Analyse technique, Mise en pédagogie…)
   var PARTIES = ['Kumi-kata', 'Analyse technique', 'Mise en pédagogie', 'Exercice de transfert', 'Forme enfants'];
   function Description(p) {
-    var t = String(p.texte || ''), re = /(Analyse technique|Mise en pédagogie|Exercice de transfert|Forme enfants)\s*:\s*/g, morceaux = [], m, debut = 0, titre = null;
+    var t = sansCesure(p.texte || ''), re = /(Analyse technique|Mise en pédagogie|Exercice de transfert|Forme enfants)\s*:\s*/g, morceaux = [], m, debut = 0, titre = null;
     while ((m = re.exec(t))) { var avant = t.slice(debut, m.index).trim().replace(/[.,]\s*$/, ''); if (avant) morceaux.push([titre, avant]); titre = m[1]; debut = re.lastIndex; }
     var fin = t.slice(debut).trim(); if (fin) morceaux.push([titre, fin]);
     if (morceaux.length < 2) return h('p', null, t);
@@ -2264,7 +2298,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
-          e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1))) : null,
+          e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, sansCesure(e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1)))) : null,
           fait('Dosage de base', e.dosage),
           fait(judo ? 'Grade' : 'Niveau', niveauTexte(e, judo) ? h(Grade, { texte: niveauTexte(e, judo) }) : ''),
           fait(judo ? "Catégories d'âge" : 'Sous-groupe', sg(e).join(', ')),
@@ -2424,6 +2458,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // ===== Bibliothèque d'exercices (16/10/2026) : favoris, historique des séances, affichage liste/cartes =====
   // Tout reste sur l'appareil, par profil (même suffixe que la sélection « Ma séance »). Aucune donnée personnelle.
   function suffixeProfil() { return String(CLE_SEL).replace('jsb-seances', ''); }
+  // Mots composés courts (« fémoro-patellaire », « avant-bras ») : trait d'union insécable, pour ne jamais couper un mot en fin de ligne
+  function sansCesure(t) { return String(t == null ? '' : t).replace(/([A-Za-zÀ-ÿ]+)-(?=([A-Za-zÀ-ÿ]+))/g, function (m, a, b) { return a.length + b.length <= 18 ? a + '\u2011' : m; }); }
   function lireJSON(cle, defaut) { try { var v = JSON.parse(localStorage.getItem(cle)); return v == null ? defaut : v; } catch (e) { return defaut; } }
   function ecrireJSON(cle, v) { try { localStorage.setItem(cle, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
@@ -2644,8 +2680,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 h('span', { className: 'sd-m-val' }, bloc.series > 1 ? bloc.serie + ' / ' + bloc.series : e && e.dosage ? insec(e.dosage) : '—'),
                 bloc.cote ? h('span', { className: 'sd-m-note' }, (bloc.role ? 'Rôle ' : 'Côté ') + bloc.cote + ' / 2') : bloc.series > 1 && e && e.dosage ? h('span', { className: 'sd-m-note' }, insec(e.dosage)) : null)),
             e && !aVideo(e) && etapesDe(e).length > 1 ? h(EtapesExo, { key: 'et' + e.id, e: e, compact: true }) : null,
-            e && e.description && !aVideo(e) && etapesDe(e).length < 2 ? h('p', { className: 'sd-consigne' }, String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description) : null,
-            e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + e.vigilance) : null,
+            e && e.description && !aVideo(e) && etapesDe(e).length < 2 ? h('p', { className: 'sd-consigne' }, sansCesure(String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description)) : null,
+            e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + sansCesure(e.vigilance)) : null,
             h('p', { className: 'sd-ensuite' }, suivant ? 'Ensuite : ' + suivant.nom + (dSuiv ? ' (' + mmss(dSuiv) + ')' : '') : 'Dernier exercice')),
           h('div', { className: 'sd-commandes' },
             h('button', { type: 'button', className: 'sd-btn', disabled: i === 0, onClick: function () { aller(i - 1); } }, '‹ Précédent'),
@@ -5375,8 +5411,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'et-carte' },
           h('div', { className: 'et-num-l' }, h('span', { className: 'et-num', 'aria-hidden': 'true' }, i + 1), h('span', { className: 'et-compte' }, 'Étape ' + (i + 1) + ' sur ' + n)),
           et.titre ? h('b', { className: 'et-etape-titre' }, et.titre) : null,
-          h('p', { className: 'et-texte', 'aria-live': pause ? 'polite' : 'off' }, et.texte),
-          !p.compact && e.vigilance ? h('div', { className: 'et-vigil' }, h('span', null, 'Point de vigilance'), h('p', null, premierePhrase(e.vigilance))) : null)),
+          h('p', { className: 'et-texte', 'aria-live': pause ? 'polite' : 'off' }, sansCesure(et.texte)),
+          !p.compact && e.vigilance ? h('div', { className: 'et-vigil' }, h('span', null, 'Point de vigilance'), h('p', null, sansCesure(premierePhrase(e.vigilance)))) : null)),
       h('div', { className: 'et-pied' },
         p.compact ? null : h('span', { className: 'et-infos' }, [e.dosage, String(e.muscles || '').split(/[;,]/).slice(0, 2).join(' •')].filter(Boolean).join(' · ')),
         h('div', { className: 'et-commandes' },
