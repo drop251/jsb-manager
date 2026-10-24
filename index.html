@@ -1436,6 +1436,24 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .barre-compte .illus-raccourci { flex: none; margin-left: auto; border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; white-space: nowrap; }
 .barre-compte .vue-choix { flex: none; }
 .barre-compte .illus-raccourci[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* Exercices réservés (code du club) : cartes floutées sans contenu réel */
+.verrou { position: relative; margin: 16px 0 8px; border-radius: var(--r-m, 12px); overflow: hidden; }
+.verrou-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; filter: blur(7px); opacity: .7; pointer-events: none; user-select: none; }
+.verrou-carte { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface, #fff); border: 1px solid var(--line, #ddd); }
+.verrou-carte .v-img { display: block; height: 70px; border-radius: 8px; background: linear-gradient(135deg, #1F2839, #3B4A66); }
+.verrou-carte .v-img.v1 { background: linear-gradient(135deg, #C8382E, #F08A24); }
+.verrou-carte .v-img.v2 { background: linear-gradient(135deg, #A9B8A4, #2F5DA8); }
+.verrou-carte .v-l1, .verrou-carte .v-l2 { display: block; height: 10px; border-radius: 5px; background: var(--ink, #1F2839); opacity: .55; }
+.verrou-carte .v-l2 { width: 60%; opacity: .3; }
+.verrou-carte .v-cadenas { position: absolute; top: 8px; right: 10px; }
+.verrou-boite { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 16px; background: color-mix(in srgb, var(--bg, #F4F5EF) 72%, transparent); }
+.verrou-boite h2 { margin: 0; font-family: var(--display); font-size: 1.25rem; line-height: 1.2; }
+.verrou-boite p { margin: 0; font-size: .9375rem; max-width: 46ch; }
+.verrou-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.verrou-form input { flex: 1 1 10em; min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line, #ccc); background: var(--surface, #fff); color: var(--ink); font: inherit; letter-spacing: .08em; text-transform: uppercase; }
+.verrou-form .btn { flex: none; min-height: 48px; }
+.verrou-msg { font-weight: 600; }
+.verrou-ouvert { margin: 12px 0; font-size: .875rem; color: var(--muted); }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2208,7 +2226,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '24/10/2026 à 15h04';
+  var VERSION_APP = '24/10/2026 à 15h24';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5151,7 +5169,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return Promise.all([Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}),
       Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {}), chargerVideos()]);
   }
-  function imagePerso(e) { return IMG_PERSO[e.id] || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
+  function imagePerso(e) { return IMG_PERSO[e.id] || EN_LIGNE.img[e.id] || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
   function reduireImage(fichier) {
     return new Promise(function (ok, ko) {
       var url = URL.createObjectURL(fichier), img = new Image();
@@ -5274,7 +5292,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var EXT_VIDEO = /\.(mp4|m4v|mov|webm)$/i;
   function cleVideo(id) { return 'jsb-video-' + id; }
   function chargerVideos() { return Stockage.lire(CLE_VIDEOS).then(function (d) { if (d && typeof d === 'object') VIDEOS = d; }, function () {}); }
-  function aVideo(e) { return !!(e && VIDEOS[e.id]); }
+  function aVideo(e) { return !!(e && (VIDEOS[e.id] || EN_LIGNE.vid[e.id])); }
   function estVideo(f) { return /^video\//.test(f.type || '') || EXT_VIDEO.test(f.name || ''); }
   function typeVideo(f) { return f.type || (/\.webm$/i.test(f.name) ? 'video/webm' : /\.mov$/i.test(f.name) ? 'video/quicktime' : 'video/mp4'); }
   function tailleTexte(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko'; }
@@ -5338,15 +5356,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   // Lecteur : en boucle, sans le son, lu dans la page (iPhone), commandes visibles. Lecture automatique sauf si les animations sont réduites.
   function VideoExo(p) {
-    var id = p.e.id, info = VIDEOS[id] || {};
+    var id = p.e.id, info = VIDEOS[id] || { vignette: EN_LIGNE.img[id] || '' };
     var s = React.useState(''), url = s[0], setUrl = s[1];
     var s2 = React.useState(false), panne = s2[0], setPanne = s2[1];
     React.useEffect(function () {
       var actif = true, u = ''; setUrl(''); setPanne(false);
-      Stockage.lire(cleVideo(id)).then(function (d) {
+      // Vidéo de l'appareil, sinon vidéo publiée avec l'app (lue en entier puis jouée localement : fiable sur iPhone, hors ligne ensuite)
+      (VIDEOS[id] ? Stockage.lire(cleVideo(id)).then(function (d) { return d && d.buf ? new Blob([d.buf], { type: d.type || 'video/mp4' }) : null; })
+        : blobVideoEnLigne(id)).then(function (b) {
         if (!actif) return;
-        if (!d || !d.buf) { setPanne(true); return; }
-        u = URL.createObjectURL(new Blob([d.buf], { type: d.type || 'video/mp4' })); setUrl(u);
+        if (!b) { setPanne(true); return; }
+        u = URL.createObjectURL(b); setUrl(u);
       }, function () { if (actif) setPanne(true); });
       return function () { actif = false; if (u) URL.revokeObjectURL(u); };
     }, [id, p.rev]);
@@ -5361,7 +5381,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   // Boutons de la fiche : ajouter, changer ou retirer la vidéo de l'exercice
   function BoutonVideo(p) {
-    var e = p.e, a = aVideo(e);
+    var e = p.e, a = !!VIDEOS[e.id];
     var s = React.useState(''), etat = s[0], setEtat = s[1];
     function choisir(ev) {
       var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
@@ -5433,7 +5453,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // Exercice illustré : photo, dessin ou vidéo ajoutés sur l'appareil (ou image fournie avec l'exercice)
-  function illustre(e) { return !!(e && (IMG_PERSO[e.id] || VIDEOS[e.id] || svgIA(e) || /^data:image\//.test(e.image || ''))); }
+  function illustre(e) { return !!(e && (IMG_PERSO[e.id] || VIDEOS[e.id] || EN_LIGNE.img[e.id] || EN_LIGNE.vid[e.id] || svgIA(e) || /^data:image\//.test(e.image || ''))); }
   // ===== Export complet (24/10/2026) : fiche(s) exercice avec photo, dessin et vidéo, dans un fichier .zip =====
   // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
   // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
@@ -5458,8 +5478,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function mediasDe(e) {
     var ph = IMG_PERSO[e.id] || (/^data:image\//.test(e.image || '') ? e.image : ''), svg = svgIA(e);
     var r = { photo: ph ? dataUrlOctets(ph) : null, svg: svg || '', video: null };
-    if (!VIDEOS[e.id]) return Promise.resolve(r);
-    return Stockage.lire(cleVideo(e.id)).then(function (d) {
+    function octetsDe(url) { return fetch(url).then(function (x) { return x.ok ? x.arrayBuffer() : null; }).then(function (b) { return b ? new Uint8Array(b) : null; }, function () { return null; }); }
+    var p0 = !r.photo && EN_LIGNE.img[e.id] ? octetsDe(EN_LIGNE.img[e.id]).then(function (o) { if (o) r.photo = { ext: /\.png$/.test(EN_LIGNE.img[e.id]) ? 'png' : 'jpg', octets: o }; }) : Promise.resolve();
+    if (!VIDEOS[e.id]) return p0.then(function () {
+      if (!EN_LIGNE.vid[e.id]) return r;
+      return blobVideoEnLigne(e.id).then(function (b) { return b ? b.arrayBuffer() : null; }).then(function (o) { if (o) r.video = { ext: /webm/.test((EN_LIGNE.vid[e.id] || '') + (EN_LIGNE.vidC[e.id] ? EN_LIGNE.vidC[e.id].type : '')) ? 'webm' : 'mp4', type: 'video/mp4', octets: new Uint8Array(o) }; return r; }, function () { return r; });
+    });
+    return p0.then(function () { return Stockage.lire(cleVideo(e.id)); }).then(function (d) {
       if (d && d.buf) r.video = { ext: extVideo(d.type || ''), type: d.type || 'video/mp4', octets: new Uint8Array(d.buf) };
       return r;
     }, function () { return r; });
@@ -5582,6 +5607,108 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('div', { className: 'ia-barre export-barre' },
       h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { exporterFiche(p.e, setMsg); } }, 'Exporter la fiche complète'),
       msg ? h('span', { className: 'ia-msg', role: 'status' }, msg) : null);
+  }
+  // ===== Exercices illustrés publiés avec l'app (24/10/2026) =====
+  // La version en ligne peut porter un dossier « illustres/ » (catalogue.json + medias/) : photos et vidéos d'exercices
+  // préparées par outils/en_ligne.py. Version claude.ai (privée) : tous les exercices illustrés ; GitHub (public) : 10 seulement.
+  // Un exercice déjà dans la base (même nom, même espace) reçoit seulement ses médias ; sinon il est ajouté.
+  // Les médias de l'appareil (ajoutés par l'éducateur) restent prioritaires.
+  var EN_LIGNE = { img: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
+  var CLE_CODE_ILLUS = 'jsb-code-illustres';
+  function lireCodeIllus() { try { return localStorage.getItem(CLE_CODE_ILLUS) || ''; } catch (e) { return ''; } }
+  function b64Octets(t) { var s = atob(t), o = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; }
+  // Ajoute à la base les exercices d'un catalogue (un exercice déjà présent, même nom et même espace, reçoit seulement ses médias)
+  function fusionnerEnLigne(liste, medias) {
+    var parCle = {}, parId = {}, ajouts = [];
+    BASE.forEach(function (e) { parCle[cleEL(e.nom) + '|' + (e.public || [])[0]] = e; parId[e.id] = e; });
+    liste.forEach(function (x) {
+      if (!x || !x.nom || !Array.isArray(x.public)) return;
+      var k = cleEL(x.nom) + '|' + x.public[0], cible = parCle[k];
+      if (!cible) {
+        if (parId[x.id]) return;
+        cible = Object.assign({}, x); delete cible.image; delete cible.video; delete cible.idSource; cible.enLigne = true;
+        if (!Array.isArray(cible.sousGroupes)) cible.sousGroupes = [];
+        ajouts.push(cible); parCle[k] = cible; parId[cible.id] = cible;
+      }
+      medias(x, cible);
+      EN_LIGNE.n++;
+    });
+    if (ajouts.length) BASE = BASE.concat(ajouts);
+  }
+  // Déverrouille les exercices réservés avec le code du club (déchiffrement sur l'appareil, rien n'est envoyé)
+  function ouvrirVerrou(code) {
+    var v = EN_LIGNE.verrou; if (!v || !window.crypto || !crypto.subtle) return Promise.reject(new Error('indisponible'));
+    var cle;
+    return cleChiffrement(code, b64Octets(v.sel), v.iter || 250000).then(function (k) { cle = k; return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64Octets(v.iv) }, k, b64Octets(v.donnees)); })
+      .then(function (b) {
+        var o = JSON.parse(new TextDecoder().decode(b)); if (!o || o.format !== 'jsb-illustres-verrou') throw new Error('format');
+        EN_LIGNE.cle = cle; var m = o.medias || {}, images = [];
+        fusionnerEnLigne(o.exercices || [], function (x, cible) {
+          var r = m[String(x.id)] || {};
+          if (r.image && !IMG_PERSO[cible.id]) images.push([cible.id, r.image]);
+          if (r.video) { EN_LIGNE.vidC[cible.id] = r.video; EN_LIGNE.vid[cible.id] = 'chiffre'; }
+        });
+        EN_LIGNE.ouvert = true;
+        return Promise.all(images.map(function (x) {
+          return dechiffrerMediaEL(x[1]).then(function (bl) { if (bl) EN_LIGNE.img[x[0]] = URL.createObjectURL(bl); });
+        }));
+      });
+  }
+  function dechiffrerMediaEL(r) {
+    return fetch('illustres/' + r.f).then(function (x) { return x.ok ? x.arrayBuffer() : null; }).then(function (buf) {
+      if (!buf) return null;
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64Octets(r.iv) }, EN_LIGNE.cle, buf).then(function (d) { return new Blob([d], { type: r.type || 'application/octet-stream' }); });
+    }).catch(function () { return null; });
+  }
+  // Vidéo publiée avec l'app (en clair ou réservée) → Blob
+  function blobVideoEnLigne(id) {
+    if (EN_LIGNE.vidC[id]) return dechiffrerMediaEL(EN_LIGNE.vidC[id]);
+    if (!EN_LIGNE.vid[id]) return Promise.resolve(null);
+    return fetch(EN_LIGNE.vid[id]).then(function (r) { return r.ok ? r.blob() : null; }, function () { return null; });
+  }
+  function cleEL(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
+  function chargerEnLigne() {
+    EN_LIGNE = { img: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return Promise.resolve();
+    return fetch('illustres/catalogue.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+      if (!c || c.format !== 'jsb-illustres' || !Array.isArray(c.exercices)) return;
+      fusionnerEnLigne(c.exercices, function (x, cible) {
+        if (/^medias\/[\w.-]+\.(jpe?g|png|webp)$/i.test(x.image || '')) EN_LIGNE.img[cible.id] = 'illustres/' + x.image;
+        if (/^medias\/[\w.-]+\.(mp4|webm)$/i.test(x.video || '')) EN_LIGNE.vid[cible.id] = 'illustres/' + x.video;
+      });
+      if (c.verrou && c.verrou.donnees && c.verrou.sel) {
+        EN_LIGNE.verrou = c.verrou;
+        var code = lireCodeIllus();
+        if (code) return ouvrirVerrou(code).catch(function () { try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {} });
+      }
+    }).catch(function () {});
+  }
+  // Exercices réservés : cartes floutées (aucun contenu réel) et saisie du code ; une fois ouverts, possibilité de reverrouiller
+  function VerrouIllustres(p) {
+    var s = React.useState(''), code = s[0], setCode = s[1];
+    var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
+    var v = EN_LIGNE.verrou; if (!v || (p.espace && p.espace !== (v.espace || 'Taïso'))) return null;
+    if (EN_LIGNE.ouvert) return h('p', { className: 'verrou-ouvert' }, '🔓 ' + v.n + (v.n > 1 ? ' exercices réservés déverrouillés' : ' exercice réservé déverrouillé') + ' sur cet appareil. ',
+      h('button', { type: 'button', className: 'btn lien', onClick: function () { try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {} location.reload(); } }, 'Reverrouiller'));
+    function valider(ev) {
+      ev.preventDefault(); var c = code.trim().toUpperCase(); if (!c) return;
+      setMsg('Vérification du code…');
+      ouvrirVerrou(c).then(function () { try { localStorage.setItem(CLE_CODE_ILLUS, c); } catch (e) {} setMsg('Code accepté.'); try { vibrer('succes'); } catch (e) {} setTimeout(function () { location.reload(); }, 300); },
+        function () { setMsg('Code incorrect.'); try { vibrer('erreur'); } catch (e) {} });
+    }
+    var faux = [0, 1, 2, 3, 4, 5];
+    return h('section', { className: 'verrou', 'aria-labelledby': 'verrou-titre' },
+      h('div', { className: 'verrou-cartes', 'aria-hidden': 'true' }, faux.map(function (i) {
+        return h('div', { key: i, className: 'verrou-carte' }, h('i', { className: 'v-img v' + (i % 3) }), h('i', { className: 'v-l1' }), h('i', { className: 'v-l2' }), h('span', { className: 'v-cadenas' }, '🔒'));
+      })),
+      h('div', { className: 'verrou-boite' },
+        h('h2', { id: 'verrou-titre' }, '🔒 ' + v.n + (v.n > 1 ? ' exercices ' : ' exercice ') + (v.espace || 'Taïso') + (v.n > 1 ? ' réservés' : ' réservé')),
+        h('p', null, 'Réservés aux adhérents et éducateurs du club. Entrez le code pour les débloquer sur cet appareil : fiches, photos et vidéos.'),
+        h('form', { className: 'verrou-form', onSubmit: valider },
+          h('label', { className: 'sr-seul', htmlFor: 'verrou-code' }, 'Code du club'),
+          h('input', { id: 'verrou-code', type: 'password', autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false, placeholder: 'Code du club', value: code, onChange: function (ev) { setCode(ev.target.value); } }),
+          h('button', { type: 'submit', className: 'btn plein' }, 'Déverrouiller')),
+        msg ? h('p', { className: 'verrou-msg', role: msg === 'Code incorrect.' ? 'alert' : 'status' }, msg) : null));
   }
 
   // Filet de sécurité : une erreur d'affichage n'efface plus l'écran, et son détail est lisible.
@@ -5829,6 +5956,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
         h('span', null, tous.length ? 'Aucun exercice ne correspond à ce sous-groupe et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),
+      (cle === 'taiso' || cle === 'judo') ? h(VerrouIllustres, { espace: esp.label }) : null,
       fiche ? h(Fiche, { e: fiche, espace: esp, fav: fav, usage: usages[fiche.id], sel: (cle === 'taiso' || cle === 'judo') ? sel : null, fermer: function () { setOuverte(null); } }) : null,
       genOuvert ? h(Generateur, { espace: esp.label, donnees: tous, tout: donnees, sous: f.sous, fermer: function () { setGenOuvert(false); },
         valider: function (ids, plan, infos) {
@@ -5861,7 +5989,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!Array.isArray(a) || !a.length) return;
       var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
       BASE = BASE.concat(a.filter(function (e) { return e && !ids[e.id]; }).map(function (e) { return Object.assign({}, e, { ajoute: true }); }));
-    }).catch(function () {});
+    }).catch(function () {}).then(chargerEnLigne);
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
     .then(demarrer, demarrer);
