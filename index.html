@@ -1350,6 +1350,7 @@ html, body { overflow-x: clip; }
 .sd-mesures.repos { border-color: #F5C26B; background: rgba(245, 194, 107, .12); }
 .sd-mesures.repos .sd-m-temps .sd-m-etiq { color: #F5C26B; }
 .sd-reps { font-size: min(2.25rem, 9vw); }
+.sd-liste { margin: 0; padding-left: 1.4em; text-align: left; font-size: 1rem; line-height: 1.5; }
 /* ===== Vidéos d'exercices (20/10/2026) ===== */
 .video-exo { display: block; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 16 / 9; height: auto; border-radius: 12px; background: #0E1A2E; object-fit: contain; }
 .sheet .illus-fiche:has(.video-exo) { padding: 0; overflow: hidden; background: #0E1A2E; }
@@ -1478,6 +1479,14 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 /* Séance type : onglets Judo / Taïso */
 .st-onglets { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--chip); margin: 4px 0 12px; }
 .st-onglets .vue-btn { min-height: 44px; padding: 0 18px; }
+/* Générateur Taïso : formats et blocs du corps de séance */
+.gn-formats { display: flex; flex-direction: column; gap: 6px; }
+.gn-formats .gn-durees { flex-wrap: wrap; }
+.gn-bloc { margin: 8px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.gn-bloc-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gn-bloc-tete b { font-size: .9375rem; }
+.gn-bloc-detail { margin: 4px 0 6px; font-size: .8125rem; color: var(--muted); line-height: 1.4; }
+.gn-bloc ul { margin: 0; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2250,7 +2259,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '26/10/2026 à 12h22';
+  var VERSION_APP = '26/10/2026 à 12h30';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2638,6 +2647,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   // Suite de blocs d'un exercice : effort (temps ou répétitions), changement de côté, récupération entre séries
   function planExercice(x, e) {
+    // Exercice d'un bloc (circuit, Tabata, EMOM, Pilates…) : son « travail » prévu par le générateur
+    if (x && x.travail && (x.travail.sec || x.travail.reps)) {
+      var t = x.travail, bl = [], nS = t.series || 1, nC = t.sec && t.cote ? 2 : 1;
+      for (var s0 = 1; s0 <= nS; s0++) {
+        for (var c0 = 1; c0 <= nC; c0++) {
+          bl.push({ type: 'effort', sec: t.sec || 0, reps: t.reps || '', serie: s0, series: nS, cote: nC > 1 ? c0 : 0, emom: !!t.emom });
+          if (c0 < nC) bl.push({ type: 'cote', sec: 5, serie: s0, series: nS });
+        }
+        if (s0 < nS) bl.push({ type: 'recup', sec: t.recup || 30, serie: s0, series: nS });
+      }
+      if (t.recupApres) bl.push({ type: 'recup', sec: t.recupApres, serie: nS, series: nS });
+      return bl;
+    }
     var d = lireDosage(e && e.dosage), m = parseFloat(x && x.duree), blocs = [];
     if (!d) return [{ type: 'effort', sec: m > 0 ? Math.round(m * 60) : 0, serie: 1, series: 1 }];
     var cotes = d.mode === 'temps' && d.cote ? 2 : 1;
@@ -2655,7 +2677,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   // --- Mode séance en direct : plein écran, vidéo au centre, compte à rebours ou répétitions selon l'exercice, bip + vibration
   function SeanceDirecte(p) {
-    var exos = (p.seance.exos || []).filter(function (x) { return x && x.nom; }), PH = phasesSeance(p.seance);
+    var exos = deroulerBlocs((p.seance.exos || []).filter(function (x) { return x && x.nom; })), PH = phasesSeance(p.seance);
     var parId = {}; (p.base || BASE).forEach(function (e) { parId[e.id] = e; });
     function planDe(n) { var x = exos[n]; return x ? planExercice(x, parId[x.id]) : []; }
     var s1 = React.useState(0), i = s1[0], setI = s1[1];
@@ -2713,8 +2735,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       : !x ? h('div', { className: 'sd-fin' }, h('strong', null, 'Aucun exercice dans cette séance'), h('button', { type: 'button', className: 'sd-btn principal', onClick: p.fermer }, 'Fermer'))
       : h(React.Fragment, null,
           h('div', { className: 'sd-centre', tabIndex: 0, role: 'region', 'aria-label': 'Exercice en cours' },
-            h('p', { className: 'sd-phase' }, (PH[x.phase] || '') + ' · ' + (i + 1) + ' / ' + exos.length),
+            h('p', { className: 'sd-phase' }, [PH[x.phase] || '', x.bloc ? x.bloc.replace(/^Bloc ([A-H]) · /, 'Bloc $1 · ') : '', x.tour ? 'Tour ' + x.tour + ' / ' + x.toursMax : '', (i + 1) + ' / ' + exos.length].filter(Boolean).join(' · ')),
             h('h2', { className: 'sd-nom', 'aria-live': 'polite' }, x.nom),
+            x.liste ? h('ol', { className: 'sd-liste' }, x.liste.map(function (l, k) { return h('li', { key: k }, l); })) : null,
             h('div', { className: 'sd-media' }, e && aVideo(e) ? h(VideoExo, { key: 'v' + e.id, e: e, grand: true })
               : e ? h('div', { className: 'sd-illus' }, h(Illustration, { e: e })) : null),
             h('div', { className: 'sd-mesures' + (repos ? ' repos' : '') },
@@ -2725,9 +2748,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 total ? h('span', { className: 'sd-barre', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + frac + ')' } }))
                   : h('span', { className: 'sd-m-note' }, bloc.reps ? '« Série faite » à la fin' : '« Suivant » quand c\'est fini')),
               h('div', { className: 'sd-mesure sd-m-reps' },
-                h('span', { className: 'sd-m-etiq' }, bloc.series > 1 ? 'Série' : 'Dosage'),
-                h('span', { className: 'sd-m-val' }, bloc.series > 1 ? bloc.serie + ' / ' + bloc.series : e && e.dosage ? insec(e.dosage) : '—'),
-                bloc.cote ? h('span', { className: 'sd-m-note' }, (bloc.role ? 'Rôle ' : 'Côté ') + bloc.cote + ' / 2') : bloc.series > 1 && e && e.dosage ? h('span', { className: 'sd-m-note' }, insec(e.dosage)) : null)),
+                h('span', { className: 'sd-m-etiq' }, bloc.series > 1 ? 'Série' : total && bloc.reps ? 'Répétitions' : x.liste ? 'Format' : x.tour ? 'Tour' : 'Dosage'),
+                h('span', { className: 'sd-m-val' }, bloc.series > 1 ? bloc.serie + ' / ' + bloc.series : total && bloc.reps ? insec(bloc.reps) : x.liste ? 'Le plus de tours' : x.tour ? x.tour + ' / ' + x.toursMax : x.dosage ? insec(x.dosage) : e && e.dosage ? insec(e.dosage) : '—'),
+                bloc.cote ? h('span', { className: 'sd-m-note' }, (bloc.role ? 'Rôle ' : 'Côté ') + bloc.cote + ' / 2') : bloc.emom ? h('span', { className: 'sd-m-note' }, 'Puis récupérer jusqu\'à la minute suivante') : x.tour && x.travail && x.travail.recupApres ? h('span', { className: 'sd-m-note' }, x.travail.sec + ' s d\'effort, ' + x.travail.recupApres + ' s de récup') : bloc.series > 1 && (x.dosage || (e && e.dosage)) ? h('span', { className: 'sd-m-note' }, insec(x.dosage || e.dosage)) : null)),
             e && !aVideo(e) && etapesDe(e).length > 1 ? h(EtapesExo, { key: 'et' + e.id, e: e, compact: true }) : null,
             e && e.description && !aVideo(e) && etapesDe(e).length < 2 ? h('p', { className: 'sd-consigne' }, sansCesure(String(e.description).length > 220 ? String(e.description).slice(0, 217) + '…' : e.description)) : null,
             e && e.vigilance ? h('p', { className: 'sd-vigilance' }, '⚠ ' + sansCesure(e.vigilance)) : null,
@@ -2891,7 +2914,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return t.join(', ');
   }
   // Fiche de séance JSB (PDF). Taïso : trame adaptée, colonne Dosage, format du corps de séance, adaptations. vierge : lignes vides à remplir à la main
-  function construirePdf(infos, parPhase, durees, espace, vierge) {
+  function construirePdf(infos, parPhase, durees, espace, vierge, plan) {
+    plan = plan || {};
     var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace), taiso = espace === 'Taïso';
     if (!J) return null;
     var jour = new Date(), deux = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -2943,7 +2967,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!items.length) { police('normal', 7.5); for (var v = 0; v < (vierge ? (i === 2 ? 5 : 3) : 1); v++) { place(26); x = M; lc.forEach(function (l) { cellule(x, l, vierge ? 24 : 30, []); x += l; }); y += vierge ? 24 : 30; } }
       items.forEach(function (e) {
         police('normal', 7.5);
-        var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(e.dosage || '', lc[3]),
+        var pe = plan[e.id] || {};
+        var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(pe.bloc || e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(pe.dosage || e.dosage || '', lc[3]),
             lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
           : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]),
           lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
@@ -2998,6 +3023,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var items = sel.ids.map(function (id) { return p.donnees.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
+    // Bloc, dosage et travail prévus par le générateur (corps de séance Taïso en blocs)
+    function extrasDe(e) { var x = plan[e.id] || {}, o = {}; ['bloc', 'dosage', 'travail', 'tours'].forEach(function (k) { if (x[k]) o[k] = x[k]; }); return o; }
     function majPlan(id, k, v) { var np = Object.assign({}, plan); np[id] = Object.assign({}, np[id]); np[id][k] = v; setPlan(np); }
     function majInfo(k, v) { var ni = Object.assign({}, infos); ni[k] = v; setInfos(ni); }
     var parPhase = PH.map(function (x, i) { return items.filter(function (e) { return phaseDe(e) === i; }); });
@@ -3010,19 +3037,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var creneaux = prochainsCreneaux(planning, 8), coursChoisi = creneaux.filter(function (c) { return c.cle === infos._cours; })[0];
     function enregistrerSeance(silencieux) {
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
-      var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }); }); });
+      var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
       ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
         titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now(), trame: 2 });
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
     }
     function reprendre(s) {
       var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
-      var ids = [], np = {}; s.exos.forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree }; } });
+      var ids = [], np = {}; s.exos.forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
       sel.set(ids); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise : ajustez-la puis enregistrez-la pour un nouveau cours.');
     }
     function telecharger() {
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
-      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace);
+      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
       enregistrerSeance(true);
       enregistrerFichier('fiche-seance-' + p.espace.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '-' + new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2) + '.pdf', blob, setMsg);
@@ -3076,8 +3103,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               n ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { sel.clear(); setPlan({}); setMsg(''); } }, 'Vider la séance') : null,
               h('button', { type: 'button', className: 'cs-btn plein', disabled: !n, onClick: telecharger }, 'Générer la fiche (PDF)'),
               n ? h('button', { type: 'button', className: 'cs-btn cs-lancer', onClick: function () {
-                var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }); }); });
-                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos }); } }, '▶ Lancer la séance') : null)),
+                var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
+                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos, trame: 2 }); } }, '▶ Lancer la séance') : null)),
           direct ? h(SeanceDirecte, { seance: direct, base: p.donnees, fermer: function () { setDirect(null); } }) : null,
           h('div', { className: 'cs-msg', role: 'status' }, msg),
           !n ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun exercice sélectionné'), h('span', null, 'Revenez aux exercices et touchez « Ajouter » sur ceux que vous voulez mettre dans la séance.')) : null,
@@ -3100,7 +3127,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('h3', null, h('span', null, (i + 1) + ' • ' + nom), h('small', null, grp.length + (grp.length > 1 ? ' exercices' : ' exercice') + (t ? ' · ' + t + ' min' : ''))),
               grp.length ? h('ul', null, grp.map(function (e, k) {
                 return h('li', { key: e.id },
-                  h('div', { className: 'cs-nom' }, h('b', null, e.nom), h('span', null, e.categorie + (e.dosage ? ' · ' + e.dosage : ''))),
+                  h('div', { className: 'cs-nom' }, h('b', null, e.nom), h('span', null, (plan[e.id] && plan[e.id].bloc ? plan[e.id].bloc + ' · ' + (plan[e.id].dosage || '') : e.categorie + (e.dosage ? ' · ' + e.dosage : '')))),
                   h('div', { className: 'cs-reglages' },
                     h('label', { className: 'cs-mini cs-duree' }, 'Min', h('input', { type: 'number', min: 0, inputMode: 'numeric', value: dureeDe(e), onChange: function (ev) { majPlan(e.id, 'duree', ev.target.value); } })),
                     h('label', { className: 'cs-mini' }, 'Phase', h('select', { value: i, onChange: function (ev) { majPlan(e.id, 'phase', parseInt(ev.target.value, 10)); } },
@@ -4911,8 +4938,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.calme === 'Étirements') { var t = fin.filter(function (e) { return !MOTS_CALME.test(sa(e.nom)); }); return t.length ? t : fin; }
       return fin;
     }
+    var formatT = rep.format || formatParDefaut(rep.groupe);
     phases.forEach(function (ph, i) {
-      var min = ph[1], ex;
+      var min = ph[1], ex, blocsPh = null;
+      // Taïso : corps de séance construit en blocs (circuit, EMOM, Tabata, AMRAP, Pilates / yoga, séries)
+      if (!judo && ph[0] === 'Corps de séance') {
+        blocsPh = construireBlocs(formatT, base.filter(mom('Corps de séance')), min, rep.groupe === 'Gym douce', choisir);
+        ex = [].concat.apply([], blocsPh.map(function (b) { return b.items.map(function (it) { return it.e; }); }));
+        if (!ex.length) manques.push(ph[0]);
+        resultat.push({ nom: ph[0], minutes: min, blocs: blocsPh, format: formatT, exercices: [].concat.apply([], blocsPh.map(function (b) { return b.items; })) });
+        return;
+      }
       if (i === 0) { ex = routine; if (!ex.length) manques.push('routine de mobilité (non choisie)'); }
       else {
         var dernier = i === phases.length - 1, n = Math.max(dernier && judo && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
@@ -5005,11 +5041,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function valider() {
       if (rep.routine.length) ecrireRoutine(p.espace, rep.routine);
       var ids = [], plan = {};
-      res.phases.forEach(function (ph, i) { ph.exercices.forEach(function (x) { if (ids.indexOf(x.e.id) < 0) { ids.push(x.e.id); plan[x.e.id] = { phase: i, duree: String(x.duree) }; } }); });
+      res.phases.forEach(function (ph, i) { ph.exercices.forEach(function (x) { if (ids.indexOf(x.e.id) < 0) { ids.push(x.e.id); plan[x.e.id] = { phase: i, duree: String(x.duree) }; if (x.bloc) { plan[x.e.id].bloc = x.bloc; plan[x.e.id].dosage = x.dosage; plan[x.e.id].travail = x.travail; plan[x.e.id].tours = x.tours; } } }); });
       var tech = rep.technique || (rep.famille && rep.famille !== 'Variée' ? rep.famille : '');
       var infos = { groupe: rep.groupe, duree: rep.duree, intensite: 'Modérée', thematique: judo ? (rep.famille && rep.famille !== 'Variée' ? rep.famille : '') : (rep.objectif && rep.objectif !== 'Varié' ? rep.objectif : ''),
         objectif: [rep.objectif && rep.objectif !== 'Varié' ? 'Objectif : ' + rep.objectif : '', tech ? 'Technique : ' + tech : '', rep.calme ? 'Retour au calme : ' + rep.calme.toLowerCase() : ''].filter(Boolean).join(' · ') };
       if (infos.objectif) infos._objectif = true;
+      if (!judo) { infos.format = rep.format || formatParDefaut(rep.groupe); infos.intensite = rep.groupe === 'Gym douce' ? 'Faible (effort 3-4 sur 10)' : 'Modérée (5-6 sur 10)'; }
       var ex = res.phases[1] && res.phases[1].exercices[0]; if (judo && ex) infos.public = ex.e.categorieAge;
       p.valider(ids, plan, infos);
     }
@@ -5031,10 +5068,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'gn-durees', role: 'group', 'aria-label': 'Durée' }, DUREES.map(function (d) {
           var v = d + ' min'; return option(v, rep.duree === v, function () { var n = maj('duree', v); generer(n); });
         })),
+        judo ? null : h('div', { className: 'gn-formats' }, h('p', { className: 'gn-aide', id: 'gn-format-l' }, 'Format du corps de séance'),
+          h('div', { className: 'gn-durees', role: 'group', 'aria-labelledby': 'gn-format-l' }, FORMATS_TAISO.map(function (f) {
+            return option(f, (rep.format || formatParDefaut(rep.groupe)) === f, function () { var n = maj('format', f); generer(n); }, 'f-' + f);
+          }))),
         res.manques.length ? h('p', { className: 'gn-aide' }, 'Peu d\'exercices disponibles pour : ' + res.manques.join(', ') + '. Complétez dans « Ma séance ».') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
           return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min')),
-            ph.exercices.length ? h('ul', null, ph.exercices.map(function (x) {
+            ph.blocs ? ph.blocs.map(function (b, k) {
+              return h('div', { key: k, className: 'gn-bloc' }, h('div', { className: 'gn-bloc-tete' }, h('b', null, b.nom), h('small', null, b.minutes + ' min')), h('p', { className: 'gn-bloc-detail' }, b.detail),
+                h('ul', null, b.items.map(function (x) { return h('li', { key: x.e.id }, h('span', null, x.e.nom), h('small', null, x.dosage + ' · ' + court(x.e.categorie))); })));
+            }) : ph.exercices.length ? h('ul', null, ph.exercices.map(function (x) {
               return h('li', { key: x.e.id }, h('span', null, x.e.nom), h('small', null, x.duree + ' min · ' + court(x.e.categorie)));
             })) : h('p', { className: 'gn-aide' }, 'Aucun exercice disponible.'));
         })),
@@ -5046,6 +5090,110 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: p.fermer },
       h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } }, contenu)), document.body);
+  }
+  // ===== Corps de séance Taïso en blocs (26/10/2026) =====
+  // Formats : Circuit, EMOM, Tabata, AMRAP, Pilates / yoga, Séries classiques. Chaque exercice reçoit son bloc, un dosage lisible
+  // et un « travail » structuré que la séance en direct sait enchaîner (temps ou répétitions, récupération, tours).
+  // Équilibre : les exercices sont pris tour à tour en haut du corps, bas du corps, tronc et cardio.
+  function formatParDefaut(groupe) { return groupe === 'Gym douce' ? 'Circuit' : 'Circuit'; }
+  function zoneDe(e) {
+    var c = e.categorie || '', t = String(e.muscles || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (/^Cardio|^Pliom/.test(c)) return 'cardio';
+    if (/^Gainage/.test(c)) return 'tronc';
+    var haut = /epaule|pector|dorsa|biceps|triceps|bras|deltoid|trapez|omoplat|scapul/.test(t), bas = /quadri|fessi|ischio|mollet|adduct|abduct|jambe|cuisse|cheville|hanche/.test(t);
+    if (haut && !bas) return 'haut';
+    if (bas && !haut) return 'bas';
+    if (/abdo|sangle|lombaire|oblique|transverse|gainage|tronc/.test(t)) return 'tronc';
+    return 'global';
+  }
+  // Ce qu'on annonce pour un exercice : ses répétitions (« 8 à 10 répétitions ») ou son temps (« 30 s »)
+  function chargeDe(e, defautSec) {
+    var d = lireDosage(e.dosage);
+    if (d && d.mode === 'reps') return { reps: d.reps + (d.cote ? ' par côté' : '') };
+    return { sec: d && d.sec ? Math.min(d.sec, 60) : defautSec, cote: !!(d && d.cote) };
+  }
+  function construireBlocs(format, pool, minutes, doux, choisir) {
+    if (doux) pool = pool.filter(function (e) { return !/^Pliom/.test(e.categorie || '') && e.accessibilite !== 'Publics entraînés uniquement'; });
+    var M = Math.max(8, minutes), lettres = 'ABCDEFGH', blocs = [];
+    // Sélection équilibrée : haut, bas, tronc, cardio à tour de rôle
+    function equilibre(n, prefere) {
+      var zones = doux ? ['bas', 'haut', 'tronc', 'global'] : ['haut', 'bas', 'tronc', 'cardio'], out = [], k = 0, essais = 0;
+      if (prefere) pool = pool.slice().sort(function (a, b) { return (prefere(b) ? 1 : 0) - (prefere(a) ? 1 : 0); });
+      while (out.length < n && essais < n * 6) {
+        var z = zones[k++ % zones.length], cand = pool.filter(function (e) { return zoneDe(e) === z && (!prefere || prefere(e)); });
+        if (!cand.length) cand = pool.filter(function (e) { return zoneDe(e) === z; });
+        var x = choisir(cand, 1, false); if (x.length) out.push(x[0]); essais++;
+      }
+      if (out.length < n) out = out.concat(choisir(pool, n - out.length, true));
+      return out;
+    }
+    function bloc(nom, detail, mins, items, extra) { var b = Object.assign({ nom: 'Bloc ' + lettres[blocs.length] + ' · ' + nom, detail: detail, minutes: mins, items: items }, extra || {}); blocs.push(b); return b; }
+    if (format === 'Tabata') {
+      var eT = doux ? 20 : 20, rT = doux ? 20 : 10, dB = doux ? 6 : 5, nT = Math.max(1, Math.floor(M / dB));
+      var exT = equilibre(nT * 2);
+      for (var t = 0; t < nT && exT.length; t++) {
+        var paire = exT.splice(0, 2);
+        bloc(doux ? 'Tabata doux' : 'Tabata', '8 intervalles en alternance · ' + eT + ' s d\'effort / ' + rT + ' s de récupération · 1 min de pause ensuite', dB,
+          paire.map(function (e) { return { e: e, travail: { sec: eT, recupApres: rT }, dosage: eT + ' s / ' + rT + ' s, 4 passages (alterné)', duree: Math.round((eT + rT) * 4 / 60 * 10) / 10 }; }), { tours: 4 });
+      }
+    } else if (format === 'EMOM') {
+      var kE = doux ? 2 : 3, minB = doux ? 8 : 12, nE = Math.max(1, Math.floor(M / (minB + 1)));
+      if (nE * (minB + 1) < M - 6) minB = Math.floor(M / nE) - 1;
+      var tE = Math.max(2, Math.round(minB / kE)), exE = equilibre(nE * kE);
+      for (var b2 = 0; b2 < nE && exE.length; b2++) {
+        var grp = exE.splice(0, kE);
+        bloc('EMOM ' + grp.length * tE + ' min', 'Au début de chaque minute, faire l\'exercice, puis récupérer jusqu\'à la minute suivante · ' + tE + ' tours', grp.length * tE + 1,
+          grp.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { sec: 60, reps: c.reps || '', emom: true, tenue: c.sec || 0 }, dosage: 'EMOM : ' + (c.reps || c.sec + ' s') + ' au début de chaque minute', duree: tE }; }), { tours: tE });
+      }
+    } else if (format === 'AMRAP') {
+      var minA = doux ? 8 : 10, kA = doux ? 3 : 4, nA = Math.max(1, Math.floor(M / (minA + 2))), exA = equilibre(nA * kA);
+      for (var b3 = 0; b3 < nA && exA.length; b3++) {
+        var grpA = exA.splice(0, kA);
+        bloc('AMRAP ' + minA + ' min', 'Enchaîner les exercices dans l\'ordre, le plus de tours possible en ' + minA + ' min, à allure régulière · 2 min de pause ensuite', minA + 2,
+          grpA.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { amrap: minA, reps: c.reps || (c.sec + ' s') }, dosage: 'AMRAP : ' + (c.reps || c.sec + ' s') + ' par tour', duree: Math.round(minA / grpA.length * 10) / 10 }; }), { amrap: minA });
+      }
+    } else if (format === 'Pilates / yoga') {
+      var tenue = doux ? 30 : 45, nP = Math.max(4, Math.round(M / 3));
+      var exP = equilibre(nP, function (e) { return /^Gainage|^Équilibre|^Mobilit/.test(e.categorie || '') || /pilates|yoga|posture/i.test(e.inspiration || ''); });
+      bloc('Pilates / yoga', 'Mouvements lents et contrôlés, respiration continue · 3 × ' + tenue + ' s, 15 s entre deux', M,
+        exP.map(function (e) { var c = chargeDe(e, tenue); return { e: e, travail: c.reps ? { reps: c.reps, series: 3, recup: 20 } : { sec: tenue, series: 3, recup: 15, cote: c.cote }, dosage: c.reps ? '3 × ' + c.reps + ', lent, récup 20 s' : '3 × ' + tenue + ' s' + (c.cote ? ' par côté' : '') + ', récup 15 s', duree: Math.round(M / exP.length * 10) / 10 }; }));
+    } else if (format === 'Séries classiques') {
+      var nS = Math.max(3, Math.round(M / 5)), exS = equilibre(nS), rS = doux ? 60 : 45;
+      bloc('Séries', 'Toutes les séries d\'un exercice, puis le suivant · récupération ' + rS + ' s entre les séries', M,
+        exS.map(function (e) { var d = lireDosage(e.dosage) || { mode: 'reps', series: 3, reps: '10 répétitions' };
+          var tr = d.mode === 'temps' ? { sec: d.sec, series: d.series, recup: rS, cote: d.cote } : { reps: d.reps + (d.cote ? ' par côté' : ''), series: d.series, recup: rS };
+          return { e: e, travail: tr, dosage: (e.dosage || '3 × 10') + ', récup ' + rS + ' s', duree: Math.round(M / exS.length * 10) / 10 }; }));
+    } else {   // Circuit
+      var st = doux ? 5 : 6, eff = doux ? 30 : 40, rec = doux ? 30 : 20, tours = doux ? 2 : 3, dureeB = st * tours + 1;
+      var nC = Math.max(1, Math.round(M / dureeB)); if (nC * dureeB > M + 4 && tours > 2) { tours--; dureeB = st * tours + 1; nC = Math.max(1, Math.round(M / dureeB)); }
+      var exC = equilibre(nC * st);
+      for (var b4 = 0; b4 < nC && exC.length; b4++) {
+        var grpC = exC.splice(0, st);
+        bloc('Circuit', grpC.length + ' stations · ' + eff + ' s d\'effort / ' + rec + ' s de récupération · ' + tours + ' tours · 1 min de pause ensuite', grpC.length * tours + 1,
+          grpC.map(function (e) { var c = chargeDe(e, eff); return { e: e, travail: { sec: eff, recupApres: rec, cote: false }, dosage: eff + ' s / ' + rec + ' s × ' + tours + ' tours' + (c.cote ? ' (changer de côté à chaque tour)' : ''), duree: Math.round(tours * (eff + rec) / 60 * 10) / 10 }; }), { tours: tours });
+      }
+    }
+    blocs.forEach(function (b) { b.items.forEach(function (it) { it.bloc = b.nom; it.tours = b.tours || 0; it.amrap = b.amrap || 0; }); });
+    return blocs;
+  }
+  // Séance en direct : un circuit (ou un Tabata, un EMOM) se déroule tour par tour ; un AMRAP devient un seul chrono avec sa liste
+  function deroulerBlocs(exos) {
+    var out = [], i = 0;
+    while (i < exos.length) {
+      var x = exos[i];
+      if (!x || !x.travail || !x.bloc) { out.push(x); i++; continue; }
+      var j = i; while (j < exos.length && exos[j] && exos[j].bloc === x.bloc && exos[j].phase === x.phase) j++;
+      var grp = exos.slice(i, j);
+      if (x.travail.amrap) {
+        out.push({ id: x.id, nom: x.bloc.replace(/^Bloc [A-H] · /, ''), phase: x.phase, bloc: x.bloc, travail: { sec: x.travail.amrap * 60 },
+          liste: grp.map(function (g) { return g.nom + ' : ' + (g.travail.reps || ''); }) });
+      } else {
+        var tours = Math.max(1, x.tours || (x.travail && x.travail.tours) || 1);
+        for (var t = 1; t <= tours; t++) grp.forEach(function (g) { out.push(Object.assign({}, g, { tour: tours > 1 ? t : 0, toursMax: tours > 1 ? tours : 0 })); });
+      }
+      i = j;
+    }
+    return out;
   }
   // ---- Illustration automatique de chaque exercice : schéma (figure en traits) choisi d'après le nom, la description,
   // la catégorie et la technique ; matériel ajouté par-dessus (haie, échelle, cerceau, élastique, corde, ballon, kettlebell, step).
