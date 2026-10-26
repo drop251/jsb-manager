@@ -2281,7 +2281,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '26/10/2026 à 13h22';
+  var VERSION_APP = '26/10/2026 à 13h36';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5304,7 +5304,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (format === 'Séries classiques') return !deplacement && !postures;
     if (deplacement || postures || tenueCourte) return false;
     if (format === 'Tabata') return !iso && !estUnilateral(e) && !/^Équilibre/.test(c);
-    if (format === 'EMOM' || format === 'AMRAP') return !/^Équilibre/.test(c) && !(iso && d && d.sec > 45);
+    if (format === 'EMOM' || format === 'AMRAP') return !/^Équilibre/.test(c) && !iso;   // en répétitions : pas de maintien
     return !/^Équilibre/.test(c) || !iso;   // Circuit : équilibre dynamique accepté
   }
   function chargeDe(e, defautSec) {
@@ -5312,6 +5312,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (d && d.mode === 'reps') return { reps: d.reps + (d.cote ? ' par côté' : '') };
     return { sec: d && d.sec ? Math.min(d.sec, 60) : defautSec, cote: !!(d && d.cote) };
   }
+  // EMOM / AMRAP : on compte des répétitions. Un exercice dynamique dosé en temps dans sa fiche (« 4 × 30 s ») reçoit
+  // un nombre de répétitions équivalent, selon sa cadence : cardio ≈ 1 par seconde, sauts ≈ 1 toutes les 2 s, renforcement ≈ 1 toutes les 3 s
+  function repsPour(e, cibleSec) {
+    var d = lireDosage(e.dosage);
+    if (d && d.mode === 'reps') return d.reps + (d.cote ? ' par côté' : '');
+    var c = e.categorie || '', cad = /^Cardio/.test(c) ? 1 : /^Pliom/.test(c) ? 2 : 3;
+    var n = Math.max(4, Math.round((cibleSec || 30) / cad / (cad === 1 ? 5 : 1)) * (cad === 1 ? 5 : 1));
+    var cote = d && d.cote;
+    return (cote ? Math.max(3, Math.round(n / 2)) : n) + ' répétitions' + (cote ? ' par côté' : '');
+  }
+  function enReps(e) { var d = lireDosage(e.dosage); return !!(d && d.mode === 'reps'); }
   function materielDe(items) {
     var m = []; items.forEach(function (it) { (it.e.equipement || '').split(' + ').forEach(function (x) { x = x.trim(); if (x && !/^Poids du corps$|^Tatami$|^Partenaire$/.test(x) && m.indexOf(x) < 0) m.push(x); }); });
     return m;
@@ -5326,8 +5337,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function itemRemplacant(old, e, format, doux) {
     var t = old.travail || {}, it, c = chargeDe(e, t.sec || 30);
     if (format === 'Tabata') it = { e: e, travail: { sec: 20, recupApres: 10 }, dosage: old.dosage, duree: old.duree };
-    else if (format === 'EMOM') it = { e: e, travail: { sec: 60, reps: c.reps || (c.sec + ' s'), emom: true }, dosage: 'EMOM : ' + (c.reps || c.sec + ' s') + ' au début de chaque minute', duree: old.duree };
-    else if (format === 'AMRAP') it = { e: e, travail: { amrap: t.amrap, reps: c.reps || (c.sec + ' s') }, dosage: 'AMRAP : ' + (c.reps || c.sec + ' s') + ' par tour', duree: old.duree };
+    else if (format === 'EMOM') { var rE = repsPour(e, doux ? 25 : 35); it = { e: e, travail: { sec: 60, reps: rE, emom: true }, dosage: 'EMOM : ' + rE + ' au début de chaque minute', duree: old.duree }; }
+    else if (format === 'AMRAP') { var rA = repsPour(e, 30); it = { e: e, travail: { amrap: t.amrap, reps: rA }, dosage: 'AMRAP : ' + rA + ' par tour', duree: old.duree }; }
     else if (format === 'Pilates / yoga') { var tn = doux ? 30 : 45; it = { e: e, travail: c.reps ? { reps: c.reps, series: 3, recup: 20 } : { sec: tn, series: 3, recup: 15, cote: c.cote }, dosage: c.reps ? '3 × ' + c.reps + ', lent, récup 20 s' : '3 × ' + tn + ' s' + (c.cote ? ' par côté' : '') + ', récup 15 s', duree: old.duree }; }
     else if (format === 'Séries classiques') { var d = lireDosage(e.dosage) || { mode: 'reps', series: 3, reps: '10 répétitions' }, rS = t.recup || 45;
       it = { e: e, travail: d.mode === 'temps' ? { sec: d.sec, series: d.series, recup: rS, cote: d.cote } : { reps: d.reps + (d.cote ? ' par côté' : ''), series: d.series, recup: rS }, dosage: (e.dosage || '3 × 10') + ', récup ' + rS + ' s', duree: old.duree }; }
@@ -5374,18 +5385,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var tot = nb * (k * to + 1), ecart = Math.abs(M - tot) + (tot > M ? 2 : 0) + (k === (doux ? 2 : 3) ? 0 : 0.5);
         if (!meilleur || ecart < meilleur.ecart) meilleur = { k: k, nb: nb, to: to, ecart: ecart };
       }); }); });
-      var kE = meilleur.k, nE = meilleur.nb, tE = meilleur.to, exE = equilibre(nE * kE);
+      var kE = meilleur.k, nE = meilleur.nb, tE = meilleur.to, exE = equilibre(nE * kE, enReps);
       for (var b2 = 0; b2 < nE && exE.length; b2++) {
         var grp = exE.splice(0, kE);
         bloc('EMOM ' + grp.length * tE + ' min', 'Au début de chaque minute, faire l\'exercice, puis récupérer jusqu\'à la minute suivante · ' + tE + ' tours · 1 min de pause ensuite', grp.length * tE + 1,
-          grp.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { sec: 60, reps: c.reps || (c.sec + ' s'), emom: true }, dosage: 'EMOM : ' + (c.reps || c.sec + ' s') + ' au début de chaque minute', duree: tE }; }), { tours: tE });
+          grp.map(function (e) { var r = repsPour(e, doux ? 25 : 35); return { e: e, travail: { sec: 60, reps: r, emom: true }, dosage: 'EMOM : ' + r + ' au début de chaque minute', duree: tE }; }), { tours: tE });
       }
     } else if (format === 'AMRAP') {
-      var nA = Math.max(1, Math.round(M / 12)), minA = Math.max(6, Math.min(15, Math.round(M / nA) - 2 + dI)), kA = minA >= 10 ? 4 : 3, exA = equilibre(nA * kA);
+      var nA = Math.max(1, Math.round(M / 12)), minA = Math.max(6, Math.min(15, Math.round(M / nA) - 2 + dI)), kA = minA >= 10 ? 4 : 3, exA = equilibre(nA * kA, enReps);
       for (var b3 = 0; b3 < nA && exA.length; b3++) {
         var grpA = exA.splice(0, kA);
         bloc('AMRAP ' + minA + ' min', 'Enchaîner les exercices dans l\'ordre, le plus de tours possible en ' + minA + ' min, à allure régulière · 2 min de pause ensuite', minA + 2,
-          grpA.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { amrap: minA, reps: c.reps || (c.sec + ' s') }, dosage: 'AMRAP : ' + (c.reps || c.sec + ' s') + ' par tour', duree: Math.round(minA / grpA.length * 10) / 10 }; }), { amrap: minA });
+          grpA.map(function (e) { var r = repsPour(e, 30); return { e: e, travail: { amrap: minA, reps: r }, dosage: 'AMRAP : ' + r + ' par tour', duree: Math.round(minA / grpA.length * 10) / 10 }; }), { amrap: minA });
       }
     } else if (format === 'Pilates / yoga') {
       var tenue = (doux ? 30 : 45) + dI * 15, parEx = (3 * (tenue + 15) + 20) / 60, nP = Math.max(4, Math.round(M / parEx));
