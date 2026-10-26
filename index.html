@@ -1475,6 +1475,9 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cx-menu .cx-menu-suppr { color: #F97066; } }
 .compte .cs-btn.plein, .rg .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .compte .cs-btn.plein:disabled { opacity: .55; }
+/* Séance type : onglets Judo / Taïso */
+.st-onglets { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--chip); margin: 4px 0 12px; }
+.st-onglets .vue-btn { min-height: 44px; padding: 0 18px; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2247,7 +2250,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '26/10/2026 à 11h36';
+  var VERSION_APP = '26/10/2026 à 12h22';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2652,7 +2655,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   // --- Mode séance en direct : plein écran, vidéo au centre, compte à rebours ou répétitions selon l'exercice, bip + vibration
   function SeanceDirecte(p) {
-    var exos = (p.seance.exos || []).filter(function (x) { return x && x.nom; }), PH = phasesDe(p.seance.espace);
+    var exos = (p.seance.exos || []).filter(function (x) { return x && x.nom; }), PH = phasesSeance(p.seance);
     var parId = {}; (p.base || BASE).forEach(function (e) { parId[e.id] = e; });
     function planDe(n) { var x = exos[n]; return x ? planExercice(x, parId[x.id]) : []; }
     var s1 = React.useState(0), i = s1[0], setI = s1[1];
@@ -2792,48 +2795,65 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return new Blob([a], { type: 'application/pdf' });
   }
   var PHASES = [['Mobilité', 3], ['Échauffement', 2], ['Corps de séance', 4], ['Randori', 2], ['Étirement', 3]];
+  // Trame JSB adaptée au Taïso (26/10/2026) : même fiche, Randori remplacé par Retour au calme, corps de séance en blocs, colonne Dosage
+  var PHASES_T = [['Mobilité', 'Routine articulaire, de la tête aux chevilles'], ['Échauffement', 'Activation progressive : cardio léger, gestes du jour'],
+    ['Corps de séance', 'En blocs : circuit, EMOM, Tabata, AMRAP, Pilates / yoga'], ['Retour au calme', 'Respiration, relaxation'], ['Étirements', 'Étirements des muscles travaillés']];
+  function enregistrerPdf(nom, blob, setMsg) {
+    setMsg('Préparation du fichier…');
+    telechargements.then(function (dl) {
+      if (dl) {
+        return dl.save({ filename: nom, data: blob }).then(function () { setMsg('Fiche enregistrée.'); }, function (err) {
+          setMsg(err && err.code === 'declined' ? 'Téléchargement annulé.' : err && err.code === 'rate_limited' ? 'Une demande est déjà ouverte : répondez-y, puis réessayez.' : "Le téléchargement n'est pas disponible dans cette vue. Utilisez le fichier JSB-Manager ouvert sur votre ordinateur.");
+        });
+      }
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      setMsg('Téléchargement lancé : regardez dans votre dossier Téléchargements.');
+    });
+  }
   function SeanceType(p) {
     var s = React.useState(''), msg = s[0], setMsg = s[1];
+    var s2 = React.useState(p.espace === 'Taïso' ? 'taiso' : 'judo'), onglet = s2[0], setOnglet = s2[1];
+    var taiso = onglet === 'taiso';
     function telecharger() {
-      var nom = 'fiche-seance-vierge-JSB.pdf', blob = ficheBlob();
-      setMsg('Préparation du fichier…');
-      telechargements.then(function (dl) {
-        if (dl) {
-          return dl.save({ filename: nom, data: blob }).then(function () { setMsg('Fiche enregistrée.'); }, function (err) {
-            setMsg(err && err.code === 'declined' ? 'Téléchargement annulé.' : err && err.code === 'rate_limited' ? 'Une demande est déjà ouverte : répondez-y, puis réessayez.' : "Le téléchargement n'est pas disponible dans cette vue. Utilisez le fichier JSB-Manager ouvert sur votre ordinateur.");
-          });
-        }
-        var url = URL.createObjectURL(blob), a = document.createElement('a');
-        a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-        setMsg('Téléchargement lancé : regardez dans votre dossier Téléchargements.');
-      });
+      if (!taiso) { enregistrerPdf('fiche-seance-vierge-JSB.pdf', ficheBlob(), setMsg); return; }
+      var blob = construirePdf({}, PHASES_TAISO.map(function () { return []; }), {}, 'Taïso', true);
+      if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion."); return; }
+      enregistrerPdf('fiche-seance-vierge-JSB-taiso.pdf', blob, setMsg);
     }
     function liste(titre, items) { return h('div', { className: 'st-bloc' }, h('h3', null, titre), h('ul', null, items.map(function (x) { return h('li', { key: x }, x); }))); }
     return h('section', { className: 'st' },
-      p.titre ? h('div', null, h('h1', null, 'Séance type'), h('p', { className: 'intro' }, 'La trame standard JSB en 5 phases et sa fiche vierge à télécharger.')) : null,
+      p.titre ? h('div', null, h('h1', null, 'Séance type'), h('p', { className: 'intro' }, 'La trame JSB, en Judo et en Taïso, et sa fiche vierge à télécharger.')) : null,
+      h('div', { className: 'st-onglets', role: 'group', 'aria-label': 'Fiche' }, [['judo', 'Judo'], ['taiso', 'Taïso']].map(function (o) {
+        return h('button', { key: o[0], type: 'button', className: 'vue-btn', 'aria-pressed': onglet === o[0], onClick: function () { setOnglet(o[0]); setMsg(''); } }, o[1]);
+      })),
       h('div', { className: 'st-carte' },
-        h('div', { className: 'st-texte' }, h('h2', null, 'Fiche de séance vierge'),
-          h('p', null, 'Le modèle Judo Sans Barrières, prêt à imprimer et à remplir à la main. PDF de 2 pages, format A4.')),
+        h('div', { className: 'st-texte' }, h('h2', null, taiso ? 'Fiche de séance Taïso vierge' : 'Fiche de séance vierge'),
+          h('p', null, taiso ? 'La fiche JSB adaptée au Taïso : retour au calme à la place du randori, corps de séance en blocs, colonne Dosage et adaptations. PDF A4 à imprimer.' : 'Le modèle Judo Sans Barrières, prêt à imprimer et à remplir à la main. PDF de 2 pages, format A4.')),
         h('div', { className: 'st-action' },
           h('button', { type: 'button', className: 'st-btn', onClick: telecharger }, 'Télécharger la fiche (PDF)'),
           h('span', { className: 'st-msg', role: 'status' }, msg))),
-      h('h2', { className: 'st-h' }, 'Trame standard JSB en 5 phases'),
-      h('ol', { className: 'st-phases' }, PHASES.map(function (x, i) {
-        return h('li', { key: x[0] }, h('span', { className: 'st-num' }, i + 1), h('b', null, x[0]), h('small', null, x[1] + ' lignes sur la fiche'));
+      h('h2', { className: 'st-h' }, taiso ? 'Trame JSB Taïso en 5 phases' : 'Trame standard JSB en 5 phases'),
+      h('ol', { className: 'st-phases' }, (taiso ? PHASES_T : PHASES).map(function (x, i) {
+        return h('li', { key: x[0] }, h('span', { className: 'st-num' }, i + 1), h('b', null, x[0]), h('small', null, taiso ? x[1] : x[1] + ' lignes sur la fiche'));
       })),
       h('h2', { className: 'st-h' }, 'Ce que la fiche fait renseigner'),
       h('div', { className: 'st-grille' },
-        liste('En tête de séance', ['Groupe', 'Thématique', 'Public', 'Durée totale', 'Objectif principal', 'Trame', 'Matériel', 'Intensité']),
-        liste('Pour chaque exercice', ['Durée', 'Bloc', 'Exercice', 'Description / consigne', 'Clé terrain & vigilance']),
-        liste('En fin de fiche', ['Points de vigilance transversaux', 'Note pédagogique'])));
+        liste('En tête de séance', taiso ? ['Groupe (Gym douce, Training)', 'Thématique', 'Public', 'Durée totale', 'Objectif principal', 'Format du corps de séance', 'Matériel', 'Intensité (effort ressenti sur 10)'] : ['Groupe', 'Thématique', 'Public', 'Durée totale', 'Objectif principal', 'Trame', 'Matériel', 'Intensité']),
+        liste('Pour chaque exercice', taiso ? ['Durée', 'Bloc', 'Exercice', 'Dosage (séries, temps ou répétitions)', 'Consigne et variante plus facile', 'Clé terrain & vigilance'] : ['Durée', 'Bloc', 'Exercice', 'Description / consigne', 'Clé terrain & vigilance']),
+        liste('En fin de fiche', taiso ? ['Points de vigilance transversaux', 'Adaptations (variantes douces, limitations)', 'Note pédagogique'] : ['Points de vigilance transversaux', 'Note pédagogique'])));
   }
 
   // ---- Sélection d'exercices et génération de la fiche de séance (commun aux deux présentations)
   var CLE_SEL = 'jsb-seances';
   var PHASES_SEANCE = ['Mobilité', 'Échauffement', 'Corps de séance', 'Randori', 'Étirement'];
-  var PHASES_TAISO = ['Échauffement et mobilité', 'Corps de séance', 'Fin de séance'];
+  // Trame JSB adaptée au Taïso (26/10/2026) : la phase Randori devient Retour au calme ; tous les étirements en fin de séance
+  var PHASES_TAISO = ['Mobilité', 'Échauffement', 'Corps de séance', 'Retour au calme', 'Étirements'];
+  var PHASES_TAISO_V1 = ['Échauffement et mobilité', 'Corps de séance', 'Fin de séance'];   // séances enregistrées avant le 26/10/2026
   function phasesDe(espace) { return espace === 'Taïso' ? PHASES_TAISO : PHASES_SEANCE; }
+  function phasesSeance(s) { return s && s.espace === 'Taïso' && !s.trame ? PHASES_TAISO_V1 : phasesDe(s && s.espace); }
+  var FORMATS_TAISO = ['Circuit', 'EMOM', 'Tabata', 'AMRAP', 'Pilates / yoga', 'Séries classiques'];
   function lireSel() { try { return JSON.parse(localStorage.getItem(CLE_SEL)) || {}; } catch (err) { return {}; } }
   function useSelection(espace) {
     var s = React.useState(lireSel), tout = s[0], setTout = s[1];
@@ -2852,7 +2872,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function phaseDefaut(e) {
     var m = e.moment || '';
-    if ((e.public || []).indexOf('Taïso') >= 0) return m === 'Échauffement' ? 0 : m === 'Fin de séance' ? 2 : 1;
+    if ((e.public || []).indexOf('Taïso') >= 0) {
+      if (m === 'Échauffement') return /^Mobilit/.test(e.categorie || '') ? 0 : 1;
+      if (m === 'Fin de séance') return /respir|relax|savasana|calme|recuperation|jambes au mur/.test(String(e.nom + ' ' + e.description).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? 3 : 4;
+      return 2;
+    }
     if (m === 'Fin de séance') return 4;
     if (m === 'Échauffement') return e.categorie === 'Mobilité' ? 0 : 1;
     return 2;
@@ -2866,8 +2890,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     items.forEach(function (e) { (e.equipement || '').split(' + ').forEach(function (x) { if (x && x !== 'Poids du corps' && x !== 'Partenaire' && t.indexOf(x) < 0) t.push(x); }); });
     return t.join(', ');
   }
-  function construirePdf(infos, parPhase, durees, espace) {
-    var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace);
+  // Fiche de séance JSB (PDF). Taïso : trame adaptée, colonne Dosage, format du corps de séance, adaptations. vierge : lignes vides à remplir à la main
+  function construirePdf(infos, parPhase, durees, espace, vierge) {
+    var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace), taiso = espace === 'Taïso';
     if (!J) return null;
     var jour = new Date(), deux = function (n) { return (n < 10 ? '0' : '') + n; };
     var dateFr = deux(jour.getDate()) + '/' + deux(jour.getMonth() + 1) + '/' + jour.getFullYear();
@@ -2876,7 +2901,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function enTete() {
       police('bold', 8, NAVY); doc.text('JUDO SANS BARRIÈRES', M, 44);
       police('italic', 8, OR); doc.text('|  Progresser à sa manière', M + 104, 44);
-      police('normal', 8, [60, 60, 60]); doc.text('Séance créée le ' + dateFr, M + W, 44, { align: 'right' });
+      police('normal', 8, [60, 60, 60]); doc.text(vierge ? 'Date : ____ / ____ / ________' : 'Séance créée le ' + dateFr, M + W, 44, { align: 'right' });
       doc.setDrawColor.apply(doc, OR); doc.setLineWidth(1); doc.line(M, 51, M + W, 51); y = 74;
     }
     function place(hauteur) { if (y + hauteur > 782) { doc.addPage(); enTete(); } }
@@ -2887,48 +2912,55 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       doc.text(lig, x + 5, y + 12);
     }
     enTete();
-    police('bold', 18, NAVY); doc.text('FICHE DE SÉANCE', M + W / 2, y + 6, { align: 'center' });
+    police('bold', 18, NAVY); doc.text(taiso ? 'FICHE DE SÉANCE TAÏSO' : 'FICHE DE SÉANCE', M + W / 2, y + 6, { align: 'center' });
     police('bold', 11, OR); doc.text(pdfTexte('Groupe : ' + (infos.groupe || '____________________') + '    Thématique : ' + (infos.thematique || '____________________')), M + W / 2, y + 24, { align: 'center', maxWidth: W });
     y += 44;
     var cols = [85, 160, 85, 165];
-    [['Public', infos.public || espace, 'Durée totale', infos.duree], ['Objectif principal', infos.objectif, 'Trame', 'Standard JSB : ' + PH.join(' > ')], ['Matériel', infos.materiel, 'Intensité', infos.intensite]].forEach(function (r) {
-      police('normal', 8); var a = lignes(r[1], cols[1]), b = lignes(r[3], cols[3]); var ht = Math.max(a.length, b.length, 1) * 10 + 12; place(ht);
-      var x = M; police('bold', 8); cellule(x, cols[0], ht, [r[0]], [240, 238, 232]); x += cols[0];
+    (taiso ? [['Public', infos.public || (vierge ? '' : 'Taïso'), 'Durée totale', infos.duree], ['Objectif principal', infos.objectif, 'Format du corps de séance', infos.format || (vierge ? 'Circuit / EMOM / Tabata / AMRAP / Pilates-yoga / séries' : '')],
+        ['Matériel', infos.materiel, 'Intensité (effort /10)', infos.intensite], ['Trame', 'JSB Taïso : ' + PH.join(' > '), 'Repères', 'Pas de chute ; étirements en fin de séance']]
+      : [['Public', infos.public || espace, 'Durée totale', infos.duree], ['Objectif principal', infos.objectif, 'Trame', 'Standard JSB : ' + PH.join(' > ')], ['Matériel', infos.materiel, 'Intensité', infos.intensite]]).forEach(function (r) {
+      police('bold', 8); var la = lignes(r[0], cols[0]), lb = lignes(r[2], cols[2]);
+      police('normal', 8); var a = lignes(r[1], cols[1]), b = lignes(r[3], cols[3]); var ht = Math.max(a.length, b.length, la.length, lb.length, 1) * 10 + 12; place(ht);
+      var x = M; police('bold', 8); cellule(x, cols[0], ht, la, [240, 238, 232]); x += cols[0];
       police('normal', 8); cellule(x, cols[1], ht, a); x += cols[1];
-      police('bold', 8); cellule(x, cols[2], ht, [r[2]], [240, 238, 232]); x += cols[2];
+      police('bold', 8); cellule(x, cols[2], ht, lb, [240, 238, 232]); x += cols[2];
       police('normal', 8); cellule(x, cols[3], ht, b); y += ht;
     });
-    y += 24; police('bold', 11, NAVY); doc.text('Déroulé de la séance - trame standard JSB en ' + PH.length + ' phases', M + 6, y);
+    y += 24; police('bold', 11, NAVY); doc.text(taiso ? 'Déroulé de la séance - trame JSB Taïso en ' + PH.length + ' phases' : 'Déroulé de la séance - trame standard JSB en ' + PH.length + ' phases', M + 6, y);
     doc.setDrawColor.apply(doc, OR); doc.setLineWidth(0.7); doc.line(M, y + 6, M + W, y + 6);
     police('italic', 8, [80, 80, 80]); doc.text(pdfTexte('Thématique du jour : ' + (infos.thematique || '')), M + 6, y + 19); y += 34;
-    var lc = [42, 76, 113, 148, 116], titres = ['Durée', 'Bloc', 'Exercice', 'Description / consigne', 'Clé terrain & vigilance'];
+    var lc = taiso ? [38, 60, 98, 70, 125, 104] : [42, 76, 113, 148, 116], titres = taiso ? ['Durée', 'Bloc', 'Exercice', 'Dosage', 'Consigne', 'Clé terrain & vigilance'] : ['Durée', 'Bloc', 'Exercice', 'Description / consigne', 'Clé terrain & vigilance'];
+    var AIDES_TAISO = ['Routine articulaire, de la tête aux chevilles', 'Activation progressive : cardio léger, gestes du jour', 'En blocs : circuit, EMOM, Tabata, AMRAP, Pilates / yoga', 'Respiration, relaxation, retour au calme', 'Étirements des muscles travaillés'];
     PH.forEach(function (nom, i) {
       var items = parPhase[i], total = 0;
       items.forEach(function (e) { total += parseFloat(durees[e.id]) || 0; });
       place(80);
       doc.setFillColor.apply(doc, NAVY); doc.rect(M, y, 115, 16, 'F'); police('bold', 8.5, [255, 255, 255]); doc.text((i + 1) + ' • ' + nom.toUpperCase(), M + 6, y + 11);
-      police('italic', 8, [40, 40, 40]); doc.text((total ? total : '____') + ' min', M + 121, y + 11);
+      police('italic', 8, [40, 40, 40]); doc.text((total ? total : '____') + ' min' + (taiso ? '   ' + AIDES_TAISO[i] : ''), M + 121, y + 11);
       doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(1); doc.line(M, y + 16, M + W, y + 16); y += 21;
       var x = M; doc.setFillColor.apply(doc, NAVY); doc.rect(M, y, W, 17, 'F'); police('bold', 8, [255, 255, 255]);
       titres.forEach(function (t, k) { doc.text(t, x + 5, y + 11.5); x += lc[k]; }); y += 17;
-      if (!items.length) { police('normal', 7.5); x = M; lc.forEach(function (l) { cellule(x, l, 30, []); x += l; }); y += 30; }
+      if (!items.length) { police('normal', 7.5); for (var v = 0; v < (vierge ? (i === 2 ? 5 : 3) : 1); v++) { place(26); x = M; lc.forEach(function (l) { cellule(x, l, vierge ? 24 : 30, []); x += l; }); y += vierge ? 24 : 30; } }
       items.forEach(function (e) {
         police('normal', 7.5);
-        var c = [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]),
+        var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(e.dosage || '', lc[3]),
+            lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
+          : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]),
           lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
         var ht = Math.max.apply(null, c.map(function (l) { return l.length; })) * 9 + 10; place(ht);
         x = M; c.forEach(function (l, k) { police(k === 2 ? 'bold' : 'normal', 7.5); cellule(x, lc[k], ht, l); x += lc[k]; }); y += ht;
       });
       y += 18;
     });
-    [['Points de vigilance transversaux', infos.vigilance], ['Note pédagogique', infos.note]].forEach(function (b) {
+    (taiso ? [['Points de vigilance transversaux', infos.vigilance], ['Adaptations (variantes douces, limitations, contre-indications)', infos.adaptations], ['Note pédagogique', infos.note]]
+      : [['Points de vigilance transversaux', infos.vigilance], ['Note pédagogique', infos.note]]).forEach(function (b) {
       police('normal', 8.5); var l = b[1] ? lignes(b[1], W) : []; place(Math.max(l.length * 11, 60) + 26);
       police('bold', 11, NAVY); doc.text(b[0], M + 6, y + 6); y += 22;
       if (l.length) { police('normal', 8.5); doc.text(l, M + 6, y); y += l.length * 11 + 14; }
       else { doc.setDrawColor.apply(doc, GRIS); doc.setLineWidth(0.5); for (var k = 0; k < 3; k++) { y += 20; doc.line(M, y, M + W, y); } y += 20; }
     });
     var n = doc.getNumberOfPages();
-    for (var pg = 1; pg <= n; pg++) { doc.setPage(pg); police('normal', 7, [90, 90, 90]); doc.text('Judo Sans Barrières - Girma Garnier, éducateur sportif judo - Fiche de séance du ' + dateFr + ' - page ' + pg + ' / ' + n, M + W / 2, 815, { align: 'center' }); }
+    for (var pg = 1; pg <= n; pg++) { doc.setPage(pg); police('normal', 7, [90, 90, 90]); doc.text('Judo Sans Barrières - Girma Garnier, éducateur sportif judo - ' + (vierge ? 'Fiche de séance' + (taiso ? ' Taïso' : '') : 'Fiche de séance du ' + dateFr) + ' - page ' + pg + ' / ' + n, M + W / 2, 815, { align: 'center' }); }
     return doc.output('blob');
   }
   function enregistrerFichier(nom, blob, setMsg) {
@@ -2980,16 +3012,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
       var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }); }); });
       ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
-        titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now() });
+        titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now(), trame: 2 });
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
     }
     function reprendre(s) {
-      var ids = [], np = {}; s.exos.forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: x.phase, duree: x.duree }; } });
+      var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
+      var ids = [], np = {}; s.exos.forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree }; } });
       sel.set(ids); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise : ajustez-la puis enregistrez-la pour un nouveau cours.');
     }
     function telecharger() {
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
-      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace);
+      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
       enregistrerSeance(true);
       enregistrerFichier('fiche-seance-' + p.espace.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '-' + new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2) + '.pdf', blob, setMsg);
@@ -3002,7 +3035,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       thematique: uniq(p.donnees.map(function (e) { return e.technique || e.categorie; }).filter(Boolean)).sort(function (a, b) { return a.localeCompare(b, 'fr'); }),
       objectif: uniq(items.map(function (e) { return e.thematique || e.famille; }).filter(Boolean)),
       duree: (total ? ['Somme des exercices : ' + total + ' min'] : []).concat(['30 min', '45 min', '60 min', '75 min', '90 min']),
-      intensite: ['Faible', 'Modérée', 'Soutenue', 'Élevée']
+      intensite: judoEsp ? ['Faible', 'Modérée', 'Soutenue', 'Élevée'] : ['Faible (effort 3-4 sur 10)', 'Modérée (5-6 sur 10)', 'Soutenue (7-8 sur 10)', 'Élevée (9 sur 10)'],
+      format: FORMATS_TAISO
     };
     // Valeurs proposées d'office : groupe du créneau ou du sous-groupe ouvert, durée du créneau, matériel des exercices
     var grpCours = coursChoisi ? coursChoisi.cours.filter(function (c) { return opts.groupe.indexOf(c) >= 0; })[0] : '';
@@ -3011,7 +3045,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var defauts = {
       groupe: grpCours || (p.sous && opts.groupe.indexOf(p.sous) >= 0 ? p.sous : '') || frequent([].concat.apply([], items.map(sg))), public: judoEsp ? frequent(items.map(function (e) { return e.categorieAge; })) : '',
       thematique: frequent(items.map(function (e) { return e.technique || e.categorie; })), objectif: frequent(items.map(function (e) { return e.thematique || e.famille; })),
-      duree: dureeCours || (total ? 'Somme des exercices : ' + total + ' min' : ''), intensite: 'Modérée'
+      duree: dureeCours || (total ? 'Somme des exercices : ' + total + ' min' : ''), intensite: judoEsp ? 'Modérée' : 'Modérée (5-6 sur 10)', format: ''
     };
     function val(k) { var v = infos[k] !== undefined ? infos[k] : defauts[k]; return k === 'duree' ? String(v || '').replace('Somme des exercices : ', '') : (v || ''); }
     function menu(k, label, large) {
@@ -3057,8 +3091,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('summary', null, h('span', null, 'Informations de la fiche'), h('small', null, resume || 'à compléter')),
             h('div', { className: 'cs-champs' },
               menu('groupe', 'Groupe'), menu('thematique', 'Thématique'), menu('public', 'Public'), menu('duree', 'Durée totale'),
-              menu('intensite', 'Intensité'), champ('materiel', 'Matériel', 0, '', materielSeance(items)), menu('objectif', 'Objectif principal', 1)),
-            h('div', { className: 'cs-champs' }, champ('vigilance', 'Points de vigilance transversaux', 2), champ('note', 'Note pédagogique', 2))) : null,
+              menu('intensite', judoEsp ? 'Intensité' : 'Intensité (effort ressenti)'), champ('materiel', 'Matériel', 0, '', materielSeance(items)), menu('objectif', 'Objectif principal', 1),
+              judoEsp ? null : menu('format', 'Format du corps de séance')),
+            h('div', { className: 'cs-champs' }, champ('vigilance', 'Points de vigilance transversaux', 2), judoEsp ? null : champ('adaptations', 'Adaptations (variantes douces, limitations)', 2), champ('note', 'Note pédagogique', 2))) : null,
           n ? PH.map(function (nom, i) {
             var grp = parPhase[i], t = 0; grp.forEach(function (e) { t += parseFloat(dureeDe(e)) || 0; });
             return h('section', { key: nom, className: 'cs-phase' },
@@ -3847,7 +3882,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           // Séance préparée pour ce cours (enregistrée depuis « Ma séance »)
           var prevues = lireHisto().filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return coursAppel.indexOf(c) >= 0; }); });
           return prevues.map(function (s) {
-            var PH = phasesDe(s.espace);
+            var PH = phasesSeance(s);
             return h('details', { key: s.id, className: 'pr-seance-prevue' },
               h('summary', null, h('b', null, 'Séance prévue'), ' · ' + s.titre + ' · ' + s.exos.length + ' exercices'),
               h('ol', null, s.exos.map(function (x, i) { return h('li', { key: x.id + i }, h('span', null, x.nom), h('small', null, (PH[x.phase] || '') + (x.duree ? ' · ' + x.duree + ' min' : ''))); })));
@@ -4841,7 +4876,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var minRoutine = Math.max(5, Math.min(12, routine.length));
     var reste = Math.max(15, minutes - minRoutine);
     var phases = judo ? [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .18), 5], ['Corps de séance', Math.round(reste * .47), 7], ['Randori', Math.round(reste * .23), 10], ['Étirement', 0, 4]]
-      : [['Échauffement et mobilité', minRoutine], ['Corps de séance', Math.round(reste * .80), 6], ['Fin de séance', 0, 4]];
+      // Taïso : trame JSB adaptée (Mobilité, Échauffement, Corps de séance, Retour au calme, Étirements)
+      : [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .14), 4], ['Corps de séance', Math.round(reste * .64), 6],
+        ['Retour au calme', Math.max(3, Math.round(reste * (rep.calme === 'Respiration et relaxation' ? .12 : rep.calme === 'Étirements' ? .05 : .08))), 4], ['Étirements', 0, 4]];
     phases[phases.length - 1][1] = Math.max(5, minutes - phases.slice(0, -1).reduce(function (a, p) { return a + p[1]; }, 0));
     var pris = {}, resultat = [], manques = [];
     routine.forEach(function (e) { pris[e.id] = 1; });
@@ -4878,18 +4915,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var min = ph[1], ex;
       if (i === 0) { ex = routine; if (!ex.length) manques.push('routine de mobilité (non choisie)'); }
       else {
-        var dernier = i === phases.length - 1, n = Math.max(dernier && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
-        if (dernier) pool = poolCalme();
-        else if (judo && i === 1) { pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); }); if (!pool.length) pool = base.filter(mom('Échauffement')); }
+        var dernier = i === phases.length - 1, n = Math.max(dernier && judo && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
+        var finS = function () { return base.filter(mom('Fin de séance')); }, calme = function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); };
+        if (!judo && ph[0] === 'Retour au calme') { pool = finS().filter(calme); if (!pool.length) pool = finS(); }
+        else if (!judo && ph[0] === 'Étirements') { pool = finS().filter(function (e) { return !calme(e); }); if (!pool.length) pool = finS(); }
+        else if (dernier) pool = poolCalme();
+        else if (i === 1) { pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); }); if (!pool.length) pool = base.filter(mom('Échauffement')); }
         else if (judo && i === 3) {
           pool = base.filter(function (e) { return mom('Corps de séance')(e) && MOTS_RANDORI.test(sa(e.nom + ' ' + e.thematique)) && !pris[e.id]; });
           if (pool.length < n) pool = pool.concat(base.filter(function (e) { return mom('Corps de séance')(e) && e.categorie === 'Cardio' && pool.indexOf(e) < 0; }));
         }
         else pool = base.filter(mom('Corps de séance'));
-        if (dernier && rep.calme === 'Les deux' && n >= 2) {
+        if (judo && dernier && rep.calme === 'Les deux' && n >= 2) {
           var calmes = choisir(pool.filter(function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); }), 1, false);
           ex = calmes.concat(choisir(pool, n - calmes.length, false));
-        } else ex = choisir(pool, n, !dernier && i !== 1);
+        } else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
         if (ex.length < n) manques.push(ph[0]);
       }
       var d = ex.length ? Math.max(1, Math.round(min / ex.length)) : 0;
@@ -5119,7 +5159,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     'Réponds en français, de façon courte, concrète et bienveillante, comme un collègue éducateur expérimenté. Pas de tableau ; des listes courtes avec « • » si besoin, sans titres Markdown ni gras.',
     'Domaines : judo (techniques, pédagogie par catégorie d\'âge, randori, ukemi), taïso (Gym douce, Training), préparation physique, organisation et contenu de séance, utilisation de l\'app.',
     'Catégories d\'âge judo : Éveils (4-5 ans), Pré-poussins (6-7), Poussins (8-9), Benjamins (10-11), Adultes (12 ans et +). Règles enfants : pas de sutemi-waza, pas de kansetsu ni shime-waza, kumi-kata manche-revers uniquement.',
-    'Trame de séance judo : Mobilité, Échauffement, Corps de séance, Randori, Étirement. Taïso : Échauffement et mobilité, Corps de séance, Fin de séance.',
+    'Trame de séance judo : Mobilité, Échauffement, Corps de séance, Randori, Étirement. Taïso (trame JSB adaptée) : Mobilité, Échauffement, Corps de séance (en blocs : circuit, EMOM, Tabata, AMRAP, Pilates / yoga), Retour au calme, Étirements.',
     'Quand tu proposes des exercices, prends-les de préférence dans la base de l\'app (outil chercherExercices ou liste fournie) et cite chacun avec son identifiant entre crochets, exemple : Planche ventrale [#2073]. N\'invente jamais d\'identifiant.',
     'Si l\'éducateur demande d\'ajouter des exercices à sa séance, utilise l\'outil ajouterASeance (s\'il est disponible) puis dis ce que tu as ajouté.',
     'Sécurité : rappelle le point de vigilance quand c\'est utile ; pour une douleur, une blessure ou un problème de santé, oriente vers un professionnel de santé.',
@@ -5207,7 +5247,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'number' } } }, required: ['ids'] },
             execute: function (a) { var faits = []; [].concat(a.ids || []).forEach(function (id) { var e = parId[Number(id)]; if (e) { ajouterSel(e); faits.push(e.nom); } });
               if (!faits.length) throw new Error('aucun identifiant connu'); setRev(function (n) { return n + 1; }); return { ajoutes: faits }; } },
-          { name: 'preparerSeance', description: 'Enregistre une séance complète pour un cours du planning (visible dans « Mes séances », l\'appel et l\'accueil du jour). phase : judo 0 Mobilité, 1 Échauffement, 2 Corps de séance, 3 Randori, 4 Étirement ; taïso 0 Échauffement et mobilité, 1 Corps de séance, 2 Fin de séance. duree en minutes.',
+          { name: 'preparerSeance', description: 'Enregistre une séance complète pour un cours du planning (visible dans « Mes séances », l\'appel et l\'accueil du jour). phase : judo 0 Mobilité, 1 Échauffement, 2 Corps de séance, 3 Randori, 4 Étirement ; taïso 0 Mobilité, 1 Échauffement, 2 Corps de séance, 3 Retour au calme, 4 Étirements. duree en minutes.',
             inputSchema: { type: 'object', properties: { creneau: { type: 'string', description: 'cle du cours, prise dans la liste fournie' }, espace: { type: 'string', enum: ['Judo', 'Taïso'] }, titre: { type: 'string', description: 'thème court de la séance' },
               exercices: { type: 'array', items: { type: 'object', properties: { id: { type: 'number' }, phase: { type: 'number' }, duree: { type: 'number' } }, required: ['id', 'phase'] } } }, required: ['creneau', 'espace', 'exercices'] },
             execute: function (a) {
@@ -5217,7 +5257,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               var exos = [].concat(a.exercices || []).map(function (x) { var e = parId[Number(x.id)]; return e ? { id: e.id, nom: e.nom, phase: Math.max(0, Math.min(nPh - 1, Number(x.phase) || 0)), duree: x.duree ? String(x.duree) : '' } : null; }).filter(Boolean);
               if (!exos.length) throw new Error('aucun identifiant connu');
               exos.sort(function (u, v) { return u.phase - v.phase; });
-              ajouterHisto({ id: 's-' + c.date + '-' + sa(esp) + '-' + sa(c.cours.join('-')), date: c.date, heure: c.heure, cours: c.cours, espace: esp, titre: String(a.titre || esp).slice(0, 80), exos: exos, infos: {}, enregistreLe: Date.now(), parAssistant: true });
+              ajouterHisto({ id: 's-' + c.date + '-' + sa(esp) + '-' + sa(c.cours.join('-')), date: c.date, heure: c.heure, cours: c.cours, espace: esp, titre: String(a.titre || esp).slice(0, 80), exos: exos, infos: {}, enregistreLe: Date.now(), parAssistant: true , trame: 2});
               setRev(function (n) { return n + 1; });
               return { enregistree: c.texte, exercices: exos.length };
             } }
