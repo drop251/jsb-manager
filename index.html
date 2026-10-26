@@ -1454,6 +1454,27 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .verrou-form .btn { flex: none; min-height: 48px; }
 .verrou-msg { font-weight: 600; }
 .verrou-ouvert { margin: 12px 0; font-size: .875rem; color: var(--muted); }
+/* Mon compte */
+.compte { display: flex; flex-direction: column; gap: 18px; }
+.compte-bloc { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.compte-bloc h3 { margin: 0; font-family: var(--display); font-size: 1.125rem; }
+.compte-bloc p { margin: 0; font-size: .9375rem; line-height: 1.5; }
+.compte-note { color: var(--muted); font-size: .875rem !important; }
+.compte-chiffres { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.compte-chiffres li { padding: 10px 12px; border-radius: 10px; background: var(--chip); font-size: .875rem; }
+.compte-chiffres b { display: block; font-family: var(--display); font-size: 1.375rem; line-height: 1.1; }
+.compte-danger { border-top-color: color-mix(in srgb, #B42318 40%, var(--line)); }
+.compte-danger h3 { color: #B42318; }
+.compte-danger input { min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; letter-spacing: .06em; }
+.compte-suppr-btn:not(:disabled) { background: #B42318 !important; border-color: #B42318 !important; color: #fff !important; }
+:root[data-theme="dark"] .compte-danger h3 { color: #F97066; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .compte-danger h3 { color: #F97066; } }
+.compte-etiq { font-weight: 700; font-size: .9375rem; }
+.cx-menu .cx-menu-suppr { color: #B42318; }
+:root[data-theme="dark"] .cx-menu .cx-menu-suppr { color: #F97066; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cx-menu .cx-menu-suppr { color: #F97066; } }
+.compte .cs-btn.plein, .rg .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.compte .cs-btn.plein:disabled { opacity: .55; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2226,7 +2247,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '24/10/2026 à 19h16';
+  var VERSION_APP = '26/10/2026 à 11h13';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3149,6 +3170,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         });
         return file;
       },
+      fermer: function () { var o = ouverture; ouverture = null; return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve(); },
       oublierAncien: function (cle) { try { localStorage.removeItem(cle); } catch (err) {} },
       ancien: lireLocal,
       proteger: function () {
@@ -3592,7 +3614,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       Stockage.proteger().then(function (p) { if (actif) setProtege(!!p); });
       return function () { actif = false; };
     }, []);
-    var s2 = React.useState(function () { var v = null; try { v = sessionStorage.getItem('jsb-pr-vue'); sessionStorage.removeItem('jsb-pr-vue'); } catch (e) {} return v || 'appel'; }), vue = s2[0], setVue = s2[1];
+    var demandeSvg = React.useRef(false);
+    var s2 = React.useState(function () { var v = null; try { v = sessionStorage.getItem('jsb-pr-vue'); sessionStorage.removeItem('jsb-pr-vue'); } catch (e) {} if (v === 'sauvegarde') { demandeSvg.current = true; v = 'judokas'; } return v || 'appel'; }), vue = s2[0], setVue = s2[1];
     var s18 = React.useState(null), suiviId = s18[0], setSuiviId = s18[1];
     var s19 = React.useState(null), importPres = s19[0], setImportPres = s19[1];   // { appels, fichier, garder, coursEssais }
     var s3 = React.useState(''), groupe = s3[0], setGroupe = s3[1];
@@ -3602,7 +3625,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s7 = React.useState(null), selCours = s7[0], setSelCours = s7[1];
     var s9 = React.useState(function () { return aujourdhui().slice(0, 7); }), moisSel = s9[0], setMoisSel = s9[1];
     var s10 = React.useState(null), miseAJour = s10[0], setMiseAJour = s10[1];   // { fu, fichier, archiver }
-    var s11 = React.useState(false), panneauSvg = s11[0], setPanneauSvg = s11[1];
+    var s11 = React.useState(function () { return demandeSvg.current; }), panneauSvg = s11[0], setPanneauSvg = s11[1];
     var s12 = React.useState(null), demandeMdp = s12[0], setDemandeMdp = s12[1];  // sauvegarde chiffrée en attente du mot de passe
     var s13 = React.useState(null), editCreneau = s13[0], setEditCreneau = s13[1];
     var s14 = React.useState(false), reglage = s14[0], setReglage = s14[1];
@@ -4699,6 +4722,57 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       champ('prenom', 'Prénom', 'given-name'), champ('nom', 'Nom', 'family-name'), champ('club', 'Nom du club (affiché en haut de l\'écran)', 'organization'),
       h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !f.prenom.trim() }, 'Enregistrer')));
   }
+  // Mon compte : identité, données gardées sur cet appareil, sauvegarde, suppression complète
+  function tailleLisible(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1).replace('.', ',') + ' Go' : n >= 1048576 ? Math.round(n / 1048576) + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko'; }
+  function supprimerToutesDonnees() {
+    try { Object.keys(localStorage).filter(function (k) { return /^jsb-/.test(k); }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+    var fini = false; function fin() { if (!fini) { fini = true; location.reload(); } }
+    return Stockage.fermer().then(function () {
+      try { var r = indexedDB.deleteDatabase('jsb-manager'); r.onsuccess = fin; r.onerror = fin; r.onblocked = function () { setTimeout(fin, 1500); }; } catch (e) { fin(); }
+      setTimeout(fin, 5000);
+    });
+  }
+  function MonCompte(p) {
+    var s = React.useState(null), d = s[0], setD = s[1];
+    var s2 = React.useState(''), conf = s2[0], setConf = s2[1];
+    var s3 = React.useState(''), msg = s3[0], setMsg = s3[1];
+    var s4 = React.useState(false), enCours = s4[0], setEnCours = s4[1];
+    React.useEffect(function () {
+      var actif = true;
+      Promise.all([chargerPres().catch(function () { return { judokas: [], seances: [] }; }),
+        navigator.storage && navigator.storage.estimate ? navigator.storage.estimate().catch(function () { return null; }) : Promise.resolve(null)]).then(function (r) {
+        if (!actif) return;
+        var pr = r[0] || {};
+        setD({ licencies: (pr.judokas || []).length, appels: (pr.seances || []).length, ajouts: BASE.filter(function (e) { return e.ajoute; }).length,
+          photos: Object.keys(IMG_PERSO).length, videos: Object.keys(VIDEOS).length, favoris: lireFavoris().length, seances: lireHisto().length, octets: r[1] && r[1].usage });
+      });
+      return function () { actif = false; };
+    }, []);
+    function ligne(n, sing, plur) { return h('li', null, h('b', null, n), ' ' + (n > 1 ? plur : sing)); }
+    return h('div', { className: 'compte' },
+      h(EditionProfil, { onFini: p.onFini }),
+      h('section', { className: 'compte-bloc', 'aria-labelledby': 'compte-donnees' },
+        h('h3', { id: 'compte-donnees' }, 'Mes données sur cet appareil'),
+        h('p', { className: 'compte-note' }, 'Tout reste sur cet appareil : rien n\'est envoyé en ligne. Une autre version de l\'app (autre téléphone, claude.ai) a ses propres données.'),
+        d ? h('ul', { className: 'compte-chiffres' },
+          ligne(d.licencies, 'licencié', 'licenciés'), ligne(d.appels, 'appel enregistré', 'appels enregistrés'), ligne(d.seances, 'séance enregistrée', 'séances enregistrées'),
+          ligne(d.ajouts, 'exercice ajouté', 'exercices ajoutés'), ligne(d.photos, 'photo', 'photos'), ligne(d.videos, 'vidéo', 'vidéos'), ligne(d.favoris, 'favori', 'favoris')) : h('p', { role: 'status' }, 'Calcul…'),
+        d && d.octets ? h('p', { className: 'compte-note' }, 'Place utilisée : ' + tailleLisible(d.octets) + '.') : null,
+        h('div', { className: 'gestion-actions' },
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter exercices, photos et vidéos (.zip)'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'sauvegarde'); } catch (e) {} p.allerPresences(); } }, 'Sauvegarder les présences')),
+        msg ? h('p', { className: 'gestion-msg', role: 'status' }, msg) : null),
+      h('section', { className: 'compte-bloc compte-danger', 'aria-labelledby': 'compte-suppr' },
+        h('h3', { id: 'compte-suppr', tabIndex: -1, ref: function (n) { if (n && p.versSuppr && !n.dataset.vu) { n.dataset.vu = 1; n.scrollIntoView({ block: 'start' }); n.focus(); } } }, 'Supprimer mon compte'),
+        h('p', { id: 'compte-suppr-txt' }, 'Efface définitivement de cet appareil votre profil et toutes ses données : licenciés, présences, séances, favoris, exercices ajoutés, photos, vidéos et réglages. Faites une sauvegarde avant.'),
+        h('label', { htmlFor: 'compte-conf', className: 'compte-etiq' }, 'Pour confirmer, écrivez SUPPRIMER'),
+        h('input', { id: 'compte-conf', type: 'text', autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false, 'aria-describedby': 'compte-suppr-txt', value: conf, onChange: function (ev) { setConf(ev.target.value); } }),
+        h('p', { className: 'compte-note', id: 'compte-suppr-etat', 'aria-live': 'polite' }, conf.trim().toUpperCase() === 'SUPPRIMER' ? 'Confirmation saisie : le bouton est actif.' : 'Le bouton s\'active quand SUPPRIMER est écrit.'),
+        h('button', { type: 'button', className: 'cs-btn compte-suppr-btn', 'aria-describedby': 'compte-suppr-etat', disabled: conf.trim().toUpperCase() !== 'SUPPRIMER' || enCours,
+          onClick: function () { if (!window.confirm('Dernière confirmation : tout effacer de cet appareil ?')) return; setEnCours(true); supprimerToutesDonnees(); } },
+          enCours ? 'Suppression…' : 'Supprimer définitivement')));
+  }
   function MenuProfil() {
     var s = React.useState(false), ouvert = s[0], setOuvert = s[1];
     var g = React.useState(false), gestion = g[0], setGestion = g[1];
@@ -4707,10 +4781,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var v = React.useState(0), setVersion = v[1];
     if (!PROFIL) return null;
     var fenProfil = edition ? ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: function () { setEdition(false); } },
-      h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mon profil', onClick: function (ev) { ev.stopPropagation(); },
+      h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mon compte', onClick: function (ev) { ev.stopPropagation(); },
         onKeyDown: function (ev) { if (ev.key === 'Escape') setEdition(false); } },
         h('button', { type: 'button', className: 'btn', style: { alignSelf: 'flex-start' }, onClick: function () { setEdition(false); } }, 'Fermer'),
-        h(EditionProfil, { onFini: function () { setEdition(false); setVersion(Date.now()); try { window.dispatchEvent(new Event('jsb-profil')); } catch (err) {} } }))), document.body) : null;
+        h(MonCompte, { versSuppr: edition === 'suppr', onFini: function () { setEdition(false); setVersion(Date.now()); try { window.dispatchEvent(new Event('jsb-profil')); } catch (err) {} },
+          allerPresences: function () { setEdition(false); var b = Array.prototype.filter.call(document.querySelectorAll('.onglet-nav'), function (x) { return /Présences/.test(x.textContent); })[0]; if (b) b.click(); } }))), document.body) : null;
     var fenReglages = reglages ? ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: function () { setReglages(false); } },
       h('div', { className: 'gn cx-gestion', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Affichage et accessibilité', onClick: function (ev) { ev.stopPropagation(); },
         onKeyDown: function (ev) { if (ev.key === 'Escape') setReglages(false); } },
@@ -4726,10 +4801,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
         h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné'), h('small', { className: 'cx-version' }, 'Version du ' + VERSION_APP)),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
-        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition(true); } }, 'Mon profil (nom, club)'),
+        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition('compte'); } }, 'Mon compte'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité'),
         AUTH_ACTIVE && PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
-        AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null) : null, fenetre, fenReglages, fenProfil);
+        AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null,
+        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-suppr', onClick: function () { setOuvert(false); setEdition('suppr'); } }, 'Supprimer mon compte')) : null, fenetre, fenReglages, fenProfil);
   }
   // ---- Générateur de séance en 5 questions (trame de Girma) :
   // 1. Mobilité : routine toujours la même, choisie une fois et gardée (par profil), modifiable
