@@ -1487,6 +1487,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .gn-bloc-tete b { font-size: .9375rem; }
 .gn-bloc-detail { margin: 4px 0 6px; font-size: .8125rem; color: var(--muted); line-height: 1.4; }
 .gn-bloc ul { margin: 0; }
+.gn-materiel { margin: 4px 0 8px; padding: 10px 12px; border-radius: 10px; background: var(--chip); font-size: .875rem; line-height: 1.45; }
 </style>
 <div id="app"></div>
 <script>/**
@@ -2259,7 +2260,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '26/10/2026 à 12h30';
+  var VERSION_APP = '26/10/2026 à 12h47';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -4938,15 +4939,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.calme === 'Étirements') { var t = fin.filter(function (e) { return !MOTS_CALME.test(sa(e.nom)); }); return t.length ? t : fin; }
       return fin;
     }
-    var formatT = rep.format || formatParDefaut(rep.groupe);
+    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = rep.niveau || niveauParDefaut(rep.groupe);
+    // Taïso : le corps de séance (en blocs) est construit en premier, pour cibler l'échauffement et les étirements sur les zones travaillées
+    var blocsCorps = null, zones = {};
+    if (!judo) {
+      var phC = phases.filter(function (x) { return x[0] === 'Corps de séance'; })[0];
+      blocsCorps = construireBlocs(formatT, base.filter(mom('Corps de séance')), phC[1], doux, choisir, niveauT);
+      zones = zonesTravaillees(blocsCorps);
+    }
+    function cible(pool, n) {   // la moitié au moins prise parmi les exercices qui visent les zones du corps de séance
+      var top = pool.filter(function (e) { return cibleZones(e, zones) > 0; }).sort(function (a, b) { return cibleZones(b, zones) - cibleZones(a, zones); });
+      var a = choisir(top.slice(0, Math.max(n * 2, 4)), Math.ceil(n / 2), false); return a.concat(choisir(pool, n - a.length, false));
+    }
     phases.forEach(function (ph, i) {
-      var min = ph[1], ex, blocsPh = null;
-      // Taïso : corps de séance construit en blocs (circuit, EMOM, Tabata, AMRAP, Pilates / yoga, séries)
+      var min = ph[1], ex;
       if (!judo && ph[0] === 'Corps de séance') {
-        blocsPh = construireBlocs(formatT, base.filter(mom('Corps de séance')), min, rep.groupe === 'Gym douce', choisir);
-        ex = [].concat.apply([], blocsPh.map(function (b) { return b.items.map(function (it) { return it.e; }); }));
-        if (!ex.length) manques.push(ph[0]);
-        resultat.push({ nom: ph[0], minutes: min, blocs: blocsPh, format: formatT, exercices: [].concat.apply([], blocsPh.map(function (b) { return b.items; })) });
+        var items = [].concat.apply([], blocsCorps.map(function (b) { return b.items; })), occupe = blocsCorps.reduce(function (t, b) { return t + b.minutes; }, 0);
+        if (!items.length) manques.push(ph[0]);
+        resultat.push({ nom: ph[0], minutes: min, blocs: blocsCorps, format: formatT, niveau: niveauT, transitions: Math.max(0, Math.round(min - occupe)), exercices: items });
         return;
       }
       if (i === 0) { ex = routine; if (!ex.length) manques.push('routine de mobilité (non choisie)'); }
@@ -4955,6 +4965,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var finS = function () { return base.filter(mom('Fin de séance')); }, calme = function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); };
         if (!judo && ph[0] === 'Retour au calme') { pool = finS().filter(calme); if (!pool.length) pool = finS(); }
         else if (!judo && ph[0] === 'Étirements') { pool = finS().filter(function (e) { return !calme(e); }); if (!pool.length) pool = finS(); }
+        else if (!judo && ph[0] === 'Échauffement') {
+          pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e) && niveauOk(e, niveauT) && (!doux || !estImpact(e)); });
+          if (pool.length < 3) pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); });
+          n = Math.min(4, Math.max(3, Math.round(min / 2)));
+        }
         else if (dernier) pool = poolCalme();
         else if (i === 1) { pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); }); if (!pool.length) pool = base.filter(mom('Échauffement')); }
         else if (judo && i === 3) {
@@ -4965,7 +4980,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (judo && dernier && rep.calme === 'Les deux' && n >= 2) {
           var calmes = choisir(pool.filter(function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); }), 1, false);
           ex = calmes.concat(choisir(pool, n - calmes.length, false));
-        } else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
+        } else if (!judo && (ph[0] === 'Échauffement' || ph[0] === 'Étirements')) ex = cible(pool, n);
+        else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
         if (ex.length < n) manques.push(ph[0]);
       }
       var d = ex.length ? Math.max(1, Math.round(min / ex.length)) : 0;
@@ -5046,7 +5062,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var infos = { groupe: rep.groupe, duree: rep.duree, intensite: 'Modérée', thematique: judo ? (rep.famille && rep.famille !== 'Variée' ? rep.famille : '') : (rep.objectif && rep.objectif !== 'Varié' ? rep.objectif : ''),
         objectif: [rep.objectif && rep.objectif !== 'Varié' ? 'Objectif : ' + rep.objectif : '', tech ? 'Technique : ' + tech : '', rep.calme ? 'Retour au calme : ' + rep.calme.toLowerCase() : ''].filter(Boolean).join(' · ') };
       if (infos.objectif) infos._objectif = true;
-      if (!judo) { infos.format = rep.format || formatParDefaut(rep.groupe); infos.intensite = rep.groupe === 'Gym douce' ? 'Faible (effort 3-4 sur 10)' : 'Modérée (5-6 sur 10)'; }
+      if (!judo) {
+        var cps = res.phases.filter(function (x) { return x.blocs; })[0];
+        infos.format = cps ? cps.format : formatParDefaut(rep.groupe); infos.intensite = rep.groupe === 'Gym douce' ? 'Faible (effort 3-4 sur 10)' : 'Modérée (5-6 sur 10)';
+        if (cps) { var mat = cps.blocs.filter(function (b) { return b.materiel.length; }).map(function (b) { return b.nom.replace(/ · .*/, '') + ' : ' + b.materiel.join(', ').toLowerCase(); }); if (mat.length) infos.materiel = mat.join(' ; '); }
+      }
       var ex = res.phases[1] && res.phases[1].exercices[0]; if (judo && ex) infos.public = ex.e.categorieAge;
       p.valider(ids, plan, infos);
     }
@@ -5069,12 +5089,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var v = d + ' min'; return option(v, rep.duree === v, function () { var n = maj('duree', v); generer(n); });
         })),
         judo ? null : h('div', { className: 'gn-formats' }, h('p', { className: 'gn-aide', id: 'gn-format-l' }, 'Format du corps de séance'),
-          h('div', { className: 'gn-durees', role: 'group', 'aria-labelledby': 'gn-format-l' }, FORMATS_TAISO.map(function (f) {
-            return option(f, (rep.format || formatParDefaut(rep.groupe)) === f, function () { var n = maj('format', f); generer(n); }, 'f-' + f);
+          h('div', { className: 'gn-durees', role: 'group', 'aria-labelledby': 'gn-format-l' }, formatsDe(rep.groupe).map(function (f) {
+            var actif = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe);
+            return option(f, actif === f, function () { var n = maj('format', f); generer(n); }, 'f-' + f);
+          })),
+          h('p', { className: 'gn-aide', id: 'gn-niveau-l' }, 'Niveau maximum des exercices'),
+          h('div', { className: 'gn-durees gn-niveaux', role: 'group', 'aria-labelledby': 'gn-niveau-l' }, NIVEAUX_TAISO.map(function (nv) {
+            return option(nv, (rep.niveau || niveauParDefaut(rep.groupe)) === nv, function () { var n = maj('niveau', nv); generer(n); }, 'n-' + nv);
           }))),
+        (function () { var c = res.phases.filter(function (x) { return x.blocs; })[0]; if (!c) return null;
+          var lignes = c.blocs.filter(function (b) { return b.materiel.length; }).map(function (b) { return b.nom.replace(/ · .*/, '') + ' : ' + b.materiel.join(', ').toLowerCase(); });
+          return h('p', { className: 'gn-materiel' }, h('b', null, 'Matériel à installer : '), lignes.length ? lignes.join(' · ') + ' (1 par station, ou 1 par personne en EMOM / AMRAP)' : 'aucun, poids du corps uniquement');
+        })(),
         res.manques.length ? h('p', { className: 'gn-aide' }, 'Peu d\'exercices disponibles pour : ' + res.manques.join(', ') + '. Complétez dans « Ma séance ».') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
-          return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min')),
+          return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
             ph.blocs ? ph.blocs.map(function (b, k) {
               return h('div', { key: k, className: 'gn-bloc' }, h('div', { className: 'gn-bloc-tete' }, h('b', null, b.nom), h('small', null, b.minutes + ' min')), h('p', { className: 'gn-bloc-detail' }, b.detail),
                 h('ul', null, b.items.map(function (x) { return h('li', { key: x.e.id }, h('span', null, x.e.nom), h('small', null, x.dosage + ' · ' + court(x.e.categorie))); })));
@@ -5091,13 +5120,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } }, contenu)), document.body);
   }
-  // ===== Corps de séance Taïso en blocs (26/10/2026) =====
-  // Formats : Circuit, EMOM, Tabata, AMRAP, Pilates / yoga, Séries classiques. Chaque exercice reçoit son bloc, un dosage lisible
-  // et un « travail » structuré que la séance en direct sait enchaîner (temps ou répétitions, récupération, tours).
-  // Équilibre : les exercices sont pris tour à tour en haut du corps, bas du corps, tronc et cardio.
-  function formatParDefaut(groupe) { return groupe === 'Gym douce' ? 'Circuit' : 'Circuit'; }
+  // ===== Corps de séance Taïso en blocs (26/10/2026, revu le 26/10/2026 après analyse) =====
+  // Formats : Circuit, EMOM, Tabata, AMRAP, Pilates / yoga, Séries classiques (Gym douce : sans Tabata ni AMRAP).
+  // Chaque format ne prend que des exercices qui s'y prêtent (pas de posture de 5 s dans un intervalle de 40 s, pas de
+  // déplacement sur distance au chrono), au plus un exercice d'impact par bloc et placé en tête, les exercices « par côté »
+  // faits des deux côtés dans le même passage, et des durées ajustées pour tomber juste.
+  var FORMATS_DOUX = ['Circuit', 'EMOM', 'Pilates / yoga', 'Séries classiques'];
+  var NIVEAUX_TAISO = ['Débutant', 'Intermédiaire', 'Confirmé'];
+  function formatsDe(groupe) { return groupe === 'Gym douce' ? FORMATS_DOUX : FORMATS_TAISO; }
+  function formatParDefaut(groupe) { return 'Circuit'; }
+  function niveauParDefaut(groupe) { return groupe === 'Gym douce' ? 'Débutant' : 'Intermédiaire'; }
+  function sansA(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function zoneDe(e) {
-    var c = e.categorie || '', t = String(e.muscles || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    var c = e.categorie || '', t = sansA(e.muscles);
     if (/^Cardio|^Pliom/.test(c)) return 'cardio';
     if (/^Gainage/.test(c)) return 'tronc';
     var haut = /epaule|pector|dorsa|biceps|triceps|bras|deltoid|trapez|omoplat|scapul/.test(t), bas = /quadri|fessi|ischio|mollet|adduct|abduct|jambe|cuisse|cheville|hanche/.test(t);
@@ -5106,55 +5141,90 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (/abdo|sangle|lombaire|oblique|transverse|gainage|tronc/.test(t)) return 'tronc';
     return 'global';
   }
-  // Ce qu'on annonce pour un exercice : ses répétitions (« 8 à 10 répétitions ») ou son temps (« 30 s »)
+  function estImpact(e) { return /^Pliom/.test(e.categorie || ''); }
+  function estUnilateral(e) { var d = lireDosage(e.dosage); return !!(e.unilateral || (d && d.cote)); }
+  function niveauOk(e, niveau) { var r = NIVEAUX_TAISO.indexOf(e.niveau); return r < 0 || r <= NIVEAUX_TAISO.indexOf(niveau || 'Confirmé'); }
+  // Un exercice convient-il à ce format ?
+  function convient(e, format) {
+    var d = lireDosage(e.dosage), dos = sansA(e.dosage), c = e.categorie || '';
+    if (/^Mobilit/.test(c)) return false;
+    var deplacement = /aller-retour|aller retour|\d+\s*m\b|traversee|parcours/.test(dos), postures = /respiration/.test(dos);
+    var tenueCourte = d && d.mode === 'temps' && d.sec < 20, iso = !!e.isometrique || (d && d.mode === 'temps' && !/\d+\s*[x×]\s*\d+\s*$/.test(dos) && /tenu|maintien|gainage|planche|chaise/.test(sansA(e.nom)));
+    if (format === 'Pilates / yoga') return !estImpact(e) && !/^Cardio/.test(c) && !deplacement;
+    if (format === 'Séries classiques') return !deplacement && !postures;
+    if (deplacement || postures || tenueCourte) return false;
+    if (format === 'Tabata') return !iso && !estUnilateral(e) && !/^Équilibre/.test(c);
+    if (format === 'EMOM' || format === 'AMRAP') return !/^Équilibre/.test(c) && !(iso && d && d.sec > 45);
+    return !/^Équilibre/.test(c) || !iso;   // Circuit : équilibre dynamique accepté
+  }
   function chargeDe(e, defautSec) {
     var d = lireDosage(e.dosage);
     if (d && d.mode === 'reps') return { reps: d.reps + (d.cote ? ' par côté' : '') };
     return { sec: d && d.sec ? Math.min(d.sec, 60) : defautSec, cote: !!(d && d.cote) };
   }
-  function construireBlocs(format, pool, minutes, doux, choisir) {
-    if (doux) pool = pool.filter(function (e) { return !/^Pliom/.test(e.categorie || '') && e.accessibilite !== 'Publics entraînés uniquement'; });
+  function materielDe(items) {
+    var m = []; items.forEach(function (it) { (it.e.equipement || '').split(' + ').forEach(function (x) { x = x.trim(); if (x && !/^Poids du corps$|^Tatami$|^Partenaire$/.test(x) && m.indexOf(x) < 0) m.push(x); }); });
+    return m;
+  }
+  function construireBlocs(format, poolBrut, minutes, doux, choisir, niveau) {
+    if (formatsDe(doux ? 'Gym douce' : 'Training').indexOf(format) < 0) format = 'Circuit';
+    var pool = poolBrut.filter(function (e) { return convient(e, format) && niveauOk(e, niveau); });
+    if (doux) pool = pool.filter(function (e) { return !estImpact(e) && e.accessibilite !== 'Publics entraînés uniquement'; });
+    if (pool.length < 8) pool = poolBrut.filter(function (e) { return convient(e, format) && (!doux || !estImpact(e)); });   // base trop petite : tous niveaux
     var M = Math.max(8, minutes), lettres = 'ABCDEFGH', blocs = [];
-    // Sélection équilibrée : haut, bas, tronc, cardio à tour de rôle
+    // Sélection équilibrée (haut, bas, tronc, cardio à tour de rôle), au plus un exercice d'impact, placé en tête
     function equilibre(n, prefere) {
-      var zones = doux ? ['bas', 'haut', 'tronc', 'global'] : ['haut', 'bas', 'tronc', 'cardio'], out = [], k = 0, essais = 0;
-      if (prefere) pool = pool.slice().sort(function (a, b) { return (prefere(b) ? 1 : 0) - (prefere(a) ? 1 : 0); });
-      while (out.length < n && essais < n * 6) {
-        var z = zones[k++ % zones.length], cand = pool.filter(function (e) { return zoneDe(e) === z && (!prefere || prefere(e)); });
-        if (!cand.length) cand = pool.filter(function (e) { return zoneDe(e) === z; });
-        var x = choisir(cand, 1, false); if (x.length) out.push(x[0]); essais++;
+      var zones = doux ? ['bas', 'haut', 'tronc', 'global'] : ['haut', 'bas', 'tronc', 'cardio'], out = [], k = 0, essais = 0, impact = 0;
+      var dispo = prefere ? pool.filter(prefere).concat(pool.filter(function (e) { return !prefere(e); })) : pool;
+      while (out.length < n && essais < n * 8) {
+        var z = zones[k++ % zones.length];
+        var cand = dispo.filter(function (e) { return zoneDe(e) === z && (!estImpact(e) || impact < 1) && (!prefere || prefere(e)); });
+        if (!cand.length) cand = dispo.filter(function (e) { return zoneDe(e) === z && (!estImpact(e) || impact < 1); });
+        var x = choisir(cand, 1, false); if (x.length) { out.push(x[0]); if (estImpact(x[0])) impact++; }
+        essais++;
       }
-      if (out.length < n) out = out.concat(choisir(pool, n - out.length, true));
-      return out;
+      if (out.length < n) out = out.concat(choisir(dispo.filter(function (e) { return !estImpact(e) || impact < 1; }), n - out.length, true));
+      return out.sort(function (a, b) { return (estImpact(b) ? 1 : 0) - (estImpact(a) ? 1 : 0); });
     }
-    function bloc(nom, detail, mins, items, extra) { var b = Object.assign({ nom: 'Bloc ' + lettres[blocs.length] + ' · ' + nom, detail: detail, minutes: mins, items: items }, extra || {}); blocs.push(b); return b; }
+    function bloc(nom, detail, mins, items, extra) {
+      var b = Object.assign({ nom: 'Bloc ' + lettres[blocs.length] + ' · ' + nom, detail: detail, minutes: Math.round(mins * 10) / 10, items: items }, extra || {});
+      b.materiel = materielDe(items); blocs.push(b); return b;
+    }
+    // Exercice d'un intervalle chronométré : un exercice « par côté » fait les deux côtés dans le même passage
+    function intervalle(e, eff, rec, tours) {
+      var uni = estUnilateral(e), moitie = Math.max(15, Math.round((eff - 5) / 2));
+      return { e: e, travail: uni ? { sec: moitie, cote: true, recupApres: rec } : { sec: eff, recupApres: rec },
+        dosage: (uni ? moitie + ' s par côté' : eff + ' s') + ' / ' + rec + ' s × ' + tours + (tours > 1 ? ' tours' : ' tour'), duree: Math.round(tours * (eff + rec) / 60 * 10) / 10 };
+    }
     if (format === 'Tabata') {
-      var eT = doux ? 20 : 20, rT = doux ? 20 : 10, dB = doux ? 6 : 5, nT = Math.max(1, Math.floor(M / dB));
-      var exT = equilibre(nT * 2);
+      var nT = Math.max(1, Math.round(M / 5)), exT = equilibre(nT * 2);
       for (var t = 0; t < nT && exT.length; t++) {
         var paire = exT.splice(0, 2);
-        bloc(doux ? 'Tabata doux' : 'Tabata', '8 intervalles en alternance · ' + eT + ' s d\'effort / ' + rT + ' s de récupération · 1 min de pause ensuite', dB,
-          paire.map(function (e) { return { e: e, travail: { sec: eT, recupApres: rT }, dosage: eT + ' s / ' + rT + ' s, 4 passages (alterné)', duree: Math.round((eT + rT) * 4 / 60 * 10) / 10 }; }), { tours: 4 });
+        bloc('Tabata', '8 intervalles en alternance · 20 s d\'effort / 10 s de récupération · 1 min de pause ensuite', 5,
+          paire.map(function (e) { return { e: e, travail: { sec: 20, recupApres: 10 }, dosage: '20 s / 10 s, 4 passages (alterné)', duree: 2 }; }), { tours: 4 });
       }
     } else if (format === 'EMOM') {
-      var kE = doux ? 2 : 3, minB = doux ? 8 : 12, nE = Math.max(1, Math.floor(M / (minB + 1)));
-      if (nE * (minB + 1) < M - 6) minB = Math.floor(M / nE) - 1;
-      var tE = Math.max(2, Math.round(minB / kE)), exE = equilibre(nE * kE);
+      var meilleur = null;   // exercices par bloc, tours et nombre de blocs ajustés à la durée
+      (doux ? [2, 3] : [2, 3, 4]).forEach(function (k) { [1, 2, 3].forEach(function (nb) { [2, 3, 4, 5, 6].forEach(function (to) {
+        var tot = nb * (k * to + 1), ecart = Math.abs(M - tot) + (tot > M ? 2 : 0) + (k === (doux ? 2 : 3) ? 0 : 0.5);
+        if (!meilleur || ecart < meilleur.ecart) meilleur = { k: k, nb: nb, to: to, ecart: ecart };
+      }); }); });
+      var kE = meilleur.k, nE = meilleur.nb, tE = meilleur.to, exE = equilibre(nE * kE);
       for (var b2 = 0; b2 < nE && exE.length; b2++) {
         var grp = exE.splice(0, kE);
-        bloc('EMOM ' + grp.length * tE + ' min', 'Au début de chaque minute, faire l\'exercice, puis récupérer jusqu\'à la minute suivante · ' + tE + ' tours', grp.length * tE + 1,
-          grp.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { sec: 60, reps: c.reps || '', emom: true, tenue: c.sec || 0 }, dosage: 'EMOM : ' + (c.reps || c.sec + ' s') + ' au début de chaque minute', duree: tE }; }), { tours: tE });
+        bloc('EMOM ' + grp.length * tE + ' min', 'Au début de chaque minute, faire l\'exercice, puis récupérer jusqu\'à la minute suivante · ' + tE + ' tours · 1 min de pause ensuite', grp.length * tE + 1,
+          grp.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { sec: 60, reps: c.reps || (c.sec + ' s'), emom: true }, dosage: 'EMOM : ' + (c.reps || c.sec + ' s') + ' au début de chaque minute', duree: tE }; }), { tours: tE });
       }
     } else if (format === 'AMRAP') {
-      var minA = doux ? 8 : 10, kA = doux ? 3 : 4, nA = Math.max(1, Math.floor(M / (minA + 2))), exA = equilibre(nA * kA);
+      var nA = Math.max(1, Math.round(M / 12)), minA = Math.max(6, Math.min(15, Math.round(M / nA) - 2)), kA = minA >= 10 ? 4 : 3, exA = equilibre(nA * kA);
       for (var b3 = 0; b3 < nA && exA.length; b3++) {
         var grpA = exA.splice(0, kA);
         bloc('AMRAP ' + minA + ' min', 'Enchaîner les exercices dans l\'ordre, le plus de tours possible en ' + minA + ' min, à allure régulière · 2 min de pause ensuite', minA + 2,
           grpA.map(function (e) { var c = chargeDe(e, 30); return { e: e, travail: { amrap: minA, reps: c.reps || (c.sec + ' s') }, dosage: 'AMRAP : ' + (c.reps || c.sec + ' s') + ' par tour', duree: Math.round(minA / grpA.length * 10) / 10 }; }), { amrap: minA });
       }
     } else if (format === 'Pilates / yoga') {
-      var tenue = doux ? 30 : 45, nP = Math.max(4, Math.round(M / 3));
-      var exP = equilibre(nP, function (e) { return /^Gainage|^Équilibre|^Mobilit/.test(e.categorie || '') || /pilates|yoga|posture/i.test(e.inspiration || ''); });
+      var tenue = doux ? 30 : 45, parEx = (3 * (tenue + 15) + 20) / 60, nP = Math.max(4, Math.round(M / parEx));
+      var exP = equilibre(nP, function (e) { return /^Gainage|^Équilibre/.test(e.categorie || '') || e.isometrique || /pilates|yoga/i.test(e.inspiration || '') || /asana|\(.*(roll|swim|stretch|kick|teaser|bridge)/i.test(e.nom); });
       bloc('Pilates / yoga', 'Mouvements lents et contrôlés, respiration continue · 3 × ' + tenue + ' s, 15 s entre deux', M,
         exP.map(function (e) { var c = chargeDe(e, tenue); return { e: e, travail: c.reps ? { reps: c.reps, series: 3, recup: 20 } : { sec: tenue, series: 3, recup: 15, cote: c.cote }, dosage: c.reps ? '3 × ' + c.reps + ', lent, récup 20 s' : '3 × ' + tenue + ' s' + (c.cote ? ' par côté' : '') + ', récup 15 s', duree: Math.round(M / exP.length * 10) / 10 }; }));
     } else if (format === 'Séries classiques') {
@@ -5163,19 +5233,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         exS.map(function (e) { var d = lireDosage(e.dosage) || { mode: 'reps', series: 3, reps: '10 répétitions' };
           var tr = d.mode === 'temps' ? { sec: d.sec, series: d.series, recup: rS, cote: d.cote } : { reps: d.reps + (d.cote ? ' par côté' : ''), series: d.series, recup: rS };
           return { e: e, travail: tr, dosage: (e.dosage || '3 × 10') + ', récup ' + rS + ' s', duree: Math.round(M / exS.length * 10) / 10 }; }));
-    } else {   // Circuit
-      var st = doux ? 5 : 6, eff = doux ? 30 : 40, rec = doux ? 30 : 20, tours = doux ? 2 : 3, dureeB = st * tours + 1;
-      var nC = Math.max(1, Math.round(M / dureeB)); if (nC * dureeB > M + 4 && tours > 2) { tours--; dureeB = st * tours + 1; nC = Math.max(1, Math.round(M / dureeB)); }
-      var exC = equilibre(nC * st);
-      for (var b4 = 0; b4 < nC && exC.length; b4++) {
-        var grpC = exC.splice(0, st);
-        bloc('Circuit', grpC.length + ' stations · ' + eff + ' s d\'effort / ' + rec + ' s de récupération · ' + tours + ' tours · 1 min de pause ensuite', grpC.length * tours + 1,
-          grpC.map(function (e) { var c = chargeDe(e, eff); return { e: e, travail: { sec: eff, recupApres: rec, cote: false }, dosage: eff + ' s / ' + rec + ' s × ' + tours + ' tours' + (c.cote ? ' (changer de côté à chaque tour)' : ''), duree: Math.round(tours * (eff + rec) / 60 * 10) / 10 }; }), { tours: tours });
+    } else {   // Circuit : nombre de blocs, de stations et de tours choisis pour tomber au plus près de la durée
+      var eff = doux ? 30 : 40, rec = doux ? 30 : 20, best = null;
+      (doux ? [4, 5] : [5, 6]).forEach(function (st) { (doux ? [2, 3] : [2, 3, 4]).forEach(function (to) { [1, 2, 3, 4].forEach(function (nb) {
+        var tot = nb * (st * to * (eff + rec) / 60 + 1), ecart = Math.abs(M - tot) + (tot > M ? 2 : 0);
+        if (!best || ecart < best.ecart) best = { st: st, to: to, nb: nb, ecart: ecart };
+      }); }); });
+      var exC = equilibre(best.nb * best.st);
+      for (var b4 = 0; b4 < best.nb && exC.length; b4++) {
+        var grpC = exC.splice(0, best.st);
+        bloc('Circuit', grpC.length + ' stations · ' + eff + ' s d\'effort / ' + rec + ' s de récupération · ' + best.to + ' tours · 1 min de pause ensuite', grpC.length * best.to * (eff + rec) / 60 + 1,
+          grpC.map(function (e) { return intervalle(e, eff, rec, best.to); }), { tours: best.to });
       }
     }
     blocs.forEach(function (b) { b.items.forEach(function (it) { it.bloc = b.nom; it.tours = b.tours || 0; it.amrap = b.amrap || 0; }); });
     return blocs;
   }
+  // Zones travaillées dans les blocs → étirements et échauffement ciblés
+  var MOTS_ZONE = { bas: /ischio|quadri|mollet|fessi|psoas|hanche|jambe|cuisse|adduct|cheville|pigeon|papillon/, haut: /epaule|pector|dos|bras|triceps|biceps|nuque|trapez/, tronc: /colonne|torsion|dos|abdo|lombaire|cobra|chat|enfant/ };
+  function zonesTravaillees(blocs) { var z = {}; blocs.forEach(function (b) { b.items.forEach(function (it) { var k = zoneDe(it.e); z[k] = (z[k] || 0) + 1; }); }); return z; }
+  function cibleZones(e, zones) { var t = sansA(e.nom + ' ' + e.muscles + ' ' + e.description), s = 0; Object.keys(zones).forEach(function (k) { if (MOTS_ZONE[k] && MOTS_ZONE[k].test(t)) s += zones[k]; }); return s; }
   // Séance en direct : un circuit (ou un Tabata, un EMOM) se déroule tour par tour ; un AMRAP devient un seul chrono avec sa liste
   function deroulerBlocs(exos) {
     var out = [], i = 0;
