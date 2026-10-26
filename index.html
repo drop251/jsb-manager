@@ -2247,7 +2247,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '26/10/2026 à 11h13';
+  var VERSION_APP = '26/10/2026 à 11h36';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5723,6 +5723,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Les médias de l'appareil (ajoutés par l'éducateur) restent prioritaires.
   var EN_LIGNE = { img: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
   var CLE_CODE_ILLUS = 'jsb-code-illustres';
+  // Code saisi : majuscules, sans espaces, tirets de toutes sortes ramenés au tiret simple (clavier iPhone)
+  function normaliserCode(c) { return String(c || '').toUpperCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ''); }
   function lireCodeIllus() { try { return localStorage.getItem(CLE_CODE_ILLUS) || ''; } catch (e) { return ''; } }
   function b64Octets(t) { var s = atob(t), o = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; }
   // Ajoute à la base les exercices d'un catalogue (un exercice déjà présent, même nom et même espace, reçoit seulement ses médias)
@@ -5799,7 +5801,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (EN_LIGNE.ouvert) return h('p', { className: 'verrou-ouvert' }, '🔓 ' + v.n + (v.n > 1 ? ' exercices réservés déverrouillés' : ' exercice réservé déverrouillé') + ' sur cet appareil. ',
       h('button', { type: 'button', className: 'btn lien', onClick: function () { try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {} location.reload(); } }, 'Reverrouiller'));
     function valider(ev) {
-      ev.preventDefault(); var c = code.trim().toUpperCase(); if (!c) return;
+      ev.preventDefault(); var c = normaliserCode(code); if (!c) return;
       setMsg('Vérification du code…');
       ouvrirVerrou(c).then(function () { try { localStorage.setItem(CLE_CODE_ILLUS, c); } catch (e) {} setMsg('Code accepté.'); try { vibrer('succes'); } catch (e) {} setTimeout(function () { location.reload(); }, 300); },
         function () { setMsg('Code incorrect.'); try { vibrer('erreur'); } catch (e) {} });
