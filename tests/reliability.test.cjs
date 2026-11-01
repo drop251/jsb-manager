@@ -31,7 +31,7 @@ function environnement() {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  for (const name of ['valides','nettoyer','contenuSauvegarde','clesSauvegardeLocales','contenuSauvegardeComplete','validerEspace','restaurerEspaceComplet','versB64','depuisB64','cleChiffrement','chiffrer','dechiffrer','cleMdp','lireMdp','ecrireMdp','enregistrerFichier','partagerFichier','sauvegarderChiffre','lireSauvegarde']) vm.runInContext(fonction(name),ctx);
+  for (const name of ['valides','nettoyer','contenuSauvegarde','suffixeProfil','clesSauvegardeLocales','contenuSauvegardeComplete','validerEspace','restaurerEspaceComplet','versB64','depuisB64','cleChiffrement','chiffrer','dechiffrer','cleMdp','lireMdp','ecrireMdp','enregistrerFichier','partagerFichier','sauvegarderChiffre','lireSauvegarde']) vm.runInContext(fonction(name),ctx);
   donnees.set('jsb-exercices',[{id:1,nom:'Exercice importé',public:['Judo']}]);
   donnees.set('ajouts-test',[{id:5010,nom:'Personnel',public:['Taïso']}]);
   donnees.set('video-5010',{type:'video/mp4',buf:Uint8Array.from([0,255,1,2,200]).buffer});
@@ -126,4 +126,74 @@ test('tampered full backups are rejected before storage changes',async()=>{
   const {ctx,local}=environnement();const backup=await ctx.contenuSauvegardeComplete(ctx.donnees);
   backup.espace.fichiersVideo[0].donnees='invalid base64 %';local.set('selection-test','current');
   assert.throws(()=>ctx.restaurerEspaceComplet(backup));assert.equal(local.get('selection-test'),'current');
+});
+
+test('complete backup includes generator preferences and saved Taiso models', async()=>{
+  const {ctx,local}=environnement();
+  const models=JSON.stringify([{id:'m1',nom:'Séance gym douce'}]);
+  local.set('jsb-modeles-taiso',models);
+  local.set('jsb-gen-taiso','{"groupe":"Gym douce","sansMateriel":true}');
+  const backup=await ctx.contenuSauvegardeComplete(ctx.donnees);
+  local.clear();
+  await ctx.restaurerEspaceComplet(backup);
+  assert.equal(local.get('jsb-modeles-taiso'),models);
+  assert.equal(JSON.parse(local.get('jsb-gen-taiso')).sansMateriel,true);
+});
+
+test('older complete backups preserve newly-added local settings', async()=>{
+  const {ctx,local}=environnement();
+  const backup=await ctx.contenuSauvegardeComplete(ctx.donnees);
+  [8,9,10,11].forEach(k=>delete backup.espace.locaux[k]);
+  local.set('jsb-modeles-taiso','{"local":true}');
+  await ctx.restaurerEspaceComplet(backup);
+  assert.equal(local.get('jsb-modeles-taiso'),'{"local":true}');
+});
+
+test('Judo and Taiso generator phase totals match the requested duration',()=>{
+  const ctx={
+    hasard:()=>()=>0.5,melanger:a=>a,MATERIEL_JUDO:[],
+    MOTS_RANDORI:/randori/i,MOTS_CALME:/calme/i,
+    sa:x=>String(x||'').toLowerCase(),techniqueDe:x=>x,
+    sg:e=>e.sousGroupes,momentsDe:e=>[e.moment],
+    illustre:()=>false,evite:()=>false,estMobilite:()=>false,
+    formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',formatsDe:()=>['Circuit'],
+    niveauOk:()=>true,zoneDe:()=>'tronc',cibleZones:()=>0,
+    construireBlocs:()=>[],zonesTravaillees:()=>({})
+  };
+  vm.createContext(ctx);
+  vm.runInContext(fonction('okTaiso'),ctx);
+  vm.runInContext(fonction('genererSeance'),ctx);
+  const all=[{id:1,nom:'Routine',sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
+  for(const duree of [45,60,75,90]){
+    for(const judo of [true,false]){
+      const rep={groupe:judo?'Poussins':'Training',duree:duree+' min',routine:[1],calme:'Les deux',materiel:[],binome:false};
+      const result=ctx.genererSeance(rep,judo,all,all,1122);
+      assert.equal(result.phases.reduce((n,p)=>n+p.minutes,0),duree,rep.groupe+' '+duree);
+      assert.ok(result.phases.every(p=>p.minutes>0));
+    }
+  }
+});
+
+test('Taiso material filter supports a truly equipment-free session',()=>{
+  const ctx={evite:()=>false};vm.createContext(ctx);vm.runInContext(fonction('okTaiso'),ctx);
+  const rep={sansMateriel:true,binome:false,contraintes:[]};
+  assert.equal(ctx.okTaiso({equipement:'Tatami',format:'Solo'},rep),true);
+  assert.equal(ctx.okTaiso({equipement:'Kettlebell',format:'Solo'},rep),false);
+  assert.equal(ctx.okTaiso({equipement:'Poids du corps + Partenaire',format:'Binôme'},rep),false);
+});
+
+test('Taiso block builder never relaxes the configured level',()=>{
+  const ctx={
+    formatsDe:()=>['Circuit'],convient:()=>true,
+    niveauOk:(e,n)=>e.niveau===n,estImpact:()=>false,zoneDe:()=> 'haut',
+    materielDe:()=>[],intervalle:(e,eff,rec,tours)=>({e,duree:eff,tours})
+  };
+  vm.createContext(ctx);vm.runInContext(fonction('construireBlocs'),ctx);
+  const exer=[{id:1,nom:'Accessible',niveau:'Débutant'},{id:2,nom:'Trop difficile',niveau:'Confirmé'}];
+  const used=new Set();
+  const choisir=(pool,n)=>pool.filter(e=>!used.has(e.id)).slice(0,n).map(e=>(used.add(e.id),e));
+  const blocks=ctx.construireBlocs('Circuit',exer,12,true,choisir,'Débutant',{intensite:0});
+  const all=blocks.flatMap(b=>b.items).map(x=>x.e);
+  assert.ok(all.length>0);
+  assert.ok(all.every(e=>e.niveau==='Débutant'));
 });
