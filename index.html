@@ -3096,10 +3096,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     });
   }
   function PanierSeance(p) {
+    var cleBrouillon = 'jsb-brouillon-' + sa(p.espace).replace(/[^a-z]/g, '') + suffixeProfil();
+    var brouillon = lireJSON(cleBrouillon, {});
     var s1 = React.useState(false), ouvert = s1[0], setOuvert = s1[1];
-    var s2 = React.useState({}), infos = s2[0], setInfos = s2[1];
-    var s3 = React.useState({}), plan = s3[0], setPlan = s3[1];
+    var s2 = React.useState(function () { return brouillon && brouillon.infos || {}; }), infos = s2[0], setInfos = s2[1];
+    var s3 = React.useState(function () { return brouillon && brouillon.plan || {}; }), plan = s3[0], setPlan = s3[1];
     var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
+    React.useEffect(function () {
+      if (!ecrireJSON(cleBrouillon, { infos: infos, plan: plan, modifieLe: Date.now() })) setMsg('Brouillon non enregistré : stockage de cet appareil indisponible.');
+    }, [cleBrouillon, infos, plan]);
     var planning = usePlanning(), histo = useHisto();
     var s5 = React.useState(null), direct = s5[0], setDirect = s5[1];
     // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
@@ -3386,7 +3391,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function sauvegardeAncienne(d) { return d.judokas.length > 0 && (!d.sauvegardeLe || Date.now() - d.sauvegardeLe > JOURS_RAPPEL * 86400000); }
   function contenuSauvegarde(d) { return { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances, planning: d.planning || [], favoris: lireFavoris(), historique: lireHisto() }; }
   // Sauvegarde complète : données du profil actif et médias personnels de cet appareil.
-  function clesSauvegardeLocales() { return [CLE_SEL, cleFavoris(), cleHisto(), cleRoutine('Judo'), cleRoutine('Taïso'), 'jsb-affichage', 'jsb-vue-liste', 'jsb-voix', 'jsb-gen-taiso' + suffixeProfil(), 'jsb-gen-judo' + suffixeProfil(), 'jsb-modeles-taiso' + suffixeProfil(), 'jsb-modeles-judo' + suffixeProfil()]; }
+  function clesSauvegardeLocales() { return [CLE_SEL, cleFavoris(), cleHisto(), cleRoutine('Judo'), cleRoutine('Taïso'), 'jsb-affichage', 'jsb-vue-liste', 'jsb-voix', 'jsb-gen-taiso' + suffixeProfil(), 'jsb-gen-judo' + suffixeProfil(), 'jsb-modeles-taiso' + suffixeProfil(), 'jsb-modeles-judo' + suffixeProfil(), 'jsb-brouillon-judo' + suffixeProfil(), 'jsb-brouillon-taiso' + suffixeProfil()]; }
   function contenuSauvegardeComplete(d) {
     var objet = contenuSauvegarde(d), ids = Object.keys(VIDEOS);
     objet.version = 2;
@@ -5080,10 +5085,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (sg(e).indexOf(rep.groupe) < 0) return false;
       var eq = (e.equipement || '').split(' + ').filter(Boolean);
       if (judo) return eq.every(function (x) { return autorise.indexOf(x) >= 0; });
+      if (!niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))) return false;
+      if (rep.groupe === 'Gym douce' && (estImpact(e) || e.accessibilite === 'Publics entraînés uniquement')) return false;
       return okTaiso(e, rep);
     });
     var routineIDs = rep.routine || [];
-    var routine = routineIDs.map(function (id) { return parId[id]; }).filter(function (e) { return !!e && (judo || okTaiso(e, rep)); });
+    var routine = routineIDs.map(function (id) { return parId[id]; }).filter(function (e) {
+      if (!e) return false;
+      if (judo) return (e.equipement || '').split(' + ').filter(Boolean).every(function (m) { return autorise.indexOf(m) >= 0; });
+      return niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe)) && (rep.groupe !== 'Gym douce' || e.accessibilite !== 'Publics entraînés uniquement') && okTaiso(e, rep);
+    });
     var minRoutine = Math.max(5, Math.min(12, routine.length));
     var reste = Math.max(15, minutes - minRoutine);
     var phases = judo ? [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .18), 5], ['Corps de séance', Math.round(reste * .47), 7], ['Randori', Math.round(reste * .23), 10], ['Étirement', 0, 4]]
@@ -5157,7 +5168,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         else if (!judo && ph[0] === 'Étirements') { pool = finS().filter(function (e) { return !calme(e); }); if (!pool.length) pool = finS(); }
         else if (!judo && ph[0] === 'Échauffement') {
           pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e) && niveauOk(e, niveauT) && (!doux || !estImpact(e)); });
-          if (pool.length < 3) pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); });
+          if (pool.length < 3) pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e) && (!doux || !estImpact(e)) && niveauOk(e, niveauT); });
           n = Math.min(4, Math.max(3, Math.round(min / 2)));
         }
         else if (dernier) pool = poolCalme();
@@ -5535,7 +5546,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function estImpact(e) { return /^Pliom/.test(e.categorie || ''); }
   function estUnilateral(e) { var d = lireDosage(e.dosage); return !!(e.unilateral || (d && d.cote)); }
-  function niveauOk(e, niveau) { var r = NIVEAUX_TAISO.indexOf(e.niveau); return r < 0 || r <= NIVEAUX_TAISO.indexOf(niveau || 'Confirmé'); }
+  function niveauOk(e, niveau) { var r = NIVEAUX_TAISO.indexOf(e.niveau), max = NIVEAUX_TAISO.indexOf(niveau || 'Confirmé'); return r >= 0 && max >= 0 && r <= max; }
   // Un exercice convient-il à ce format ?
   function convient(e, format) {
     var d = lireDosage(e.dosage), dos = sansA(e.dosage), c = e.categorie || '';
