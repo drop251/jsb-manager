@@ -33,3 +33,14 @@ node --test tests/reliability.test.cjs
 Les tests couvrent le chiffrement, la restauration des vidéos, les anciens fichiers, les annulations de partage et téléchargement, la confirmation de conservation, l’échec de stockage, les médias hors ligne et les plages vidéo.
 
 La vérification physique sur Safari iPhone reste nécessaire pour le partage, la lecture des vidéos et la disposition en portrait/paysage.
+
+## Mise à jour du générateur (1er novembre 2026)
+
+- Les préférences du générateur, modèles Taïso et brouillons de préparation Judo/Taïso sont inclus dans les nouvelles sauvegardes complètes chiffrées. Les sauvegardes antérieures restent lisibles ; elles ne contiennent pas rétroactivement ces éléments.
+- Les brouillons de « Ma séance » récupèrent les informations et dosages saisis après une fermeture ou un rechargement, sur le même appareil et le même profil.
+- La génération Taïso respecte les filtres de niveau, d'accessibilité et les contraintes du groupe. Si le catalogue contient trop peu d'exercices compatibles, l'application signale les manques au lieu d'élargir silencieusement les niveaux.
+- Le choix explicite « Sans matériel » limite les propositions au poids du corps et au tatami. Sans équipement sélectionné et sans ce mode, le comportement historique (tout matériel disponible) reste conservé.
+- La répartition temporelle des phases respecte 45, 60, 75 ou 90 minutes. Les remplacements sont priorisés selon la catégorie, la zone de travail et la technique plutôt qu'au hasard.
+- Deux préparations du même jour et du même cours peuvent être enregistrées séparément ; les écritures qui échouent ne sont plus annoncées comme réussies.
+
+**Précision :** les calculs de la séance proposée et les durées réellement animées par l'éducateur peuvent différer selon les transitions pédagogiques. Valider sur iPhone les écrans, les supports importés et l'utilisation hors ligne avant une utilisation en cours. L'application indépendante Moniteur JSB ne fait pas partie de ce dépôt.

@@ -1,0 +1,18 @@
+name: JSB Manager - tests de fiabilite
+on:
+  push:
+    branches:
+      - main
+      - ameliorations-jsb-fiabilite-generateur-20261101
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verifier les sauvegardes et le generateur
+        run: node --test tests/reliability.test.cjs
