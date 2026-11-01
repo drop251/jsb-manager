@@ -1,6 +1,6 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
-// 0bd529a5b3 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-0bd529a5b3';
+// 20261101-backup-offline-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
+var CACHE = 'jsb-manager-20261101-backup-offline-v1';
 var FICHIERS = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
@@ -22,11 +22,33 @@ self.addEventListener('fetch', function (ev) {
   }
   if (url.origin !== self.location.origin) return;
   // Exercices illustrés publiés avec l'app : catalogue réseau d'abord (mises à jour), photos et vidéos gardées pour le hors-ligne
-  if (url.pathname.indexOf('/illustres/') >= 0 && !req.headers.get('range')) {
+  if (url.pathname.indexOf('/illustres/') >= 0) {
     var catalogue = /catalogue\.json$/.test(url.pathname);
-    ev.respondWith(caches.open('jsb-illustres').then(function (c) {
-      var reseau = fetch(req).then(function (rep) { if (rep.ok) c.put(req, rep.clone()); return rep; });
-      return catalogue ? reseau.catch(function () { return c.match(req); }) : c.match(req).then(function (r) { return r || reseau; });
+    ev.respondWith(caches.open('jsb-illustres').then(async function (c) {
+      var complet = new Request(req.url), range = req.headers.get('range');
+      var local = await c.match(complet);
+      // Safari demande les vidéos par plages : servir aussi ces plages depuis la copie complète.
+      if (range && local) {
+        var buf = await local.arrayBuffer(), taille = buf.byteLength;
+        var m = /^bytes=(\d*)-(\d*)$/.exec(range), debut, fin;
+        if (m && (m[1] || m[2])) {
+          debut = m[1] ? Number(m[1]) : Math.max(0, taille - Number(m[2]));
+          fin = m[1] && m[2] ? Math.min(Number(m[2]), taille - 1) : taille - 1;
+          if (debut <= fin && debut < taille) {
+            var h = new Headers(local.headers); h.set('Content-Range', 'bytes ' + debut + '-' + fin + '/' + taille);
+            h.set('Content-Length', String(fin - debut + 1)); h.set('Accept-Ranges', 'bytes'); h.delete('Content-Encoding');
+            return new Response(buf.slice(debut, fin + 1), { status: 206, headers: h });
+          }
+        }
+        return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + taille } });
+      }
+      if (range) return fetch(req);
+      if (!catalogue && local) return local;
+      try {
+        var rep = await fetch(req);
+        if (rep.ok) { await c.put(complet, rep.clone()); return rep; }
+        return local || rep;
+      } catch (e) { return local || Response.error(); }
     }));
     return;
   }

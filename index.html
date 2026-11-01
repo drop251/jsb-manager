@@ -1281,7 +1281,7 @@ html, body { overflow-x: clip; }
 .sd.flash { animation: sd-flash .6s ease-out; }
 @keyframes sd-flash { 0% { background: #2E6B47; } 100% { background: var(--nuit); } }
 @media (prefers-reduced-motion: reduce) { .sd.flash { animation: none; } }
-.sd-haut { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); font-size: var(--t-s); font-weight: 600; color: var(--argent); }
+.sd-haut { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e3); font-size: var(--t-s); font-weight: 600; color: var(--argent); }
 .sd-quitter { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(244, 245, 239, .35); background: none; color: var(--creme); font-size: 1.25rem; cursor: pointer; }
 .sd-progres { height: 4px; margin: 8px 0 0; border-radius: 2px; background: rgba(244, 245, 239, .18); overflow: hidden; }
 .sd-progres i { display: block; height: 100%; background: var(--creme); transform-origin: 0 50%; transition: transform .3s; }
@@ -1354,7 +1354,7 @@ html, body { overflow-x: clip; }
 .sd-voix { margin-left: auto; margin-right: 8px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(244, 245, 239, .35); background: none; color: var(--creme); font: inherit; font-size: .875rem; font-weight: 700; cursor: pointer; }
 .sd-voix[aria-pressed="true"] { background: var(--creme); color: var(--nuit); }
 .sd-quitter, .sd-voix { flex: none; }
-.sd-haut > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-haut > span { flex: 1 1 120px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ===== Vidéos d'exercices (20/10/2026) ===== */
 .video-exo { display: block; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 16 / 9; height: auto; border-radius: 12px; background: #0E1A2E; object-fit: contain; }
 .sheet .illus-fiche:has(.video-exo) { padding: 0; overflow: hidden; background: #0E1A2E; }
@@ -2293,7 +2293,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '27/10/2026 à 18h19';
+  var VERSION_APP = '01/11/2026 · sauvegardes et hors ligne';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2710,6 +2710,42 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function insec(s) { return String(s).replace(/(\d) (s|sec|min|répétitions?|respirations?|fois|pas)\b/g, '$1 $2').replace(/ à /g, ' à '); }
 
   // --- Mode séance en direct : plein écran, vidéo au centre, compte à rebours ou répétitions selon l'exercice, bip + vibration
+  // Prépare explicitement les médias de cette séance, y compris les vidéos réservées.
+  function preparerHorsLigne(exos, base, progression) {
+    if (!window.caches || !navigator.serviceWorker || !navigator.serviceWorker.controller) return Promise.reject(new Error('installation'));
+    var urls = ['illustres/catalogue.json'], locaux = [], ids = {};
+    var parId = {}; base.forEach(function (e) { parId[e.id] = e; });
+    exos.forEach(function (x) {
+      if (ids[x.id]) return; ids[x.id] = true;
+      var e = parId[x.id]; if (!e) return;
+      if (VIDEOS[e.id]) locaux.push(Stockage.lire(cleVideo(e.id)).then(function (v) { if (!v || !v.buf || !v.buf.byteLength) throw new Error('video'); }));
+      else if (EN_LIGNE.vidC[e.id]) urls.push('illustres/' + EN_LIGNE.vidC[e.id].f);
+      else if (EN_LIGNE.vid[e.id]) urls.push(EN_LIGNE.vid[e.id]);
+      if (!IMG_PERSO[e.id]) {
+        if (EN_LIGNE.imgC[e.id]) urls.push('illustres/' + EN_LIGNE.imgC[e.id].f);
+        else if (EN_LIGNE.img[e.id] && EN_LIGNE.img[e.id].indexOf('illustres/') === 0) urls.push(EN_LIGNE.img[e.id]);
+      }
+    });
+    urls = urls.filter(function (u, i) { return urls.indexOf(u) === i; });
+    return Promise.all(locaux).then(function () { return caches.open('jsb-illustres'); }).then(function (cache) {
+      var file = Promise.resolve();
+      urls.forEach(function (url, i) { file = file.then(function () {
+        progression('Préparation hors ligne : ' + (i + 1) + ' / ' + urls.length);
+        return cache.match(url).then(function (r) {
+          if (r && r.ok) return;
+          var ctl = new AbortController(), delai = setTimeout(function () { ctl.abort(); }, 20000);
+          return fetch(url, { signal: ctl.signal }).then(function (rep) {
+            if (!rep.ok || rep.status === 206) throw new Error('media');
+            return cache.put(url, rep);
+          }).finally(function () { clearTimeout(delai); });
+        });
+      }); });
+      return file.then(function () { return caches.match(new URL('index.html', location.href).href); }).then(function (page) {
+        if (!page) throw new Error('installation');
+        return 'Séance disponible hors ligne sur cet appareil. Les modifications ultérieures nécessitent une nouvelle vérification.';
+      });
+    });
+  }
   function SeanceDirecte(p) {
     var exos = deroulerBlocs((p.seance.exos || []).filter(function (x) { return x && x.nom; })), PH = phasesSeance(p.seance);
     var parId = {}; (p.base || BASE).forEach(function (e) { parId[e.id] = e; });
@@ -2720,6 +2756,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s3 = React.useState(null), finA = s3[0], setFinA = s3[1];      // horodatage de fin quand le minuteur tourne
     var s4 = React.useState(false), termine = s4[0], setTermine = s4[1];
     var dernierBip = React.useRef(-1);
+    var hors = React.useState(''), msgHors = hors[0], setMsgHors = hors[1];
+    var charge = React.useState(false), chargeHors = charge[0], setChargeHors = charge[1];
     // Annonces vocales (option, gardée sur l'appareil) : exercice suivant, récupération, changement de côté
     var s6 = React.useState(function () { return lireJSON('jsb-voix', false) === true; }), voix = s6[0], setVoix = s6[1];
     function parler(t) {
@@ -2805,9 +2843,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return ReactDOM.createPortal(h('div', { className: 'sd', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Séance en direct : ' + (p.seance.titre || p.seance.espace) },
       h('div', { className: 'sd-haut' },
         h('span', null, p.seance.titre || p.seance.espace),
+        h('button', { type: 'button', className: 'sd-voix', disabled: chargeHors, onClick: function () {
+          setChargeHors(true); preparerHorsLigne(exos, p.base || BASE, setMsgHors).then(setMsgHors, function () {
+            setMsgHors('Hors ligne non confirmé. Ouvrez l’app avec internet, vérifiez vos médias puis réessayez.');
+          }).then(function () { setChargeHors(false); });
+        } }, chargeHors ? 'Téléchargement…' : 'Préparer hors ligne'),
         window.speechSynthesis ? h('button', { type: 'button', className: 'sd-voix', 'aria-pressed': voix, onClick: function () { var v = !voix; setVoix(v); ecrireJSON('jsb-voix', v); if (v) { try { var u = new SpeechSynthesisUtterance('Annonces vocales activées'); u.lang = 'fr-FR'; speechSynthesis.speak(u); } catch (err) {} } } }, voix ? '🔊 Voix' : '🔇 Voix') : null,
         h('button', { type: 'button', className: 'sd-quitter', 'aria-label': 'Quitter la séance', onClick: p.fermer, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, '✕')),
       h('div', { className: 'sd-progres', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + ((termine ? exos.length : i) / Math.max(1, exos.length)) + ')' } })),
+      msgHors ? h('p', { role: 'status', className: 'pr-mini', style: { padding: '8px 16px' } }, msgHors) : null,
       corps), document.body);
   }
 
@@ -3035,16 +3079,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function enregistrerFichier(nom, blob, setMsg) {
     setMsg('Préparation du fichier…');
-    telechargements.then(function (dl) {
+    return telechargements.then(function (dl) {
       if (dl) {
-        return dl.save({ filename: nom, data: blob }).then(function () { setMsg('Fiche enregistrée.'); }, function (err) {
-          setMsg(err && err.code === 'declined' ? 'Téléchargement annulé.' : err && err.code === 'rate_limited' ? 'Une demande est déjà ouverte : répondez-y, puis réessayez.' : "Le téléchargement n'est pas disponible dans cette vue. Utilisez le fichier JSB-Manager ouvert sur votre ordinateur.");
+        return dl.save({ filename: nom, data: blob }).then(function () { setMsg('Fichier enregistré.'); return { statut: 'enregistre' }; }, function (err) {
+          setMsg(err && err.code === 'declined' ? 'Téléchargement annulé.' : err && err.code === 'rate_limited' ? 'Une demande est déjà ouverte : répondez-y, puis réessayez.' : "Le téléchargement n'est pas disponible dans cette vue. Réessayez depuis votre navigateur.");
+          return { statut: 'annule' };
         });
       }
       var url = URL.createObjectURL(blob), a = document.createElement('a');
       a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      setMsg('Téléchargement lancé : regardez dans votre dossier Téléchargements.');
+      setMsg('Téléchargement lancé : vérifiez le fichier dans Téléchargements avant de confirmer.');
+      return { statut: 'lance' };
     });
   }
   function PanierSeance(p) {
@@ -3279,6 +3325,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         });
         return file;
       },
+      ecrireLot: function (entrees) {
+        var travail = file.then(function () { return ouvrir().then(function (db) {
+          return new Promise(function (ok, ko) {
+            var tx = db.transaction(TABLE, 'readwrite'), t = tx.objectStore(TABLE);
+            tx.oncomplete = function () { ok(true); }; tx.onerror = tx.onabort = function () { ko(tx.error || new Error('stockage')); };
+            try { entrees.forEach(function (x) { t.put(x[1], x[0]); }); }
+            catch (err) { tx.abort(); ko(err); }
+          });
+        }); });
+        file = travail.catch(function () { return false; }); return travail;
+      },
       fermer: function () { var o = ouverture; ouverture = null; return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve(); },
       oublierAncien: function (cle) { try { localStorage.removeItem(cle); } catch (err) {} },
       ancien: lireLocal,
@@ -3324,6 +3381,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var JOURS_RAPPEL = 7;  // sauvegarde complète conseillée chaque semaine
   function sauvegardeAncienne(d) { return d.judokas.length > 0 && (!d.sauvegardeLe || Date.now() - d.sauvegardeLe > JOURS_RAPPEL * 86400000); }
   function contenuSauvegarde(d) { return { format: 'jsb-presences', version: 1, exporteLe: new Date().toISOString(), judokas: d.judokas, seances: d.seances, planning: d.planning || [], favoris: lireFavoris(), historique: lireHisto() }; }
+  // Sauvegarde complète : données du profil actif et médias personnels de cet appareil.
+  function clesSauvegardeLocales() { return [CLE_SEL, cleFavoris(), cleHisto(), cleRoutine('Judo'), cleRoutine('Taïso'), 'jsb-affichage', 'jsb-vue-liste', 'jsb-voix']; }
+  function contenuSauvegardeComplete(d) {
+    var objet = contenuSauvegarde(d), ids = Object.keys(VIDEOS);
+    objet.version = 2;
+    return Promise.all([Stockage.lire('jsb-exercices'), Stockage.lire(CLE_AJOUTS)].concat(ids.map(function (id) {
+      return Stockage.lire(cleVideo(id)).then(function (v) {
+        if (!v || !v.buf || !v.buf.byteLength) throw new Error('video-manquante');
+        return { id: id, type: v.type, donnees: versB64(v.buf) };
+      });
+    }))).then(function (r) {
+      var locaux = {}; clesSauvegardeLocales().forEach(function (k, i) { locaux[i] = localStorage.getItem(k); });
+      objet.espace = { base: r[0] || [], ajouts: r[1] || [], illustrations: ILLUS_IA, images: IMG_PERSO, videos: VIDEOS, fichiersVideo: r.slice(2), locaux: locaux };
+      return objet;
+    });
+  }
+  function validerEspace(c) {
+    if (!c.espace) return;
+    var e = c.espace;
+    if (c.version !== 2 || !Array.isArray(e.base) || !Array.isArray(e.ajouts) || !Array.isArray(e.fichiersVideo) ||
+      !e.images || !e.illustrations || !e.videos || !e.locaux ||
+      !e.base.concat(e.ajouts).every(function (x) { return x && x.id != null && typeof x.nom === 'string' && Array.isArray(x.public); })) throw new Error('format');
+    var ids = {};
+    e.fichiersVideo.forEach(function (v) {
+      if (!v || !/^\d+$/.test(v.id) || ids[v.id] || !e.videos[v.id] || typeof v.donnees !== 'string') throw new Error('format');
+      ids[v.id] = 1; depuisB64(v.donnees);
+    });
+    if (Object.keys(e.videos).some(function (id) { return !ids[id]; })) throw new Error('format');
+    Object.keys(e.locaux).forEach(function (k) { if (e.locaux[k] !== null && typeof e.locaux[k] !== 'string') throw new Error('format'); });
+  }
+  function restaurerEspaceComplet(c) {
+    validerEspace(c);
+    var e = c.espace, entrees = [['jsb-exercices', e.base], [CLE_AJOUTS, e.ajouts], [CLE_ILLUS_IA, e.illustrations], [CLE_IMG_PERSO, e.images], [CLE_VIDEOS, e.videos],
+      [CLE_PRES, { judokas: c.judokas, seances: c.seances, planning: c.planning || [] }]];
+    e.fichiersVideo.forEach(function (v) { entrees.push([cleVideo(v.id), { type: v.type, buf: depuisB64(v.donnees).buffer }]); });
+    var cles = clesSauvegardeLocales(), avant = cles.map(function (k) { return localStorage.getItem(k); });
+    function remettre() { cles.forEach(function (k, i) { if (avant[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, avant[i]); }); }
+    try { cles.forEach(function (k, i) { var v = e.locaux[i]; if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); }); }
+    catch (err) { remettre(); return Promise.reject(err); }
+    return Stockage.ecrireLot(entrees).catch(function (err) { remettre(); throw err; });
+  }
   // Favoris et séances enregistrées : restaurés avec la sauvegarde (fusion, rien n'est perdu sur l'appareil)
   function restaurerExtras(c) {
     if (Array.isArray(c.favoris)) { var f = lireFavoris(); c.favoris.forEach(function (id) { if (f.indexOf(id) < 0) f.push(id); }); ecrireJSON(cleFavoris(), f); try { window.dispatchEvent(new Event('jsb-fav')); } catch (e) {} }
@@ -3363,26 +3461,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function dechiffrer(c, mdp) {
     return cleChiffrement(mdp, depuisB64(c.sel), c.iter || ITER_PBKDF2).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: depuisB64(c.iv) }, k, depuisB64(c.donnees)); })
-      .then(function (b) { var o = JSON.parse(new TextDecoder().decode(b)); if (!o || o.format !== 'jsb-presences' || !valides(o)) throw new Error('format'); return nettoyer(o); });
+      .then(function (b) { var o = JSON.parse(new TextDecoder().decode(b)); if (!o || o.format !== 'jsb-presences' || !valides(o)) throw new Error('format'); validerEspace(o); return nettoyer(o); });
   }
   function cleMdp() { return 'jsb-mdp-' + CLE_PRES; }
-  function lireMdp() { try { return localStorage.getItem(cleMdp()) || ''; } catch (e) { return ''; } }
-  function ecrireMdp(m) { try { if (m) localStorage.setItem(cleMdp(), m); else localStorage.removeItem(cleMdp()); return true; } catch (e) { return false; } }
+  // Le mot de passe n'est conservé qu'en mémoire jusqu'à la fermeture de la page.
+  var MDP_SESSION = {};
+  function lireMdp() { try { localStorage.removeItem(cleMdp()); } catch (e) {} return MDP_SESSION[cleMdp()] || ''; }
+  function ecrireMdp(m) { try { localStorage.removeItem(cleMdp()); } catch (e) {} MDP_SESSION[cleMdp()] = m || ''; return true; }
+  try { Object.keys(localStorage).filter(function (k) { return k.indexOf('jsb-mdp-') === 0; }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
   // Téléphone : feuille de partage (iCloud Drive, Google Drive, Mail…) ; ordinateur : téléchargement
   function partagerFichier(nom, blob, setMsg) {
     try {
       var f = new File([blob], nom, { type: 'application/json' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [f] }) && /Android|iPhone|iPad|iPod/.test(navigator.userAgent)) {
-        return navigator.share({ files: [f], title: 'Sauvegarde JSB Manager' }).then(function () { setMsg('Sauvegarde envoyée. Rangez-la dans iCloud Drive ou Google Drive pour la garder hors du téléphone.'); },
-          function (e) { if (e && e.name === 'AbortError') setMsg('Partage annulé : la sauvegarde n\'a pas été rangée.'); else enregistrerFichier(nom, blob, setMsg); });
+        return navigator.share({ files: [f], title: 'Sauvegarde JSB Manager' }).then(function () {
+          setMsg('Partage terminé. Vérifiez que votre fichier est conservé dans Fichiers ou votre Drive.'); return { statut: 'partage' };
+        }, function (e) {
+          if (e && e.name === 'AbortError') { setMsg('Partage annulé : aucune sauvegarde confirmée.'); return { statut: 'annule' }; }
+          return enregistrerFichier(nom, blob, setMsg);
+        });
       }
     } catch (e) {}
-    enregistrerFichier(nom, blob, setMsg);
+    return enregistrerFichier(nom, blob, setMsg);
   }
   function sauvegarderChiffre(d, mdp, setMsg) {
     setMsg('Chiffrement de la sauvegarde…');
-    return chiffrer(contenuSauvegarde(d), mdp).then(function (c) {
-      partagerFichier('sauvegarde-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(c)], { type: 'application/json' }), setMsg);
+    return contenuSauvegardeComplete(d).then(function (objet) { return chiffrer(objet, mdp); }).then(function (c) {
+      return partagerFichier('sauvegarde-JSB-' + aujourdhui() + '.json', new Blob([JSON.stringify(c)], { type: 'application/json' }), setMsg);
     });
   }
   function lireSauvegarde(fichier) {
@@ -3390,7 +3495,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var c = JSON.parse(t);
       if (c && c.format === 'jsb-presences-chiffre' && c.donnees && c.iv && c.sel) return c;
       if (!c || c.format !== 'jsb-presences' || !valides(c)) throw new Error('format');
-      return nettoyer(c);
+      validerEspace(c); return nettoyer(c);
     });
   }
   // ===== Versions automatiques : l'état d'avant la première modification du jour, et avant chaque import ou effacement (7 gardées) =====
@@ -3688,19 +3793,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var d = p.donnees, depuis = d.sauvegardeLe ? Math.floor((Date.now() - d.sauvegardeLe) / 86400000) : null;
     var erreur = m1 && m1.length < 8 ? 'Au moins 8 caractères.' : m2 && m1 !== m2 ? 'Les deux mots de passe sont différents.' : '';
     return h('div', { className: 'pr-maj pr-svg', role: 'region', 'aria-label': 'Sauvegarde' },
-      h('strong', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, 'Sauvegarde des présences'),
+      h('strong', { tabIndex: -1, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, 'Sauvegarde complète de mon espace'),
       h('p', { className: 'pr-mini' }, depuis == null ? 'Aucune sauvegarde pour l\'instant : licenciés et appels ne sont que sur cet appareil.' : 'Dernière sauvegarde ' + (depuis === 0 ? 'aujourd\'hui' : 'il y a ' + depuis + ' jour' + (depuis > 1 ? 's' : '')) + '.'),
-      choix ? h('form', { className: 'pr-svg-mdp', onSubmit: function (ev) { ev.preventDefault(); if (!erreur && m1 && m1 === m2) { ecrireMdp(m1); setMdp(m1); setChoix(false); setM1(''); setM2(''); p.setMsg('Mot de passe de sauvegarde enregistré sur cet appareil.'); } } },
-          h('p', { className: 'pr-mini' }, 'Choisissez un mot de passe : la sauvegarde sera chiffrée et pourra être rangée sans risque dans iCloud Drive ou Google Drive. Notez-le bien : sans lui, la sauvegarde ne peut pas être ouverte.'),
+      choix ? h('form', { className: 'pr-svg-mdp', onSubmit: function (ev) { ev.preventDefault(); if (!erreur && m1 && m1 === m2) { ecrireMdp(m1); setMdp(m1); setChoix(false); setM1(''); setM2(''); p.setMsg('Mot de passe disponible pour cette ouverture uniquement. Conservez-le dans votre gestionnaire de mots de passe.'); } } },
+          h('p', { className: 'pr-mini' }, 'Choisissez un mot de passe pour chiffrer la sauvegarde. Il sera demandé à nouveau après fermeture de la page. Conservez-le : sans lui, le fichier ne peut pas être ouvert.'),
           h('input', { type: 'text', autoComplete: 'username', value: 'Sauvegarde JSB Manager', readOnly: true, hidden: true }),
           h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mdp1' }, 'Mot de passe (8 caractères minimum)'), h('input', { id: 'pr-mdp1', type: 'password', autoComplete: 'new-password', value: m1, onChange: function (ev) { setM1(ev.target.value); } })),
           h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mdp2' }, 'Confirmer le mot de passe'), h('input', { id: 'pr-mdp2', type: 'password', autoComplete: 'new-password', value: m2, 'aria-invalid': !!erreur || undefined, 'aria-describedby': erreur ? 'pr-mdp-msg' : undefined, onChange: function (ev) { setM2(ev.target.value); } })),
           erreur ? h('p', { id: 'pr-mdp-msg', className: 'pr-mini pr-erreur', role: 'alert' }, erreur) : null,
-          h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !!erreur || !m1 || m1 !== m2 }, 'Enregistrer le mot de passe'),
+          h('div', { className: 'gestion-actions' }, h('button', { type: 'submit', className: 'cs-btn plein', disabled: !!erreur || !m1 || m1 !== m2 }, 'Utiliser ce mot de passe'),
             mdp ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setChoix(false); } }, 'Annuler') : null))
         : h('div', { className: 'gestion-actions' },
-          h('button', { type: 'button', className: 'cs-btn plein pr-svg-go', disabled: occupe || !d.judokas.length, onClick: function () { setOccupe(true); p.onSauvegarder(mdp).then(function () { setOccupe(false); }); } }, occupe ? 'Chiffrement…' : 'Sauvegarder maintenant'),
+          h('button', { type: 'button', className: 'cs-btn plein pr-svg-go', disabled: occupe, onClick: function () { setOccupe(true); p.onSauvegarder(mdp).then(function () { setOccupe(false); }, function () { setOccupe(false); p.setMsg('Sauvegarde impossible. Réessayez.'); }); } }, occupe ? 'Chiffrement…' : 'Sauvegarder maintenant'),
           h('button', { type: 'button', className: 'cs-btn', onClick: function () { setChoix(true); } }, 'Changer le mot de passe')),
+      h('p', { className: 'pr-mini' }, 'Inclus : présences, planning, séances, favoris, sélection, routines, base importée, exercices ajoutés, photos, illustrations et vidéos personnelles de cet appareil. Les médias du catalogue en ligne se téléchargent séparément. Le fichier peut être volumineux.'),
       choix ? null : h('p', { className: 'pr-mini' }, 'Sur téléphone, choisissez ensuite « Enregistrer dans Fichiers » (iCloud Drive) ou Google Drive : la sauvegarde sera à l\'abri même si le téléphone est perdu. Pour retrouver vos données sur un autre appareil, ouvrez ce fichier avec « Restaurer une sauvegarde ».'),
       h('details', { className: 'pr-versions' }, h('summary', null, 'Versions automatiques' + (versions ? ' (' + versions.length + ')' : '')),
         h('p', { className: 'pr-mini' }, 'L\'app garde seule, sur cet appareil, l\'état d\'avant la première modification de chaque journée et d\'avant chaque import ou effacement (7 dernières).'),
@@ -3756,12 +3862,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function sauvegarder() { setPanneauSvg(true); setMsg(''); }
     function sauvegarderMaintenant(mdp) {
-      return sauvegarderChiffre(donnees, mdp, setMsg).then(function () {
-        var d = Object.assign({}, donnees, { sauvegardeLe: Date.now() }); setDonnees(d); Stockage.ecrire(CLE_PRES, d);
-      }, function () { setMsg('Le chiffrement n\'est pas disponible dans ce navigateur : sauvegarde impossible ici.'); });
+      return sauvegarderChiffre(donnees, mdp, setMsg).then(function (resultat) {
+        if (!resultat || resultat.statut === 'annule') return;
+        if (!window.confirm('Avez-vous vérifié que le fichier de sauvegarde est bien conservé dans Fichiers, Téléchargements ou votre Drive ?')) {
+          setMsg('Export effectué, conservation du fichier non confirmée. Le rappel de sauvegarde reste actif.'); return;
+        }
+        var d = Object.assign({}, donnees, { sauvegardeLe: Date.now() });
+        return Stockage.ecrire(CLE_PRES, d).then(function (ok) {
+          if (!ok) { setMsg('Fichier confirmé, mais sa date ne peut pas être enregistrée sur cet appareil.'); return; }
+          setDonnees(d); setMsg('Sauvegarde complète : conservation du fichier confirmée.');
+        });
+      }, function () { setMsg('Sauvegarde impossible : vérifiez le stockage, les médias et la disponibilité du chiffrement. Aucune sauvegarde confirmée.'); });
     }
     function proposerRestauration(c) {
       setDemandeMdp(null);
+      if (c.espace) {
+        setAConfirmer({ texte: 'Restaurer cet espace complet ? Les présences, exercices, médias personnels, séances et réglages actuels seront remplacés. Les médias personnels sont communs aux profils de cet appareil. Exportez votre espace actuel avant de continuer.',
+          action: function () {
+            setMsg('Restauration complète en cours…');
+            noterVersion(donnees, 'Avant restauration complète').then(function () { return restaurerEspaceComplet(c); }).then(function () {
+              setMsg('Espace restauré. Réouverture…'); location.reload();
+            }, function () { setMsg('Restauration impossible : espace de stockage insuffisant ou fichier invalide. Les données précédentes sont conservées.'); });
+          } }); return;
+      }
       setAConfirmer({ texte: 'Remplacer les données de cet appareil par la sauvegarde du ' + dateFr((c.exporteLe || '').slice(0, 10)) + ' (' + c.judokas.length + (c.judokas.length > 1 ? ' judokas, ' : ' judoka, ') + c.seances.length + (c.seances.length > 1 ? ' appels) ?' : ' appel) ?') + ' L\'état actuel est gardé dans les versions automatiques.',
         action: function () { restaurerExtras(c); maj({ judokas: c.judokas, seances: c.seances, planning: c.planning && c.planning.length ? c.planning : (donnees.planning || []), sauvegardeLe: Date.now() }, 'Sauvegarde restaurée (licenciés, appels, planning, favoris et séances).', 'Avant restauration'); } });
     }
@@ -3893,7 +4016,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
         h('div', { className: 'pr-actions' }, importBtn,
           h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
-          h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn));
+          h('button', { type: 'button', className: 'pr-action', onClick: sauvegarder }, 'Sauvegarde'), restaurerBtn));
     var entetePr = h('div', { className: 'pr-barre' },
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
@@ -4870,7 +4993,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         d && d.octets ? h('p', { className: 'compte-note' }, 'Place utilisée : ' + tailleLisible(d.octets) + '.') : null,
         h('div', { className: 'gestion-actions' },
           h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter exercices, photos et vidéos (.zip)'),
-          h('button', { type: 'button', className: 'cs-btn', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'sauvegarde'); } catch (e) {} p.allerPresences(); } }, 'Sauvegarder les présences')),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'sauvegarde'); } catch (e) {} p.allerPresences(); } }, 'Sauvegarder tout mon espace')),
         msg ? h('p', { className: 'gestion-msg', role: 'status' }, msg) : null),
       h('section', { className: 'compte-bloc compte-danger', 'aria-labelledby': 'compte-suppr' },
         h('h3', { id: 'compte-suppr', tabIndex: -1, ref: function (n) { if (n && p.versSuppr && !n.dataset.vu) { n.dataset.vu = 1; n.scrollIntoView({ block: 'start' }); n.focus(); } } }, 'Supprimer mon compte'),
@@ -6321,7 +6444,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // préparées par outils/en_ligne.py. Version claude.ai (privée) : tous les exercices illustrés ; GitHub (public) : 10 seulement.
   // Un exercice déjà dans la base (même nom, même espace) reçoit seulement ses médias ; sinon il est ajouté.
   // Les médias de l'appareil (ajoutés par l'éducateur) restent prioritaires.
-  var EN_LIGNE = { img: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
+  var EN_LIGNE = { img: {}, imgC: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
   var CLE_CODE_ILLUS = 'jsb-code-illustres';
   // Code saisi : majuscules, sans espaces, tirets de toutes sortes ramenés au tiret simple (clavier iPhone)
   function normaliserCode(c) { return String(c || '').toUpperCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ''); }
@@ -6355,7 +6478,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         EN_LIGNE.cle = cle; var m = o.medias || {}, images = [];
         fusionnerEnLigne(o.exercices || [], function (x, cible) {
           var r = m[String(x.id)] || {};
-          if (r.image && !IMG_PERSO[cible.id]) images.push([cible.id, r.image]);
+          if (r.image && !IMG_PERSO[cible.id]) { EN_LIGNE.imgC[cible.id] = r.image; images.push([cible.id, r.image]); }
           if (r.video) { EN_LIGNE.vidC[cible.id] = r.video; EN_LIGNE.vid[cible.id] = 'chiffre'; }
         });
         EN_LIGNE.ouvert = true;
@@ -6378,7 +6501,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function cleEL(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
   function chargerEnLigne() {
-    EN_LIGNE = { img: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
+    EN_LIGNE = { img: {}, imgC: {}, vid: {}, vidC: {}, n: 0, verrou: null, ouvert: false, cle: null };
     if (!/^https?:$/.test(location.protocol) || !window.fetch) return Promise.resolve();
     return fetch('illustres/catalogue.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
       if (!c || c.format !== 'jsb-illustres' || !Array.isArray(c.exercices)) return;
