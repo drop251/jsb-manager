@@ -225,3 +225,56 @@ test('replacement requires an explicit selection and offers undo',()=>{
   assert.match(html,/Adapter au groupe/);
   assert.match(html,/Mes modèles enregistrés/);
 });
+
+test('block material logic is independent from illustration symbols',()=>{
+  assert.equal((html.match(/function materielBlocs\(/g)||[]).length,1);
+  assert.equal((html.match(/function materielDe\(/g)||[]).length,1);
+  assert.match(html,/b\.materiel = materielBlocs\(items\)/);
+  const ctx={};vm.createContext(ctx);vm.runInContext(fonction('materielBlocs'),ctx);
+  const items=[{e:{equipement:'Kettlebell + Tatami'}},{e:{equipement:'Elastique + Kettlebell + Partenaire'}}];
+  assert.deepEqual([...ctx.materielBlocs(items)],['Kettlebell','Elastique']);
+});
+
+test('cancelling an editable session requires confirmation and clears only the draft',()=>{
+  let confirmed=false,selected=['a'],infos={keep:true},plan={id:1},closed=false,clearedToken=false;
+  const ctx={
+    window:{confirm:()=>confirmed},
+    sel:{set:ids=>{selected=ids;return true;}},
+    p:{espace:'Judo',effacerGeneration:()=>{clearedToken=true;}},
+    setInfos:v=>{infos=v;},setPlan:v=>{plan=v;},setMsg:()=>{},setDirect:()=>{},setOuvert:v=>{closed=!v;}
+  };vm.createContext(ctx);vm.runInContext(fonction('abandonner',4),ctx);
+  assert.equal(ctx.abandonner(),false);assert.deepEqual(selected,['a']);assert.equal(closed,false);
+  confirmed=true;assert.equal(ctx.abandonner(),true);assert.deepEqual(selected,[]);
+  assert.deepEqual(infos,{});assert.deepEqual(plan,{});assert.ok(closed);assert.ok(clearedToken);
+});
+
+test('failed selection write must not erase draft during cancellation',()=>{
+  let writes=0;
+  const ctx={window:{confirm:()=>true},sel:{set:()=>false},
+    p:{espace:'Taïso'},setInfos:()=>{writes++;},setPlan:()=>{writes++;},setMsg:()=>{},setDirect:()=>{},setOuvert:()=>{writes++;}};
+  vm.createContext(ctx);vm.runInContext(fonction('abandonner',4),ctx);
+  assert.equal(ctx.abandonner(),false);assert.equal(writes,0);
+});
+
+test('generator cancellation requires confirmation and errors remain in the generator',()=>{
+  let confirmed=false,closed=0,result='untouched',error='';
+  const ctx={
+    window:{confirm:()=>confirmed},p:{espace:'Judo',fermer:()=>{closed++;}},rep:{duree:'60 min'},graine:1,
+    eviter:{},judo:true,setRes:v=>{result=v;},setPrecedentRes:()=>{},setChoixRemplacement:()=>{},
+    setErreurGeneration:v=>{error=v;},genererSeance:()=>{throw Error('catalogue incomplet');},
+    console:{error:()=>{}}
+  };vm.createContext(ctx);
+  vm.runInContext(fonction('demanderAnnulation',4),ctx);
+  vm.runInContext(fonction('generer',4),ctx);
+  assert.equal(ctx.demanderAnnulation(),false);assert.equal(closed,0);assert.equal(result,'untouched');
+  ctx.generer();assert.match(error,/Impossible de générer/);assert.equal(result,null);
+  confirmed=true;assert.equal(ctx.demanderAnnulation(),true);assert.equal(closed,1);
+});
+
+test('cancelled proposals do not persist preferences, and pending transfer is consumed',()=>{
+  const gen=fonction('generer',4), save=fonction('valider',4);
+  assert.doesNotMatch(gen,/ecrireJSON\(cleReponses/);
+  assert.match(save,/if \(!p\.valider\(ids, plan, infos\)\) return/);
+  assert.match(html,/p\.effacerGeneration\(jeton\)/);
+  assert.match(html,/Annuler la préparation/);
+});
