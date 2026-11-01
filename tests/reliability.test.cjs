@@ -131,22 +131,25 @@ test('tampered full backups are rejected before storage changes',async()=>{
 test('complete backup includes generator preferences and saved Taiso models', async()=>{
   const {ctx,local}=environnement();
   const models=JSON.stringify([{id:'m1',nom:'Séance gym douce'}]);
-  local.set('jsb-modeles-taiso',models);
-  local.set('jsb-gen-taiso','{"groupe":"Gym douce","sansMateriel":true}');
+  const suffix=ctx.suffixeProfil();
+  local.set('jsb-modeles-taiso'+suffix,models);
+  local.set('jsb-gen-taiso'+suffix,'{"groupe":"Gym douce","sansMateriel":true}');
+  local.set('jsb-brouillon-taiso'+suffix,'{"plan":{"123":{"duree":"5"}},"infos":{}}');
   const backup=await ctx.contenuSauvegardeComplete(ctx.donnees);
   local.clear();
   await ctx.restaurerEspaceComplet(backup);
-  assert.equal(local.get('jsb-modeles-taiso'),models);
-  assert.equal(JSON.parse(local.get('jsb-gen-taiso')).sansMateriel,true);
+  assert.equal(local.get('jsb-modeles-taiso'+suffix),models);
+  assert.equal(JSON.parse(local.get('jsb-gen-taiso'+suffix)).sansMateriel,true);
+  assert.equal(JSON.parse(local.get('jsb-brouillon-taiso'+suffix)).plan[123].duree,'5');
 });
 
 test('older complete backups preserve newly-added local settings', async()=>{
   const {ctx,local}=environnement();
   const backup=await ctx.contenuSauvegardeComplete(ctx.donnees);
-  [8,9,10,11].forEach(k=>delete backup.espace.locaux[k]);
-  local.set('jsb-modeles-taiso','{"local":true}');
+  [8,9,10,11,12,13].forEach(k=>delete backup.espace.locaux[k]);
+  local.set('jsb-modeles-taiso'+ctx.suffixeProfil(),'{"local":true}');
   await ctx.restaurerEspaceComplet(backup);
-  assert.equal(local.get('jsb-modeles-taiso'),'{"local":true}');
+  assert.equal(local.get('jsb-modeles-taiso'+ctx.suffixeProfil()),'{"local":true}');
 });
 
 test('Judo and Taiso generator phase totals match the requested duration',()=>{
