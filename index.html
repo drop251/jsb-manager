@@ -2568,7 +2568,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return { ids: ids, has: function (id) { return ids.indexOf(id) >= 0; },
       toggle: function (id) {
         var n = ids.indexOf(id) >= 0 ? ids.filter(function (x) { return x !== id; }) : ids.concat([id]);
-        ecrireJSON(cleFavoris(), n); setIds(n); try { window.dispatchEvent(new Event('jsb-fav')); } catch (e) {}
+        if (!ecrireJSON(cleFavoris(), n)) { try { annoncer('Favori non enregistré : stockage indisponible.'); } catch (e) {} return; }
+        setIds(n); try { window.dispatchEvent(new Event('jsb-fav')); } catch (e) {}
       } };
   }
   function BoutonFavori(p) {
@@ -2974,7 +2975,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Ajout venu d'ailleurs (Assistant JSB) : relire la sélection enregistrée
     React.useEffect(function () { function relire() { setTout(lireSel()); } window.addEventListener('jsb-sel', relire); return function () { window.removeEventListener('jsb-sel', relire); }; }, []);
     var ids = tout[espace] || [];
-    function ecrire(n) { var t = Object.assign({}, tout); t[espace] = n; setTout(t); try { localStorage.setItem(CLE_SEL, JSON.stringify(t)); } catch (err) {} }
+    function ecrire(n) { var t = Object.assign({}, tout); t[espace] = n;
+      if (!ecrireJSON(CLE_SEL, t)) { try { annoncer('Sélection non enregistrée : stockage indisponible.'); } catch (err) {} return false; }
+      setTout(t); try { window.dispatchEvent(new Event('jsb-sel')); } catch (err) {} return true;
+    }
     function has(id) { return ids.indexOf(id) >= 0; }
     return { ids: ids, has: has, set: ecrire, clear: function () { ecrire([]); },
       toggle: function (id) { ecrire(has(id) ? ids.filter(function (x) { return x !== id; }) : ids.concat([id])); } };
@@ -6823,7 +6827,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       genOuvert ? h(Generateur, { espace: esp.label, donnees: tous, tout: donnees, sous: f.sous, fermer: function () { setGenOuvert(false); },
         valider: function (ids, plan, infos) {
           if (sel.ids.length && !window.confirm('Remplacer les ' + sel.ids.length + ' exercices déjà dans « Ma séance » par la séance générée ?')) return;
-          sel.set(ids); setGenere({ jeton: Date.now(), plan: plan, infos: infos }); setGenOuvert(false);
+          if (!sel.set(ids)) return;
+          setGenere({ jeton: Date.now(), plan: plan, infos: infos }); setGenOuvert(false);
         } }) : null)));
   }
   // Démarrage : base d'exercices, puis connexion (profil), puis exercices ajoutés du profil, puis l'app
