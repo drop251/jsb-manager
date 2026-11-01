@@ -53,3 +53,14 @@ La vérification physique sur Safari iPhone reste nécessaire pour le partage, l
 - Le cache hors ligne a changé de version pour déclencher l'installation de la nouvelle interface. Si l'ancienne version reste affichée sur l'écran d'accueil iPhone, ouvrir l'app avec une connexion puis la relancer après mise à jour du service worker.
 
 Les tests automatiques vérifient les calculs et le flux de remplacement. Ils ne remplacent pas une vérification ergonomique et fonctionnelle sur un véritable iPhone.
+
+## Correction : annuler une préparation de séance (1er novembre 2026)
+
+- **Générer une séance**, en Judo comme en Taïso : un bouton « Annuler la préparation » est visible à chaque étape et sur la proposition. Fermer depuis le fond de fenêtre ou la touche Échap demande aussi confirmation.
+- Une génération abandonnée ne modifie plus les préférences enregistrées du générateur ; les préférences et la routine choisie sont enregistrées après validation effective dans « Ma séance ».
+- **Ma séance** : « Annuler la préparation » efface, après confirmation, les exercices sélectionnés ainsi que les informations et durées du brouillon courant. Les séances enregistrées dans l'historique ne sont pas supprimées. Un échec de stockage laisse le brouillon intact et affiche un message.
+- La proposition transférée dans « Ma séance » est consommée une seule fois : elle ne se réinstalle plus après navigation entre les écrans.
+- Correction de deux fonctions homonymes de matériel qui perturbaient les listes de matériel des circuits Taïso et des modèles.
+- La navigation automatique de l'assistant Judo ne dépend plus d'un délai de 120 ms ; une erreur de génération affiche un message explicite au lieu d'un écran cassé.
+
+Après mise à jour sur iPhone, rouvrir JSB Manager avec une connexion pour recevoir la nouvelle version hors ligne. Contrôler les parcours sur un véritable appareil avant emploi en cours.
