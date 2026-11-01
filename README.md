@@ -44,3 +44,12 @@ La vérification physique sur Safari iPhone reste nécessaire pour le partage, l
 - Deux préparations du même jour et du même cours peuvent être enregistrées séparément ; les écritures qui échouent ne sont plus annoncées comme réussies.
 
 **Précision :** les calculs de la séance proposée et les durées réellement animées par l'éducateur peuvent différer selon les transitions pédagogiques. Valider sur iPhone les écrans, les supports importés et l'utilisation hors ligne avant une utilisation en cours. L'application indépendante Moniteur JSB ne fait pas partie de ce dépôt.
+
+## Interface de préparation simplifiée (1er novembre 2026)
+
+- L'écran Taïso conserve ses réglages essentiels visibles ; les modèles, le matériel détaillé et les adaptations au groupe sont repliés par défaut et restent accessibles avec un résumé de la sélection. Aucun filtre existant n'est effacé lors de l'ouverture ou la fermeture de ces rubriques.
+- « Remplacer » affiche désormais jusqu'à cinq exercices compatibles et classés par pertinence : rien ne change tant que l'éducateur n'a pas choisi un remplaçant. Le retrait, le remplacement et le dosage peuvent être annulés avec « Annuler la dernière retouche ».
+- Le nombre d'exercices et la durée de la proposition sont affichés dans l'en-tête de la séance ; les minutes des exercices d'une même phase (hors blocs de travail) sont réparties sans dépasser sa durée totale.
+- Le cache hors ligne a changé de version pour déclencher l'installation de la nouvelle interface. Si l'ancienne version reste affichée sur l'écran d'accueil iPhone, ouvrir l'app avec une connexion puis la relancer après mise à jour du service worker.
+
+Les tests automatiques vérifient les calculs et le flux de remplacement. Ils ne remplacent pas une vérification ergonomique et fonctionnelle sur un véritable iPhone.

@@ -165,6 +165,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   };
   vm.createContext(ctx);
   vm.runInContext(fonction('okTaiso'),ctx);
+  vm.runInContext(fonction('repartirDurees'),ctx);
   vm.runInContext(fonction('genererSeance'),ctx);
   const all=[{id:1,nom:'Routine',sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
   for(const duree of [45,60,75,90]){
@@ -173,6 +174,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
       const result=ctx.genererSeance(rep,judo,all,all,1122);
       assert.equal(result.phases.reduce((n,p)=>n+p.minutes,0),duree,rep.groupe+' '+duree);
       assert.ok(result.phases.every(p=>p.minutes>0));
+      result.phases.filter(p=>!p.blocs && p.exercices.length).forEach(p=>assert.equal(p.exercices.reduce((n,e)=>n+e.duree,0),p.minutes,p.nom));
     }
   }
 });
@@ -199,4 +201,27 @@ test('Taiso block builder never relaxes the configured level',()=>{
   const all=blocks.flatMap(b=>b.items).map(x=>x.e);
   assert.ok(all.length>0);
   assert.ok(all.every(e=>e.niveau==='Débutant'));
+});
+
+test('individual exercise durations are distributed without cumulative rounding error',()=>{
+  const ctx={};vm.createContext(ctx);vm.runInContext(fonction('repartirDurees'),ctx);
+  assert.deepEqual([...ctx.repartirDurees(13,4)],[4,3,3,3]);
+  assert.deepEqual([...ctx.repartirDurees(11,3)],[4,4,3]);
+  assert.deepEqual([...ctx.repartirDurees(0,0)],[]);
+  for(const minutes of [5,7,45,60,75,90]) for(let n=1;n<=minutes;n++){
+    const values=[...ctx.repartirDurees(minutes,n)];
+    assert.equal(values.length,n);
+    assert.equal(values.reduce((a,b)=>a+b,0),minutes);
+    assert.ok(values.every(v=>v>=1));
+    assert.ok(Math.max(...values)-Math.min(...values)<=1);
+  }
+});
+test('replacement requires an explicit selection and offers undo',()=>{
+  const code=fonction('remplacer',4);
+  assert.match(code,/setChoixRemplacement/);
+  assert.doesNotMatch(code,/retoucher\(/);
+  assert.match(html,/Choisir un exercice compatible/);
+  assert.match(html,/Annuler la dernière retouche/);
+  assert.match(html,/Adapter au groupe/);
+  assert.match(html,/Mes modèles enregistrés/);
 });
