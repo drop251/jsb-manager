@@ -193,7 +193,9 @@ test('Taiso block builder never relaxes the configured level',()=>{
     niveauOk:(e,n)=>e.niveau===n,estImpact:()=>false,zoneDe:()=> 'haut',
     materielDe:()=>[],intervalle:(e,eff,rec,tours)=>({e,duree:eff,tours})
   };
-  vm.createContext(ctx);vm.runInContext(fonction('construireBlocs'),ctx);
+  vm.createContext(ctx);
+  vm.runInContext(fonction('materielBlocs'),ctx);
+  vm.runInContext(fonction('construireBlocs'),ctx);
   const exer=[{id:1,nom:'Accessible',niveau:'Débutant'},{id:2,nom:'Trop difficile',niveau:'Confirmé'}];
   const used=new Set();
   const choisir=(pool,n)=>pool.filter(e=>!used.has(e.id)).slice(0,n).map(e=>(used.add(e.id),e));
@@ -244,8 +246,8 @@ test('cancelling an editable session requires confirmation and clears only the d
     setInfos:v=>{infos=v;},setPlan:v=>{plan=v;},setMsg:()=>{},setDirect:()=>{},setOuvert:v=>{closed=!v;}
   };vm.createContext(ctx);vm.runInContext(fonction('abandonner',4),ctx);
   assert.equal(ctx.abandonner(),false);assert.deepEqual(selected,['a']);assert.equal(closed,false);
-  confirmed=true;assert.equal(ctx.abandonner(),true);assert.deepEqual(selected,[]);
-  assert.deepEqual(infos,{});assert.deepEqual(plan,{});assert.ok(closed);assert.ok(clearedToken);
+  confirmed=true;assert.equal(ctx.abandonner(),true);assert.deepEqual([...selected],[]);
+  assert.equal(Object.keys(infos).length,0);assert.equal(Object.keys(plan).length,0);assert.ok(closed);assert.ok(clearedToken);
 });
 
 test('failed selection write must not erase draft during cancellation',()=>{
