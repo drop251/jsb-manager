@@ -1496,6 +1496,18 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .gn-unique { gap: 14px; }
 .gn-q { display: flex; flex-direction: column; gap: 6px; }
 .gn-q h3 { margin: 0; font-size: .9375rem; font-weight: 800; }
+.gn-avances { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: var(--bg); }
+.gn-avances > summary { list-style-position: inside; cursor: pointer; min-height: 52px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; font-weight: 700; }
+.gn-avances > summary small { color: var(--muted); font-size: .8125rem; font-weight: 500; }
+.gn-avances[open] { padding-bottom: 12px; }
+.gn-avances .gn-q { margin-top: 8px; }
+.gn-alternatives { padding: 10px; margin: 4px 0 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.gn-alternatives > strong { display: block; margin-bottom: 8px; font-size: .875rem; }
+.gn-alternatives ul { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.gn-alternatives ul li { border: none; padding: 0; }
+.gn-alternatives .gn-alt { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-height: 44px; }
+.gn-alternatives .gn-alt small { color: var(--muted); font-size: .8125rem; font-weight: 400; }
+.gn-alternatives .cs-btn { margin-top: 8px; }
 .gn-choix.gn-chips { display: flex !important; flex-direction: row !important; flex-wrap: wrap; gap: 6px; grid-template-columns: none; }
 .gn-choix.gn-chips .gn-option { width: auto !important; justify-content: center; gap: 8px; flex: 0 0 auto; min-height: 44px; padding: 0 14px; }
 .gn-exo { list-style: none; }
@@ -5081,6 +5093,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (rep.sansMateriel) return eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami'; });
     return !(rep.materiel && rep.materiel.length) || eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami' || x === 'Partenaire' || rep.materiel.indexOf(x) >= 0; });
   }
+  // Répartir les minutes sans dépasser la durée de la phase à cause des arrondis.
+  function repartirDurees(minutes, nombre) {
+    var n = Math.max(0, Math.floor(nombre)), total = Math.max(0, Math.floor(minutes));
+    if (!n) return [];
+    var base = Math.floor(total / n), reste = total % n, durees = [];
+    for (var i = 0; i < n; i++) durees.push(base + (i < reste ? 1 : 0));
+    return durees;
+  }
   function genererSeance(rep, judo, tous, tout, graine) {
     var r = hasard(graine), minutes = parseInt(rep.duree, 10) || 60, parId = {};
     tout.forEach(function (e) { parId[e.id] = e; });
@@ -5189,8 +5209,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
         if (ex.length < n) manques.push(ph[0]);
       }
-      var d = ex.length ? Math.max(1, Math.round(min / ex.length)) : 0;
-      resultat.push({ nom: ph[0], minutes: min, exercices: ex.map(function (e) { return { e: e, duree: d }; }) });
+      if (ex.length > min) ex = ex.slice(0, min);
+      var durees = repartirDurees(min, ex.length);
+      resultat.push({ nom: ph[0], minutes: min, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
     });
     return { phases: resultat, manques: manques };
   }
@@ -5217,6 +5238,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s9 = React.useState(function () { var l = lireJSON(cleModeles, []); return Array.isArray(l) ? l : []; }), modeles = s9[0], setModeles = s9[1];
     var s10 = React.useState(null), nomModele = s10[0], setNomModele = s10[1];
     var s11 = React.useState(null), edition = s11[0], setEdition = s11[1];
+    var s12 = React.useState(null), precedentRes = s12[0], setPrecedentRes = s12[1];
+    var s13 = React.useState(null), choixRemplacement = s13[0], setChoixRemplacement = s13[1];
     var usages = React.useMemo(function () { return derniersUsages(lireHisto()); }, []);
     function ecrireModeles(l) { if (!ecrireJSON(cleModeles, l)) { try { annoncer('Modèle non enregistré : stockage indisponible.'); } catch (err) {} return false; } setModeles(l); return true; }
     function sansCles(o, cles) { var n = {}; Object.keys(o).forEach(function (k) { if (cles.indexOf(k) < 0) n[k] = o[k]; }); return n; }
@@ -5240,6 +5263,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return n;
       });
       setRep(Object.assign({}, rep, m.rep, { routine: rep.routine })); setOuverts({}); setEdition(null);
+      setPrecedentRes(null); setChoixRemplacement(null);
       setRes({ manques: [], phases: phases });
     }
     React.useEffect(function () {
@@ -5273,6 +5297,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function generer(n) {
       var r = n || rep;
       if (!judo) ecrireJSON(cleReponses, { groupe: r.groupe, objectif: r.objectif, materiel: r.materiel, calme: r.calme, format: r.format, niveau: r.niveau, duree: r.duree, illustres: !!r.illustres, participants: r.participants || 0, intensite: r.intensite || 0, contraintes: r.contraintes || [], binome: !!r.binome, sansMateriel: !!r.sansMateriel });
+      setPrecedentRes(null); setChoixRemplacement(null);
       setRes(genererSeance(Object.assign({}, r, { eviter: eviter }), judo, p.donnees, p.tout, graine));
     }
     // Le groupe déjà choisi dans la liste (sous-groupe ouvert) n'est pas redemandé
@@ -5292,10 +5317,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('h2', null, 'Préparer une séance de Taïso'),
         h('p', { className: 'gn-aide' }, 'Vos réponses de la dernière fois sont déjà cochées : ajustez si besoin, puis générez.'),
         coursJour ? h('p', { className: 'gn-cours' }, '📅 Cours d\'aujourd\'hui : ' + coursJour.texte + ' · séance de ' + coursJour.duree) : null,
-        modeles.length ? section('gq-modeles', 'Mes modèles de séance', h('ul', { className: 'gn-modeles' }, modeles.map(function (m) {
+        modeles.length ? h('details', { className: 'gn-avances' }, h('summary', null, 'Mes modèles enregistrés', h('small', null, modeles.length + ' modèle' + (modeles.length > 1 ? 's' : ''))),
+          section('gq-modeles', 'Choisir un modèle', h('ul', { className: 'gn-modeles' }, modeles.map(function (m) {
           return h('li', { key: m.id }, h('button', { type: 'button', className: 'gn-option gn-modele', onClick: function () { chargerModele(m); } }, h('b', null, m.nom), h('small', null, [m.rep.groupe, m.rep.duree, m.phases.filter(function (x) { return x.format; }).map(function (x) { return x.format; })[0]].filter(Boolean).join(' · '))),
             h('button', { type: 'button', className: 'gn-exo-btn', 'aria-label': 'Supprimer le modèle ' + m.nom, title: 'Supprimer le modèle', onClick: function () { ecrireModeles(modeles.filter(function (x) { return x.id !== m.id; })); } }, '✕'));
-        }))) : null,
+        })))) : null,
         section('gq-groupe', 'Groupe', chips('groupe', groupes)),
         section('gq-routine', 'Routine de mobilité', h('div', null,
           h('div', { className: 'gn-choix gn-chips' }, presets0.map(function (x) { return option(x[0] + ' (' + x[1].length + ')', !editRoutine && rep.routine.join() === x[1].join(), function () { setEditRoutine(false); maj('routine', x[1].slice()); }, 'r' + x[0]); })
@@ -5305,14 +5331,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             return option((i >= 0 ? (i + 1) + '. ' : '') + e.nom, i >= 0, function () { maj('routine', i >= 0 ? rep.routine.filter(function (x) { return x !== e.id; }) : rep.routine.concat([e.id])); }, e.id);
           })) : null)),
         section('gq-objectif', 'Objectif', chips('objectif', objectifs)),
-        section('gq-materiel', 'Matériel disponible', h('div', null, h('p', { className: 'gn-aide' }, 'Choisissez « Sans matériel » pour utiliser uniquement le poids du corps et le tatami. Sans autre choix, tous les équipements sont possibles.'),
+        h('details', { className: 'gn-avances' },
+          h('summary', null, 'Matériel disponible', h('small', null, rep.sansMateriel ? 'Sans matériel' : (rep.materiel || []).length ? rep.materiel.length + ' équipement(s) sélectionné(s)' : 'Tout matériel possible')),
+          section('gq-materiel', 'Matériel pour la séance', h('div', null, h('p', { className: 'gn-aide' }, 'Choisissez « Sans matériel » pour utiliser uniquement le poids du corps et le tatami. Sans autre choix, tous les équipements sont possibles.'),
           h('div', { className: 'gn-choix gn-chips' }, option('Sans matériel', !!rep.sansMateriel, function () { setRep(Object.assign({}, rep, { sansMateriel: !rep.sansMateriel, materiel: [] })); }, 'sans-materiel')),
-          h('div', { className: 'gn-choix multi gn-chips' }, eqTaiso.map(function (c) { var on = !rep.sansMateriel && rep.materiel.indexOf(c) >= 0; return option(c, on, function () { setRep(Object.assign({}, rep, { sansMateriel: false, materiel: on ? rep.materiel.filter(function (x) { return x !== c; }) : rep.materiel.concat([c]) })); }, 'm' + c); })))),
-        section('gq-eviter', 'À éviter pour ce groupe', h('div', null, h('p', { className: 'gn-aide' }, 'Les exercices qui sollicitent ces zones, ou dont la fiche signale un risque pour elles, sont écartés.'),
+          h('div', { className: 'gn-choix multi gn-chips' }, eqTaiso.map(function (c) { var on = !rep.sansMateriel && rep.materiel.indexOf(c) >= 0; return option(c, on, function () { setRep(Object.assign({}, rep, { sansMateriel: false, materiel: on ? rep.materiel.filter(function (x) { return x !== c; }) : rep.materiel.concat([c]) })); }, 'm' + c); }))))),
+        h('details', { className: 'gn-avances' },
+          h('summary', null, 'Adapter au groupe', h('small', null, [(rep.contraintes || []).length ? rep.contraintes.length + ' précaution(s)' : '', rep.binome ? 'Binôme autorisé' : '', rep.participants ? rep.participants + ' participants' : ''].filter(Boolean).join(' · ') || 'Précautions, binôme et effectif')),
+          section('gq-eviter', 'À éviter pour ce groupe', h('div', null, h('p', { className: 'gn-aide' }, 'Les exercices qui sollicitent ces zones, ou dont la fiche signale un risque pour elles, sont écartés.'),
           h('div', { className: 'gn-choix multi gn-chips' }, CONTRAINTES.map(function (c) { var l = rep.contraintes || [], on = l.indexOf(c) >= 0; return option(c, on, function () { maj('contraintes', on ? l.filter(function (x) { return x !== c; }) : l.concat([c])); }, 'c' + c); })))),
         section('gq-binome', 'Travail à deux', h('div', { className: 'gn-choix gn-chips' }, option('Exercices en binôme (avec un partenaire)', !!rep.binome, function () { maj('binome', !rep.binome); }, 'binome'))),
         section('gq-pers', 'Nombre de participants (environ)', h('div', { className: 'gn-choix gn-chips' }, [6, 10, 15, 20, 25].map(function (n) {
-          return option(n === 25 ? '25 et +' : String(n), rep.participants === n, function () { maj('participants', rep.participants === n ? 0 : n); }, 'p' + n); }))),
+          return option(n === 25 ? '25 et +' : String(n), rep.participants === n, function () { maj('participants', rep.participants === n ? 0 : n); }, 'p' + n); })))),
         section('gq-calme', 'Fin de séance', chips('calme', ['Étirements', 'Respiration et relaxation', 'Les deux'])),
         h('div', { className: 'gn-actions' },
           h('button', { type: 'button', className: 'cs-btn', onClick: p.fermer }, 'Annuler'),
@@ -5381,18 +5411,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var r2 = copieRes(), ph = r2.phases[i];
       if (ph.blocs) ph.blocs.forEach(function (b) { var j = b.items.indexOf(x); if (j >= 0) { if (nouveau) b.items[j] = nouveau; else b.items.splice(j, 1); b.materiel = materielDe(b.items); } });
       var j2 = ph.exercices.indexOf(x); if (j2 >= 0) { if (nouveau) ph.exercices[j2] = nouveau; else ph.exercices.splice(j2, 1); }
-      setRes(r2);
+      setPrecedentRes(res); setChoixRemplacement(null); setRes(r2);
+    }
+    function annulerRetouche() {
+      if (!precedentRes) return;
+      setRes(precedentRes); setPrecedentRes(null); setChoixRemplacement(null);
     }
     function remplacer(i, x) {
-      var ph = res.phases[i], l = candidatsPour(ph, x); if (!l.length) return;
+      var ph = res.phases[i], l = candidatsPour(ph, x);
+      if (!l.length) { try { annoncer('Aucun remplacement compatible avec le groupe et les réglages.'); } catch (err) {} return; }
       // Sélection reproductible par pertinence : même catégorie, même zone, technique et non-répétition récente.
       l.sort(function (a, b) {
         function pertinence(e) { return (e.categorie === x.e.categorie ? 8 : 0) + (zoneDe(e) === zoneDe(x.e) ? 4 : 0) + (e.technique && e.technique === x.e.technique ? 6 : 0) - (eviter[e.id] ? 3 : 0); }
         return pertinence(b) - pertinence(a) || a.nom.localeCompare(b.nom, 'fr');
       });
-      var e = l[0];
-      retoucher(i, x, x.travail ? itemRemplacant(x, e, ph.format, rep.groupe === 'Gym douce') : { e: e, duree: x.duree });
-      try { annoncer('Remplacé par ' + e.nom); } catch (err) {}
+      var cle = i + '-' + x.e.id;
+      setChoixRemplacement(choixRemplacement && choixRemplacement.cle === cle ? null : { cle: cle, candidats: l.slice(0, 5) });
     }
     // Dosage modifié à la main : relu (temps ou répétitions, séries, récupération) pour la séance en direct
     function changerDosage(i, x, texte) {
@@ -5410,6 +5444,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function ligneExo(i, x, detail) {
       var cle = i + '-' + x.e.id, ouvert = !!ouverts[cle], u = usages[x.e.id], edite = edition && edition.cle === cle;
+      var alternatives = choixRemplacement && choixRemplacement.cle === cle ? choixRemplacement.candidats : null;
       return h('li', { key: x.e.id, className: 'gn-exo' },
         h('div', { className: 'gn-exo-l' },
           edite ? h('form', { className: 'gn-dosage', onSubmit: function (ev) { ev.preventDefault(); changerDosage(i, x, edition.texte); } },
@@ -5420,8 +5455,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             : h('button', { type: 'button', className: 'gn-exo-nom', 'aria-expanded': ouvert, onClick: function () { var o = Object.assign({}, ouverts); o[cle] = !ouvert; setOuverts(o); } },
               h('span', null, x.e.nom), h('small', null, detail)),
           edite ? null : h('button', { type: 'button', className: 'gn-exo-btn', 'aria-label': 'Modifier le dosage de ' + x.e.nom, title: 'Modifier le dosage', onClick: function () { setEdition({ cle: cle, texte: x.dosage || x.e.dosage || '' }); } }, '✎'),
-          h('button', { type: 'button', className: 'gn-exo-btn', 'aria-label': 'Remplacer ' + x.e.nom, title: 'Remplacer', onClick: function () { remplacer(i, x); } }, '↻'),
+          h('button', { type: 'button', className: 'gn-exo-btn', 'aria-label': 'Choisir un remplacement pour ' + x.e.nom, 'aria-expanded': !!alternatives, title: 'Choisir un remplacement', onClick: function () { remplacer(i, x); } }, '↻'),
           h('button', { type: 'button', className: 'gn-exo-btn', 'aria-label': 'Retirer ' + x.e.nom, title: 'Retirer', onClick: function () { retoucher(i, x, null); } }, '✕')),
+        alternatives ? h('div', { className: 'gn-alternatives' }, h('strong', null, 'Choisir un exercice compatible'),
+          h('ul', null, alternatives.map(function (e) {
+            return h('li', { key: e.id }, h('button', { type: 'button', className: 'gn-option gn-alt',
+              onClick: function () { var ph = res.phases[i]; retoucher(i, x, x.travail ? itemRemplacant(x, e, ph.format, rep.groupe === 'Gym douce') : { e: e, duree: x.duree }); try { annoncer('Remplacé par ' + e.nom); } catch (err) {} } },
+              h('b', null, e.nom), h('small', null, [court(e.categorie), e.equipement].filter(Boolean).join(' · '))));
+          })),
+          h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setChoixRemplacement(null); } }, 'Annuler le choix')) : null,
         ouvert ? h('div', { className: 'gn-exo-fiche' }, h('p', null, sansCesure(x.e.description)), x.e.vigilance ? h('p', { className: 'gn-exo-vig' }, '⚠ ' + sansCesure(x.e.vigilance)) : null,
           h('p', { className: 'gn-exo-usage' }, u ? 'Déjà fait : ' + texteUsage(u).replace(/^Fait /, '') : 'Pas encore fait dans une séance enregistrée')) : null);
     }
@@ -5464,6 +5506,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       contenu = h('div', { className: 'gn-etape' },
         h('p', { className: 'gn-num' }, [rep.groupe, rep.objectif !== 'Varié' ? rep.objectif : '', tech, !judo && (rep.contraintes || []).length ? 'sans : ' + rep.contraintes.join(', ').toLowerCase() : '', !judo && rep.binome ? 'en binôme' : ''].filter(Boolean).join(' · ')),
         h('h2', null, 'Séance proposée'),
+        h('p', { className: 'gn-cours' }, rep.duree + ' · ' + total + ' exercices · ' + rep.groupe),
         h('div', { className: 'gn-durees', role: 'group', 'aria-label': 'Durée' }, DUREES.map(function (d) {
           var v = d + ' min'; return option(v, rep.duree === v, function () { var n = maj('duree', v); generer(n); });
         })),
@@ -5489,6 +5532,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('p', { className: 'gn-materiel' }, h('b', null, 'Matériel à installer : '), lignes.length ? lignes.join(' · ') + (rep.participants ? ' (pour ' + rep.participants + ' participants)' : ' (indiquez le nombre de participants pour les quantités)') : 'aucun, poids du corps uniquement');
         })(),
         res.manques.length ? h('p', { className: 'gn-aide' }, 'Peu d\'exercices disponibles pour : ' + res.manques.join(', ') + '. Complétez dans « Ma séance ».') : null,
+        precedentRes ? h('button', { type: 'button', className: 'cs-btn mini', onClick: annulerRetouche }, '↶ Annuler la dernière retouche') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
           return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
             ph.blocs ? ph.blocs.map(function (b, k) {
@@ -5498,8 +5542,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               : h('p', { className: 'gn-aide' }, 'Aucun exercice disponible.'));
         })),
         h('div', { className: 'gn-actions' },
-          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setRes(null); setEtape(0); setOuverts({}); } }, 'Modifier les réponses'),
-          h('button', { type: 'button', className: 'cs-btn', onClick: function () { var g = graine + 7919; setGraine(g); setEdition(null); setRes(genererSeance(Object.assign({}, rep, { eviter: eviter }), judo, p.donnees, p.tout, g)); } }, 'Autre proposition'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { setRes(null); setEtape(0); setOuverts({}); setPrecedentRes(null); setChoixRemplacement(null); } }, 'Modifier les réponses'),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { var g = graine + 7919; setGraine(g); setEdition(null); setPrecedentRes(null); setChoixRemplacement(null); setRes(genererSeance(Object.assign({}, rep, { eviter: eviter }), judo, p.donnees, p.tout, g)); } }, 'Autre proposition'),
           judo ? null : nomModele === null ? h('button', { type: 'button', className: 'cs-btn gn-modele-btn', disabled: !total, onClick: function () { setNomModele([rep.groupe, (res.phases.filter(function (x) { return x.format; })[0] || {}).format, rep.duree].filter(Boolean).join(' · ')); } }, '☆ Enregistrer comme modèle')
             : h('form', { className: 'gn-dosage gn-nom-modele', onSubmit: function (ev) { ev.preventDefault(); var n = nomModele.trim(); if (n) { enregistrerModele(n); setNomModele(null); } } },
               h('label', { htmlFor: 'gn-nom-m' }, 'Nom du modèle'), h('input', { id: 'gn-nom-m', type: 'text', value: nomModele, autoFocus: true, maxLength: 60, onChange: function (ev) { setNomModele(ev.target.value); }, onKeyDown: function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); setNomModele(null); } } }),
