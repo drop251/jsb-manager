@@ -2310,7 +2310,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '01/11/2026 · annulation des séances';
+  var VERSION_APP = '03/11/2026 · objectifs pédagogiques Judo';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5090,6 +5090,50 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var MOTS_RANDORI = /randori|kakari|combat|nage-komi|uchi-komi|opposition|ne-waza a theme|sortie/;
   var MOTS_CALME = /respir|relax|savasana|calme|meteo|doudou|dort|boule|recuperation|jambes au mur/;
   function sa(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  // Objectifs pédagogiques propres au Judo, indépendants des qualités physiques du Taïso.
+  var OBJECTIFS_JUDO = [
+    'Découverte et initiation',
+    'Apprentissage technique',
+    'Perfectionnement technique',
+    'Déplacements et déséquilibres',
+    'Enchaînements et combinaisons',
+    'Défense et contre-attaques',
+    'Travail au sol — Ne-waza',
+    'Opposition et randori'
+  ];
+  // Bonus de pertinence (pas un filtre bloquant) : respecte la catégorie d'âge et la technique choisies.
+  function scoreObjectifJudo(e, objectif) {
+    var nom = sa(e.nom), theme = sa(e.thematique), technique = sa(e.technique);
+    var identite = [nom, theme, technique].join(' ');
+    var texte = identite + ' ' + sa(e.description);
+    if (objectif === 'Découverte et initiation') {
+      return /ukemi|chute|decouv|initiation|ludique|\bjeu\b|\bjeux\b|salut|fondamentaux|placement de base/.test(texte) ? 6 : 0;
+    }
+    if (objectif === 'Apprentissage technique') {
+      return /uchi.?komi|nage.?komi|apprentissage|technique|projection|entree/.test(texte) ? 6 :
+        (technique && technique !== 'preparation physique generale' ? 4 : 0);
+    }
+    if (objectif === 'Perfectionnement technique') {
+      return /uchi.?komi|nage.?komi|repetition|precision|maitrise|perfectionnement|tsukuri|forme de corps|placement/.test(texte) ? 6 : 0;
+    }
+    if (objectif === 'Déplacements et déséquilibres') {
+      return /shintai|tai.?sabaki|kuzushi|deplacement|desequilibr|tsugi.?ashi|ayumi.?ashi|pivot|creation d.angle|appui/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Enchaînements et combinaisons') {
+      return /renraku|encha(i|î)nement|combinaison|liaison|encha(i|î)ner|\bpuis\b|attaque successive/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Défense et contre-attaques') {
+      return /kaeshi|gaeshi|contre.?attaque|contre.?prise|defense|esquive|evitement|reaction a l.attaque/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Travail au sol — Ne-waza') {
+      return /ne.?waza|osaekomi|kansetsu|shime.?waza|gatame|jime|immobilis|retournement|passage de garde|quadrupedie|\bsol\b/.test(identite) ||
+        /retournement|immobilis|passage de garde|sortie d.immobilisation/.test(sa(e.description)) ? 8 : 0;
+    }
+    if (objectif === 'Opposition et randori') {
+      return /randori|kakari|shiai|opposition|combat|situation d.opposition|mise en situation/.test(texte) ? 7 : 0;
+    }
+    return 0;
+  }
   function cleRoutine(espace) { return 'jsb-routine-' + sa(espace).replace(/[^a-z]/g, '') + String(CLE_SEL).replace('jsb-seances', ''); }
   function lireRoutine(espace) { try { var r = JSON.parse(localStorage.getItem(cleRoutine(espace))); return Array.isArray(r) ? r : null; } catch (err) { return null; } }
   function ecrireRoutine(espace, ids) { try { localStorage.setItem(cleRoutine(espace), JSON.stringify(ids)); } catch (err) {} }
@@ -5149,6 +5193,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (routine.length < routineIDs.length) manques.push('routine de mobilité : exercices manquants ou incompatibles');
     routine.forEach(function (e) { pris[e.id] = 1; });
     var obj = rep.objectif && rep.objectif.indexOf('Vari') !== 0 ? rep.objectif : '';
+    if (judo && obj && !base.some(function (e) { return momentsDe(e).indexOf('Corps de séance') >= 0 && scoreObjectifJudo(e, obj) > 0; })) manques.push('objectif « ' + obj + ' » : aucun exercice ciblé dans ce groupe');
     var eviter = rep.eviter || {};
     function score(e) {
       var s = r() * 1.5;
@@ -5156,7 +5201,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.technique && sa(techniqueDe(e.nom)) === sa(rep.technique)) s += 6;
       else if (rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0) s += 4;
       if (rep.famille && rep.famille !== 'Variée' && e.technique === rep.famille) s += 3;
-      if (obj && e.categorie === obj) s += 2.5;
+      if (judo && obj) s += scoreObjectifJudo(e, obj);
+      if (!judo && obj && e.categorie === obj) s += 2.5;
       if (rep.illustres && illustre(e)) s += 2.5;
       if (rep.binome && e.format === 'Binôme') s += 2;   // travail à deux demandé : exercices en binôme d'abord   // exercices avec photo ou vidéo d'abord
       return s;
@@ -5166,7 +5212,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var out = [], parCat = {};
       tri.forEach(function (e) {
         if (out.length >= n) return;
-        if (diversifier && (parCat[e.categorie] || 0) >= Math.ceil(n / 2) && e.categorie !== obj && !(rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0)) return;
+        if (diversifier && (parCat[e.categorie] || 0) >= Math.ceil(n / 2) && !(judo && obj && scoreObjectifJudo(e, obj) > 0) && e.categorie !== obj && !(rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0)) return;
         out.push(e); parCat[e.categorie] = (parCat[e.categorie] || 0) + 1; pris[e.id] = 1;
       });
       if (out.length < n) tri.forEach(function (e) { if (out.length < n && !pris[e.id]) { out.push(e); pris[e.id] = 1; } });
@@ -5302,7 +5348,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var candidatsRoutine = p.tout.filter(function (e) { return estMobilite(e) && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)'); })
       .sort(function (a, b) { var ia = rep.routine.indexOf(a.id), ib = rep.routine.indexOf(b.id); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, 'fr'); });
     var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'] : ['Gym douce', 'Training'];
-    var objectifs = judo ? ['Varié', 'Force-Puissance', 'Pliométrie', 'Gainage', 'Cardio', 'Équilibre', 'Mobilité'] : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];
+    var objectifs = judo ? OBJECTIFS_JUDO : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];
     var poolAge = p.donnees.filter(function (e) { return !rep.groupe || sg(e).indexOf(rep.groupe) >= 0; });
     var familles = ['Variée'].concat(uniq(poolAge.map(function (e) { return e.technique; }).filter(function (t) { return t && t !== 'Préparation physique générale'; })).sort(function (a, b) { return a.localeCompare(b, 'fr'); }));
     var techniques = rep.famille && rep.famille !== 'Variée' ? uniq(poolAge.filter(function (e) { return e.technique === rep.famille; }).map(function (e) { return techniqueDe(e.nom); }).filter(function (t) { return !!FAMILLE_DE[sa(t)]; })).sort(function (a, b) { return a.localeCompare(b, 'fr'); }) : [];
@@ -5404,7 +5450,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         peutSuivre = rep.routine.length > 0;
       }
     } else if (etape === 1) { titre = judo ? 'Pour quelle catégorie d\'âge ?' : 'Pour quel groupe ?'; corps = choixSimple('groupe', groupes); peutSuivre = !!rep.groupe; }
-    else if (etape === 2) { titre = 'Quel est l\'objectif de la séance ?'; corps = choixSimple('objectif', objectifs); peutSuivre = !!rep.objectif; }
+    else if (etape === 2) { titre = judo ? 'Quel est l\'objectif pédagogique de la séance ?' : 'Quel est l\'objectif de la séance ?'; aide = judo ? 'Le générateur privilégie les exercices correspondant à cet apprentissage, puis à la technique choisie.' : null; corps = choixSimple('objectif', objectifs); peutSuivre = !!rep.objectif; }
     else if (etape === 3 && judo) {
       titre = 'Quelle technique travaillez-vous ?';
       aide = rep.famille && rep.famille !== 'Variée' && techniques.length ? 'Précisez la technique si vous le souhaitez.' : null;
