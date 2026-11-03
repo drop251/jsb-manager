@@ -2310,7 +2310,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '03/11/2026 · objectifs pédagogiques Judo';
+  var VERSION_APP = '04/11/2026 · six critères Judo, imports stricts et fiches enrichies';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3082,8 +3082,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var pe = plan[e.id] || {};
         var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(pe.bloc || e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(pe.dosage || e.dosage || '', lc[3]),
             lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
-          : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.categorie, lc[1]), lignes(e.nom, lc[2]),
-          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
+          : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.rolePedagogique || e.categorie, lc[1]), lignes(e.nom, lc[2]),
+          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
         var ht = Math.max.apply(null, c.map(function (l) { return l.length; })) * 9 + 10; place(ht);
         x = M; c.forEach(function (l, k) { police(k === 2 ? 'bold' : 'normal', 7.5); cellule(x, lc[k], ht, l); x += lc[k]; }); y += ht;
       });
@@ -4522,6 +4522,106 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (TRES_DOUX.test(t) && cat !== 'Mobilité complémentaire') return ['Gym douce'];
     return ['Gym douce', 'Training'];
   }
+  function valeurChampPedagogique(brut, noms) {
+    function clef(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
+    var colonnes = Object.keys(brut || {});
+    for (var i = 0; i < noms.length; i++) for (var j = 0; j < colonnes.length; j++) {
+      if (clef(colonnes[j]) === clef(noms[i])) {
+        var v = brut[colonnes[j]];
+        return Array.isArray(v) ? v.join(', ').trim() : v == null ? '' : String(v).trim();
+      }
+    }
+    return '';
+  }
+
+  function normaliserRoleJudo(v) {
+    var t = String(v || '').trim();
+    var roles = ['Préparation', 'Découverte', 'Acquisition', 'Consolidation', 'Réinvestissement', 'Application', 'Opposition', 'Retour au calme'];
+    var k = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return roles.filter(function (x) { return x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === k; })[0] || '';
+  }
+
+  function normaliserOppositionJudo(v) {
+    var t = String(v || '').trim();
+    var types = ['Sans opposition', 'Coopération', 'Opposition dirigée', 'Opposition libre'];
+    var k = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return types.filter(function (x) { return x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === k; })[0] || '';
+  }
+
+  function verifierNouvelExerciceJudo(brut, e) {
+    var erreurs = [];
+    if (!e || !e.nom || !String(e.nom).trim()) return ['Nom obligatoire'];
+    if (!e.public || e.public.indexOf('Judo') < 0) return erreurs; // moteur Taïso inchangé
+    var obligatoires = [
+      ['Description', ['description']], ['Thématique', ['thematique']], ['Dosage', ['dosage']],
+      ['Vigilance', ['vigilance']], ['Critère de réussite', ['critere','critereDeReussite']],
+      ['Catégorie d’âge', ['sousGroupes', 'categorieAge']], ['Grade', ['grade']],
+      ['Famille technique', ['famille', 'technique']], ['Moment', ['moment']],
+      ['Format', ['format']], ['Matériel', ['equipement', 'materielDetail']],
+      ['Variante facile', ['varianteFacile']], ['Variante difficile', ['varianteDifficile']]
+    ];
+    obligatoires.forEach(function (c) { if (!valeurChampPedagogique(brut, c[1])) erreurs.push(c[0] + ' manquant'); });
+    if (!valeurChampPedagogique(brut, ['description']) || valeurChampPedagogique(brut, ['description']).length < 15) erreurs.push('Description trop courte (15 caractères minimum)');
+    if (!valeurChampPedagogique(brut, ['vigilance']) || valeurChampPedagogique(brut, ['vigilance']).length < 10) erreurs.push('Vigilance trop courte (10 caractères minimum)');
+    var competence = valeurChampPedagogique(brut, ['competenceCiblee','compétence ciblée','competence','apprentissageVise']);
+    var role = valeurChampPedagogique(brut, ['rolePedagogique','rôle pédagogique','role']);
+    var prerequis = valeurChampPedagogique(brut, ['prerequis','pré-requis','prerequisTechniques']);
+    var opposition = valeurChampPedagogique(brut, ['niveauOpposition','niveau d opposition','opposition']);
+    var organisation = valeurChampPedagogique(brut, ['organisation','organisationPedagogique']);
+    var duree = valeurChampPedagogique(brut, ['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']);
+    if (competence.length < 8) erreurs.push('Compétence ciblée obligatoire (8 caractères minimum)');
+    if (!normaliserRoleJudo(role)) erreurs.push('Rôle pédagogique invalide : préparation, découverte, acquisition, consolidation, réinvestissement, application, opposition ou retour au calme');
+    if (prerequis.length < 4) erreurs.push('Prérequis à préciser (écrire « Aucun » si aucun)');
+    if (!normaliserOppositionJudo(opposition)) erreurs.push('Niveau d’opposition invalide');
+    if (organisation.length < 20) erreurs.push('Organisation incomplète (20 caractères minimum)');
+    var format = valeurChampPedagogique(brut, ['format']).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var normOrg = organisation.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/binome|trio/.test(format) && (!/\btori\b/.test(normOrg) || !/\buke\b/.test(normOrg))) erreurs.push('Organisation : préciser les rôles de Tori et Uke');
+    if (/binome|trio|collectif/.test(format) && !/altern|rotation|chang|tourn|invers/.test(normOrg)) erreurs.push('Organisation : préciser l’alternance ou les rotations');
+    if (!/repos|recuper|pause/.test(normOrg)) erreurs.push('Organisation : préciser la récupération ou le repos');
+    var n = Number(duree.replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, ''));
+    if (!duree || !Number.isFinite(n) || n < 1 || n > 30) erreurs.push('Durée de bloc réaliste : nombre de minutes entre 1 et 30');
+    return erreurs;
+  }
+
+  function roleCompatibleJudo(e, phase, rep) {
+    if (!e || !e.rolePedagogique) return true; // anciennes fiches : pas de blocage rétroactif
+    var roles = {
+      'Mobilité': ['Préparation'], 'Échauffement': ['Préparation', 'Découverte'],
+      'Corps de séance': ['Découverte', 'Acquisition', 'Consolidation', 'Réinvestissement', 'Application'],
+      'Randori': ['Opposition', 'Réinvestissement', 'Application'],
+      'Étirement': ['Retour au calme', 'Préparation']
+    };
+    if (roles[phase] && roles[phase].indexOf(e.rolePedagogique) < 0) return false;
+    var niveaux = ['Sans opposition','Coopération','Opposition dirigée','Opposition libre'];
+    var niveau = niveaux.indexOf(e.niveauOpposition || '');
+    var max = niveaux.indexOf((rep && rep.niveauOpposition) || '');
+    if (max >= 0 && niveau > max) return false;
+    if (phase === 'Randori' && niveau >= 0 && niveau < 2) return false;
+    if ((phase === 'Échauffement' || phase === 'Mobilité') && niveau > 1) return false;
+    if (e.prerequis && !/^(aucun|sans|néant|neant)$/i.test(e.prerequis.trim())) {
+      var acquis = ((rep && rep.prerequisAcquis) || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      var necessaire = e.prerequis.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!acquis || acquis.indexOf(necessaire) < 0) return false;
+    }
+    if (rep && rep.organisationSeance && rep.organisationSeance !== 'Mixte' && phase !== 'Échauffement' && phase !== 'Mobilité' && phase !== 'Étirement') {
+      if (rep.organisationSeance === 'Binômes' && e.format !== 'Binôme') return false;
+      if (rep.organisationSeance === 'Trios' && e.format !== 'Trio') return false;
+      if (rep.organisationSeance === 'Collectif' && e.format !== 'Collectif') return false;
+    }
+    return true;
+  }
+
+  function bonusPedagogiqueJudo(e, rep, phase) {
+    var score = 5;
+    var cible = String((rep && (rep.competenceCiblee || rep.technique)) || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    var texte = [e.competenceCiblee, e.nom, e.thematique, e.technique].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (cible && texte.indexOf(cible) >= 0) score += 15;
+    if (e.rolePedagogique && roleCompatibleJudo(e,phase,rep)) score += 9;
+    if (rep && rep.cibleDureeBlocMin && e.dureeBlocMin) score += Math.max(0, 4 - Math.abs(Number(rep.cibleDureeBlocMin)-Number(e.dureeBlocMin)));
+    return score;
+  }
+
   function classer(brut, pub0) {
     var x = normaliserLigne(brut), texte = [x.nom, x.description, x.thematique, x.categorie, x.categorieAge, x.public].join(' ');
     if (!x.nom) return null;
@@ -4532,7 +4632,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       ref: String(x.ref || ''), nom: String(x.nom).trim(), categorie: cat, categorieSecondaire: x.categorieSecondaire || '', public: [pub],
       thematique: String(x.thematique || ''), description: String(x.description || '').trim() || String(x.nom),
       dosage: String(x.dosage || ''), vigilance: String(x.vigilance || '').trim() || 'Exécution contrôlée ; arrêt en cas de douleur.',
-      muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.equipement || ''),
+      muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.materielDetail || x.equipement || ''),
       varianteFacile: String(x.varianteFacile || ''), varianteDifficile: String(x.varianteDifficile || ''), critere: String(x.critere || ''),
       inspiration: x.inspiration ? String(x.inspiration).split(',')[0] : 'Ajouté depuis l\'app', groupeMusculaire: x.groupeMusculaire || '',
       isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
@@ -4542,11 +4642,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
-      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || familleDe(e.nom, texte);
+      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || x.famille || familleDe(e.nom, texte);
       e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
     } else {
       e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = '';
       e.sousGroupes = sousGroupeTaiso(x, texte, cat, e.niveau);
+    }
+    if (pub === 'Judo') {
+      e.competenceCiblee = valeurChampPedagogique(brut, ['competenceCiblee','compétence ciblée','competence','apprentissageVise']);
+      e.rolePedagogique = normaliserRoleJudo(valeurChampPedagogique(brut, ['rolePedagogique','rôle pédagogique','role']));
+      e.prerequis = valeurChampPedagogique(brut, ['prerequis','pré-requis','prerequisTechniques']);
+      e.niveauOpposition = normaliserOppositionJudo(valeurChampPedagogique(brut, ['niveauOpposition','niveau d opposition','opposition']));
+      e.organisation = valeurChampPedagogique(brut, ['organisation','organisationPedagogique']);
+      e.dureeBlocMin = Number(valeurChampPedagogique(brut, ['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']).replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, '')) || 0;
     }
     return e;
   }
@@ -4619,21 +4727,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     base.forEach(function (e) { var k0 = cle(e.nom) + '|' + (e.public || [])[0]; deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
       var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
-    var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0 };
+    var r = { ajouts: [], majFiches: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
     lignes.forEach(function (l) {
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
-      var e = classer(l); if (!e) { r.ignores++; return; }
+      var e = classer(l); if (!e) { r.refuses.push({ nom: valeurChampPedagogique(l,['nom']) || 'Sans nom', raisons: ['Nom obligatoire'] }); r.ignores++; return; }
       var k = cle(e.nom) + '|' + e.public[0];
       // Ligne réduite au nom d'un exercice de la base (pour lui ajouter une illustration) : c'est cet exercice
       var seul = (!String(e.description || '').trim() || cle(e.description) === cle(e.nom)) && parNom[cle(e.nom)];
       if (seul) { k = cle(seul.nom) + '|' + (seul.public || [])[0]; parCle[k] = seul; deja[k] = 1; }
       if (deja[k]) {
-        r.doublons.push(e.nom);
-        // Exercice déjà dans la base : on garde seulement son illustration
         var ex = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === cle(e.nom) ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
         if (ex && (il.image || il.svg)) r.illustrations.push({ id: ex.id, nom: ex.nom, image: il.image, svg: il.svg });
+        var majPeda = !!(ex && valeurChampPedagogique(l, ['description']) && !seul);
+        if (majPeda) {
+          var erreursMaj = verifierNouvelExerciceJudo(l, e);
+          if (erreursMaj.length) { r.refuses.push({ nom: e.nom, raisons: erreursMaj }); return; }
+          var ficheMaj = Object.assign({}, ex, e, { id: ex.id, ref: ex.ref || e.ref, ajoute: !!ex.ajoute, _jsbOverride: !ex.ajoute });
+          ['image','illustration','video'].forEach(function (m) { if (!e[m] && ex[m]) ficheMaj[m] = ex[m]; });
+          r.majFiches.push(ficheMaj);
+          return;
+        }
+        r.doublons.push(e.nom);
         return;
       }
+      var erreursFiche = verifierNouvelExerciceJudo(l, e);
+      if (erreursFiche.length) { r.refuses.push({ nom: e.nom, raisons: erreursFiche }); return; }
       if (il.image) e.image = il.image;
       if (il.svg) e.illustration = il.svg;
       deja[k] = 1; e.id = suivant(); r.ajouts.push(e);
@@ -4682,6 +4800,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0 && vids.indexOf(f) < 0; })[0];
       (fichier ? lireFichierExercices(fichier) : Promise.resolve([])).then(function (lignes) {
         var r = preparerAjouts(lignes, BASE);
+        if (r.refuses && r.refuses.length) { r.ajouts = []; r.majFiches = []; r.formes = 0; setRapport(r); setMsg('Import refusé : corrigez toutes les fiches signalées avant de réimporter ce fichier.'); return; }
         return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
           r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
           var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees.concat(videosDesLignes(lignes, r, BASE)); r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
@@ -4697,10 +4816,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx, .csv ou un export .zip, avec une colonne « Nom », ou des images nommées comme les exercices.'); });
     }
     function enregistrer() {
+      if (rapport.refuses && rapport.refuses.length) { setMsg('Enregistrement bloqué : corrigez les fiches refusées.'); return; }
       var il = rapport.illustrations || [];
       if (rapport.ajouts.length) ecrireIdMax(Math.max.apply(null, rapport.ajouts.map(function (e) { return e.id; })));
-      (rapport.ajouts.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
-        return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts));
+      (rapport.ajouts.length || rapport.majFiches.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
+        var parId = {};
+        (Array.isArray(anciens) ? anciens : []).forEach(function (ex) { if (ex && ex.id) parId[ex.id] = ex; });
+        rapport.ajouts.concat(rapport.majFiches).forEach(function (ex) { parId[ex.id] = ex; });
+        return Stockage.ecrire(CLE_AJOUTS, Object.keys(parId).map(function (id) { return parId[id]; }));
       }) : Promise.resolve(true)).then(function (ok) {
         if (!ok || !il.length) return ok;
         IMG_PERSO = Object.assign({}, IMG_PERSO); ILLUS_IA = Object.assign({}, ILLUS_IA);
@@ -4715,7 +4838,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }).then(function (ok) {
         if (!ok) { setMsg('Enregistrement impossible sur cet appareil.'); return; }
         var vs = rapport.videos || [];
-        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
+        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', rapport.majFiches.length ? rapport.majFiches.length + ' fiches mises à jour' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
           vs.length ? rapport.nVideos + (rapport.nVideos > 1 ? ' vidéos enregistrées' : ' vidéo enregistrée') + (rapport.nVideos < vs.length ? ' (' + (vs.length - rapport.nVideos) + ' non enregistrée' + (vs.length - rapport.nVideos > 1 ? 's' : '') + ' : espace insuffisant ?)' : '') : ''].filter(Boolean).join(', ') + '.');
         setTimeout(function () { location.reload(); }, 700);
       });
@@ -4735,7 +4858,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var vids = [];
       ids.forEach(function (id) { delete IMG_PERSO[id]; delete ILLUS_IA[id]; if (VIDEOS[id]) vids.push(id); });
       vids.reduce(function (pr, id) { return pr.then(function () { return retirerVideo(id); }); }, Promise.resolve())
-        .then(function () { return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA), Stockage.ecrire(CLE_AJOUTS, [])]); })
+        .then(function () { return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA), Stockage.lire(CLE_AJOUTS).then(function (ajouts) { return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(ajouts) ? ajouts : []).filter(function (e) { return e && e._jsbOverride; })); })]); })
         .then(function () { location.reload(); });
     }
     var compte = function (prop) {
@@ -4748,7 +4871,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'gestion-actions gestion-principal' },
         h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,.zip,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
       h('details', { className: 'gestion-plus' }, h('summary', null, 'Comment l\'app range les exercices'), h('ul', { className: 'gestion-regles' },
-        h('li', null, h('strong', null, 'Judo'), ' — techniques, travail avec partenaire, jeux et préparation physique des enfants, rangés par catégorie d\'âge (Éveils à Adultes) avec un grade.'),
+        h('li', null, h('strong', null, 'Judo'), ' — les nouvelles fiches exigent les champs essentiels du catalogue et six critères pédagogiques : compétence, rôle, prérequis, opposition, organisation, durée réelle. Import refusé en cas de manque.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
         h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'),
@@ -4761,7 +4884,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
+        rapport.refuses && rapport.refuses.length ? h('div', { role: 'alert' }, h('strong', null, rapport.refuses.length + ' fiche(s) refusée(s) : aucun nouvel exercice ne sera importé.'), h('ul', null, rapport.refuses.map(function (f,i) { return h('li', { key: i }, f.nom + ' : ' + f.raisons.join(' ; ')); }))) : null,
         h('strong', null, [rapport.ajouts.length ? rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '') : '',
+          rapport.majFiches.length ? rapport.majFiches.length + ' fiches existantes prêtes à être mises à jour' : '',
           rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : '',
           (rapport.videos || []).length ? rapport.videos.length + (rapport.videos.length > 1 ? ' vidéos' : ' vidéo') : ''].filter(Boolean).join(' · ')),
         (rapport.videos || []).length ? h('ul', { className: 'gestion-videos' }, rapport.videos.map(function (v) {
@@ -4785,7 +4910,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('li', { key: e.id }, h(Illustration, { e: e, petit: true }), e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
         }))) : null,
         h('div', { className: 'gestion-actions' },
-          h('button', { type: 'button', className: 'btn plein', onClick: enregistrer }, rapport.ajouts.length ? 'Enregistrer' : 'Intégrer les illustrations'),
+          h('button', { type: 'button', className: 'btn plein', disabled: !!(rapport.refuses && rapport.refuses.length), onClick: enregistrer }, rapport.refuses && rapport.refuses.length ? 'Import bloqué' : rapport.ajouts.length || rapport.majFiches.length ? 'Enregistrer les fiches' : 'Intégrer les illustrations'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
   }
   // ---- Connexion : profils d'éducateurs sur l'appareil (prénom, nom, club, code facultatif à 4 chiffres).
@@ -5195,6 +5320,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var obj = rep.objectif && rep.objectif.indexOf('Vari') !== 0 ? rep.objectif : '';
     if (judo && obj && !base.some(function (e) { return momentsDe(e).indexOf('Corps de séance') >= 0 && scoreObjectifJudo(e, obj) > 0; })) manques.push('objectif « ' + obj + ' » : aucun exercice ciblé dans ce groupe');
     var eviter = rep.eviter || {};
+    var phasePedagogique = '';
     function score(e) {
       var s = r() * 1.5;
       if (eviter[e.id]) s -= 3;   // déjà fait ces 14 derniers jours : proposé seulement s'il manque d'autres exercices
@@ -5202,13 +5328,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       else if (rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0) s += 4;
       if (rep.famille && rep.famille !== 'Variée' && e.technique === rep.famille) s += 3;
       if (judo && obj) s += scoreObjectifJudo(e, obj);
+      if (judo && (e.rolePedagogique || e.competenceCiblee || e.dureeBlocMin)) s += bonusPedagogiqueJudo(e, rep, phasePedagogique);
       if (!judo && obj && e.categorie === obj) s += 2.5;
       if (rep.illustres && illustre(e)) s += 2.5;
       if (rep.binome && e.format === 'Binôme') s += 2;   // travail à deux demandé : exercices en binôme d'abord   // exercices avec photo ou vidéo d'abord
       return s;
     }
     function choisir(pool, n, diversifier) {
-      var tri = melanger(pool.filter(function (e) { return !pris[e.id]; }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
+      var tri = melanger(pool.filter(function (e) { return !pris[e.id] && (!judo || !e.rolePedagogique || roleCompatibleJudo(e, phasePedagogique, rep)); }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
       var out = [], parCat = {};
       tri.forEach(function (e) {
         if (out.length >= n) return;
@@ -5238,6 +5365,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var a = choisir(top.slice(0, Math.max(n * 2, 4)), Math.ceil(n / 2), false); return a.concat(choisir(pool, n - a.length, false));
     }
     phases.forEach(function (ph, i) {
+      if (judo) phasePedagogique = ph[0];
       var min = ph[1], ex;
       if (!judo && ph[0] === 'Corps de séance') {
         var items = [].concat.apply([], blocsCorps.map(function (b) { return b.items; })), occupe = blocsCorps.reduce(function (t, b) { return t + b.minutes; }, 0);
@@ -5248,6 +5376,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (i === 0) { ex = routine; if (!ex.length) manques.push('routine de mobilité (non choisie)'); }
       else {
         var dernier = i === phases.length - 1, n = Math.max(dernier && judo && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
+        if (judo && rep.cibleDureeBlocMin && (ph[0] === 'Corps de séance' || ph[0] === 'Randori')) n = Math.min(6, Math.max(1, Math.round(min / Number(rep.cibleDureeBlocMin))));
         var finS = function () { return base.filter(mom('Fin de séance')); }, calme = function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); };
         if (!judo && ph[0] === 'Retour au calme') { pool = finS().filter(calme); if (!pool.length) pool = finS(); }
         else if (!judo && ph[0] === 'Étirements') { pool = finS().filter(function (e) { return !calme(e); }); if (!pool.length) pool = finS(); }
@@ -5259,8 +5388,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         else if (dernier) pool = poolCalme();
         else if (i === 1) { pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); }); if (!pool.length) pool = base.filter(mom('Échauffement')); }
         else if (judo && i === 3) {
-          pool = base.filter(function (e) { return mom('Corps de séance')(e) && MOTS_RANDORI.test(sa(e.nom + ' ' + e.thematique)) && !pris[e.id]; });
-          if (pool.length < n) pool = pool.concat(base.filter(function (e) { return mom('Corps de séance')(e) && e.categorie === 'Cardio' && pool.indexOf(e) < 0; }));
+          pool = base.filter(function (e) { return mom('Corps de séance')(e) && !pris[e.id] && (e.rolePedagogique === 'Opposition' || (e.niveauOpposition && /Opposition dirigée|Opposition libre/.test(e.niveauOpposition)) || MOTS_RANDORI.test(sa(e.nom + ' ' + e.thematique))); });
+          if (!pool.length) manques.push('Randori : aucun exercice d’opposition adapté, aucune substitution cardio automatique');
         }
         else pool = base.filter(mom('Corps de séance'));
         if (judo && dernier && rep.calme === 'Les deux' && n >= 2) {
@@ -5271,8 +5400,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (ex.length < n) manques.push(ph[0]);
       }
       if (ex.length > min) ex = ex.slice(0, min);
-      var durees = repartirDurees(min, ex.length);
-      resultat.push({ nom: ph[0], minutes: min, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
+      var durees = repartirDurees(min, ex.length), transitionsPedagogiques = 0;
+      if (judo && i > 0 && ex.length) {
+        if (ex.every(function (e) { return Number(e.dureeBlocMin) > 0; })) {
+          var prevues = ex.map(function (e) { return Math.round(Number(e.dureeBlocMin)); });
+          var somme = prevues.reduce(function (a,b) { return a + b; },0);
+          if (somme <= min) { durees = prevues; transitionsPedagogiques = min - somme;
+            if (transitionsPedagogiques > Math.max(3, Math.round(min * 0.2))) manques.push(ph[0] + ' : ' + transitionsPedagogiques + ' min non décrites (transitions ou rotations à préciser)');
+          } else manques.push(ph[0] + ' : dosage des blocs dépasse le temps disponible ; répartition indicative');
+        } else manques.push(ph[0] + ' : durées des fiches historiques estimées, à confirmer par l’éducateur');
+      }
+      resultat.push({ nom: ph[0], minutes: min, transitions: transitionsPedagogiques, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
     });
     return { phases: resultat, manques: manques };
   }
@@ -5378,6 +5516,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function option(label, on, clic, cle) { return h('button', { key: cle || label, type: 'button', className: 'gn-option', 'aria-pressed': on, onClick: clic }, label); }
     function choixSimple(k, liste) { return h('div', { className: 'gn-choix' }, liste.map(function (c) { return option(c, rep[k] === c, function () { var n = maj(k, c); suivant(n); }); })); }
 
+    function pedagogiePanneau() {
+      function texte(cle, titre, aide) {
+        return h('label', { className: 'cs-champ' }, titre, h('input', { type: 'text', value: rep[cle] || '', placeholder: aide,
+          onChange: function (ev) { maj(cle, ev.target.value); } }));
+      }
+      function choix(cle, titre, valeurs) {
+        return h('label', { className: 'cs-champ' }, titre, h('select', { value: String(rep[cle] || ''), onChange: function (ev) { maj(cle, ev.target.value); } },
+          [['','Automatique / sans contrainte']].concat(valeurs.map(function (v) { return [v,v]; })).map(function (x) { return h('option', {key:x[0],value:x[0]}, x[1]); })));
+      }
+      return h('details', { className: 'gn-avances' },
+        h('summary', null, 'Critères pédagogiques avancés', h('small', null, 'Compétence, prérequis, opposition, organisation et durée')),
+        h('p', { className: 'gn-aide' }, 'Le rôle pédagogique est déterminé par la phase : préparation, acquisition, réinvestissement, opposition ou retour au calme. Les nouvelles fiches doivent préciser leur rôle.'),
+        texte('competenceCiblee','Compétence ciblée','Ex. maintenir Tate-shiho-gatame'),
+        texte('prerequisAcquis','Prérequis acquis par le groupe','Ex. sorties d’immobilisation'),
+        choix('niveauOpposition','Niveau d’opposition maximal',['Sans opposition','Coopération','Opposition dirigée','Opposition libre']),
+        choix('organisationSeance','Organisation',['Mixte','Binômes','Trios','Collectif']),
+        choix('cibleDureeBlocMin','Durée cible par bloc (minutes)',['4','5','6','8','10']),
+        h('p', { className: 'gn-aide' }, 'Les fiches existantes sans ces données restent utilisables, mais les durées sont signalées comme estimées.'));
+    }
     var titre, aide = null, corps, peutSuivre = true;
     if (!judo && !res) {
       // Taïso : toutes les questions sur un seul écran, réponses de la dernière fois déjà cochées
@@ -5456,7 +5613,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       aide = rep.famille && rep.famille !== 'Variée' && techniques.length ? 'Précisez la technique si vous le souhaitez.' : null;
       corps = h('div', null,
         h('div', { className: 'gn-choix' }, familles.map(function (c) { return option(c, rep.famille === c, function () { var n = Object.assign({}, rep, { famille: c, technique: '' }); setRep(n); }); })),
-        techniques.length ? h('div', { className: 'gn-choix multi gn-sous' }, [option('Toutes', !rep.technique, function () { maj('technique', ''); }, '__toutes')].concat(techniques.map(function (t) { return option(t, rep.technique === t, function () { maj('technique', t); }); }))) : null);
+        techniques.length ? h('div', { className: 'gn-choix multi gn-sous' }, [option('Toutes', !rep.technique, function () { maj('technique', ''); }, '__toutes')].concat(techniques.map(function (t) { return option(t, rep.technique === t, function () { maj('technique', t); }); }))) : null, pedagogiePanneau());
       peutSuivre = !!rep.famille;
     } else if (etape === 3) {
       titre = 'Quel matériel utilisez-vous ?'; aide = 'Le poids du corps est toujours compté. Sans choix, tout le matériel est possible.';
@@ -5478,7 +5635,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       else if (ph.nom === 'Corps de séance' || ph.nom === 'Randori') l = base.filter(function (e) { return m('Corps de séance')(e) && (judo || niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))); });
       else if (ph.nom === 'Retour au calme') l = base.filter(function (e) { return m('Fin de séance')(e) && calme(e); });
       else l = base.filter(m('Fin de séance'));
-      var meme = l.filter(function (e) { return ph.format ? zoneDe(e) === zoneDe(x.e) : e.categorie === x.e.categorie; });
+      if (judo) l = l.filter(function (e) { return !e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep); });
+    var meme = l.filter(function (e) { return ph.format ? zoneDe(e) === zoneDe(x.e) : (e.rolePedagogique && x.e.rolePedagogique ? e.rolePedagogique === x.e.rolePedagogique : e.categorie === x.e.categorie); });
       return meme.length ? meme : l;
     }
     function copieRes() { return { manques: res.manques, phases: res.phases.map(function (ph) { return Object.assign({}, ph, { exercices: ph.exercices.slice(), blocs: ph.blocs ? ph.blocs.map(function (b) { return Object.assign({}, b, { items: b.items.slice() }); }) : null }); }) }; }
@@ -5610,14 +5768,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var lignes = c.blocs.filter(function (b) { return b.materiel.length; }).map(function (b) { return b.nom.replace(/ · .*/, '') + ' : ' + texteMateriel(b, c.format, rep.participants || 0); });
           return h('p', { className: 'gn-materiel' }, h('b', null, 'Matériel à installer : '), lignes.length ? lignes.join(' · ') + (rep.participants ? ' (pour ' + rep.participants + ' participants)' : ' (indiquez le nombre de participants pour les quantités)') : 'aucun, poids du corps uniquement');
         })(),
-        res.manques.length ? h('p', { className: 'gn-aide' }, 'Peu d\'exercices disponibles pour : ' + res.manques.join(', ') + '. Complétez dans « Ma séance ».') : null,
+        res.manques.length ? h('p', { className: 'gn-aide', role: 'status' }, 'Points pédagogiques à compléter ou vérifier : ' + res.manques.join(' · ') + '. Contrôlez avant utilisation.') : null,
         precedentRes ? h('button', { type: 'button', className: 'cs-btn mini', onClick: annulerRetouche }, '↶ Annuler la dernière retouche') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
           return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
             ph.blocs ? ph.blocs.map(function (b, k) {
               return h('div', { key: k, className: 'gn-bloc' }, h('div', { className: 'gn-bloc-tete' }, h('b', null, b.nom), h('small', null, b.minutes + ' min')), h('p', { className: 'gn-bloc-detail' }, b.detail),
                 h('ul', null, b.items.map(function (x) { return ligneExo(i, x, x.dosage + ' · ' + court(x.e.categorie)); })));
-            }) : ph.exercices.length ? h('ul', null, ph.exercices.map(function (x) { return ligneExo(i, x, (x.dosage ? x.dosage + ' · ' : '') + x.duree + ' min · ' + court(x.e.categorie)); }))
+            }) : ph.exercices.length ? h('ul', null, ph.exercices.map(function (x) { return ligneExo(i, x, (x.dosage ? x.dosage + ' · ' : '') + x.duree + ' min · ' + court(judo ? (x.e.rolePedagogique || x.e.categorie) : x.e.categorie) + (judo && x.e.niveauOpposition ? ' · ' + x.e.niveauOpposition : '') + (judo && x.e.organisation ? ' · Organisation : ' + x.e.organisation : '')); }))
               : h('p', { className: 'gn-aide' }, 'Aucun exercice disponible.'));
         })),
         h('div', { className: 'gn-actions' },
@@ -6449,7 +6607,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
     ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
     ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'],
-    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration']];
+    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration'],
+    ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
+    ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée réaliste du bloc (min)', 'dureeBlocMin']];
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function nomSur(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'exercice'; }
   function octetsTexte(t) { return new TextEncoder().encode(t); }
@@ -6976,11 +7136,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Exercices ajoutés depuis l'app (propres au profil actif) : fusionnés avec la base
   function ajouterLocaux() {
     if (!BASE_ORIGINE) BASE_ORIGINE = BASE;
-    BASE = BASE_ORIGINE;
+    BASE = BASE_ORIGINE.slice();
     return chargerIllusIA().then(function () { return Stockage.lire(CLE_AJOUTS); }).then(function (a) {
       if (!Array.isArray(a) || !a.length) return;
-      var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
-      BASE = BASE.concat(a.filter(function (e) { return e && !ids[e.id]; }).map(function (e) { return Object.assign({}, e, { ajoute: true }); }));
+      var ids = {}; BASE.forEach(function (e,i) { ids[e.id] = i; });
+      a.forEach(function (e) { if (!e || !e.id) return;
+        if (ids[e.id] !== undefined) { if (e._jsbOverride) BASE[ids[e.id]] = Object.assign({}, BASE[ids[e.id]], e, { ajoute: false }); }
+        else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: true })); }
+      });
     }).catch(function () {}).then(chargerEnLigne);
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
