@@ -22,6 +22,21 @@ jobs:
         run: |
           git diff --check
           node --test tests/*.test.cjs
+      - name: Inspecter la présentation des critères dans les fiches et la séance
+        run: |
+          python3 - <<'PY'
+          s=open('index.html',encoding='utf-8').read().splitlines()
+          terms=['CHAMPS_FICHE','FICHE DE SÉANCE','fiche-seance','clé terrain','Clé terrain','rapport.manques','res.manques','ph.transitions','Description / consigne','Exporter la fiche']
+          matches=[]
+          for t in terms:
+            hits=[i for i,x in enumerate(s) if t.lower() in x.lower()]
+            print('MATCH',t, [x+1 for x in hits[:18]])
+            matches+=hits[:5]
+          for i in sorted(set(matches)):
+            print('###',i+1)
+            for j in range(max(0,i-3),min(len(s),i+6)):
+              print(str(j+1)+': '+s[j][:600])
+          PY
       - name: Enregistrer la version testée sur la branche de travail
         run: |
           if ! git diff --quiet -- index.html sw.js; then
