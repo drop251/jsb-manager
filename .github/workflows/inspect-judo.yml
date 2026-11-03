@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Examiner import et generation
+      - name: Examiner classer et champs
         run: |
           python3 - <<'PY'
           s=open('index.html',encoding='utf-8').read().splitlines()
-          for a,b in [(3970,4165),(4650,4745),(5094,5160),(5380,5400),(5500,5580),(5580,5612)]:
+          for a,b in [(4450,4652),(5600,5640),(5165,5195)]:
             print('### SOURCE',a,b)
             for i in range(a-1,min(b,len(s))): print(f'{i+1:04d}: {s[i]}')
           PY
