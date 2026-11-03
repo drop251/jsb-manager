@@ -156,7 +156,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   const ctx={
     hasard:()=>()=>0.5,melanger:a=>a,MATERIEL_JUDO:[],
     MOTS_RANDORI:/randori/i,MOTS_CALME:/calme/i,
-    sa:x=>String(x||'').toLowerCase(),techniqueDe:x=>x,
+    sa:x=>String(x||'').toLowerCase(),techniqueDe:x=>x,scoreObjectifJudo:()=>0,
     sg:e=>e.sousGroupes,momentsDe:e=>[e.moment],
     illustre:()=>false,evite:()=>false,estMobilite:()=>false,
     formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',formatsDe:()=>['Circuit'],
@@ -177,6 +177,34 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
       result.phases.filter(p=>!p.blocs && p.exercices.length).forEach(p=>assert.equal(p.exercices.reduce((n,e)=>n+e.duree,0),p.minutes,p.nom));
     }
   }
+});
+
+
+test('Judo objectives are pedagogical and prioritize relevant exercises without changing Taiso',()=>{
+  assert.match(html,/var objectifs = judo \? OBJECTIFS_JUDO :/);
+  assert.match(html,/if \(judo && obj\) s \+= scoreObjectifJudo\(e, obj\)/);
+  assert.match(html,/if \(!judo && obj && e\.categorie === obj\) s \+= 2\.5/);
+  assert.match(html,/aucun exercice ciblé dans ce groupe/);
+  const ctx={
+    sa:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  };
+  vm.createContext(ctx);
+  vm.runInContext(fonction('scoreObjectifJudo'),ctx);
+  const correspondances=[
+    ['Découverte et initiation','Jeu des chutes arrière'],
+    ['Apprentissage technique','O-soto-gari : uchi-komi'],
+    ['Perfectionnement technique','Nage-komi pour améliorer la précision'],
+    ['Déplacements et déséquilibres','Tai-sabaki et Kuzushi'],
+    ['Enchaînements et combinaisons','Ko-uchi-gari puis O-soto-gari'],
+    ['Défense et contre-attaques','Tsubame-gaeshi'],
+    ['Travail au sol — Ne-waza','Yoko-shiho-gatame'],
+    ['Opposition et randori','Randori à thème']
+  ];
+  for(const [objectif,nom] of correspondances){
+    assert.ok(ctx.scoreObjectifJudo({nom},objectif)>0,objectif+' : '+nom);
+  }
+  assert.equal(ctx.scoreObjectifJudo({nom:'Gainage planche'},'Travail au sol — Ne-waza'),0);
+  assert.equal(ctx.scoreObjectifJudo({nom:'Squat'},'Défense et contre-attaques'),0);
 });
 
 test('Taiso material filter supports a truly equipment-free session',()=>{

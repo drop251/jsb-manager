@@ -64,3 +64,12 @@ Les tests automatiques vérifient les calculs et le flux de remplacement. Ils ne
 - La navigation automatique de l'assistant Judo ne dépend plus d'un délai de 120 ms ; une erreur de génération affiche un message explicite au lieu d'un écran cassé.
 
 Après mise à jour sur iPhone, rouvrir JSB Manager avec une connexion pour recevoir la nouvelle version hors ligne. Contrôler les parcours sur un véritable appareil avant emploi en cours.
+
+
+## Objectifs pédagogiques Judo (3 novembre 2026)
+
+- Le générateur **Judo** propose désormais huit objectifs propres à l'apprentissage : Découverte et initiation ; Apprentissage technique ; Perfectionnement technique ; Déplacements et déséquilibres ; Enchaînements et combinaisons ; Défense et contre-attaques ; Travail au sol — Ne-waza ; Opposition et randori.
+- La sélection privilégie les exercices dont le nom, la thématique, la famille technique ou la description correspondent à l'objectif choisi, tout en conservant les filtres par catégorie d'âge et les techniques sélectionnées.
+- Si aucun exercice ciblé n'est disponible pour un objectif dans la tranche d'âge choisie, un avertissement s'affiche : le générateur ne prétend pas avoir couvert cet objectif.
+- Les objectifs et le fonctionnement du générateur **Taïso** restent inchangés. Les catégories physiques internes des fiches Judo sont conservées pour le classement existant.
+- Contrôles : validation de la syntaxe JavaScript et tests automatisés sur les correspondances d'objectifs, les séances Judo/Taïso et les opérations de sauvegarde ; vérification visuelle sur iPhone restant nécessaire.
