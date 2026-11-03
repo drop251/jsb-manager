@@ -17,7 +17,7 @@
     var s = sa([e.nom, e.description, e.thematique, e.technique, e.famille].join(' '));
     var nom = sa(e.nom);
     var techniques = [techniqueDe(e.nom)].map(sa);
-    var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; });
+    var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; }) || /\b(?:o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame)\b/.test(nom);
     var danger = /sutemi|kansetsu|shime|etrangl|juji|sankaku|waki.gatame|cle articulaire|saisie des jambes|projection violente|charge lourde|kettlebell|battle rope|souleve de terre|sprint maximum/;
     if (danger.test(s)) return false;
     if (groupe === 'Pré-poussins') {
