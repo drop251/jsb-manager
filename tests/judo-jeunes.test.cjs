@@ -64,7 +64,7 @@ test('Objectifs Éveil Judo différents de la technique et du Taïso',()=>{
   const c=baseContexte();
   assert.ok(c.objectifsGroupeJudo('Éveils (4-5 ans)').includes('Coopération et partage'));
   assert.ok(c.objectifsGroupeJudo('Pré-poussins').includes('Opposition éducative à thème'));
-  assert.deepEqual(Array.from(c.objectifsGroupeJudo('Poussins')),c.OBJECTIFS_JUDO);
+  assert.deepEqual(Array.from(c.objectifsGroupeJudo('Poussins')),Array.from(c.OBJECTIFS_JUDO));
 });
 test('Éveil : aucune projection formelle, immobilisation ni opposition dirigée',()=>{
   const c=baseContexte();
