@@ -1,0 +1,27 @@
+name: Inspecter les parcours Judo jeunes
+on:
+  push:
+    branches: [feat/jeunes-eveil-judo-20261104]
+permissions:
+  contents: read
+jobs:
+  inspecter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Générateur, navigation et PDF
+        run: |
+          python3 - <<'PY'
+          import re
+          s=open('index.html',encoding='utf-8').read().splitlines()
+          print('TOTAL LINES',len(s))
+          terms=['function phasesDe','PHASES_SEANCE','var DUREES','var OBJECTIFS_JUDO','function scoreObjectifJudo','function sg(','function genererSeance','function Generateur','function valider(','function construirePdf','function Selection','function Seance','function MaSeance','function ligneExo','var groupes = judo','var ETAPES =','function candidatsPour','function lireRoutine','function routineParDefaut','function estMobilite','function creerExercice']
+          for term in terms:
+            hits=[i for i,line in enumerate(s) if term in line]
+            print('MATCH',term,':',[i+1 for i in hits[:15]])
+          ranges=[(3080,3119),(3127,3140),(3210,3237),(3350,3390),(5170,5220),(5300,5370),(5380,5530),(5570,5640),(5660,5755),(5760,5830)]
+          for a,b in ranges:
+            print('### SOURCE',a,b)
+            for i in range(a-1,min(b,len(s))):
+              print(str(i+1)+': '+s[i][:510])
+          PY
