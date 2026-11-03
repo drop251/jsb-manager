@@ -1,0 +1,38 @@
+name: Inspection technique du generateur Judo
+on:
+  push:
+    branches: [feat/judo-criteres-pedagogiques-20261104]
+permissions:
+  contents: read
+jobs:
+  inspection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Localiser les formulaires et les points de validation
+        run: |
+          python3 - <<'PY'
+          import re
+          s=open('index.html',encoding='utf-8').read().splitlines()
+          print('TOTAL LINES',len(s))
+          queries=[
+          r'function (?:genererSeance|scoreObjectifJudo|Assistant|Formulaire|Exercice|Editeur|enregistrer|ajouterExercice)',
+          r'Ajouter un exercice',r'Nouvel exercice',r'NouvelExercice',r'ajouterExercice',
+          r'function okTaiso',r'function (?:valider|sauver|creer|ajouter|importer|sauvegarder)',
+          r'function (?:choixSimple|generer|choisir)',r'function Fiche',
+          r'var objectifs = judo',r'function (?:Exercices|Catalogue|Ajouter)',r'Judo.*exercice'
+          ]
+          loc=[]
+          for q in queries:
+            hits=[i for i,line in enumerate(s) if re.search(q,line,re.I)]
+            print('MATCH',q,'COUNT',len(hits),'LINES',hits[:24])
+            loc.extend(hits[:12])
+          ranges=[]
+          for i in sorted(set(loc)):
+            lo=max(0,i-5);hi=min(len(s),i+12)
+            if ranges and lo<=ranges[-1][1]:ranges[-1]=(ranges[-1][0],max(hi,ranges[-1][1]))
+            else:ranges.append((lo,hi))
+          for lo,hi in ranges[:42]:
+            print('\nSNIPPET',lo+1,hi)
+            for j in range(lo,hi): print(f'{j+1}: {s[j][:350]}')
+          PY
