@@ -42,6 +42,14 @@ jobs:
             for j in range(max(0,i-3),min(len(s),i+6)):
               print(str(j+1)+': '+s[j][:600])
           PY
+      - name: Examiner le transfert des consignes au PDF
+        run: |
+          python3 - <<'PY'
+          s=open('index.html',encoding='utf-8').read().splitlines()
+          for a,b in [(3150,3195),(5835,5868),(3100,3125)]:
+            print('SOURCE',a,b)
+            for i in range(a-1,min(len(s),b)):print(str(i+1)+': '+s[i][:700])
+          PY
       - name: Enregistrer la version testée sur la branche de travail
         run: |
           if ! git diff --quiet -- index.html sw.js; then
