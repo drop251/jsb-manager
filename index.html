@@ -2310,7 +2310,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '04/11/2026 · six critères Judo, imports stricts et fiches enrichies';
+  var VERSION_APP = '04/11/2026 · Éveil Judo ludique et Pré-poussins adaptés';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2983,8 +2983,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Trame JSB adaptée au Taïso (26/10/2026) : la phase Randori devient Retour au calme ; tous les étirements en fin de séance
   var PHASES_TAISO = ['Mobilité', 'Échauffement', 'Corps de séance', 'Retour au calme', 'Étirements'];
   var PHASES_TAISO_V1 = ['Échauffement et mobilité', 'Corps de séance', 'Fin de séance'];   // séances enregistrées avant le 26/10/2026
-  function phasesDe(espace) { return espace === 'Taïso' ? PHASES_TAISO : PHASES_SEANCE; }
-  function phasesSeance(s) { return s && s.espace === 'Taïso' && !s.trame ? PHASES_TAISO_V1 : phasesDe(s && s.espace); }
+  var PHASES_EVEIL_JUDO = ['Accueil & salut', 'Jeux moteurs', 'Parcours moteurs', 'Jeux coopératifs', 'Retour au calme'];
+  var PHASES_PREPOUSSINS_JUDO = ['Accueil & mobilité', 'Jeux moteurs', 'Bases du Judo', 'Opposition éducative', 'Retour au calme'];
+  var PHASES_JUDO_AGES = {
+    'Poussins': ['Activation ludique','Échauffement orienté','Apprentissage technique','Mise en situation éducative','Retour au calme et bilan'],
+    'Benjamins': ['Mobilité spécifique','Échauffement technique','Acquisition et consolidation','Opposition à thème','Retour au calme'],
+    'Minimes': ['Activation et mobilité','Préparation technique','Progression technique','Randori à thème','Récupération et bilan'],
+    'Cadets': ['Activation ciblée','Échauffement spécifique','Travail technico-tactique','Randori dirigé ou libre','Récupération et bilan'],
+    'Juniors': ['Préparation physique adaptée','Échauffement spécifique','Développement technico-tactique','Opposition et randori','Récupération'],
+    'Adultes': ['Mobilité et activation','Échauffement orienté','Apprentissage ou perfectionnement','Randori adapté à l’objectif','Retour au calme']
+  };
+  function estEveilJudo(g) { return g === 'Éveils (4-5 ans)'; }
+  function estJeuneJudo(g) { return estEveilJudo(g) || g === 'Pré-poussins'; }
+  function phasesDe(espace, groupe, noms) {
+    if (espace === 'Taïso') return PHASES_TAISO;
+    if (Array.isArray(noms) && noms.length === 5 && noms.every(function (n) { return typeof n === 'string' && !!n.trim(); })) return noms;
+    if (estEveilJudo(groupe)) return PHASES_EVEIL_JUDO;
+    if (groupe === 'Pré-poussins') return PHASES_PREPOUSSINS_JUDO;
+    return PHASES_JUDO_AGES[groupe] || PHASES_SEANCE;
+  }
+  function phasesSeance(s) {
+    if (s && s.espace === 'Taïso' && !s.trame) return PHASES_TAISO_V1;
+    if (s && s.espace === 'Judo' && s.trame && s.trame < 3) return PHASES_SEANCE;
+    return phasesDe(s && s.espace, s && s.infos && s.infos.groupe, s && s.infos && s.infos.intitulesPhases);
+  }
   var FORMATS_TAISO = ['Circuit', 'EMOM', 'Tabata', 'AMRAP', 'Pilates / yoga', 'Séries classiques', 'Mixte'];
   function lireSel() { try { return JSON.parse(localStorage.getItem(CLE_SEL)) || {}; } catch (err) { return {}; } }
   function useSelection(espace) {
@@ -3028,7 +3050,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Fiche de séance JSB (PDF). Taïso : trame adaptée, colonne Dosage, format du corps de séance, adaptations. vierge : lignes vides à remplir à la main
   function construirePdf(infos, parPhase, durees, espace, vierge, plan) {
     plan = plan || {};
-    var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace), taiso = espace === 'Taïso';
+    var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace, infos && infos.groupe, infos && infos.intitulesPhases), taiso = espace === 'Taïso';
     if (!J) return null;
     var jour = new Date(), deux = function (n) { return (n < 10 ? '0' : '') + n; };
     var dateFr = deux(jour.getDate()) + '/' + deux(jour.getMonth() + 1) + '/' + jour.getFullYear();
@@ -3070,10 +3092,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     PH.forEach(function (nom, i) {
       var items = parPhase[i], total = 0;
       items.forEach(function (e) { total += parseFloat(durees[e.id]) || 0; });
+      if (estJeuneJudo(infos.groupe) && infos.tempsPhases && infos.tempsPhases[i]) total = Number(infos.tempsPhases[i]);
       place(80);
       doc.setFillColor.apply(doc, NAVY); doc.rect(M, y, 115, 16, 'F'); police('bold', 8.5, [255, 255, 255]); doc.text((i + 1) + ' • ' + nom.toUpperCase(), M + 6, y + 11);
       police('italic', 8, [40, 40, 40]); doc.text((total ? total : '____') + ' min' + (taiso ? '   ' + AIDES_TAISO[i] : ''), M + 121, y + 11);
       doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(1); doc.line(M, y + 16, M + W, y + 16); y += 21;
+      var repereJeune = infos.reperesPhases && infos.reperesPhases[i];
+      if (repereJeune) { police('italic', 7.2, [63, 65, 68]); var lr = lignes(repereJeune, W - 22); var hr = lr.length * 9 + 7; place(hr); doc.text(lr, M + 7, y + 7); y += hr; }
       var x = M; doc.setFillColor.apply(doc, NAVY); doc.rect(M, y, W, 17, 'F'); police('bold', 8, [255, 255, 255]);
       titres.forEach(function (t, k) { doc.text(t, x + 5, y + 11.5); x += lc[k]; }); y += 17;
       if (!items.length) { police('normal', 7.5); for (var v = 0; v < (vierge ? (i === 2 ? 5 : 3) : 1); v++) { place(26); x = M; lc.forEach(function (l) { cellule(x, l, vierge ? 24 : 30, []); x += l; }); y += vierge ? 24 : 30; } }
@@ -3141,7 +3166,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       setPlan(p.genere.plan || {}); setInfos(p.genere.infos || {}); setMsg(''); setOuvert(true);
       if (p.effacerGeneration) p.effacerGeneration(jeton);
     } }, [jeton]);
-    var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace);
+    var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace, infos.groupe || p.sous, infos.intitulesPhases);
     var items = sel.ids.map(function (id) { return p.donnees.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
@@ -3162,13 +3187,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var ids = sel.ids.slice(), a = ids.indexOf(e.id), b = ids.indexOf(autre.id); ids[a] = autre.id; ids[b] = e.id; sel.set(ids);
     }
     var total = 0; items.forEach(function (e) { total += parseFloat(dureeDe(e)) || 0; });
+    var tempsJeunePlanifie = estJeuneJudo(infos.groupe || p.sous) && Array.isArray(infos.tempsPhases) ? infos.tempsPhases.reduce(function (a,b) { return a + Number(b || 0); },0) : 0;
     // Cours auquel la séance est rattachée (créneaux des 8 prochains jours du planning)
     var creneaux = prochainsCreneaux(planning, 8), coursChoisi = creneaux.filter(function (c) { return c.cle === infos._cours; })[0];
     function enregistrerSeance(silencieux) {
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
       var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
       var sauvegardeOK = ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
-        titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now(), trame: 2 });
+        titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now(), trame: 3 });
       if (!sauvegardeOK) { setMsg('Enregistrement impossible : libérez de l’espace sur cet appareil et réessayez.'); return false; }
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
       return true;
@@ -3229,14 +3255,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'cs-in' },
           h('div', { className: 'cs-haut' },
             h('div', null, h('div', { className: 'cs-sur' }, 'Séance ' + p.espace), h('h2', null, 'Ma séance'),
-              h('p', null, n + (n > 1 ? ' exercices' : ' exercice') + (total ? ' · ' + total + ' min' : '') + ' · trame en ' + PH.length + ' phases')),
+              h('p', null, n + (n > 1 ? ' activités' : ' activité') + ((tempsJeunePlanifie || total) ? ' · ' + (tempsJeunePlanifie || total) + ' min' : '') + ' · trame en ' + PH.length + ' phases')),
             h('div', { className: 'cs-actions' },
               h('button', { type: 'button', className: 'cs-btn', onClick: function () { setOuvert(false); } }, 'Revenir aux exercices'),
               (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null,
               h('button', { type: 'button', className: 'cs-btn plein', disabled: !n, onClick: telecharger }, 'Générer la fiche (PDF)'),
               n ? h('button', { type: 'button', className: 'cs-btn cs-lancer', onClick: function () {
                 var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
-                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos, trame: 2 }); } }, '▶ Lancer la séance') : null)),
+                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos, infos: { groupe: val('groupe'), intitulesPhases: infos.intitulesPhases }, trame: 3 }); } }, '▶ Lancer la séance') : null)),
           direct ? h(SeanceDirecte, { seance: direct, base: p.donnees, fermer: function () { setDirect(null); } }) : null,
           h('div', { className: 'cs-msg', role: 'status' }, msg),
           !n ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun exercice sélectionné'), h('span', null, 'Revenez aux exercices et touchez « Ajouter » sur ceux que vous voulez mettre dans la séance.')) : null,
@@ -3256,7 +3282,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           n ? PH.map(function (nom, i) {
             var grp = parPhase[i], t = 0; grp.forEach(function (e) { t += parseFloat(dureeDe(e)) || 0; });
             return h('section', { key: nom, className: 'cs-phase' },
-              h('h3', null, h('span', null, (i + 1) + ' • ' + nom), h('small', null, grp.length + (grp.length > 1 ? ' exercices' : ' exercice') + (t ? ' · ' + t + ' min' : ''))),
+                             h('h3', null, h('span', null, (i + 1) + ' • ' + nom), h('small', null, grp.length + (grp.length > 1 ? ' activités' : ' activité') + ((infos.tempsPhases && infos.tempsPhases[i]) ? ' · ' + infos.tempsPhases[i] + ' min' : t ? ' · ' + t + ' min' : ''))),
+               judoEsp ? h('label', { className: 'cs-champ' }, 'Intitulé de cette phase (modifiable)', h('input', { type: 'text', value: nom, onChange: function (ev) { var arr = PH.slice(); arr[i] = ev.target.value || phasesDe('Judo',infos.groupe||p.sous)[i]; majInfo('intitulesPhases',arr); } })) : null,
+               estJeuneJudo(infos.groupe || p.sous) ? h('label', { className: 'cs-champ' }, 'Durée de la phase (minutes, à titre indicatif)', h('input', { type: 'number', min: 0, max: 120, value: infos.tempsPhases && infos.tempsPhases[i] !== undefined ? infos.tempsPhases[i] : t, onChange: function (ev) { var temps = (infos.tempsPhases || []).slice(); temps[i] = Math.max(0,Number(ev.target.value)||0); majInfo('tempsPhases',temps); } })) : null,
+               infos.reperesPhases && infos.reperesPhases[i] ? h('p', { className: 'gn-aide' }, infos.reperesPhases[i]) : null,
               grp.length ? h('ul', null, grp.map(function (e, k) {
                 return h('li', { key: e.id },
                   h('div', { className: 'cs-nom' }, h('b', null, e.nom), h('span', null, (plan[e.id] && plan[e.id].bloc ? plan[e.id].bloc + ' · ' + (plan[e.id].dosage || '') : e.categorie + ((plan[e.id] && plan[e.id].dosage) || e.dosage ? ' · ' + ((plan[e.id] && plan[e.id].dosage) || e.dosage) : '')))),
@@ -5212,6 +5241,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function hasard(graine) { var x = graine % 2147483647; if (x <= 0) x += 2147483646; return function () { x = x * 16807 % 2147483647; return (x - 1) / 2147483646; }; }
   function melanger(t, r) { t = t.slice(); for (var i = t.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } return t; }
   var DUREES = [45, 60, 75, 90];
+  function dureesGroupeJudo(g) { return estEveilJudo(g) ? [30, 35, 40, 45, 60] : g === 'Pré-poussins' ? [30, 45, 60, 75] : DUREES; }
   var MOTS_RANDORI = /randori|kakari|combat|nage-komi|uchi-komi|opposition|ne-waza a theme|sortie/;
   var MOTS_CALME = /respir|relax|savasana|calme|meteo|doudou|dort|boule|recuperation|jambes au mur/;
   function sa(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
@@ -5226,6 +5256,132 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     'Travail au sol — Ne-waza',
     'Opposition et randori'
   ];
+
+  // Éveil Judo 4-5 ans et Pré-poussins 6-7 ans : modes ludiques distincts.
+  var OBJECTIFS_EVEIL_JUDO = [
+    'Découvrir le dojo et les règles', 'Équilibre et déplacements', 'Coordination et motricité',
+    'Rouler et se relever', 'Coopération et partage', 'Explorer le contact en douceur'
+  ];
+  var OBJECTIFS_PREPOUSSINS_JUDO = [
+    'Jeux d’équilibre et déplacements', 'Chutes et roulades', 'Saisies et déplacements',
+    'Coopération à deux', 'Découverte du travail au sol', 'Opposition éducative à thème'
+  ];
+  function objectifsGroupeJudo(g) {
+    return estEveilJudo(g) ? OBJECTIFS_EVEIL_JUDO : g === 'Pré-poussins' ? OBJECTIFS_PREPOUSSINS_JUDO : OBJECTIFS_JUDO;
+  }
+  function estExerciceJeuneAdapte(e, groupe) {
+    if (groupe === 'Éveils (4-5 ans)' && e && /o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame|juji-gatame/.test(sa(e.nom))) return false;
+    if (!estJeuneJudo(groupe)) return true;
+    if (!e || sg(e).indexOf(groupe) < 0) return false;
+    var s = sa([e.nom, e.description, e.thematique, e.technique, e.famille].join(' '));
+    var nom = sa(e.nom);
+    var techniques = [techniqueDe(e.nom)].map(sa);
+    var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; }) || /o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame/.test(nom);
+    var danger = /sutemi|kansetsu|shime|etrangl|juji|sankaku|waki.gatame|cle articulaire|saisie des jambes|projection violente|charge lourde|kettlebell|battle rope|souleve de terre|sprint maximum/;
+    if (danger.test(s)) return false;
+    if (groupe === 'Pré-poussins') {
+      if (e.niveauOpposition === 'Opposition libre' || /randori libre|combat libre/.test(nom)) return false;
+      return true;
+    }
+    // À 4–5 ans : apprentissage par l'exploration motrice, sans techniques formelles ni randori.
+    if (techniqueFormelle || /(?:\b|[- ])(?:waza|nage|gatame|osaekomi|ippon|uchi.komi|nage.komi|kumi.kata)\b/.test(s)) return false;
+    if (/projection|immobilisation|combat|randori|opposition libre|musculation|renforcement|gainage statique|pompes? |prise de judo/.test(s)) return false;
+    if (e.rolePedagogique === 'Opposition' || e.niveauOpposition === 'Opposition dirigée' || e.niveauOpposition === 'Opposition libre') return false;
+    return /jeu|ludique|parcours|motric|equilibr|coordina|deplac|marche|roul|ramper|grimper|saut|animal|imitation|mimer|relever|explor|cooper|partenair|entraide|salut|respir|relax|calme|appui|orientation|adresse|prehension|poursuite|saisir/.test(s);
+  }
+  function convientPhaseJeune(e, nomPhase, groupe) {
+    if (!estExerciceJeuneAdapte(e, groupe)) return false;
+    var s = sa([e.nom,e.thematique,e.description,e.competenceCiblee,e.rolePedagogique].join(' '));
+    var m = momentsDe(e), fin = m.indexOf('Fin de séance') >= 0;
+    var aDeux = e.format === 'Binôme' || e.format === 'Collectif' || e.format === 'Trio';
+    if (nomPhase === 'Retour au calme') return fin && /calme|respir|relax|repos|doux|salut|detente|jeu calme/.test(s);
+    if (fin) return false;
+    if (estEveilJudo(groupe)) {
+      if (nomPhase === 'Jeux moteurs') return /jeu|animal|imitation|deplac|march|equilibr|coordina|saut|ramper|roul|motric/.test(s) && !/opposition|combat/.test(s);
+      if (nomPhase === 'Parcours moteurs') return /parcours|atelier|equilibr|franchis|obstacle|explor|ramper|roul|relever|appui|orientation|adresse/.test(s) && !/combat/.test(s);
+      if (nomPhase === 'Jeux coopératifs') return aDeux && /jeu|cooper|entraide|partenair|collectif|transport|ensemble|binome|partage/.test(s) && !/opposition|combat/.test(s);
+      return false;
+    }
+    if (nomPhase === 'Jeux moteurs') return /jeu|animal|motric|equilibr|deplac|coordina|roul|chute|appui/.test(s) && !/randori|opposition/.test(s);
+    if (nomPhase === 'Bases du Judo') return m.indexOf('Corps de séance') >= 0 && e.rolePedagogique !== 'Opposition' && e.niveauOpposition !== 'Opposition dirigée';
+    if (nomPhase === 'Opposition éducative') {
+      return aDeux && m.indexOf('Corps de séance') >= 0 &&
+        (e.niveauOpposition === 'Opposition dirigée' || /jeu d.opposition|opposition educative|randori educatif/.test(s)) &&
+        e.niveauOpposition !== 'Opposition libre';
+    }
+    return false;
+  }
+  function scoreObjectifJeune(e, objectif) {
+    var o = sa(objectif), s = sa([e.nom,e.thematique,e.description,e.competenceCiblee].join(' '));
+    var motifs = [
+      [/equilibr|deplac/, /equilibr|deplac|appui|orient|marche/],
+      [/coordina|motric/, /coordina|motric|animal|imitation|saut|ramper|parcours/],
+      [/roul|chute/, /roul|chute|ukemi|relever|sol/],
+      [/cooper|partage|deux/, /cooper|partag|entraide|ensemble|binome|partenair/],
+      [/contact|saisie/, /contact|saisie|prehension|partenair|toucher/],
+      [/dojo|regle/, /dojo|salut|regle|respect|orientation/],
+      [/travail au sol/, /sol|quadrupedie|roul|retournement/],
+      [/opposition/, /opposition|jeu de lutte|randori educatif/]
+    ];
+    for (var i=0;i<motifs.length;i++) if (motifs[i][0].test(o)) return motifs[i][1].test(s) ? 12 : 0;
+    return 0;
+  }
+  function genererSeanceJeunes(rep, tous, tout, graine) {
+    var groupe = rep.groupe, eveil = estEveilJudo(groupe);
+    if (!estJeuneJudo(groupe)) throw new Error('Groupe jeunes invalide');
+    var minutes = parseInt(rep.duree,10) || 45;
+    if (minutes < 20 || minutes > 120) throw new Error('Durée de séance hors limites pratiques (20 à 120 min)');
+    var ph = phasesDe('Judo', groupe), poids = eveil ? [0.11,0.22,0.34,0.22,0.11] : [0.10,0.20,0.40,0.20,0.10];
+    var portions = poids.map(function (p) { return Math.floor(minutes*p); });
+    var aRepartir = minutes - portions.reduce(function (a,b) { return a+b; },0);
+    for (var k=0;k<aRepartir;k++) portions[[2,1,3,0,4][k % 5]]++;
+    var repl = eveil ? [
+      'Accueil individuel, jeu libre surveillé, salut collectif et rappel d’une règle simple.',
+      'Jeux d’imitation et de locomotion : une consigne courte à la fois, valoriser toutes les réussites.',
+      'Parcours d’exploration : équilibre, rouler, ramper et se relever. Prévoir une pause boisson.',
+      'Jeux à deux majoritairement coopératifs, sans projection ni combat. Prévoir une pause boisson.',
+      'Retour au calme, expression des enfants et salut final. Aucun étirement forcé.'
+    ] : [
+      'Accueil, salut, mobilité et rappel des règles de sécurité.',
+      'Jeux d’équilibre, déplacements et réactions. Alterner les situations courtes.',
+      'Apprentissages fondamentaux : roulades et chutes adaptées, déplacements, travail au sol ou saisies selon l’objectif. Prévoir une pause boisson.',
+      'Oppositions éducatives sous consignes : départ défini, Tori/Uke, arrêt immédiat, changements réguliers. Prévoir une pause boisson.',
+      'Retour au calme, retour sur les réussites et salut final.'
+    ];
+    var candidats = tous.filter(function (e) {
+      if (!estExerciceJeuneAdapte(e,groupe)) return false;
+      var equip = (e.equipement || '').split(' + ').filter(Boolean);
+      return equip.every(function (m) { return ['Tatami','Judogi','Partenaire','Poids du corps'].concat(MATERIEL_JUDO).indexOf(m)>=0; });
+    });
+    var r = hasard(graine || 1), pris = {}, resultat=[], manques=[];
+    if (eveil && minutes > 45) manques.push('Éveil Judo : prévoir plusieurs changements de jeu et pauses si la durée dépasse 45 min');
+    if (!candidats.length) manques.push('Aucun exercice ludique compatible trouvé pour ' + groupe + ' : enrichir le catalogue');
+    ph.forEach(function (nom,i) {
+      var nb = portions[i], pause = (i===2 || i===3) && minutes>=35 ? 1 : 0;
+      var reserve = i===0 ? nb : i===4 ? Math.min(3,nb) : 1 + pause;
+      var pool = candidats.filter(function (e) { return !pris[e.id] && convientPhaseJeune(e,nom,groupe); });
+      pool.sort(function (a,b) {
+        var sc = function (e) { return scoreObjectifJeune(e,rep.objectif) + (e.rolePedagogique ? 3 : 0) + (e.dureeBlocMin ? 2 : 0) - ((rep.eviter||{})[e.id] ? 6:0); };
+        return sc(b) - sc(a) || r() - 0.5;
+      });
+      var nombre = (i===0 ? 0 : i===4 ? 1 : Math.min(3,Math.max(1,Math.floor((nb-reserve)/4))));
+      var selection = pool.slice(0,nombre), dispo=Math.max(0,nb-reserve);
+      var durees = [], temps=0;
+      selection.forEach(function (e) {
+        var cible = Number(e.dureeBlocMin) || (eveil ? 4 : 6);
+        var v = Math.min(eveil ? 5 : 8,Math.max(1,Math.round(cible)),Math.max(0,dispo-temps));
+        if (v>0) { durees.push(v); temps+=v; pris[e.id]=1; }
+      });
+      selection = selection.slice(0,durees.length);
+      var transitions = nb-temps;
+      if (!selection.length && i!==0 && i!==4) manques.push(nom + ' : aucune situation suffisamment adaptée dans le catalogue');
+      if (selection.length && transitions > Math.max(4,Math.round(nb*0.4)) && i!==4) manques.push(nom + ' : ' + transitions + ' min à organiser ou compléter avec d’autres situations');
+      resultat.push({nom:nom, minutes:nb, transitions:transitions, repere:repl[i],
+        exercices: selection.map(function (e,j) { return {e:e,duree:durees[j]}; })});
+    });
+    return {phases:resultat,manques:manques,jeunes:true};
+  }
+
   // Bonus de pertinence (pas un filtre bloquant) : respecte la catégorie d'âge et la technique choisies.
   function scoreObjectifJudo(e, objectif) {
     var nom = sa(e.nom), theme = sa(e.thematique), technique = sa(e.technique);
@@ -5286,6 +5442,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return durees;
   }
   function genererSeance(rep, judo, tous, tout, graine) {
+    if (judo && (rep.groupe === 'Éveils (4-5 ans)' || rep.groupe === 'Pré-poussins')) return genererSeanceJeunes(rep,tous,tout,graine);
     var r = hasard(graine), minutes = parseInt(rep.duree, 10) || 60, parId = {};
     tout.forEach(function (e) { parId[e.id] = e; });
     var autorise = judo ? ['Tatami', 'Judogi', 'Partenaire', 'Poids du corps'].concat(MATERIEL_JUDO) : null;
@@ -5412,6 +5569,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }
       resultat.push({ nom: ph[0], minutes: min, transitions: transitionsPedagogiques, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
     });
+    if (judo && typeof phasesDe === 'function') { var labelsAge = phasesDe('Judo',rep.groupe); resultat.forEach(function (p,i) { p.libelle = labelsAge[i] || p.nom; }); }
     return { phases: resultat, manques: manques };
   }
 
@@ -5485,8 +5643,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function maj(k, v) { var n = Object.assign({}, rep); n[k] = v; setRep(n); return n; }
     var candidatsRoutine = p.tout.filter(function (e) { return estMobilite(e) && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)'); })
       .sort(function (a, b) { var ia = rep.routine.indexOf(a.id), ib = rep.routine.indexOf(b.id); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, 'fr'); });
-    var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'] : ['Gym douce', 'Training'];
+    var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Minimes', 'Cadets', 'Juniors', 'Adultes'] : ['Gym douce', 'Training'];
     var objectifs = judo ? OBJECTIFS_JUDO : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];
+    if (judo) objectifs = objectifsGroupeJudo(rep.groupe);
     var poolAge = p.donnees.filter(function (e) { return !rep.groupe || sg(e).indexOf(rep.groupe) >= 0; });
     var familles = ['Variée'].concat(uniq(poolAge.map(function (e) { return e.technique; }).filter(function (t) { return t && t !== 'Préparation physique générale'; })).sort(function (a, b) { return a.localeCompare(b, 'fr'); }));
     var techniques = rep.famille && rep.famille !== 'Variée' ? uniq(poolAge.filter(function (e) { return e.technique === rep.famille; }).map(function (e) { return techniqueDe(e.nom); }).filter(function (t) { return !!FAMILLE_DE[sa(t)]; })).sort(function (a, b) { return a.localeCompare(b, 'fr'); }) : [];
@@ -5709,9 +5868,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var ids = [], plan = {};
       res.phases.forEach(function (ph, i) { ph.exercices.forEach(function (x) { if (ids.indexOf(x.e.id) < 0) { ids.push(x.e.id); plan[x.e.id] = { phase: i, duree: String(x.duree) }; ['bloc', 'dosage', 'travail', 'tours'].forEach(function (k) { if (x[k]) plan[x.e.id][k] = x[k]; }); } }); });
       var tech = rep.technique || (rep.famille && rep.famille !== 'Variée' ? rep.famille : '');
-      var infos = { groupe: rep.groupe, duree: rep.duree, intensite: 'Modérée', thematique: judo ? (rep.famille && rep.famille !== 'Variée' ? rep.famille : '') : (rep.objectif && rep.objectif !== 'Varié' ? rep.objectif : ''),
+      var infos = { groupe: rep.groupe, duree: rep.duree, intensite: estJeuneJudo(rep.groupe) ? 'Faible' : 'Modérée', thematique: judo ? (rep.famille && rep.famille !== 'Variée' ? rep.famille : '') : (rep.objectif && rep.objectif !== 'Varié' ? rep.objectif : ''),
         objectif: [rep.objectif && rep.objectif !== 'Varié' ? 'Objectif : ' + rep.objectif : '', tech ? 'Technique : ' + tech : '', rep.calme ? 'Retour au calme : ' + rep.calme.toLowerCase() : ''].filter(Boolean).join(' · ') };
       if (infos.objectif) infos._objectif = true;
+      if (judo) infos.intitulesPhases = res.phases.map(function (ph) { return ph.libelle || ph.nom; });
+      if (judo && estJeuneJudo(rep.groupe)) { infos.tempsPhases = res.phases.map(function (ph) { return ph.minutes; }); infos.reperesPhases = res.phases.map(function (ph) { return ph.repere || ''; }); }
       if (!judo) {
         var cps = res.phases.filter(function (x) { return x.blocs; })[0];
         infos.format = cps ? cps.format : formatParDefaut(rep.groupe); infos.intensite = rep.groupe === 'Gym douce' ? 'Faible (effort 3-4 sur 10)' : 'Modérée (5-6 sur 10)';
@@ -5771,7 +5932,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         res.manques.length ? h('p', { className: 'gn-aide', role: 'status' }, 'Points pédagogiques à compléter ou vérifier : ' + res.manques.join(' · ') + '. Contrôlez avant utilisation.') : null,
         precedentRes ? h('button', { type: 'button', className: 'cs-btn mini', onClick: annulerRetouche }, '↶ Annuler la dernière retouche') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
-          return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
+          return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.libelle || ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
             ph.blocs ? ph.blocs.map(function (b, k) {
               return h('div', { key: k, className: 'gn-bloc' }, h('div', { className: 'gn-bloc-tete' }, h('b', null, b.nom), h('small', null, b.minutes + ' min')), h('p', { className: 'gn-bloc-detail' }, b.detail),
                 h('ul', null, b.items.map(function (x) { return ligneExo(i, x, x.dosage + ' · ' + court(x.e.categorie)); })));
