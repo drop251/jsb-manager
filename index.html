@@ -4577,7 +4577,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var format = valeurChampPedagogique(brut, ['format']).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     var normOrg = organisation.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (/binome|trio/.test(format) && (!/\btori\b/.test(normOrg) || !/\buke\b/.test(normOrg))) erreurs.push('Organisation : préciser les rôles de Tori et Uke');
-    if (!/altern|rotation|chang|tourn|invers/.test(normOrg)) erreurs.push('Organisation : préciser l’alternance ou les rotations');
+    if (/binome|trio|collectif/.test(format) && !/altern|rotation|chang|tourn|invers/.test(normOrg)) erreurs.push('Organisation : préciser l’alternance ou les rotations');
     if (!/repos|recuper|pause/.test(normOrg)) erreurs.push('Organisation : préciser la récupération ou le repos');
     var n = Number(duree.replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, ''));
     if (!duree || !Number.isFinite(n) || n < 1 || n > 30) erreurs.push('Durée de bloc réaliste : nombre de minutes entre 1 et 30');
@@ -4642,7 +4642,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
-      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || familleDe(e.nom, texte);
+      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || x.famille || familleDe(e.nom, texte);
       e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
     } else {
       e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = '';
@@ -4738,7 +4738,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (deja[k]) {
         var ex = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === cle(e.nom) ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
         if (ex && (il.image || il.svg)) r.illustrations.push({ id: ex.id, nom: ex.nom, image: il.image, svg: il.svg });
-        var majPeda = !!(ex && valeurChampPedagogique(l, ['description']) && valeurChampPedagogique(l, ['competenceCiblee','compétence ciblée']));
+        var majPeda = !!(ex && valeurChampPedagogique(l, ['description']) && !seul);
         if (majPeda) {
           var erreursMaj = verifierNouvelExerciceJudo(l, e);
           if (erreursMaj.length) { r.refuses.push({ nom: e.nom, raisons: erreursMaj }); return; }
