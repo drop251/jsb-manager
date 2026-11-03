@@ -4632,7 +4632,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       ref: String(x.ref || ''), nom: String(x.nom).trim(), categorie: cat, categorieSecondaire: x.categorieSecondaire || '', public: [pub],
       thematique: String(x.thematique || ''), description: String(x.description || '').trim() || String(x.nom),
       dosage: String(x.dosage || ''), vigilance: String(x.vigilance || '').trim() || 'Exécution contrôlée ; arrêt en cas de douleur.',
-      muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.equipement || ''),
+      muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.materielDetail || x.equipement || ''),
       varianteFacile: String(x.varianteFacile || ''), varianteDifficile: String(x.varianteDifficile || ''), critere: String(x.critere || ''),
       inspiration: x.inspiration ? String(x.inspiration).split(',')[0] : 'Ajouté depuis l\'app', groupeMusculaire: x.groupeMusculaire || '',
       isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
@@ -4727,7 +4727,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     base.forEach(function (e) { var k0 = cle(e.nom) + '|' + (e.public || [])[0]; deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
       var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
-    var r = { ajouts: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
+    var r = { ajouts: [], majFiches: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
     lignes.forEach(function (l) {
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
       var e = classer(l); if (!e) { r.refuses.push({ nom: valeurChampPedagogique(l,['nom']) || 'Sans nom', raisons: ['Nom obligatoire'] }); r.ignores++; return; }
@@ -4736,10 +4736,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var seul = (!String(e.description || '').trim() || cle(e.description) === cle(e.nom)) && parNom[cle(e.nom)];
       if (seul) { k = cle(seul.nom) + '|' + (seul.public || [])[0]; parCle[k] = seul; deja[k] = 1; }
       if (deja[k]) {
-        r.doublons.push(e.nom);
-        // Exercice déjà dans la base : on garde seulement son illustration
         var ex = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === cle(e.nom) ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
         if (ex && (il.image || il.svg)) r.illustrations.push({ id: ex.id, nom: ex.nom, image: il.image, svg: il.svg });
+        var majPeda = !!(ex && valeurChampPedagogique(l, ['description']) && valeurChampPedagogique(l, ['competenceCiblee','compétence ciblée']));
+        if (majPeda) {
+          var erreursMaj = verifierNouvelExerciceJudo(l, e);
+          if (erreursMaj.length) { r.refuses.push({ nom: e.nom, raisons: erreursMaj }); return; }
+          var ficheMaj = Object.assign({}, ex, e, { id: ex.id, ref: ex.ref || e.ref, ajoute: !!ex.ajoute, _jsbOverride: !ex.ajoute });
+          ['image','illustration','video'].forEach(function (m) { if (!e[m] && ex[m]) ficheMaj[m] = ex[m]; });
+          r.majFiches.push(ficheMaj);
+          return;
+        }
+        r.doublons.push(e.nom);
         return;
       }
       var erreursFiche = verifierNouvelExerciceJudo(l, e);
@@ -4792,7 +4800,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0 && vids.indexOf(f) < 0; })[0];
       (fichier ? lireFichierExercices(fichier) : Promise.resolve([])).then(function (lignes) {
         var r = preparerAjouts(lignes, BASE);
-        if (r.refuses && r.refuses.length) { r.ajouts = []; r.formes = 0; setRapport(r); setMsg('Import refusé : corrigez toutes les fiches signalées avant de réimporter ce fichier.'); return; }
+        if (r.refuses && r.refuses.length) { r.ajouts = []; r.majFiches = []; r.formes = 0; setRapport(r); setMsg('Import refusé : corrigez toutes les fiches signalées avant de réimporter ce fichier.'); return; }
         return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
           r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
           var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees.concat(videosDesLignes(lignes, r, BASE)); r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
@@ -4811,8 +4819,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rapport.refuses && rapport.refuses.length) { setMsg('Enregistrement bloqué : corrigez les fiches refusées.'); return; }
       var il = rapport.illustrations || [];
       if (rapport.ajouts.length) ecrireIdMax(Math.max.apply(null, rapport.ajouts.map(function (e) { return e.id; })));
-      (rapport.ajouts.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
-        return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(anciens) ? anciens : []).concat(rapport.ajouts));
+      (rapport.ajouts.length || rapport.majFiches.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
+        var parId = {};
+        (Array.isArray(anciens) ? anciens : []).forEach(function (ex) { if (ex && ex.id) parId[ex.id] = ex; });
+        rapport.ajouts.concat(rapport.majFiches).forEach(function (ex) { parId[ex.id] = ex; });
+        return Stockage.ecrire(CLE_AJOUTS, Object.keys(parId).map(function (id) { return parId[id]; }));
       }) : Promise.resolve(true)).then(function (ok) {
         if (!ok || !il.length) return ok;
         IMG_PERSO = Object.assign({}, IMG_PERSO); ILLUS_IA = Object.assign({}, ILLUS_IA);
@@ -4827,7 +4838,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }).then(function (ok) {
         if (!ok) { setMsg('Enregistrement impossible sur cet appareil.'); return; }
         var vs = rapport.videos || [];
-        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
+        setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', rapport.majFiches.length ? rapport.majFiches.length + ' fiches mises à jour' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
           vs.length ? rapport.nVideos + (rapport.nVideos > 1 ? ' vidéos enregistrées' : ' vidéo enregistrée') + (rapport.nVideos < vs.length ? ' (' + (vs.length - rapport.nVideos) + ' non enregistrée' + (vs.length - rapport.nVideos > 1 ? 's' : '') + ' : espace insuffisant ?)' : '') : ''].filter(Boolean).join(', ') + '.');
         setTimeout(function () { location.reload(); }, 700);
       });
@@ -4847,7 +4858,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var vids = [];
       ids.forEach(function (id) { delete IMG_PERSO[id]; delete ILLUS_IA[id]; if (VIDEOS[id]) vids.push(id); });
       vids.reduce(function (pr, id) { return pr.then(function () { return retirerVideo(id); }); }, Promise.resolve())
-        .then(function () { return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA), Stockage.ecrire(CLE_AJOUTS, [])]); })
+        .then(function () { return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA), Stockage.lire(CLE_AJOUTS).then(function (ajouts) { return Stockage.ecrire(CLE_AJOUTS, (Array.isArray(ajouts) ? ajouts : []).filter(function (e) { return e && e._jsbOverride; })); })]); })
         .then(function () { location.reload(); });
     }
     var compte = function (prop) {
@@ -4875,6 +4886,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         rapport.refuses && rapport.refuses.length ? h('div', { role: 'alert' }, h('strong', null, rapport.refuses.length + ' fiche(s) refusée(s) : aucun nouvel exercice ne sera importé.'), h('ul', null, rapport.refuses.map(function (f,i) { return h('li', { key: i }, f.nom + ' : ' + f.raisons.join(' ; ')); }))) : null,
         h('strong', null, [rapport.ajouts.length ? rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '') : '',
+          rapport.majFiches.length ? rapport.majFiches.length + ' fiches existantes prêtes à être mises à jour' : '',
           rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : '',
           (rapport.videos || []).length ? rapport.videos.length + (rapport.videos.length > 1 ? ' vidéos' : ' vidéo') : ''].filter(Boolean).join(' · ')),
         (rapport.videos || []).length ? h('ul', { className: 'gestion-videos' }, rapport.videos.map(function (v) {
@@ -4898,7 +4910,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('li', { key: e.id }, h(Illustration, { e: e, petit: true }), e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
         }))) : null,
         h('div', { className: 'gestion-actions' },
-          h('button', { type: 'button', className: 'btn plein', disabled: !!(rapport.refuses && rapport.refuses.length), onClick: enregistrer }, rapport.refuses && rapport.refuses.length ? 'Import bloqué' : rapport.ajouts.length ? 'Enregistrer' : 'Intégrer les illustrations'),
+          h('button', { type: 'button', className: 'btn plein', disabled: !!(rapport.refuses && rapport.refuses.length), onClick: enregistrer }, rapport.refuses && rapport.refuses.length ? 'Import bloqué' : rapport.ajouts.length || rapport.majFiches.length ? 'Enregistrer les fiches' : 'Intégrer les illustrations'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
   }
   // ---- Connexion : profils d'éducateurs sur l'appareil (prénom, nom, club, code facultatif à 4 chiffres).
@@ -6594,7 +6606,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
     ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
     ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'],
-    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration']];
+    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration'],
+    ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
+    ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée réaliste du bloc (min)', 'dureeBlocMin']];
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function nomSur(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'exercice'; }
   function octetsTexte(t) { return new TextEncoder().encode(t); }
@@ -7124,8 +7138,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     BASE = BASE_ORIGINE;
     return chargerIllusIA().then(function () { return Stockage.lire(CLE_AJOUTS); }).then(function (a) {
       if (!Array.isArray(a) || !a.length) return;
-      var ids = {}; BASE.forEach(function (e) { ids[e.id] = 1; });
-      BASE = BASE.concat(a.filter(function (e) { return e && !ids[e.id]; }).map(function (e) { return Object.assign({}, e, { ajoute: true }); }));
+      var ids = {}; BASE.forEach(function (e,i) { ids[e.id] = i; });
+      a.forEach(function (e) { if (!e || !e.id) return;
+        if (ids[e.id] !== undefined) { if (e._jsbOverride) BASE[ids[e.id]] = Object.assign({}, BASE[ids[e.id]], e, { ajoute: false }); }
+        else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: true })); }
+      });
     }).catch(function () {}).then(chargerEnLigne);
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
