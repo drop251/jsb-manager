@@ -28,6 +28,11 @@ jobs:
           if ! grep -q 'Points pédagogiques à compléter ou vérifier' index.html; then
             node scripts/upgrade-judo-pedagogie-v3.cjs
           fi
+      - name: Valider les reprises du catalogue Judo
+        run: |
+          if ! grep -q "var majPeda = !!(ex && valeurChampPedagogique(l, \['description'\]) && !seul)" index.html; then
+            node scripts/upgrade-judo-pedagogie-v4.cjs
+          fi
       - name: Contrôler JavaScript et tests automatisés
         run: |
           git diff --check
