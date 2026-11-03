@@ -1,0 +1,123 @@
+
+  // Éveil Judo 4-5 ans et Pré-poussins 6-7 ans : modes ludiques distincts.
+  var OBJECTIFS_EVEIL_JUDO = [
+    'Découvrir le dojo et les règles', 'Équilibre et déplacements', 'Coordination et motricité',
+    'Rouler et se relever', 'Coopération et partage', 'Explorer le contact en douceur'
+  ];
+  var OBJECTIFS_PREPOUSSINS_JUDO = [
+    'Jeux d’équilibre et déplacements', 'Chutes et roulades', 'Saisies et déplacements',
+    'Coopération à deux', 'Découverte du travail au sol', 'Opposition éducative à thème'
+  ];
+  function objectifsGroupeJudo(g) {
+    return estEveilJudo(g) ? OBJECTIFS_EVEIL_JUDO : g === 'Pré-poussins' ? OBJECTIFS_PREPOUSSINS_JUDO : OBJECTIFS_JUDO;
+  }
+  function estExerciceJeuneAdapte(e, groupe) {
+    if (!estJeuneJudo(groupe)) return true;
+    if (!e || sg(e).indexOf(groupe) < 0) return false;
+    var s = sa([e.nom, e.description, e.thematique, e.technique, e.famille].join(' '));
+    var nom = sa(e.nom);
+    var techniques = techniquesDe(e.nom).map(sa);
+    var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; });
+    var danger = /sutemi|kansetsu|shime|etrangl|juji|sankaku|waki.gatame|cle articulaire|saisie des jambes|projection violente|charge lourde|kettlebell|battle rope|souleve de terre|sprint maximum/;
+    if (danger.test(s)) return false;
+    if (groupe === 'Pré-poussins') {
+      if (e.niveauOpposition === 'Opposition libre' || /randori libre|combat libre/.test(nom)) return false;
+      return true;
+    }
+    // À 4–5 ans : apprentissage par l'exploration motrice, sans techniques formelles ni randori.
+    if (techniqueFormelle || /(?:\b|[- ])(?:waza|nage|gatame|osaekomi|ippon|uchi.komi|nage.komi|kumi.kata)\b/.test(s)) return false;
+    if (/projection|immobilisation|combat|randori|opposition libre|musculation|renforcement|gainage statique|pompes? |prise de judo/.test(s)) return false;
+    if (e.rolePedagogique === 'Opposition' || e.niveauOpposition === 'Opposition dirigée' || e.niveauOpposition === 'Opposition libre') return false;
+    return /jeu|ludique|parcours|motric|equilibr|coordina|deplac|marche|roul|ramper|grimper|saut|animal|imitation|mimer|relever|explor|cooper|partenair|entraide|salut|respir|relax|calme|appui|orientation|adresse|prehension|poursuite|saisir/.test(s);
+  }
+  function convientPhaseJeune(e, nomPhase, groupe) {
+    if (!estExerciceJeuneAdapte(e, groupe)) return false;
+    var s = sa([e.nom,e.thematique,e.description,e.competenceCiblee,e.rolePedagogique].join(' '));
+    var m = momentsDe(e), fin = m.indexOf('Fin de séance') >= 0;
+    var aDeux = e.format === 'Binôme' || e.format === 'Collectif' || e.format === 'Trio';
+    if (nomPhase === 'Retour au calme') return fin && /calme|respir|relax|repos|doux|salut|detente|jeu calme/.test(s);
+    if (fin) return false;
+    if (estEveilJudo(groupe)) {
+      if (nomPhase === 'Jeux moteurs') return /jeu|animal|imitation|deplac|march|equilibr|coordina|saut|ramper|roul|motric/.test(s) && !/opposition|combat/.test(s);
+      if (nomPhase === 'Parcours moteurs') return /parcours|atelier|equilibr|franchis|obstacle|explor|ramper|roul|relever|appui|orientation|adresse/.test(s) && !/combat/.test(s);
+      if (nomPhase === 'Jeux coopératifs') return aDeux && /jeu|cooper|entraide|partenair|collectif|transport|ensemble|binome|partage/.test(s) && !/opposition|combat/.test(s);
+      return false;
+    }
+    if (nomPhase === 'Jeux moteurs') return /jeu|animal|motric|equilibr|deplac|coordina|roul|chute|appui/.test(s) && !/randori|opposition/.test(s);
+    if (nomPhase === 'Bases du Judo') return m.indexOf('Corps de séance') >= 0 && e.rolePedagogique !== 'Opposition' && e.niveauOpposition !== 'Opposition dirigée';
+    if (nomPhase === 'Opposition éducative') {
+      return aDeux && m.indexOf('Corps de séance') >= 0 &&
+        (e.niveauOpposition === 'Opposition dirigée' || /jeu d.opposition|opposition educative|randori educatif/.test(s)) &&
+        e.niveauOpposition !== 'Opposition libre';
+    }
+    return false;
+  }
+  function scoreObjectifJeune(e, objectif) {
+    var o = sa(objectif), s = sa([e.nom,e.thematique,e.description,e.competenceCiblee].join(' '));
+    var motifs = [
+      [/equilibr|deplac/, /equilibr|deplac|appui|orient|marche/],
+      [/coordina|motric/, /coordina|motric|animal|imitation|saut|ramper|parcours/],
+      [/roul|chute/, /roul|chute|ukemi|relever|sol/],
+      [/cooper|partage|deux/, /cooper|partag|entraide|ensemble|binome|partenair/],
+      [/contact|saisie/, /contact|saisie|prehension|partenair|toucher/],
+      [/dojo|regle/, /dojo|salut|regle|respect|orientation/],
+      [/travail au sol/, /sol|quadrupedie|roul|retournement/],
+      [/opposition/, /opposition|jeu de lutte|randori educatif/]
+    ];
+    for (var i=0;i<motifs.length;i++) if (motifs[i][0].test(o)) return motifs[i][1].test(s) ? 12 : 0;
+    return 0;
+  }
+  function genererSeanceJeunes(rep, tous, tout, graine) {
+    var groupe = rep.groupe, eveil = estEveilJudo(groupe);
+    if (!estJeuneJudo(groupe)) throw new Error('Groupe jeunes invalide');
+    var minutes = parseInt(rep.duree,10) || 45;
+    if (dureesGroupeJudo(groupe).indexOf(minutes) < 0) throw new Error('Durée non adaptée au groupe ' + groupe);
+    var ph = phasesDe('Judo', groupe), poids = eveil ? [0.11,0.22,0.34,0.22,0.11] : [0.10,0.20,0.40,0.20,0.10];
+    var portions = poids.map(function (p) { return Math.floor(minutes*p); });
+    var aRepartir = minutes - portions.reduce(function (a,b) { return a+b; },0);
+    for (var k=0;k<aRepartir;k++) portions[[2,1,3,0,4][k % 5]]++;
+    var repl = eveil ? [
+      'Accueil individuel, jeu libre surveillé, salut collectif et rappel d’une règle simple.',
+      'Jeux d’imitation et de locomotion : une consigne courte à la fois, valoriser toutes les réussites.',
+      'Parcours d’exploration : équilibre, rouler, ramper et se relever. Prévoir une pause boisson.',
+      'Jeux à deux majoritairement coopératifs, sans projection ni combat. Prévoir une pause boisson.',
+      'Retour au calme, expression des enfants et salut final. Aucun étirement forcé.'
+    ] : [
+      'Accueil, salut, mobilité et rappel des règles de sécurité.',
+      'Jeux d’équilibre, déplacements et réactions. Alterner les situations courtes.',
+      'Apprentissages fondamentaux : roulades et chutes adaptées, déplacements, travail au sol ou saisies selon l’objectif. Prévoir une pause boisson.',
+      'Oppositions éducatives sous consignes : départ défini, Tori/Uke, arrêt immédiat, changements réguliers. Prévoir une pause boisson.',
+      'Retour au calme, retour sur les réussites et salut final.'
+    ];
+    var candidats = tous.filter(function (e) {
+      if (!estExerciceJeuneAdapte(e,groupe)) return false;
+      var equip = (e.equipement || '').split(' + ').filter(Boolean);
+      return equip.every(function (m) { return ['Tatami','Judogi','Partenaire','Poids du corps'].concat(MATERIEL_JUDO).indexOf(m)>=0; });
+    });
+    var r = hasard(graine || 1), pris = {}, resultat=[], manques=[];
+    if (!candidats.length) manques.push('Aucun exercice ludique compatible trouvé pour ' + groupe + ' : enrichir le catalogue');
+    ph.forEach(function (nom,i) {
+      var nb = portions[i], pause = (i===2 || i===3) && minutes>=35 ? 1 : 0;
+      var reserve = i===0 ? nb : i===4 ? Math.min(3,nb) : 1 + pause;
+      var pool = candidats.filter(function (e) { return !pris[e.id] && convientPhaseJeune(e,nom,groupe); });
+      pool.sort(function (a,b) {
+        var sc = function (e) { return scoreObjectifJeune(e,rep.objectif) + (e.rolePedagogique ? 3 : 0) + (e.dureeBlocMin ? 2 : 0) - ((rep.eviter||{})[e.id] ? 6:0); };
+        return sc(b) - sc(a) || r() - 0.5;
+      });
+      var nombre = (i===0 ? 0 : i===4 ? 1 : Math.min(3,Math.max(1,Math.floor((nb-reserve)/4))));
+      var selection = pool.slice(0,nombre), dispo=Math.max(0,nb-reserve);
+      var durees = [], temps=0;
+      selection.forEach(function (e) {
+        var cible = Number(e.dureeBlocMin) || (eveil ? 4 : 6);
+        var v = Math.min(eveil ? 5 : 8,Math.max(1,Math.round(cible)),Math.max(0,dispo-temps));
+        if (v>0) { durees.push(v); temps+=v; pris[e.id]=1; }
+      });
+      selection = selection.slice(0,durees.length);
+      var transitions = nb-temps;
+      if (!selection.length && i!==0 && i!==4) manques.push(nom + ' : aucune situation suffisamment adaptée dans le catalogue');
+      if (selection.length && transitions > Math.max(4,Math.round(nb*0.4)) && i!==4) manques.push(nom + ' : ' + transitions + ' min à organiser ou compléter avec d’autres situations');
+      resultat.push({nom:nom, minutes:nb, transitions:transitions, repere:repl[i],
+        exercices: selection.map(function (e,j) { return {e:e,duree:durees[j]}; })});
+    });
+    return {phases:resultat,manques:manques,jeunes:true};
+  }
