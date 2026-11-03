@@ -73,3 +73,24 @@ Après mise à jour sur iPhone, rouvrir JSB Manager avec une connexion pour rece
 - Si aucun exercice ciblé n'est disponible pour un objectif dans la tranche d'âge choisie, un avertissement s'affiche : le générateur ne prétend pas avoir couvert cet objectif.
 - Les objectifs et le fonctionnement du générateur **Taïso** restent inchangés. Les catégories physiques internes des fiches Judo sont conservées pour le classement existant.
 - Contrôles : validation de la syntaxe JavaScript et tests automatisés sur les correspondances d'objectifs, les séances Judo/Taïso et les opérations de sauvegarde ; vérification visuelle sur iPhone restant nécessaire.
+
+
+## Générateur Judo : critères pédagogiques et contrôle des imports (4 novembre 2026)
+
+Six données pédagogiques supplémentaires sont prises en compte pour les fiches Judo :
+- `competenceCiblee` : apprentissage précis visé (texte explicite).
+- `rolePedagogique` : `Préparation`, `Découverte`, `Acquisition`, `Consolidation`, `Réinvestissement`, `Application`, `Opposition` ou `Retour au calme`.
+- `prerequis` : compétence devant être acquise avant l'exercice, ou `Aucun`.
+- `niveauOpposition` : `Sans opposition`, `Coopération`, `Opposition dirigée` ou `Opposition libre`.
+- `organisation` : consignes d'organisation, rôle de Tori/Uke en binôme ou trio, alternances/rotations, récupération.
+- `dureeBlocMin` : durée réaliste du bloc en minutes (nombre compris entre 1 et 30).
+
+Ces six champs sont obligatoires pour les nouvelles fiches Judo importées, en plus des champs de base : nom, description, thématique, dosage, vigilance, critère de réussite, catégorie d'âge, grade, famille technique, moment, format, matériel, variante facile et difficile. Les données absentes provoquent un **refus détaillé** avant enregistrement. Le refus d'une fiche bloque l'import entier (pas de chargement partiel). Les images et vidéos ajoutées seules à un exercice existant ne nécessitent pas une nouvelle fiche complète. Une fiche ancienne déjà présente n'est pas supprimée ni bloquée parce qu'elle ne possède pas encore les six nouvelles données.
+
+Une fiche existante importée avec ses mêmes nom/public, une description complète et les nouveaux champs est **mise à jour sur son identifiant actuel**, sans création de doublon ; ses images et vidéos sont conservées. Une correction incomplète d'une fiche existante est refusée. Les familles techniques explicitement renseignées sont préservées.
+
+Le générateur Judo utilise les champs pédagogiques enrichis pour prioriser les compétences correspondantes, contrôler les rôles par phase et les prérequis déclarés, limiter les niveaux d'opposition et tenir compte de l'organisation et des durées réalistes. Les anciens exercices sans métadonnées restent disponibles, mais la séance signale les durées estimées et les éventuels manques. Les remplacements d'exercices tiennent compte des mêmes critères. Le générateur Taïso reste indépendant.
+
+Dans le générateur Judo, ouvrir **Critères pédagogiques avancés** à l'étape Technique pour préciser, si nécessaire, la compétence ciblée, les prérequis acquis, l'opposition maximale, l'organisation et la durée cible des blocs. Le rôle pédagogique est déduit de chaque phase, puis comparé aux champs des fiches. Les notes d'organisation sont aussi visibles dans la proposition et l'export PDF.
+
+Les tests exécutés sous Node.js couvrent la validation des champs, le refus d'import, les reprises de fiches existantes, la conservation des médias et la répartition des durées. Une validation finale des parcours et de la lisibilité des fiches PDF sur iPhone reste nécessaire ; la présence de six champs ne garantit pas à elle seule la pertinence d'une séance.
