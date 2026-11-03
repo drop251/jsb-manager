@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Examiner insertion et moteur
+      - name: Examiner import et generation
         run: |
           python3 - <<'PY'
           s=open('index.html',encoding='utf-8').read().splitlines()
-          for a,b in [(4735,5020),(5150,5170),(5260,5405),(5400,5447),(5520,5585),(5595,5620)]:
+          for a,b in [(3970,4165),(4650,4745),(5094,5160),(5380,5400),(5500,5580),(5580,5612)]:
             print('### SOURCE',a,b)
             for i in range(a-1,min(b,len(s))): print(f'{i+1:04d}: {s[i]}')
           PY
