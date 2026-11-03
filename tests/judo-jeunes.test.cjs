@@ -70,7 +70,6 @@ test('Éveil : aucune projection formelle, immobilisation ni opposition dirigée
   const c=baseContexte();
   const g='Éveils (4-5 ans)';
   assert.equal(c.estExerciceJeuneAdapte(exercise(1,'Jeu des animaux',g,'Échauffement')),true);
-  console.log('DIAG AGE', {nom:c.sa('O-soto-gari : entrée'),tech:c.techniqueDe('O-soto-gari : entrée'),map:c.FAMILLE_DE['o-soto-gari'],simple:/o-soto-gari/.test(c.sa('O-soto-gari : entrée')),source:c.estExerciceJeuneAdapte.toString().split('\n').find(x=>x.includes('techniqueFormelle')),result:c.estExerciceJeuneAdapte(exercise(2,'O-soto-gari : entrée',g,'Corps de séance'))});
   assert.equal(c.estExerciceJeuneAdapte(exercise(2,'O-soto-gari : entrée',g,'Corps de séance')),false);
   assert.equal(c.estExerciceJeuneAdapte(exercise(3,'Jeu opposition éducative',g,'Corps de séance','Opposition','Opposition dirigée','Binôme')),false);
   assert.equal(c.estExerciceJeuneAdapte(exercise(4,'Juji-gatame',g,'Corps de séance')),false);
