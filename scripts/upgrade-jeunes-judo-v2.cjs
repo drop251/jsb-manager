@@ -46,13 +46,13 @@ one("  function dureesGroupeJudo(g) { return estEveilJudo(g) ? [30, 35, 40, 45] 
 "  function dureesGroupeJudo(g) { return estEveilJudo(g) ? [30, 35, 40, 45, 60] : g === 'Pré-poussins' ? [30, 45, 60, 75] : DUREES; }",
 'age durations optional');
 one("    return { phases: resultat, manques: manques };\n  }\n\n  function Generateur(p)",
-"    if (judo) { var labelsAge = phasesDe('Judo',rep.groupe); resultat.forEach(function (p,i) { p.libelle = labelsAge[i] || p.nom; }); }\n    return { phases: resultat, manques: manques };\n  }\n\n  function Generateur(p)",
+"    if (judo && typeof phasesDe === 'function') { var labelsAge = phasesDe('Judo',rep.groupe); resultat.forEach(function (p,i) { p.libelle = labelsAge[i] || p.nom; }); }\n    return { phases: resultat, manques: manques };\n  }\n\n  function Generateur(p)",
 'add age titles without changing internal roles');
 one("    var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes']",
 "    var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Minimes', 'Cadets', 'Juniors', 'Adultes']",
 'young groups and older');
-one("    var objectifs = judo ? OBJECTIFS_JUDO :",
-"    var objectifs = judo ? objectifsGroupeJudo(rep.groupe) :",
+one("    var objectifs = judo ? OBJECTIFS_JUDO : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];",
+"    var objectifs = judo ? OBJECTIFS_JUDO : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];\n    if (judo) objectifs = objectifsGroupeJudo(rep.groupe);",
 'objectives per category');
 one("      var infos = { groupe: rep.groupe, duree: rep.duree, intensite: 'Modérée',",
 "      var infos = { groupe: rep.groupe, duree: rep.duree, intensite: estJeuneJudo(rep.groupe) ? 'Faible' : 'Modérée',",
