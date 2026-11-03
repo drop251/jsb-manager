@@ -70,6 +70,8 @@ test('Éveil : aucune projection formelle, immobilisation ni opposition dirigée
   const c=baseContexte();
   const g='Éveils (4-5 ans)';
   assert.equal(c.estExerciceJeuneAdapte(exercise(1,'Jeu des animaux',g,'Échauffement')),true);
+  console.log('SÉCURITÉ ÉVEIL', {jeune:c.estJeuneJudo(g),src:c.estExerciceJeuneAdapte.toString().slice(0,470)});
+  assert.match(c.estExerciceJeuneAdapte.toString(),/o-soto-gari/);
   assert.equal(c.estExerciceJeuneAdapte(exercise(2,'O-soto-gari : entrée',g,'Corps de séance')),false);
   assert.equal(c.estExerciceJeuneAdapte(exercise(3,'Jeu opposition éducative',g,'Corps de séance','Opposition','Opposition dirigée','Binôme')),false);
   assert.equal(c.estExerciceJeuneAdapte(exercise(4,'Juji-gatame',g,'Corps de séance')),false);
