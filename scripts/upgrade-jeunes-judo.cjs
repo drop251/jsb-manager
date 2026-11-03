@@ -42,7 +42,7 @@ const jeunes = fs.readFileSync('scripts/jeunes-moteur.txt','utf8');
 one("  // Bonus de pertinence (pas un filtre bloquant) : respecte la catégorie d'âge et la technique choisies.",
 jeunes+"\n  // Bonus de pertinence (pas un filtre bloquant) : respecte la catégorie d'âge et la technique choisies.",'règles pédagogiques');
 one("  function genererSeance(rep, judo, tous, tout, graine) {\n    var r = hasard(graine),",
-"  function genererSeance(rep, judo, tous, tout, graine) {\n    if (judo && estJeuneJudo(rep.groupe)) return genererSeanceJeunes(rep,tous,tout,graine);\n    var r = hasard(graine),",'moteur dédié');
+"  function genererSeance(rep, judo, tous, tout, graine) {\n    if (judo && (rep.groupe === 'Éveils (4-5 ans)' || rep.groupe === 'Pré-poussins')) return genererSeanceJeunes(rep,tous,tout,graine);\n    var r = hasard(graine),",'moteur dédié');
 one("  var VERSION_APP = '04/11/2026 · six critères Judo, imports stricts et fiches enrichies';",
 "  var VERSION_APP = '04/11/2026 · Éveil Judo ludique et Pré-poussins adaptés';",'version');
 fs.writeFileSync('index.html',s);
