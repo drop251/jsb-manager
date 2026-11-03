@@ -23,6 +23,11 @@ jobs:
           if ! grep -q "var r = { ajouts: \[\], majFiches:" index.html; then
             node scripts/upgrade-judo-pedagogie-v2.cjs
           fi
+      - name: Compléter l’interface et les exports Judo
+        run: |
+          if ! grep -q 'Points pédagogiques à compléter ou vérifier' index.html; then
+            node scripts/upgrade-judo-pedagogie-v3.cjs
+          fi
       - name: Contrôler JavaScript et tests automatisés
         run: |
           git diff --check
