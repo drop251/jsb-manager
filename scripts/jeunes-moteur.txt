@@ -12,7 +12,6 @@
     return estEveilJudo(g) ? OBJECTIFS_EVEIL_JUDO : g === 'Pré-poussins' ? OBJECTIFS_PREPOUSSINS_JUDO : OBJECTIFS_JUDO;
   }
   function estExerciceJeuneAdapte(e, groupe) {
-    if (e && /o-soto-gari/.test(sa(e.nom))) console.log('JSB FILTRE INTERNE', {groupe:groupe, nom:e.nom, estEveil:estEveilJudo(groupe), rejette:/o-soto-gari/.test(sa(e.nom))});
     if (groupe === 'Éveils (4-5 ans)' && e && /o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame|juji-gatame/.test(sa(e.nom))) return false;
     if (!estJeuneJudo(groupe)) return true;
     if (!e || sg(e).indexOf(groupe) < 0) return false;
