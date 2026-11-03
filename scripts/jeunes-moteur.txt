@@ -16,7 +16,7 @@
     if (!e || sg(e).indexOf(groupe) < 0) return false;
     var s = sa([e.nom, e.description, e.thematique, e.technique, e.famille].join(' '));
     var nom = sa(e.nom);
-    var techniques = techniquesDe(e.nom).map(sa);
+    var techniques = [techniqueDe(e.nom)].map(sa);
     var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; });
     var danger = /sutemi|kansetsu|shime|etrangl|juji|sankaku|waki.gatame|cle articulaire|saisie des jambes|projection violente|charge lourde|kettlebell|battle rope|souleve de terre|sprint maximum/;
     if (danger.test(s)) return false;
@@ -71,7 +71,7 @@
     var groupe = rep.groupe, eveil = estEveilJudo(groupe);
     if (!estJeuneJudo(groupe)) throw new Error('Groupe jeunes invalide');
     var minutes = parseInt(rep.duree,10) || 45;
-    if (dureesGroupeJudo(groupe).indexOf(minutes) < 0) throw new Error('Durée non adaptée au groupe ' + groupe);
+    if (minutes < 20 || minutes > 120) throw new Error('Durée de séance hors limites pratiques (20 à 120 min)');
     var ph = phasesDe('Judo', groupe), poids = eveil ? [0.11,0.22,0.34,0.22,0.11] : [0.10,0.20,0.40,0.20,0.10];
     var portions = poids.map(function (p) { return Math.floor(minutes*p); });
     var aRepartir = minutes - portions.reduce(function (a,b) { return a+b; },0);
@@ -95,6 +95,7 @@
       return equip.every(function (m) { return ['Tatami','Judogi','Partenaire','Poids du corps'].concat(MATERIEL_JUDO).indexOf(m)>=0; });
     });
     var r = hasard(graine || 1), pris = {}, resultat=[], manques=[];
+    if (eveil && minutes > 45) manques.push('Éveil Judo : prévoir plusieurs changements de jeu et pauses si la durée dépasse 45 min');
     if (!candidats.length) manques.push('Aucun exercice ludique compatible trouvé pour ' + groupe + ' : enrichir le catalogue');
     ph.forEach(function (nom,i) {
       var nb = portions[i], pause = (i===2 || i===3) && minutes>=35 ? 1 : 0;
