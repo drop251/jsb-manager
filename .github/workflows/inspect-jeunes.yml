@@ -16,6 +16,11 @@ jobs:
           if ! grep -q 'function genererSeanceJeunes' index.html; then
             node scripts/upgrade-jeunes-judo.cjs
           fi
+      - name: Adapter les intitulés par catégorie indépendamment du PDF
+        run: |
+          if ! grep -q 'var PHASES_JUDO_AGES' index.html; then
+            node scripts/upgrade-jeunes-judo-v2.cjs
+          fi
       - name: Valider la syntaxe et les tests existants
         run: |
           git diff --check
