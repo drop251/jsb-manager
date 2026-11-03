@@ -1,19 +1,31 @@
-name: Inspecter les parcours Judo jeunes
+name: Validation du générateur Judo adapté aux catégories
 on:
   push:
     branches: [feat/jeunes-eveil-judo-20261104]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  inspecter:
+  validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Liens entre générateur, panier, historique et catalogue
+        with:
+          persist-credentials: true
+      - name: Appliquer le moteur dédié aux jeunes
         run: |
-          python3 - <<'PY'
-          s=open('index.html',encoding='utf-8').read().splitlines()
-          for a,b in [(3236,3355),(5340,5380),(5530,5577),(5805,5845),(5850,5935),(1590,1615),(2415,2437),(7190,7273)]:
-            print('### SOURCE',a,b)
-            for i in range(a-1,min(len(s),b)):print(str(i+1)+': '+s[i][:850])
-          PY
+          if ! grep -q 'function genererSeanceJeunes' index.html; then
+            node scripts/upgrade-jeunes-judo.cjs
+          fi
+      - name: Valider la syntaxe et les tests existants
+        run: |
+          git diff --check
+          node --test tests/*.test.cjs
+      - name: Enregistrer le code testé
+        run: |
+          if ! git diff --quiet -- index.html sw.js; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add index.html sw.js
+            git commit -m "feat(judo): adapter le générateur aux jeunes"
+            git push origin HEAD:feat/jeunes-eveil-judo-20261104
+          fi
