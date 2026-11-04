@@ -1,0 +1,70 @@
+
+  // Le temps réservé au bloc et la prescription de travail sont indépendants.
+  function normaliserModeDosageJudo(v) {
+    var t=String(v||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+    if (!t) return '';
+    if (/^(repetitions?|reps?|nombre de repetitions?)$/.test(t)) return 'Répétitions';
+    if (/^(duree|temps|chronometre)$/.test(t)) return 'Durée';
+    if (/^(mixte|duree\s*(?:\+|\/|et)\s*(?:maximum\s*de\s*|max\s*)?repetitions?(?:\s*max(?:imum)?)?|duree\s*(?:\+|\/)\s*(?:max(?:imum)?\s*)?reps?)$/.test(t)) return 'Durée + répétitions max';
+    return '';
+  }
+  function maximumRepetitionsJudo(brut) {
+    var r=valeurChampPedagogique(brut,['repetitionsMax','répétitions max','maxRepetitions','maxiRepetitions']);
+    if (r) return /^\d+$/.test(r) ? +r : NaN;
+    var d=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var m=d.match(/(?:maximum|max(?:i)?)\s*:?\s*(\d+)\s*(?:repetitions?|reps?|fois|passages?)?|(\d+)\s*(?:repetitions?|reps?|fois|passages?)\s*(?:maximum|max(?:i)?)/);
+    return m ? +(m[1]||m[2]) : 0;
+  }
+  function repetitionsDoseJudo(brut) {
+    var r=valeurChampPedagogique(brut,['repetitions','répétitions','reps']);
+    if (r) { var q=r.match(/\d+/g); if (q&&q.length) return +q[q.length-1]; }
+    var max=maximumRepetitionsJudo(brut);
+    if (max>0) return max;
+    var d=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var n=d.match(/(?:\d+\s*[×x]\s*)?(\d+)\s*(?:a\s*(\d+)\s*)?(?:repetitions?|reps?|fois|passages?|essais?|entrees?)(?![a-z])/);
+    if (n) return +(n[2]||n[1]);
+    var sansTemps=d.split(/(?:repos|recuperation|pause)\s*:?/)[0];
+    var m=sansTemps.match(/(?:\d+\s*[×x]\s*)(\d+)(?:\s*(?:a|-)\s*(\d+))?/);
+    return m ? +(m[2]||m[1]) : 0;
+  }
+  function secondesDosageJudo(brut) {
+    var d=valeurChampPedagogique(brut,['duree_s','durée_s','dureeSec','durée en secondes']);
+    if (d && Number(d)>0) return Number(d);
+    var texte=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var sansRepos=texte.split(/(?:repos|recuperation|pause)\s*:?/)[0];
+    var m=sansRepos.match(/(\d+(?:[.,]\d+)?)\s*(secondes?|sec(?:ondes?)?\.?|s\b|minutes?|min\b)/);
+    if (m) return Math.round(Number(m[1].replace(',','.'))*(m[2].startsWith('min')?60:1));
+    var bloc=valeurChampPedagogique(brut,['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']);
+    return bloc && Number(bloc.replace(',','.'))>0 ? Math.round(Number(bloc.replace(',','.'))*60) : 0;
+  }
+  function modeDosageJudoDe(brut) {
+    var champ=valeurChampPedagogique(brut,['modeDosageJudo','mode de dosage judo','mode de travail judo']);
+    if (champ) return normaliserModeDosageJudo(champ);
+    var reps=repetitionsDoseJudo(brut)>0, sec=secondesDosageJudo(brut)>0;
+    // Répéter quatre fois un maintien de vingt secondes n'est pas le mode chronométré avec plafond de répétitions.
+    if (maximumRepetitionsJudo(brut)>0 && sec) return 'Durée + répétitions max';
+    if (reps) return 'Répétitions';
+    if (sec) return 'Durée';
+    return '';
+  }
+  function dosageMixteAutoriseJudo(groupes) {
+    var autorises=['Benjamins','Minimes','Cadets','Juniors','Adultes'];
+    return Array.isArray(groupes)&&groupes.length>0&&groupes.every(function (g) { return autorises.indexOf(g)>=0; });
+  }
+  function compatibleDosageJudo(e,rep) {
+    if (!e || !rep) return true;
+    var groupe=rep.groupe||'';
+    var mode=e.modeDosageJudo || modeDosageJudoDe(e);
+    if (mode==='Durée + répétitions max' && !dosageMixteAutoriseJudo([groupe])) return false;
+    if (!rep.modeTravailJudo) return true;
+    if (rep.modeTravailJudo==='Durée + répétitions max' && !dosageMixteAutoriseJudo([groupe])) return false;
+    return !mode || mode===rep.modeTravailJudo;
+  }
+  function dosageAfficheJudo(e) {
+    if (!e) return '';
+    var dose=String(e.dosage||'').trim();
+    if (e.modeDosageJudo==='Durée + répétitions max' && Number(e.repetitionsMax)>0 && !/max(?:imum|i)?/i.test(dose)) {
+      dose += (dose?' · ':'')+'maximum '+e.repetitionsMax+' répétitions';
+    }
+    return dose;
+  }
