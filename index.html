@@ -4225,7 +4225,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'pr-compteur' },
           h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés · ' + pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent')),
           appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
-        !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Touchez un nom : présent, puis absent, puis à noter.') : null,
+        !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Choisissez ✓ pour présent ou ✕ pour absent ; retouchez le statut pour remettre à noter.') : null,
         h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
           var j = it.j, st = statutDe(j, it.c), verrou = coursVerrouille(it.c);
           return h('li', { key: j.id + '-' + it.c, className: 'pr-ligne pr-appel-ligne st-' + (st || '0') + (verrou ? ' verrou' : '') },
@@ -4238,7 +4238,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                   return h('button', { key: o[0], type: 'button', className: 'pr-choix-st' + (st === o[0] ? ' actif' : '') + (o[0] === 'P' ? ' present' : ' absent'),
                     disabled: verrou, 'aria-pressed': st === o[0], 'aria-label': o[1] + ' · ' + nomComplet(j) + ' · ' + it.c,
                     onClick: function () { noter([[j.id, it.c]], o[0]); } }, o[0] === 'P' ? '✓' : '✕');
-                })))));
+                }))));
         })),
         cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null,
         inscrits.length ? (appelValide
