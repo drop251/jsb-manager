@@ -161,7 +161,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
     illustre:()=>false,evite:()=>false,estMobilite:()=>false,
     formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',formatsDe:()=>['Circuit'],
     niveauOk:()=>true,zoneDe:()=>'tronc',cibleZones:()=>0,
-    construireBlocs:()=>[],zonesTravaillees:()=>({})
+    construireBlocs:()=>[],zonesTravaillees:()=>({}),compatibleDosageJudo:()=>true
   };
   vm.createContext(ctx);
   vm.runInContext(fonction('okTaiso'),ctx);

@@ -83,9 +83,9 @@ Six données pédagogiques supplémentaires sont prises en compte pour les fiche
 - `prerequis` : compétence devant être acquise avant l'exercice, ou `Aucun`.
 - `niveauOpposition` : `Sans opposition`, `Coopération`, `Opposition dirigée` ou `Opposition libre`.
 - `organisation` : consignes d'organisation, rôle de Tori/Uke en binôme ou trio, alternances/rotations, récupération.
-- `dureeBlocMin` : durée réaliste du bloc en minutes (nombre compris entre 1 et 30).
+- `dureeBlocMin` : durée indicative de planification en minutes, facultative si le dosage est en répétitions (et non un chronomètre de l'exercice).
 
-Ces six champs sont obligatoires pour les nouvelles fiches Judo importées, en plus des champs de base : nom, description, thématique, dosage, vigilance, critère de réussite, catégorie d'âge, grade, famille technique, moment, format, matériel, variante facile et difficile. Les données absentes provoquent un **refus détaillé** avant enregistrement. Le refus d'une fiche bloque l'import entier (pas de chargement partiel). Les images et vidéos ajoutées seules à un exercice existant ne nécessitent pas une nouvelle fiche complète. Une fiche ancienne déjà présente n'est pas supprimée ni bloquée parce qu'elle ne possède pas encore les six nouvelles données.
+Les cinq premiers champs pédagogiques sont obligatoires pour les nouvelles fiches Judo ; le sixième critère est le **dosage vérifiable**, qui n'impose plus de durée à une prescription en répétitions. Les informations de base restent obligatoires : nom, description, thématique, dosage, vigilance, critère de réussite, catégorie d'âge, grade, famille technique, moment, format, matériel, variante facile et difficile. Les données absentes provoquent un **refus détaillé** avant enregistrement. Le refus d'une fiche bloque l'import entier (pas de chargement partiel). Les images et vidéos ajoutées seules à un exercice existant ne nécessitent pas une nouvelle fiche complète. Une fiche ancienne déjà présente n'est pas supprimée ni bloquée parce qu'elle ne possède pas encore les six nouvelles données.
 
 Une fiche existante importée avec ses mêmes nom/public, une description complète et les nouveaux champs est **mise à jour sur son identifiant actuel**, sans création de doublon ; ses images et vidéos sont conservées. Une correction incomplète d'une fiche existante est refusée. Les familles techniques explicitement renseignées sont préservées.
 
@@ -108,3 +108,16 @@ La **fiche de séance PDF est un modèle indicatif**, pas un contrat rigide sur 
 - **Parcours du générateur** : la routine initiale Judo est facultative et le choix d'une famille technique n'est pas obligatoire en Éveil ou en Pré-poussins. Les prérequis explicitement exigés par une fiche ne sont pas présumés acquis.
 
 La mise à jour comporte des tests automatisés sur les différentes trames, l'absence de techniques formelles en Éveil, les oppositions dirigées en Pré-poussins, la conservation des anciennes trames et le total des minutes. La vérification sur iPhone et la validation pédagogique de séances issues du catalogue réel restent nécessaires.
+
+## Dosage Judo : répétitions, durée et plafond à partir des Benjamins
+
+Le `dosage` d'une fiche Judo n'est **pas** le temps attribué à cette fiche dans le planning. Les répétitions, séries, rôles et récupérations sont prioritaires. Le générateur distingue maintenant les modes :
+- `modeDosageJudo = Répétitions` : quota décrit dans `dosage` ou `repetitions`, avec les séries et rotations. `dureeBlocMin` facultatif. Une récupération de 30 s n'est pas confondue avec un exercice chronométré.
+- `modeDosageJudo = Durée` : temps d'effort réellement défini dans `dosage` ou `duree_s`. Une `dureeBlocMin` seule ne suffit pas à inventer un chronomètre.
+- `modeDosageJudo = Durée + répétitions max` : nécessite **une durée d'effort** et `repetitionsMax` (entier positif, maximum **par judoka**). Ce mode est réservé aux **Benjamins, Minimes, Cadets, Juniors et Adultes**. Il est refusé si une fiche vise aussi les Poussins, Pré-poussins ou Éveils. Une fiche multi-âges doit être divisée lorsqu'elle utilise ce mode.
+
+Les noms de colonnes Excel exacts restent : `dureeBlocMin` (facultatif selon le dosage), `modeDosageJudo` et `repetitionsMax` (nécessaire seulement au mode combiné). Le mode peut être déduit de `dosage` lorsqu'il est sans ambiguïté ; **aucun maximum n'est inventé** si le catalogue n'en renseigne pas. Les fiches dont le dosage est illisible restent refusées avec une explication détaillée. Le refus reste global à l'import en cas de fiche incomplète, comme avant cette évolution.
+
+Le générateur Judo propose les modes compatibles avec l'âge dans **Critères pédagogiques avancés** ; les durées de phase sont des durées d'organisation. Le PDF de la séance affiche le dosage et, le cas échéant, le plafond des répétitions. Le mode séance directe conserve les séries des exercices en répétitions et peut afficher une durée associée à un maximum de répétitions lorsque ce mode est validé.
+
+Le Taïso conserve sa logique indépendante. Les séances et catalogues historiques ne sont pas effacés par la mise à jour. Les tests Node.js couvrent l'inférence des trois modes, l'import conditionnel, les catégories d'âge, la distinction effort/planning, les séries et la présence du maximum sur la fiche PDF. La validation pédagogique de la prescription et l'essai sur iPhone restent nécessaires.
