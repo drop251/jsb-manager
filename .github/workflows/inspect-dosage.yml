@@ -9,19 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Vérifier schémas et durée du générateur
+      - name: Formats de lignes, groupes et restitution
         run: |
           python3 - <<'PY'
-          import re
           s=open('index.html',encoding='utf-8').read().splitlines()
-          terms=['function verifierNouvelExerciceJudo','function classer(','function bonusPedagogiqueJudo','function genererSeance(','function genererSeanceJeunes','function pedagogiePanneau','function changerDosage','function ligneExo','function lireDosage(','function enregistrer()','var CHAMPS_FICHE','function valider','dureeBlocMin =','Durée de bloc','Durée réaliste','rep.cibleDureeBlocMin','repetitionsMax','modeDosageJudo']
-          for t in terms:
-            print('MATCH',t, [i+1 for i,x in enumerate(s) if t in x][:18])
-          patterns=['function verifierNouvelExerciceJudo','function classer(','function bonusPedagogiqueJudo','function pedagogiePanneau','function genererSeanceJeunes','function lireDosage(','var CHAMPS_FICHE']
-          for t in patterns:
-            for i,line in enumerate(s):
-              if t not in line: continue
-              print('###',t,'LINE',i+1)
-              for j in range(max(0,i-4),min(len(s),i+85)):print(f'{j+1}: {s[j][:700]}')
-              break
+          import re
+          terms=['function normaliserLigne(','function agesDe(','function sousGroupe','function preparerAjouts(','function Generateur(','function pedagogiePanneau(','function genererSeanceJeunes(','function genererSeance(','function valider()','function ligneExo(','function planExercice(','function SeanceDirecte(']
+          for t in terms: print('MATCH',t,[i+1 for i,x in enumerate(s) if t in x][:8])
+          for a,b in [(2760,2830),(4608,4678),(4778,4792),(4870,4995),(5427,5488),(5546,5705),(5765,5815),(5910,6010)]:
+            print('### SOURCE',a,b)
+            for i in range(a-1,min(len(s),b)):
+              print(str(i+1)+': '+s[i][:420])
           PY
