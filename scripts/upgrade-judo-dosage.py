@@ -84,7 +84,7 @@ one("""        h('p', { className: 'gn-aide' }, 'Les fiches existantes sans ces 
 """        h('p', { className: 'gn-aide' }, 'Une fiche en répétitions ne demande pas de durée de bloc. Dès Benjamins, il est possible de combiner une durée et un maximum de répétitions par judoka. Les minutes de séance restent indicatives.'));""",
 'Aide utilisateur')
 
-one("""       if (judo) l = l.filter(function (e) { return !e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep); });""",
+one("""if (judo) l = l.filter(function (e) { return !e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep); });""",
 """       if (judo) l = l.filter(function (e) { return compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep)); });""",
 'Remplacement sous contrainte')
 
