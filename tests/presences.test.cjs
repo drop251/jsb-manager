@@ -116,3 +116,41 @@ test('un appel validé reste verrouillé pendant la validation d’un autre cour
   assert.ok(c.donnees.seances[1].validee);
   assert.equal(c.donnees.seances[0].statuts.j1,'P');
 });
+
+test('le stockage de secours rétablit les données après une indisponibilité IndexedDB',async()=>{
+  const local=new Map(), base=new Map();
+  const db={
+    transaction(){
+      const tx={};
+      tx.objectStore=()=>({
+        get(cle) { const req={}; queueMicrotask(()=>{req.result=base.get(cle);req.onsuccess?.();queueMicrotask(()=>tx.oncomplete?.());});return req; },
+        put(val,cle) { const req={}; queueMicrotask(()=>{base.set(cle,val);req.result=cle;req.onsuccess?.();queueMicrotask(()=>tx.oncomplete?.());});return req; }
+      });
+      return tx;
+    }
+  };
+  const idb={
+    open(){const req={};queueMicrotask(()=>{req.result=db;req.onsuccess?.();});return req;}
+  };
+  const c={
+    console,Promise,queueMicrotask,indexedDB:idb,
+    localStorage:{
+      getItem:k=>local.get(k)??null,
+      setItem:(k,v)=>{local.set(k,String(v));},
+      removeItem:k=>{local.delete(k);}
+    },navigator:{storage:{}}
+  };
+  c.window=c; c.window.indexedDB=null;
+  vm.createContext(c);
+  const debut=html.indexOf('  var Stockage = (function () {');
+  const fin=html.indexOf('\n  })();',debut);
+  assert.ok(debut>=0 && fin>debut);
+  vm.runInContext(html.slice(debut,fin+8),c);
+  assert.equal(await c.Stockage.ecrire('presences-test',{numero:2}),true);
+  assert.equal(JSON.parse(local.get('presences-test-secours')).numero,2);
+  c.window.indexedDB=idb;
+  const relu=await c.Stockage.lire('presences-test');
+  assert.equal(relu.numero,2);
+  assert.equal(base.get('presences-test').numero,2);
+  assert.equal(local.has('presences-test-secours'),false);
+});
