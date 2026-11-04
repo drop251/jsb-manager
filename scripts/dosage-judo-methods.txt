@@ -42,7 +42,7 @@
     if (champ) return normaliserModeDosageJudo(champ);
     var reps=repetitionsDoseJudo(brut)>0, sec=secondesDosageJudo(brut)>0;
     // Répéter quatre fois un maintien de vingt secondes n'est pas le mode chronométré avec plafond de répétitions.
-    if (maximumRepetitionsJudo(brut)>0 && sec) return 'Durée + répétitions max';
+    if (maximumRepetitionsJudo(brut)>0 && sec && /(?:maximum|max(?:i)?)/i.test(String(valeurChampPedagogique(brut,['dosage'])||'')) && /\d+\s*(?:s\b|sec|minute|min\b)/i.test(String(valeurChampPedagogique(brut,['dosage'])||''))) return 'Durée + répétitions max';
     if (reps) return 'Répétitions';
     if (sec) return 'Durée';
     return '';
