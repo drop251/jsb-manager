@@ -21,6 +21,11 @@ jobs:
           if ! grep -q 'var PHASES_JUDO_AGES' index.html; then
             node scripts/upgrade-jeunes-judo-v2.cjs
           fi
+      - name: Rendre la trame PDF indicative sans imposer les routines
+        run: |
+          if ! grep -q 'aucune technique formelle à imposer' index.html; then
+            node scripts/upgrade-jeunes-judo-v3.cjs
+          fi
       - name: Valider la syntaxe et les tests existants
         run: |
           git diff --check
