@@ -1126,7 +1126,13 @@ html, body { overflow-x: clip; }
 .pr-appel-ligne.st-P .pr-etat-appel { border-color: var(--ok-bord); background: var(--ok-bord); color: var(--surface); }
 .pr-appel-ligne.st-A { background: color-mix(in srgb, var(--ko-bord) 10%, var(--surface)); box-shadow: inset 4px 0 0 var(--ko-bord); }
 .pr-appel-ligne.st-A .pr-etat-appel { border-color: var(--ko-bord); color: var(--ko-t); }
-.pr-appel-ligne.verrou .pr-appel-btn { cursor: not-allowed; }
+.pr-appel-ligne.verrou .pr-appel-btn { opacity: .8; }
+.pr-statut-actions { display: flex; gap: 5px; flex: none; }
+.pr-choix-st { min-width: 43px; min-height: 44px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+.pr-choix-st.present.actif { background: #15803d; border-color: #15803d; color: #fff; }
+.pr-choix-st.absent.actif { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.pr-choix-st:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 380px) { .pr-appel-btn { gap: 6px; padding: 6px 8px; } .pr-choix-st { min-width: 40px; } .pr-appel-btn .pr-photo { width: 32px; height: 32px; } }
 .pr-appel-ligne.verrou.st-0 { opacity: .6; }
 @media (hover: none) { .pr-appel-btn:active { transform: scale(.985); } }
 /* Bouton « Valider l'appel » sur une seule ligne, juste au-dessus de la barre d'onglets */
@@ -3939,6 +3945,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var demandeSvg = React.useRef(false);
     var s2 = React.useState(function () { var v = null; try { v = sessionStorage.getItem('jsb-pr-vue'); sessionStorage.removeItem('jsb-pr-vue'); } catch (e) {} if (v === 'sauvegarde') { demandeSvg.current = true; v = 'judokas'; } return v || 'appel'; }), vue = s2[0], setVue = s2[1];
     var s18 = React.useState(null), suiviId = s18[0], setSuiviId = s18[1];
+    var sEtat = React.useState(''), etatEcriture = sEtat[0], setEtatEcriture = sEtat[1], sequenceEcriture = React.useRef(0);
     var s19 = React.useState(null), importPres = s19[0], setImportPres = s19[1];   // { appels, fichier, garder, coursEssais }
     var s3 = React.useState(''), groupe = s3[0], setGroupe = s3[1];
     var s4 = React.useState(aujourdhui), date = s4[0], setDate = s4[1];
@@ -3963,8 +3970,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var g = groupe && groupes.indexOf(groupe) >= 0 ? groupe : (groupes[0] || '');
     function maj(d, texte, raison) {
       noterVersion(donnees, raison);
+      var operation = ++sequenceEcriture.current;
+      setEtatEcriture('Enregistrement…');
       setDonnees(d); if (texte) setMsg(texte);
-      Stockage.ecrire(CLE_PRES, d).then(function (ok) { if (!ok) setMsg("Enregistrement impossible sur cet appareil : faites une sauvegarde complète pour ne rien perdre."); });
+      Stockage.ecrire(CLE_PRES, d).then(function (ok) {
+        if (sequenceEcriture.current !== operation) return;
+        if (ok) setEtatEcriture('Enregistré sur cet appareil');
+        else { setEtatEcriture('Erreur d’enregistrement'); setMsg("Enregistrement impossible sur cet appareil : exportez une sauvegarde avant de quitter."); }
+      }).catch(function () { if (sequenceEcriture.current === operation) { setEtatEcriture('Erreur d’enregistrement'); setMsg("Enregistrement impossible sur cet appareil : exportez une sauvegarde avant de quitter."); } });
       Stockage.proteger().then(function (p) { setProtege(!!p); });
     }
     function sauvegarder() { setPanneauSvg(true); setMsg(''); }
@@ -4062,16 +4075,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (!coursAppel.length && g) coursAppel = [g];
     function seanceDe(c) { return donnees.seances.filter(function (s) { return s.date === date && s.groupe === c; })[0]; }
     function statutDe(j, c) { var s = seanceDe(c); return s ? s.statuts[j.id] : undefined; }
-    var vus = {}, inscrits = [];
-    coursAppel.forEach(function (c) { (parCat[c] || []).slice().sort(triJudokas).forEach(function (j) { if (!vus[j.id]) { vus[j.id] = 1; inscrits.push({ j: j, c: c }); } }); });
+    var inscrits = [];
+    // Chaque couple judoka/cours compte dans l'appel, y compris les inscrits Judo + Taïso.
+    coursAppel.forEach(function (c) { (parCat[c] || []).slice().sort(triJudokas).forEach(function (j) { inscrits.push({ j: j, c: c }); }); });
     var seancesAppel = coursAppel.map(seanceDe);
+    function coursVerrouille(c) { var s = seanceDe(c); return !!(s && s.validee); }
     var appelValide = seancesAppel.length > 0 && seancesAppel.every(function (s) { return s && s.validee; });
     function noter(ids, st) {
-      if (appelValide) return;
-      var d = Object.assign({}, donnees, { seances: donnees.seances.slice() }), parId = {};
-      donnees.judokas.forEach(function (j) { parId[j.id] = j; });
+      if (appelValide || !ids.some(function (paire) { return !coursVerrouille(paire[1]); })) return;
+      var d = Object.assign({}, donnees, { seances: donnees.seances.slice() });
       ids.forEach(function (paire) {
         var id = paire[0], c = paire[1], i = -1;
+        if (coursVerrouille(c)) return;
         d.seances.forEach(function (x, k) { if (x.date === date && x.groupe === c) i = k; });
         var s = i >= 0 ? d.seances[i] : { id: nouvelId(), date: date, groupe: c, statuts: {} };
         var ns = Object.assign({}, s, { statuts: Object.assign({}, s.statuts) });
@@ -4088,6 +4103,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function validerAppel() {
       var d = Object.assign({}, donnees, { seances: donnees.seances.slice() }), quand = new Date().toISOString();
       coursAppel.forEach(function (c) {
+        if (coursVerrouille(c)) return;
         var i = -1; d.seances.forEach(function (x, k) { if (x.date === date && x.groupe === c) i = k; });
         var s = i >= 0 ? d.seances[i] : { id: nouvelId(), date: date, groupe: c, statuts: {} };
         var ns = Object.assign({}, s, { statuts: Object.assign({}, s.statuts), validee: quand });
@@ -4128,7 +4144,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      vue === 'appel' && donnees.judokas.length ? null : fichiers);
+      vue === 'appel' && donnees.judokas.length ? null : fichiers,
+      etatEcriture ? h('span', { className: 'pr-mini', role: 'status', 'aria-live': 'polite' }, etatEcriture) : null);
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
     var panneauSauvegarde = panneauSvg ? h(PanneauSauvegarde, { donnees: donnees, setMsg: setMsg, onSauvegarder: sauvegarderMaintenant, onFermer: function () { setPanneauSvg(false); },
@@ -4204,17 +4221,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter', h('small', null, aNoter.length))) : null,
         h('div', { className: 'pr-compteur' },
           h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés · ' + pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent')),
-          appelValide || !aNoter.length ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
+          appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
         !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Touchez un nom : présent, puis absent, puis à noter.') : null,
         h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
-          var j = it.j, st = statutDe(j, it.c), etiq = st === 'P' ? 'présent' : st === 'A' ? 'absent' : 'à noter';
-          return h('li', { key: j.id, className: 'pr-ligne pr-appel-ligne st-' + (st || '0') + (appelValide ? ' verrou' : '') },
-            h('button', { type: 'button', className: 'pr-appel-btn', 'aria-disabled': appelValide || undefined,
-              onClick: function () { noter([[j.id, it.c]], st === 'P' ? 'A' : st === 'A' ? 'A' : 'P'); } },
+          var j = it.j, st = statutDe(j, it.c), verrou = coursVerrouille(it.c);
+          return h('li', { key: j.id + '-' + it.c, className: 'pr-ligne pr-appel-ligne st-' + (st || '0') + (verrou ? ' verrou' : '') },
+            h('div', { className: 'pr-appel-btn' },
               h(Avatar, { j: j }),
-              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null),
-              h('span', { className: 'pr-etat-appel' }, h('span', { 'aria-hidden': 'true' }, st === 'P' ? '✓ ' : st === 'A' ? '✕ ' : ''), st === 'P' ? 'Présent' : st === 'A' ? 'Absent' : 'À noter'),
-              h('span', { className: 'sr-seul' }, appelValide ? ' (appel validé)' : '. Touchez pour ' + (st === 'P' ? 'noter absent' : st === 'A' ? 'remettre à noter' : 'noter présent'))));
+              h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()),
+                h('span', { className: 'pr-cat' }, coursAppel.length > 1 ? it.c : catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null),
+              h('div', { className: 'pr-statut-actions', role: 'group', 'aria-label': 'Présence de ' + nomComplet(j) + ' · ' + it.c },
+                [['P', 'Présent'], ['A', 'Absent']].map(function (o) {
+                  return h('button', { key: o[0], type: 'button', className: 'pr-choix-st' + (st === o[0] ? ' actif' : '') + (o[0] === 'P' ? ' present' : ' absent'),
+                    disabled: verrou, 'aria-pressed': st === o[0], 'aria-label': o[1] + ' · ' + nomComplet(j) + ' · ' + it.c,
+                    onClick: function () { noter([[j.id, it.c]], o[0]); } }, o[0] === 'P' ? '✓' : '✕');
+                })))));
         })),
         cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null,
         inscrits.length ? (appelValide
@@ -4242,7 +4263,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         surveiller.length ? h('div', { className: 'pr-alerte', role: 'region', 'aria-label': 'Licenciés à surveiller' },
           h('strong', null, 'À surveiller : ' + surveiller.length + (surveiller.length > 1 ? ' licenciés absents' : ' licencié absent') + ' 3 fois de suite ou plus'),
           (function () {
-            var ligne = function (x) { return h('li', { key: x.j.id }, h('span', null, h('b', null, (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase()), ' · ' + x.s.serie + ' absences de suite' + (x.s.dernierePresence ? ' · dernière présence le ' + dateFr(x.s.dernierePresence) : ' · jamais présent')),
+            var ligne = function (x) { return h('li', { key: x.j.id }, h('span', null, h('b', null, (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase()), ' · ' + x.s.serie + ' absences de suite' + (x.s.serieCours ? ' (' + x.s.serieCours + ')' : '') + (x.s.dernierePresence ? ' · dernière présence le ' + dateFr(x.s.dernierePresence) : ' · jamais présent')),
               h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(x.j), onClick: function () { setSuiviId(x.j.id); } }, 'Suivi')); };
             return [h('ul', { key: 'a' }, surveiller.slice(0, 5).map(ligne)),
               surveiller.length > 5 ? h('details', { key: 'b' }, h('summary', null, 'Voir les ' + (surveiller.length - 5) + ' autres'), h('ul', null, surveiller.slice(5).map(ligne))) : null];
@@ -4311,7 +4332,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'pr-stats pr-suivi-stats' },
           h('span', { className: 'pr-stat' }, h('b', null, sv.mois ? sv.mois.t + ' %' : '–'), 'ce mois · ' + tx(sv.mois)),
           h('span', { className: 'pr-stat' }, h('b', null, sv.saison ? sv.saison.t + ' %' : '–'), 'saison · ' + tx(sv.saison)),
-          h('span', { className: 'pr-stat' + (sv.serie >= 3 ? ' ko' : '') }, h('b', null, sv.serie), sv.serie > 1 ? 'absences de suite' : 'absence de suite')),
+          h('span', { className: 'pr-stat' + (sv.serie >= 3 ? ' ko' : '') }, h('b', null, sv.serie), sv.serie > 1 ? 'absences de suite' + (sv.serieCours ? ' · ' + sv.serieCours : '') : 'absence de suite' + (sv.serieCours ? ' · ' + sv.serieCours : ''))),
         h('p', { className: 'pr-mini' }, sv.dernierePresence ? 'Dernière présence le ' + dateFr(sv.dernierePresence) + '.' : 'Aucune présence notée.'),
         sv.absences.length ? h('p', { className: 'pr-mini' }, 'Dernières absences : ' + sv.absences.map(dateFr).join(', ') + '.') : null,
         h('div', { className: 'gestion-actions' }, h('button', { type: 'button', className: 'cs-btn', onClick: function () { setSuiviId(null); } }, 'Fermer')));
