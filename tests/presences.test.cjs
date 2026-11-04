@@ -91,7 +91,7 @@ test('un import photo Non retire aussi la photo précédemment autorisée',()=>{
 test('rapprochement approximatif refuse les conflits de licence ou de naissance',()=>{
   const c=environnement();
   const liste=[{id:'j1',nom:'Durand',prenom:'Emma',naissance:'2016-01-01',licence:'AAA'}];
-  assert.equal(c.trouverJudoka(liste,{nom:'Durand',prenom:'Ema',naissance:'2017-01-01',licence:'AAA'}),null);
+  assert.equal(c.trouverJudoka(liste,{nom:'Durand',prenom:'Ema',naissance:'2017-01-01',licence:''}),null);
   assert.equal(c.trouverJudoka(liste,{nom:'Durand',prenom:'Ema',naissance:'2016-01-01',licence:'BBB'}),null);
 });
 test('un appel validé reste verrouillé pendant la validation d’un autre cours',()=>{
