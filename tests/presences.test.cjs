@@ -10,6 +10,9 @@ const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 function source(nom, retrait = 2) {
   const p = ' '.repeat(retrait), debut = html.indexOf(p + 'function ' + nom + '(');
   assert.ok(debut >= 0, 'Fonction absente : ' + nom);
+  const ligneFin = html.indexOf('\n', debut);
+  // Plusieurs helpers de Présences tiennent sur une seule ligne.
+  if (html.slice(debut, ligneFin).trimEnd().endsWith('}')) return html.slice(debut, ligneFin);
   const fin = html.indexOf('\n' + p + '}', debut);
   assert.ok(fin > debut, 'Fonction non fermée : ' + nom);
   return html.slice(debut, fin + p.length + 3);
@@ -28,6 +31,7 @@ function environnement() {
     aujourdhui:()=> '2026-11-04', nouvelId:()=> 'id-nouveau', 
     setMsg:()=>{}, enregistrerFichier:()=>{}
   };
+  c.window=c;
   vm.createContext(c);
   for (const n of ['debutSaison','catDe','coursDe','ageDe','peutTaiso','coursListe','rangCat','triCat','triJudokas','bilanDe','suiviDe','aSurveiller','cleTexte','oui','deux','lireDate','brut','colonne','memeJudoka','distance','trouverJudoka','fusionnerJudokas','exporterExcel','dateFr','nomComplet'])
     vm.runInContext(source(n),c);
