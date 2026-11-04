@@ -1,0 +1,32 @@
+name: Analyse de compatibilité Judo et présences
+on:
+  push:
+    branches: [integration/judo-dosage-et-presences-20261104]
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Simuler une fusion sans enregistrement
+        run: |
+          set +e
+          git fetch origin feat/judo-dosage-repetitions-duree-20261104
+          git merge --no-commit --no-ff origin/feat/judo-dosage-repetitions-duree-20261104
+          echo "MERGE_EXIT:$?"
+          git status --short
+          git diff --name-only --diff-filter=U
+          python3 - <<'PY'
+          from pathlib import Path
+          for f in ['index.html','sw.js','README.md','tests/judo-dosage.test.cjs','tests/reliability.test.cjs']:
+            p=Path(f)
+            if not p.exists():continue
+            t=p.read_text(errors='replace').splitlines()
+            markers=[i for i,x in enumerate(t) if x.startswith('<<<<<<<') or x.startswith('=======') or x.startswith('>>>>>>>')]
+            print('CONFLICT',f,'markers',len(markers),'lines',[i+1 for i in markers[:20]])
+            for i in markers[:8]:
+              for j in range(max(0,i-3),min(len(t),i+7)):print(f'{f}:{j+1}: {t[j][:250]}')
+          PY
