@@ -35,7 +35,8 @@ function baseContexte() {
     sa:s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
     techniqueDe:s=>String(s||'').split(' : ')[0],
     momentsDe:e=>[e.moment],
-    hasard:g=>{let x=g||1;return()=>((x=(x*16807)%2147483647)/2147483647);}
+    hasard:g=>{let x=g||1;return()=>((x=(x*16807)%2147483647)/2147483647);},
+    compatibleDosageJudo:()=>true
   };
   vm.createContext(c);
   ['estEveilJudo','estJeuneJudo','phasesDe','phasesSeance','dureesGroupeJudo',
