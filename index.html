@@ -2716,10 +2716,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     var d = lireDosage(x && x.dosage || e && e.dosage), m = parseFloat(x && x.duree), blocs = [];
     if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Durée + répétitions max' && Number(e.repetitionsMax)>0) {
-      return [{type:'effort',sec:secondesDosageJudo(e)||Math.round(m*60)||0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:1,series:1,limiteRepetitions:e.repetitionsMax}];
+      return [{type:'effort',sec:secondesDosageJudo(e)||0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:1,series:1,limiteRepetitions:e.repetitionsMax}];
     }
-    if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Répétitions' && Number(e.repetitionsMax)>0) {
-      return [{type:'effort',sec:0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:1,series:1,limiteRepetitions:e.repetitionsMax}];
+    if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Répétitions') {
+      var nombreJudo=repetitionsDoseJudo(e);
+      if (d && d.mode==='reps' && Number(e.repetitionsMax)>0) d.reps='maximum '+e.repetitionsMax+' répétitions';
+      if ((!d || d.mode==='temps') && nombreJudo>0) {
+        var maintien=secondesDosageJudo(e);
+        d={mode:'reps',series:1,reps:nombreJudo+' répétitions'+(maintien?' ('+maintien+' s chacune)':''),cote:false,recup:30};
+      }
     }
     if (!d) return [{ type: 'effort', sec: m > 0 ? Math.round(m * 60) : 0, serie: 1, series: 1 }];
     var cotes = d.mode === 'temps' && d.cote ? 2 : 1;
@@ -3114,7 +3119,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(pe.bloc || e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(pe.dosage || e.dosage || '', lc[3]),
             lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
           : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.rolePedagogique || e.categorie, lc[1]), lignes(e.nom, lc[2]),
-          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
+          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + (espace === 'Judo' ? dosageAfficheJudo(e) : e.dosage) + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
         var ht = Math.max.apply(null, c.map(function (l) { return l.length; })) * 9 + 10; place(ht);
         x = M; c.forEach(function (l, k) { police(k === 2 ? 'bold' : 'normal', 7.5); cellule(x, lc[k], ht, l); x += lc[k]; }); y += ht;
       });
@@ -4608,8 +4613,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var sansRepos=texte.split(/(?:repos|recuperation|pause)\s*:?/)[0];
     var m=sansRepos.match(/(\d+(?:[.,]\d+)?)\s*(secondes?|sec(?:ondes?)?\.?|s\b|minutes?|min\b)/);
     if (m) return Math.round(Number(m[1].replace(',','.'))*(m[2].startsWith('min')?60:1));
-    var bloc=valeurChampPedagogique(brut,['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']);
-    return bloc && Number(bloc.replace(',','.'))>0 ? Math.round(Number(bloc.replace(',','.'))*60) : 0;
+    // dureeBlocMin correspond au planning, pas au chronomètre de l'exercice.
+    return 0;
   }
   function modeDosageJudoDe(brut) {
     var champ=valeurChampPedagogique(brut,['modeDosageJudo','mode de dosage judo','mode de travail judo']);
