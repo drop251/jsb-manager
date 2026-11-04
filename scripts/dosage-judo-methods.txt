@@ -37,8 +37,8 @@
     var sansRepos=texte.split(/(?:repos|recuperation|pause)\s*:?/)[0];
     var m=sansRepos.match(/(\d+(?:[.,]\d+)?)\s*(secondes?|sec(?:ondes?)?\.?|s\b|minutes?|min\b)/);
     if (m) return Math.round(Number(m[1].replace(',','.'))*(m[2].startsWith('min')?60:1));
-    var bloc=valeurChampPedagogique(brut,['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']);
-    return bloc && Number(bloc.replace(',','.'))>0 ? Math.round(Number(bloc.replace(',','.'))*60) : 0;
+    // dureeBlocMin correspond au planning et n'est JAMAIS une durée d'effort.
+    return 0;
   }
   function modeDosageJudoDe(brut) {
     var champ=valeurChampPedagogique(brut,['modeDosageJudo','mode de dosage judo','mode de travail judo']);
