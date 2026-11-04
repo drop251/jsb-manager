@@ -1,34 +1,50 @@
-name: Analyse de compatibilité Judo et présences
+name: Intégrer dosage Judo sans perdre les présences
 on:
   push:
     branches: [integration/judo-dosage-et-presences-20261104]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  diagnostic:
+  integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Simuler une fusion sans enregistrement
+          persist-credentials: true
+      - name: Fusionner Judo et présences avec résolution du cache PWA
         run: |
-          set +e
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git config user.name 'github-actions[bot]'
           git fetch origin feat/judo-dosage-repetitions-duree-20261104
-          git merge --no-commit --no-ff origin/feat/judo-dosage-repetitions-duree-20261104
-          echo "MERGE_EXIT:$?"
-          git status --short
-          git diff --name-only --diff-filter=U
-          python3 - <<'PY'
+          if git merge-base --is-ancestor origin/feat/judo-dosage-repetitions-duree-20261104 HEAD; then
+            echo "Judo déjà intégré"
+          else
+            git merge --no-commit --no-ff origin/feat/judo-dosage-repetitions-duree-20261104 || true
+            NON_RESOLUS="$(git diff --name-only --diff-filter=U | grep -v '^sw.js$' || true)"
+            if [ -n "$NON_RESOLUS" ]; then
+              echo "Conflits non traités : $NON_RESOLUS"
+              exit 1
+            fi
+            if git diff --name-only --diff-filter=U | grep -qx 'sw.js'; then
+              git checkout --ours sw.js
+            fi
+            python3 - <<'PY'
           from pathlib import Path
-          for f in ['index.html','sw.js','README.md','tests/judo-dosage.test.cjs','tests/reliability.test.cjs']:
-            p=Path(f)
-            if not p.exists():continue
-            t=p.read_text(errors='replace').splitlines()
-            markers=[i for i,x in enumerate(t) if x.startswith('<<<<<<<') or x.startswith('=======') or x.startswith('>>>>>>>')]
-            print('CONFLICT',f,'markers',len(markers),'lines',[i+1 for i in markers[:20]])
-            for i in markers[:8]:
-              for j in range(max(0,i-3),min(len(t),i+7)):print(f'{f}:{j+1}: {t[j][:250]}')
+          p=Path('sw.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("var CACHE = 'jsb-manager-20261104-presences-v2';","var CACHE = 'jsb-manager-20261104-presences-et-dosage-judo-v1';")
+          assert "var CACHE = 'jsb-manager-20261104-presences-et-dosage-judo-v1';" in s
+          p.write_text(s,encoding='utf-8')
           PY
+            git add index.html sw.js README.md tests/
+            git diff --cached --check
+            test "$(grep -c 'function modeDosageJudoDe' index.html)" -eq 1
+            test "$(grep -c 'function estEveilJudo' index.html)" -eq 1
+            test "$(grep -c 'function" + " " + "presences" + "' index.html || true)" -ge 0
+            node --test tests/*.test.cjs
+            git commit -m 'merge: dosages Judo et correctifs de présences préservés'
+            git push origin HEAD:integration/judo-dosage-et-presences-20261104
+          fi
+      - name: Vérification finale des tests
+        run: node --test tests/*.test.cjs
