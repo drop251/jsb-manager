@@ -78,3 +78,25 @@ test('Les champs nécessaires sont exportables et visibles dans le générateur'
  assert.match(html,/choix\('modeTravailJudo'/);
  assert.match(html,/une fiche en répétitions|Une fiche en répétitions/);
 });
+
+test('La durée indicative du planning ne crée pas artificiellement un chronomètre',()=>{
+ const c=init();
+ assert.equal(c.secondesDosageJudo({dosage:'3 × 6 répétitions',dureeBlocMin:'8'}),0);
+ assert.equal(c.modeDosageJudoDe({dosage:'3 × 6 répétitions',dureeBlocMin:'8'}),'Répétitions');
+ const b=fichier('Benjamins');
+ b.modeDosageJudo='Durée + répétitions max';b.dureeBlocMin='6';b.dosage='Maximum 8 répétitions';b.repetitionsMax='8';b.duree_s='';
+ assert.match(c.verifierNouvelExerciceJudo(b,{nom:b.nom,public:['Judo'],sousGroupes:['Benjamins']}).join(' '),/durée/i);
+});
+test('Le nombre de séries est conservé lorsqu’un plafond de répétitions est renseigné',()=>{
+ const c=init();vm.runInContext(fn('lireDosage'),c);vm.runInContext(fn('planExercice'),c);
+ const e={public:['Judo'],modeDosageJudo:'Répétitions',repetitionsMax:6,dosage:'3 × 6 répétitions, récup 30 s'};
+ const pl=c.planExercice({duree:7},e);
+ assert.equal(pl.filter(x=>x.type==='effort').length,3);
+ assert.equal(pl.filter(x=>x.type==='recup').length,2);
+ assert.ok(pl.filter(x=>x.type==='effort').every(x=>x.sec===0 && /maximum 6/.test(x.reps)));
+});
+test('PDF : le mode combiné inclut bien le maximum de répétitions',()=>{
+ assert.match(html,/\? dosageAfficheJudo\(e\) : e\.dosage/);
+ const c=init();
+ assert.match(c.dosageAfficheJudo({modeDosageJudo:'Durée + répétitions max',repetitionsMax:8,dosage:'2 min'}),/maximum 8 répétitions/);
+});
