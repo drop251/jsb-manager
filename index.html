@@ -3371,14 +3371,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var Stockage = (function () {
     var BASE = 'jsb-manager', TABLE = 'donnees', ouverture = null, file = Promise.resolve(), persistance = null;
     function ouvrir() {
-      if (!ouverture) ouverture = new Promise(function (ok, ko) {
-        if (!window.indexedDB) { ko(new Error('indisponible')); return; }
-        var r; try { r = indexedDB.open(BASE, 1); } catch (err) { ko(err); return; }
-        r.onupgradeneeded = function () { r.result.createObjectStore(TABLE); };
-        r.onsuccess = function () { ok(r.result); };
-        r.onerror = function () { ko(r.error); };
-        r.onblocked = function () { ko(new Error('bloque')); };
-      });
+      if (!ouverture) {
+        ouverture = new Promise(function (ok, ko) {
+          if (!window.indexedDB) { ko(new Error('indisponible')); return; }
+          var r; try { r = indexedDB.open(BASE, 1); } catch (err) { ko(err); return; }
+          r.onupgradeneeded = function () { r.result.createObjectStore(TABLE); };
+          r.onsuccess = function () { ok(r.result); };
+          r.onerror = function () { ko(r.error); };
+          r.onblocked = function () { ko(new Error('bloque')); };
+        }).catch(function (err) { ouverture = null; throw err; });
+      }
       return ouverture;
     }
     function requete(mode, action) {
@@ -3423,7 +3425,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             catch (err) { tx.abort(); ko(err); }
           });
         }); });
-        file = travail.catch(function () { return false; }); return travail;
+        file = travail.catch(function () { return false; });
+        return travail.then(function (ok) { entrees.forEach(function (x) { retirerSecours(x[0]); }); return ok; });
       },
       fermer: function () { var o = ouverture; ouverture = null; return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve(); },
       oublierAncien: function (cle) { try { localStorage.removeItem(cle); } catch (err) {} },
