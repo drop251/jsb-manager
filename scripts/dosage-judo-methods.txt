@@ -23,6 +23,9 @@
     var d=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     var n=d.match(/(?:\d+\s*[×x]\s*)?(\d+)\s*(?:a\s*(\d+)\s*)?(?:repetitions?|reps?|fois|passages?|essais?|entrees?)(?![a-z])/);
     if (n) return +(n[2]||n[1]);
+    var parCote=d.match(/(\d+)\s*par\s*(?:cote|jambe|bras|judoka|personne)/);
+    if (parCote) return +parCote[1];
+    if (/^\s*\d+\s*(?:a|-|à)\s*\d+\s*$/.test(d)) return +d.match(/\d+/g)[1];
     var sansTemps=d.split(/(?:repos|recuperation|pause)\s*:?/)[0];
     var m=sansTemps.match(/(?:\d+\s*[×x]\s*)(\d+)(?:\s*(?:a|-)\s*(\d+))?/);
     return m ? +(m[2]||m[1]) : 0;
