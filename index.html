@@ -2316,7 +2316,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '04/11/2026 · Éveil Judo ludique et Pré-poussins adaptés';
+  var VERSION_APP = '04/11/2026 · Judo : répétitions, durée, combinaison dès Benjamins';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2690,7 +2690,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var t = String(d || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (!t) return null;
     var series = 1, m = t.match(/(\d+)\s*[×x]\s*/), reste = t;
     if (m) { series = +m[1]; reste = t.slice(m.index + m[0].length); }
-    var tm = reste.match(/(\d+)(?:\s*à\s*(\d+))?\s*(s|sec|secondes?|min|minutes?)\b/);
+    // La récupération n'est jamais la durée de l'effort. Ex. 3 × 6 répétitions, récup 30 s.
+    var tm = reste.split(/r[ée]cup(?:[ée]ration)?|repos\b|pause\b/i)[0].match(/(\d+)(?:\s*à\s*(\d+))?\s*(s|sec|secondes?|min|minutes?)\b/);
     var cote = /par (côté|jambe|bras|rôle)|chaque côté|inverser/.test(t);
     var rc = t.match(/r[ée]cup\w*\s*:?\s*(\d+)\s*(s|sec|min)/), recup = rc ? +rc[1] * (/min/.test(rc[2]) ? 60 : 1) : 30;
     if (tm && !/^\s*pause/.test(reste.slice(Math.max(0, tm.index - 6), tm.index + 1))) {
@@ -2720,7 +2721,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (t.recupApres) bl.push({ type: 'recup', sec: t.recupApres, serie: nS, series: nS });
       return bl;
     }
-    var d = lireDosage(e && e.dosage), m = parseFloat(x && x.duree), blocs = [];
+    var d = lireDosage(x && x.dosage || e && e.dosage), m = parseFloat(x && x.duree), blocs = [];
+    if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Durée + répétitions max' && Number(e.repetitionsMax)>0) {
+      return [{type:'effort',sec:secondesDosageJudo(e)||0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:1,series:1,limiteRepetitions:e.repetitionsMax}];
+    }
+    if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Répétitions') {
+      var nombreJudo=repetitionsDoseJudo(e);
+      if (d && d.mode==='reps' && Number(e.repetitionsMax)>0) d.reps='maximum '+e.repetitionsMax+' répétitions';
+      if ((!d || d.mode==='temps') && nombreJudo>0) {
+        var maintien=secondesDosageJudo(e);
+        d={mode:'reps',series:1,reps:nombreJudo+' répétitions'+(maintien?' ('+maintien+' s chacune)':''),cote:false,recup:30};
+      }
+    }
     if (!d) return [{ type: 'effort', sec: m > 0 ? Math.round(m * 60) : 0, serie: 1, series: 1 }];
     var cotes = d.mode === 'temps' && d.cote ? 2 : 1;
     for (var s = 1; s <= d.series; s++) {
@@ -3114,7 +3126,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(pe.bloc || e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(pe.dosage || e.dosage || '', lc[3]),
             lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
           : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.rolePedagogique || e.categorie, lc[1]), lignes(e.nom, lc[2]),
-          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + e.dosage + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
+          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + (espace === 'Judo' ? dosageAfficheJudo(e) : e.dosage) + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
         var ht = Math.max.apply(null, c.map(function (l) { return l.length; })) * 9 + 10; place(ht);
         x = M; c.forEach(function (l, k) { police(k === 2 ? 'bold' : 'normal', 7.5); cellule(x, lc[k], ht, l); x += lc[k]; }); y += ht;
       });
@@ -4625,6 +4637,80 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return '';
   }
 
+
+  // Le temps réservé au bloc et la prescription de travail sont indépendants.
+  function normaliserModeDosageJudo(v) {
+    var t=String(v||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+    if (!t) return '';
+    if (/^(repetitions?|reps?|nombre de repetitions?)$/.test(t)) return 'Répétitions';
+    if (/^(duree|temps|chronometre)$/.test(t)) return 'Durée';
+    if (/^(mixte|duree\s*(?:\+|\/|et)\s*(?:maximum\s*de\s*|max\s*)?repetitions?(?:\s*max(?:imum)?)?|duree\s*(?:\+|\/)\s*(?:max(?:imum)?\s*)?reps?)$/.test(t)) return 'Durée + répétitions max';
+    return '';
+  }
+  function maximumRepetitionsJudo(brut) {
+    var r=valeurChampPedagogique(brut,['repetitionsMax','répétitions max','maxRepetitions','maxiRepetitions']);
+    if (r) return /^\d+$/.test(r) ? +r : NaN;
+    var d=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var m=d.match(/(?:maximum|max(?:i)?)\s*:?\s*(\d+)\s*(?:repetitions?|reps?|fois|passages?)?|(\d+)\s*(?:repetitions?|reps?|fois|passages?)\s*(?:maximum|max(?:i)?)/);
+    return m ? +(m[1]||m[2]) : 0;
+  }
+  function repetitionsDoseJudo(brut) {
+    var r=valeurChampPedagogique(brut,['repetitions','répétitions','reps']);
+    if (r) { var q=r.match(/\d+/g); if (q&&q.length) return +q[q.length-1]; }
+    var max=maximumRepetitionsJudo(brut);
+    if (max>0) return max;
+    var d=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var n=d.match(/(?:\d+\s*[×x]\s*)?(\d+)\s*(?:a\s*(\d+)\s*)?(?:repetitions?|reps?|fois|passages?|essais?|entrees?)(?![a-z])/);
+    if (n) return +(n[2]||n[1]);
+    var parCote=d.match(/(\d+)\s*par\s*(?:cote|jambe|bras|judoka|personne)/);
+    if (parCote) return +parCote[1];
+    if (/^\s*\d+\s*(?:a|-|à)\s*\d+\s*$/.test(d)) return +d.match(/\d+/g)[1];
+    var sansTemps=d.split(/(?:repos|recuperation|pause)\s*:?/)[0];
+    var m=sansTemps.match(/(?:\d+\s*[×x]\s*)(\d+)(?:\s*(?:a|-)\s*(\d+))?/);
+    return m ? +(m[2]||m[1]) : 0;
+  }
+  function secondesDosageJudo(brut) {
+    var d=valeurChampPedagogique(brut,['duree_s','durée_s','dureeSec','durée en secondes']);
+    if (d && Number(d)>0) return Number(d);
+    var texte=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    var sansRepos=texte.split(/(?:repos|recuperation|pause)\s*:?/)[0];
+    var m=sansRepos.match(/(\d+(?:[.,]\d+)?)\s*(secondes?|sec(?:ondes?)?\.?|s\b|minutes?|min\b)/);
+    if (m) return Math.round(Number(m[1].replace(',','.'))*(m[2].startsWith('min')?60:1));
+    // dureeBlocMin correspond au planning, pas au chronomètre de l'exercice.
+    return 0;
+  }
+  function modeDosageJudoDe(brut) {
+    var champ=valeurChampPedagogique(brut,['modeDosageJudo','mode de dosage judo','mode de travail judo']);
+    if (champ) return normaliserModeDosageJudo(champ);
+    var reps=repetitionsDoseJudo(brut)>0, sec=secondesDosageJudo(brut)>0;
+    // Répéter quatre fois un maintien de vingt secondes n'est pas le mode chronométré avec plafond de répétitions.
+    if (maximumRepetitionsJudo(brut)>0 && sec && /(?:maximum|max(?:i)?)/i.test(String(valeurChampPedagogique(brut,['dosage'])||'')) && /\d+\s*(?:s\b|sec|minute|min\b)/i.test(String(valeurChampPedagogique(brut,['dosage'])||''))) return 'Durée + répétitions max';
+    if (reps) return 'Répétitions';
+    if (sec) return 'Durée';
+    return '';
+  }
+  function dosageMixteAutoriseJudo(groupes) {
+    var autorises=['Benjamins','Minimes','Cadets','Juniors','Adultes'];
+    return Array.isArray(groupes)&&groupes.length>0&&groupes.every(function (g) { return autorises.indexOf(g)>=0; });
+  }
+  function compatibleDosageJudo(e,rep) {
+    if (!e || !rep) return true;
+    var groupe=rep.groupe||'';
+    var mode=e.modeDosageJudo || modeDosageJudoDe(e);
+    if (mode==='Durée + répétitions max' && !dosageMixteAutoriseJudo([groupe])) return false;
+    if (!rep.modeTravailJudo) return true;
+    if (rep.modeTravailJudo==='Durée + répétitions max' && !dosageMixteAutoriseJudo([groupe])) return false;
+    return !mode || mode===rep.modeTravailJudo;
+  }
+  function dosageAfficheJudo(e) {
+    if (!e) return '';
+    var dose=String(e.dosage||'').trim();
+    if (e.modeDosageJudo==='Durée + répétitions max' && Number(e.repetitionsMax)>0 && !/max(?:imum|i)?/i.test(dose)) {
+      dose += (dose?' · ':'')+'maximum '+e.repetitionsMax+' répétitions';
+    }
+    return dose;
+  }
+
   function normaliserRoleJudo(v) {
     var t = String(v || '').trim();
     var roles = ['Préparation', 'Découverte', 'Acquisition', 'Consolidation', 'Réinvestissement', 'Application', 'Opposition', 'Retour au calme'];
@@ -4670,8 +4756,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (/binome|trio/.test(format) && (!/\btori\b/.test(normOrg) || !/\buke\b/.test(normOrg))) erreurs.push('Organisation : préciser les rôles de Tori et Uke');
     if (/binome|trio|collectif/.test(format) && !/altern|rotation|chang|tourn|invers/.test(normOrg)) erreurs.push('Organisation : préciser l’alternance ou les rotations');
     if (!/repos|recuper|pause/.test(normOrg)) erreurs.push('Organisation : préciser la récupération ou le repos');
-    var n = Number(duree.replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, ''));
-    if (!duree || !Number.isFinite(n) || n < 1 || n > 30) erreurs.push('Durée de bloc réaliste : nombre de minutes entre 1 et 30');
+    var modeBrut = valeurChampPedagogique(brut,['modeDosageJudo','mode de dosage judo','mode de travail judo']);
+    var mode=modeDosageJudoDe(brut), reps=repetitionsDoseJudo(brut);
+    var secondes=secondesDosageJudo(brut), maxR=maximumRepetitionsJudo(brut);
+    var nombreBloc=duree ? Number(duree.replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, '')) : 0;
+    if (duree && (!Number.isFinite(nombreBloc)||nombreBloc<=0||nombreBloc>120)) erreurs.push('Durée du bloc facultative, mais si renseignée elle doit être comprise entre 1 et 120 minutes');
+    if (modeBrut&&!normaliserModeDosageJudo(modeBrut)) erreurs.push('Mode de dosage Judo invalide : Répétitions, Durée ou Durée + répétitions max');
+    if (!mode) erreurs.push('Dosage Judo illisible : préciser les répétitions ou la durée sans inventer de valeur');
+    if (mode==='Répétitions' && (!Number.isFinite(reps)||reps<=0)) erreurs.push('Répétitions : indiquer le nombre dans dosage ou repetitions');
+    if (mode==='Durée' && secondes<=0) erreurs.push('Durée : indiquer le temps dans dosage, duree_s ou dureeBlocMin');
+    if (mode==='Durée + répétitions max') {
+      if (!dosageMixteAutoriseJudo(e.sousGroupes||[])) erreurs.push('Durée + répétitions max : autorisé à partir des Benjamins ; séparer les fiches multi-âges');
+      if (secondes<=0) erreurs.push('Mode combiné : indiquer la durée dans dosage ou duree_s');
+      if (!Number.isInteger(maxR)||maxR<=0) erreurs.push('Mode combiné : repetitionsMax entier positif obligatoire (maximum par judoka)');
+    }
+    if (valeurChampPedagogique(brut,['repetitionsMax','répétitions max','maxRepetitions']) && (!Number.isInteger(maxR)||maxR<=0)) erreurs.push('repetitionsMax : entier strictement positif');
     return erreurs;
   }
 
@@ -4746,6 +4845,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       e.niveauOpposition = normaliserOppositionJudo(valeurChampPedagogique(brut, ['niveauOpposition','niveau d opposition','opposition']));
       e.organisation = valeurChampPedagogique(brut, ['organisation','organisationPedagogique']);
       e.dureeBlocMin = Number(valeurChampPedagogique(brut, ['dureeBlocMin','durée bloc min','dureeBloc','durée de bloc réaliste']).replace(',', '.').replace(/\s*min(?:utes?)?\s*$/i, '')) || 0;
+      e.modeDosageJudo = modeDosageJudoDe(brut);
+      e.repetitionsMax = maximumRepetitionsJudo(brut) || 0;
+      e.repetitions = valeurChampPedagogique(brut,['repetitions','répétitions']);
+      e.duree_s = Number(valeurChampPedagogique(brut,['duree_s','durée_s'])) || 0;
     }
     return e;
   }
@@ -5411,7 +5514,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       'Retour au calme, retour sur les réussites et salut final.'
     ];
     var candidats = tous.filter(function (e) {
-      if (!estExerciceJeuneAdapte(e,groupe)) return false;
+      if (!estExerciceJeuneAdapte(e,groupe) || !compatibleDosageJudo(e,rep)) return false;
       if (e.prerequis && !/^(aucun|sans|néant|neant)$/i.test(String(e.prerequis).trim())) {
         var acquis = sa(rep.prerequisAcquis || '');
         if (!acquis || acquis.indexOf(sa(e.prerequis)) < 0) return false;
@@ -5552,13 +5655,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.famille && rep.famille !== 'Variée' && e.technique === rep.famille) s += 3;
       if (judo && obj) s += scoreObjectifJudo(e, obj);
       if (judo && (e.rolePedagogique || e.competenceCiblee || e.dureeBlocMin)) s += bonusPedagogiqueJudo(e, rep, phasePedagogique);
+      if (judo && rep.modeTravailJudo && (e.modeDosageJudo || modeDosageJudoDe(e))===rep.modeTravailJudo) s += 9;
       if (!judo && obj && e.categorie === obj) s += 2.5;
       if (rep.illustres && illustre(e)) s += 2.5;
       if (rep.binome && e.format === 'Binôme') s += 2;   // travail à deux demandé : exercices en binôme d'abord   // exercices avec photo ou vidéo d'abord
       return s;
     }
     function choisir(pool, n, diversifier) {
-      var tri = melanger(pool.filter(function (e) { return !pris[e.id] && (!judo || !e.rolePedagogique || roleCompatibleJudo(e, phasePedagogique, rep)); }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
+      var tri = melanger(pool.filter(function (e) { return !pris[e.id] && (!judo || (compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, phasePedagogique, rep)))); }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
       var out = [], parCat = {};
       tri.forEach(function (e) {
         if (out.length >= n) return;
@@ -5631,7 +5735,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           if (somme <= min) { durees = prevues; transitionsPedagogiques = min - somme;
             if (transitionsPedagogiques > Math.max(3, Math.round(min * 0.2))) manques.push(ph[0] + ' : ' + transitionsPedagogiques + ' min non décrites (transitions ou rotations à préciser)');
           } else manques.push(ph[0] + ' : dosage des blocs dépasse le temps disponible ; répartition indicative');
-        } else manques.push(ph[0] + ' : durées des fiches historiques estimées, à confirmer par l’éducateur');
+        } else manques.push(ph[0] + ' : temps de phase indicatif, les répétitions du dosage restent prioritaires');
       }
       resultat.push({ nom: ph[0], minutes: min, transitions: transitionsPedagogiques, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
     });
@@ -5751,14 +5855,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           [['','Automatique / sans contrainte']].concat(valeurs.map(function (v) { return [v,v]; })).map(function (x) { return h('option', {key:x[0],value:x[0]}, x[1]); })));
       }
       return h('details', { className: 'gn-avances' },
-        h('summary', null, 'Critères pédagogiques avancés', h('small', null, 'Compétence, prérequis, opposition, organisation et durée')),
+        h('summary', null, 'Critères pédagogiques avancés', h('small', null, 'Compétence, prérequis, opposition, organisation et dosage')),
         h('p', { className: 'gn-aide' }, 'Le rôle pédagogique est déterminé par la phase : préparation, acquisition, réinvestissement, opposition ou retour au calme. Les nouvelles fiches doivent préciser leur rôle.'),
         texte('competenceCiblee','Compétence ciblée','Ex. maintenir Tate-shiho-gatame'),
         texte('prerequisAcquis','Prérequis acquis par le groupe','Ex. sorties d’immobilisation'),
         choix('niveauOpposition','Niveau d’opposition maximal',['Sans opposition','Coopération','Opposition dirigée','Opposition libre']),
         choix('organisationSeance','Organisation',['Mixte','Binômes','Trios','Collectif']),
-        choix('cibleDureeBlocMin','Durée cible par bloc (minutes)',['4','5','6','8','10']),
-        h('p', { className: 'gn-aide' }, 'Les fiches existantes sans ces données restent utilisables, mais les durées sont signalées comme estimées.'));
+        choix('modeTravailJudo','Prescription de travail Judo',dosageMixteAutoriseJudo([rep.groupe])?['Répétitions','Durée','Durée + répétitions max']:['Répétitions','Durée']),
+        choix('cibleDureeBlocMin','Temps indicatif du bloc (minutes)',['4','5','6','8','10']),
+        h('p', { className: 'gn-aide' }, 'Une fiche en répétitions ne demande pas de durée de bloc. Dès Benjamins, il est possible de combiner une durée et un maximum de répétitions par judoka. Les minutes de séance restent indicatives.'));
     }
     var titre, aide = null, corps, peutSuivre = true;
     if (!judo && !res) {
@@ -5863,7 +5968,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       else if (ph.nom === 'Corps de séance' || ph.nom === 'Randori') l = base.filter(function (e) { return m('Corps de séance')(e) && (judo || niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))); });
       else if (ph.nom === 'Retour au calme') l = base.filter(function (e) { return m('Fin de séance')(e) && calme(e); });
       else l = base.filter(m('Fin de séance'));
-      if (judo) l = l.filter(function (e) { return !e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep); });
+             if (judo) l = l.filter(function (e) { return compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep)); });
     var meme = l.filter(function (e) { return ph.format ? zoneDe(e) === zoneDe(x.e) : (e.rolePedagogique && x.e.rolePedagogique ? e.rolePedagogique === x.e.rolePedagogique : e.categorie === x.e.categorie); });
       return meme.length ? meme : l;
     }
@@ -5925,7 +6030,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('b', null, e.nom), h('small', null, [court(e.categorie), e.equipement].filter(Boolean).join(' · '))));
           })),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setChoixRemplacement(null); } }, 'Annuler le choix')) : null,
-        ouvert ? h('div', { className: 'gn-exo-fiche' }, h('p', null, sansCesure(x.e.description)), x.e.vigilance ? h('p', { className: 'gn-exo-vig' }, '⚠ ' + sansCesure(x.e.vigilance)) : null,
+        ouvert ? h('div', { className: 'gn-exo-fiche' }, h('p', null, sansCesure(x.e.description)),
+          judo ? h('p', { className: 'gn-exo-usage' }, 'Dosage : ' + dosageAfficheJudo(x.e) + (x.e.modeDosageJudo==='Répétitions' ? ' · sans chronomètre obligatoire' : '') + ' · Temps indicatif dans la séance : '+x.duree+' min') : null,
+          x.e.vigilance ? h('p', { className: 'gn-exo-vig' }, '⚠ ' + sansCesure(x.e.vigilance)) : null,
           h('p', { className: 'gn-exo-usage' }, u ? 'Déjà fait : ' + texteUsage(u).replace(/^Fait /, '') : 'Pas encore fait dans une séance enregistrée')) : null);
     }
     function exosSeance() {
@@ -6839,7 +6946,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'],
     ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration'],
     ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
-    ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée réaliste du bloc (min)', 'dureeBlocMin']];
+    ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée indicative du bloc (min)', 'dureeBlocMin'],
+    ['Mode de dosage Judo', 'modeDosageJudo'], ['Maximum de répétitions par judoka', 'repetitionsMax']];
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function nomSur(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'exercice'; }
   function octetsTexte(t) { return new TextEncoder().encode(t); }

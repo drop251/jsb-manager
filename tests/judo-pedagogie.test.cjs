@@ -17,7 +17,7 @@ function setup(names) {
   names.forEach(n=>vm.runInContext(fn(n),ctx));
   return ctx;
 }
-const names=['valeurChampPedagogique','normaliserRoleJudo','normaliserOppositionJudo','verifierNouvelExerciceJudo','roleCompatibleJudo','bonusPedagogiqueJudo'];
+const names=['valeurChampPedagogique','normaliserModeDosageJudo','maximumRepetitionsJudo','repetitionsDoseJudo','secondesDosageJudo','modeDosageJudoDe','dosageMixteAutoriseJudo','compatibleDosageJudo','dosageAfficheJudo','normaliserRoleJudo','normaliserOppositionJudo','verifierNouvelExerciceJudo','roleCompatibleJudo','bonusPedagogiqueJudo'];
 function fiche() {
   return {
     nom:'Tate-shiho-gatame : conserver le contrôle',
@@ -41,7 +41,7 @@ test('les six nouveaux champs et les données du catalogue sont obligatoires pou
   delete incomplet.prerequis;delete incomplet.critere;delete incomplet.dureeBlocMin;
   assert.match(x.verifierNouvelExerciceJudo(incomplet,{nom:'test',public:['Judo']}).join(' '),/Prérequis|prérequis/);
   assert.match(x.verifierNouvelExerciceJudo(incomplet,{nom:'test',public:['Judo']}).join(' '),/Critère de réussite/);
-  assert.match(x.verifierNouvelExerciceJudo(incomplet,{nom:'test',public:['Judo']}).join(' '),/Durée de bloc/);
+  assert.doesNotMatch(x.verifierNouvelExerciceJudo(incomplet,{nom:'test',public:['Judo']}).join(' '),/Durée de bloc/);
   assert.deepEqual([...x.verifierNouvelExerciceJudo(incomplet,{nom:'test',public:['Taïso']})],[]);
 });
 test('rôles Tori-Uke, rotation, repos et durée réaliste sont contrôlés',()=>{
@@ -51,7 +51,7 @@ test('rôles Tori-Uke, rotation, repos et durée réaliste sont contrôlés',()=
   f.dureeBlocMin='0';
   const m=x.verifierNouvelExerciceJudo(f,{nom:'test',public:['Judo']}).join(' / ');
   assert.match(m,/Tori et Uke/);assert.match(m,/rotations/);assert.match(m,/repos/);
-  assert.match(m,/Durée de bloc/);
+  assert.match(m,/Durée du bloc|Durée de bloc/);
 });
 test('rôle, prerequis et niveau d’opposition gouvernent la phase',()=>{
   const x=setup(names);
