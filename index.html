@@ -2684,7 +2684,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var t = String(d || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (!t) return null;
     var series = 1, m = t.match(/(\d+)\s*[×x]\s*/), reste = t;
     if (m) { series = +m[1]; reste = t.slice(m.index + m[0].length); }
-    var tm = reste.match(/(\d+)(?:\s*à\s*(\d+))?\s*(s|sec|secondes?|min|minutes?)\b/);
+    // La récupération n'est jamais la durée de l'effort. Ex. 3 × 6 répétitions, récup 30 s.
+    var tm = reste.split(/r[ée]cup(?:[ée]ration)?|repos\b|pause\b/i)[0].match(/(\d+)(?:\s*à\s*(\d+))?\s*(s|sec|secondes?|min|minutes?)\b/);
     var cote = /par (côté|jambe|bras|rôle)|chaque côté|inverser/.test(t);
     var rc = t.match(/r[ée]cup\w*\s*:?\s*(\d+)\s*(s|sec|min)/), recup = rc ? +rc[1] * (/min/.test(rc[2]) ? 60 : 1) : 30;
     if (tm && !/^\s*pause/.test(reste.slice(Math.max(0, tm.index - 6), tm.index + 1))) {
