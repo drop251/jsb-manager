@@ -16,6 +16,11 @@ jobs:
           if ! grep -q 'function modeDosageJudoDe' index.html; then
             python3 scripts/upgrade-judo-dosage.py
           fi
+      - name: Ne pas confondre planning et effort chronométré
+        run: |
+          if ! grep -q "dureeBlocMin correspond au planning" index.html; then
+            python3 scripts/upgrade-judo-dosage-v2.py
+          fi
       - name: Contrôler tous les tests et les différences
         run: |
           git diff --check
