@@ -21,6 +21,11 @@ jobs:
           if ! grep -q "dureeBlocMin correspond au planning" index.html; then
             python3 scripts/upgrade-judo-dosage-v2.py
           fi
+      - name: Ne pas confondre récupération et effort
+        run: |
+          if ! grep -q 'récupération n.est jamais la durée' index.html; then
+            python3 scripts/upgrade-judo-dosage-v3.py
+          fi
       - name: Contrôler tous les tests et les différences
         run: |
           git diff --check
