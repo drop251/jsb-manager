@@ -3386,11 +3386,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function lireLocal(cle) { try { return JSON.parse(localStorage.getItem(cle)); } catch (err) { return null; } }
     function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); return true; } catch (err) { return false; } }
+    function cleSecours(cle) { return cle + '-secours'; }
+    function retirerSecours(cle) { try { localStorage.removeItem(cleSecours(cle)); } catch (err) {} }
+    // Un échec IndexedDB ne doit pas laisser une version locale plus récente invisible à la prochaine ouverture.
+    function relire(cle) {
+      var secours = lireLocal(cleSecours(cle));
+      if (secours !== null) {
+        return requete('readwrite', function (t) { return t.put(secours, cle); }).then(function () {
+          retirerSecours(cle); return secours;
+        }, function () { return secours; });
+      }
+      return requete('readonly', function (t) { return t.get(cle); }).catch(function () { return lireLocal(cle); });
+    }
     return {
-      lire: function (cle) { return requete('readonly', function (t) { return t.get(cle); }).catch(function () { return lireLocal(cle); }); },
+      lire: function (cle) { return file.then(function () { return relire(cle); }); },
       ecrire: function (cle, val) {
         file = file.then(function () {
-          return requete('readwrite', function (t) { return t.put(val, cle); }).then(function () { return true; }, function () { return ecrireLocal(cle, val); });
+          return requete('readwrite', function (t) { return t.put(val, cle); }).then(function () {
+            retirerSecours(cle); return true;
+          }, function () { return ecrireLocal(cleSecours(cle), val); });
         });
         return file;
       },
@@ -3498,13 +3512,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   // ===== Suivi des absences =====
   function suiviDe(d, j) {
-    var notes = d.seances.filter(function (s) { return s.statuts && s.statuts[j.id]; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
-    var serie = 0; for (var i = 0; i < notes.length; i++) { if (notes[i].statuts[j.id] === 'A') serie++; else break; }
+    var notes = d.seances.filter(function (s) { return s.statuts && (s.statuts[j.id] === 'P' || s.statuts[j.id] === 'A'); })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
     var est = function (st) { return function (s) { return s.statuts[j.id] === st; }; };
-    var derP = notes.filter(est('P'))[0], mois = aujourdhui().slice(0, 7), deb = debutSaison() + '-09-01';
+    var derP = notes.filter(est('P'))[0], mois = aujourdhui().slice(0, 7), deb = debutSaison() + '-09-01', fin = (debutSaison() + 1) + '-09-01';
+    // Les alertes sont calculées par cours et par date, pas par nombre de cases cochées le même jour.
+    var serie = 0, serieCours = '', cours = coursListe(j);
+    cours.forEach(function (c) {
+      var derniers = notes.filter(function (s) { return s.groupe === c && s.date >= deb && s.date < fin; }), jours = {}, dates = [];
+      derniers.forEach(function (s) {
+        if (!Object.prototype.hasOwnProperty.call(jours, s.date)) { jours[s.date] = s.statuts[j.id]; dates.push(s.date); }
+        else if (s.statuts[j.id] === 'P') jours[s.date] = 'P';
+      });
+      var n = 0;
+      for (var i = 0; i < dates.length && jours[dates[i]] === 'A'; i++) n++;
+      if (n > serie) { serie = n; serieCours = c; }
+    });
     function taux(l) { var pr = l.filter(est('P')).length; return l.length ? { p: pr, n: l.length, t: Math.round(100 * pr / l.length) } : null; }
-    return { serie: serie, dernierePresence: derP ? derP.date : '', absences: notes.filter(est('A')).slice(0, 6).map(function (s) { return s.date; }),
-      mois: taux(notes.filter(function (s) { return s.date.slice(0, 7) === mois; })), saison: taux(notes.filter(function (s) { return s.date >= deb; })), total: notes.length };
+    return { serie: serie, serieCours: serieCours, dernierePresence: derP ? derP.date : '', absences: notes.filter(est('A')).slice(0, 6).map(function (s) { return s.date; }),
+      mois: taux(notes.filter(function (s) { return s.date.slice(0, 7) === mois; })), saison: taux(notes.filter(function (s) { return s.date >= deb && s.date < fin; })), total: notes.length };
   }
   function aSurveiller(d) {
     return d.judokas.filter(function (j) { return !j.archive; }).map(function (j) { return { j: j, s: suiviDe(d, j) }; })
@@ -3645,7 +3671,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     lignes.forEach(function (l) {
       var j = { nom: colonne(l, ['nom', 'nomdefamille']), prenom: colonne(l, ['prenom']), licence: colonne(l, COL_LICENCE),
         naissance: lireDate(brut(l, COL_NAISSANCE)), groupe: colonne(l, ['groupe', 'categorie', 'cours', 'section']) };
-      if (oui(colonne(l, ['autorisationphoto', 'droitalimage', 'droitimage', 'autorisationdroitalimage']))) j.autorisationPhoto = true;
+      var autorisationImport = colonne(l, ['autorisationphoto', 'droitalimage', 'droitimage', 'autorisationdroitalimage']);
+      if (autorisationImport !== '') j.autorisationPhoto = oui(autorisationImport);
       var act = cleTexte((colonne(l, ['pratique', 'pratiques', 'typedepratique']) || colonne(l, ['discipline', 'disciplines']) || colonne(l, ['activite', 'activites'])) + ' ' + j.groupe);
       if (act.indexOf('taiso') >= 0) { j.activite = act.indexOf('judo') >= 0 ? 'les deux' : 'taiso'; if (cleTexte(j.groupe).indexOf('taiso') >= 0) j.groupe = ''; }
       if (!j.nom && !j.prenom) return;
@@ -3656,7 +3683,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (i < 0) { j.id = nouvelId(); res.push(j); ajoutes++; vus[j.id] = 1; nouveaux.push(j); return; }
       var x = Object.assign({}, res[i]), change = false, avantCat = catDe(res[i]);
       vus[x.id] = 1;
-      ['nom', 'prenom', 'licence', 'naissance', 'groupe', 'activite', 'autorisationPhoto'].forEach(function (k) { if (j[k] && x[k] !== j[k]) { x[k] = j[k]; change = true; } });
+      ['nom', 'prenom', 'licence', 'naissance', 'groupe', 'activite', 'autorisationPhoto'].forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(j, k) && (j[k] !== '' || k === 'autorisationPhoto') && x[k] !== j[k]) {
+          x[k] = j[k]; if (k === 'autorisationPhoto' && !j[k]) x.photo = ''; change = true;
+        }
+      });
       if (x.archive) { delete x.archive; reactives.push(x); change = true; }
       if (x.essai && (j.licence || j.naissance)) { delete x.essai; change = true; }
       if (change) { res[i] = x; completes++; modifies.push({ j: x, avant: avantCat, apres: catDe(x) }); }
@@ -3665,11 +3696,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var absents = liste.filter(function (x) { return !vus[x.id] && !x.archive && !x.essai; });
     return { liste: res, ajoutes: ajoutes, completes: completes, sansDate: sansDate, nouveaux: nouveaux, modifies: modifies, reactives: reactives, absents: absents };
   }
-  function bilanDe(donnees, cat) {
-    var js = donnees.judokas.filter(function (j) { return !j.archive && (!cat || coursListe(j).indexOf(cat) >= 0); }).sort(triJudokas);
+  function bilanDe(donnees, cat, inclureArchives) {
+    var js = donnees.judokas.filter(function (j) { return (inclureArchives || !j.archive) && (!cat || coursListe(j).indexOf(cat) >= 0); }).sort(triJudokas);
     return js.map(function (j) {
-      var c = { P: 0, A: 0 }, nb = 0, cj = cat ? [cat] : coursListe(j);
-      donnees.seances.forEach(function (s) { if (cj.indexOf(s.groupe) < 0) return; var st = s.statuts[j.id]; if (st === 'P' || st === 'A') { c[st]++; nb++; } });
+      var c = { P: 0, A: 0 }, nb = 0;
+      donnees.seances.forEach(function (s) {
+        // Sans filtre de cours : historique complet, y compris catégories des saisons passées.
+        if (cat && s.groupe !== cat) return;
+        var st = s.statuts && s.statuts[j.id];
+        if (st === 'P' || st === 'A') { c[st]++; nb++; }
+      });
       return { j: j, P: c.P, A: c.A, nb: nb, taux: nb ? Math.round(c.P * 100 / nb) : null };
     });
   }
@@ -3684,14 +3720,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var tous = donnees.judokas.slice().sort(function (a, b) { return triCat(coursDe(a), coursDe(b)) || rangCat(catDe(a)) - rangCat(catDe(b)) || triJudokas(a, b); });
     var wb = XLSX.utils.book_new();
     var bilan = tous.map(function (j) {
-      var b = bilanDe({ judokas: [j], seances: donnees.seances }, '')[0];
+      var b = bilanDe({ judokas: [j], seances: donnees.seances }, '', true)[0];
       return { Cours: coursListe(j).join(' + '), 'Catégorie': catDe(j), 'N° de licence': j.licence || '', Nom: j.nom, 'Prénom': j.prenom, 'Date de naissance': dateFr(j.naissance || ''), 'Autorisation photo': j.autorisationPhoto ? 'Oui' : 'Non', 'Séances notées': b.nb, 'Présent': b.P, Absent: b.A, 'Taux de présence (%)': b.taux == null ? '' : b.taux };
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bilan.length ? bilan : [{ Nom: '' }]), 'Bilan');
     var seances = donnees.seances.slice().sort(function (a, b) { return a.date.localeCompare(b.date) || triCat(a.groupe, b.groupe); });
     var grille = tous.map(function (j) {
       var cj = coursListe(j), l = { Cours: cj.join(' + '), 'Catégorie': catDe(j), 'N° de licence': j.licence || '', Nom: j.nom, 'Prénom': j.prenom };
-      seances.forEach(function (s) { if (cj.indexOf(s.groupe) >= 0) l[dateFr(s.date) + ' ' + s.groupe] = s.statuts[j.id] || ''; });
+      seances.forEach(function (s) { if (s.statuts && s.statuts[j.id]) l[dateFr(s.date) + ' ' + s.groupe + (s.creneauId ? ' · ' + s.creneauId : '')] = s.statuts[j.id]; });
       return l;
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(grille.length ? grille : [{ Nom: '' }]), 'Présences');
@@ -3774,6 +3810,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var inv = liste.filter(function (x) { return cleTexte(x.nom) === pr && cleTexte(x.prenom) === n; });
     if (inv.length === 1) return { j: inv[0], approx: false };
     var cand = liste.map(function (x) {
+      if (cible.naissance && x.naissance && cible.naissance !== x.naissance) return { x: x, s: 9 };
+      if (cible.licence && x.licence && cleTexte(cible.licence) !== cleTexte(x.licence)) return { x: x, s: 9 };
       var xn = cleTexte(x.nom), xp = cleTexte(x.prenom), dn = distance(n, xn), dp = distance(pr, xp);
       if (dp > 2 && xp && pr && (xp.indexOf(pr) === 0 || pr.indexOf(xp) === 0)) dp = 1;   // prénom composé : « Marie » / « Marie-Lou »
       var s = dn + dp;
