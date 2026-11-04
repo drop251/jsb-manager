@@ -1,0 +1,27 @@
+name: Inspection dosage Judo
+on:
+  push:
+    branches: [feat/judo-dosage-repetitions-duree-20261104]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier schémas et durée du générateur
+        run: |
+          python3 - <<'PY'
+          import re
+          s=open('index.html',encoding='utf-8').read().splitlines()
+          terms=['function verifierNouvelExerciceJudo','function classer(','function bonusPedagogiqueJudo','function genererSeance(','function genererSeanceJeunes','function pedagogiePanneau','function changerDosage','function ligneExo','function lireDosage(','function enregistrer()','var CHAMPS_FICHE','function valider','dureeBlocMin =','Durée de bloc','Durée réaliste','rep.cibleDureeBlocMin','repetitionsMax','modeDosageJudo']
+          for t in terms:
+            print('MATCH',t, [i+1 for i,x in enumerate(s) if t in x][:18])
+          patterns=['function verifierNouvelExerciceJudo','function classer(','function bonusPedagogiqueJudo','function pedagogiePanneau','function genererSeanceJeunes','function lireDosage(','var CHAMPS_FICHE']
+          for t in patterns:
+            for i,line in enumerate(s):
+              if t not in line: continue
+              print('###',t,'LINE',i+1)
+              for j in range(max(0,i-4),min(len(s),i+85)):print(f'{j+1}: {s[j][:700]}')
+              break
+          PY
