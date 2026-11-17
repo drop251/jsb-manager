@@ -31,6 +31,7 @@
 .cs-outils[open] { display: grid; gap: 8px; }
 .cs-phase-options { margin-bottom: 8px; }
 </style>
+<style>body:has([role="dialog"][aria-modal="true"]), body:has([role="alertdialog"][aria-modal="true"]) { overflow: hidden; }</style>
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -2345,7 +2346,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Format des fiches harmonisé';
+  var VERSION_APP = '17/11/2026 · Navigation clavier des fenêtres';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2425,6 +2426,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var NAV = [['', 'Accueil', 'accueil'], ['taiso', 'Taïso', 'taiso'], ['judo', 'Judo', 'judo'], ['seance', 'Séances', 'seance'], ['presences', 'Présences', 'presences']];
   function niveauTexte(e, judo) { return e.grade || (NIVEAUX.indexOf(e.niveau) < 0 ? '' : e.niveau); }
 
+  // Le clavier reste dans la dernière fenêtre explicitement modale et visible.
+  function gererTabulationModale(ev) {
+    if (ev.key !== 'Tab' || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    var dialogues = Array.prototype.filter.call(document.querySelectorAll('[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]'), function (n) { return n.getClientRects().length > 0; });
+    var dialogue = dialogues[dialogues.length - 1]; if (!dialogue) return;
+    var controles = Array.prototype.filter.call(dialogue.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex], video[controls], audio[controls]'), function (n) {
+      return n.tabIndex >= 0 && !n.disabled && !n.matches(':disabled') && !n.closest('[inert]') && n.getClientRects().length > 0 && window.getComputedStyle(n).visibility !== 'hidden';
+    });
+    var actif = document.activeElement, premier = controles[0], dernier = controles[controles.length - 1];
+    if (!premier) {
+      ev.preventDefault(); if (!dialogue.hasAttribute('tabindex')) dialogue.setAttribute('tabindex','-1'); dialogue.focus(); return;
+    }
+    if (!dialogue.contains(actif) || actif === dialogue || (ev.shiftKey && actif === premier) || (!ev.shiftKey && actif === dernier)) {
+      ev.preventDefault(); (ev.shiftKey ? dernier : premier).focus();
+    }
+  }
+  document.addEventListener('keydown',gererTabulationModale,true);
   function Champ(p) {
     return h('div', { className: 'champ' }, h('label', { htmlFor: p.id }, p.label),
       h('select', { id: p.id, value: p.value, onChange: function (ev) { p.onChange(ev.target.value); } },

@@ -195,3 +195,12 @@ L’ajout reconnaît notamment les colonnes « Nom (exercice) », « Exécution 
 L’accessibilité est conservée à l’ajout et à la correction. L’inspiration n’est plus tronquée à la première virgule ; aucune source n’est inventée si le champ est absent. Une correction sans colonne Accessibilité/Inspiration conserve les valeurs existantes. Le niveau de difficulté Judo, lorsqu’il est déclaré, reste distinct du grade. L’organisation détaillée ne suffit pas à satisfaire le champ Format requis par la validation Judo.
 
 Les anciens fichiers ne sont pas réécrits. La reconnaissance d’un intitulé ne garantit ni la pertinence pédagogique de sa valeur ni sa compatibilité avec tous les filtres. Validation : 90 tests passent, dont une fiche Judo complète à en-têtes français, la conservation des sources et de l’accessibilité, la séparation niveau/grade et l’ordre de présentation/export HTML. La vérification visuelle et tactile sur Safari iPhone reste à effectuer.
+
+
+## Navigation clavier des fenêtres (17 novembre 2026)
+
+Une vérification réelle dans Chrome a confirmé que Maj+Tab depuis « Ma séance » pouvait placer le focus sur le catalogue derrière la fenêtre. La tabulation est désormais contenue dans la dernière fenêtre explicitement modale et visible : le dernier contrôle rejoint le premier et inversement. Les contrôles masqués, désactivés ou inertes sont ignorés. Sans contrôle disponible, la fenêtre reçoit le focus. Les panneaux non modaux, dont la fiche latérale sur ordinateur, conservent leur navigation libre.
+
+Le défilement de la page derrière une fenêtre modale est bloqué par CSS ; le contenu de la fenêtre reste défilable. Cette évolution ne constitue pas un audit complet d’accessibilité ni une vérification des lecteurs d’écran.
+
+Contrôles de cette série : filtres Taïso par niveau et réinitialisation, ouverture d’une fiche publique, ajout au brouillon et ouverture de Ma séance dans Chrome. La session ne contenait que les dix fiches publiques ; le catalogue personnel et Safari iPhone n’ont pas été vérifiés. Les tests automatiques couvrent la tabulation aux limites, les fenêtres imbriquées et l’absence de fenêtre ou de contrôle : 94 tests passent.
