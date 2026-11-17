@@ -3424,6 +3424,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function enregistrerSeance(silencieux) {
       if (!items.length) { setMsg('Ajoutez au moins un exercice avant d’enregistrer.'); return false; }
+      if (infos._cours && !coursChoisi) { setMsg('Le créneau choisi n’est plus disponible. Choisissez un cours dans « Pour quel cours ? » ou sélectionnez aujourd’hui sans créneau avant d’enregistrer.'); return false; }
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
       var exos = exercicesPrepares();
       var sauvegardeOK = ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
@@ -3512,7 +3513,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('section', { className: 'cs-cours' },
             h('label', { htmlFor: 'cs-cours', className: 'cs-cours-titre' }, 'Pour quel cours ?'),
             h('select', { id: 'cs-cours', value: infos._cours || '', onChange: function (ev) { majInfo('_cours', ev.target.value); } },
-              [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
+              [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(infos._cours && !coursChoisi ? [h('option', { key: infos._cours, value: infos._cours, disabled: true }, 'Ancien créneau indisponible — choisissez un cours')] : []).concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
             !n && coursChoisi ? h('p', { className: 'cs-cours-aide' }, 'Ajoutez des exercices (ou générez la séance), puis enregistrez-la pour ce cours.') : null),
           items.length ? h('section', { className: 'cs-infos cs-essentiels', 'aria-label': 'Public et objectif' },
             h('h3', null, '1 · Public et objectif'),

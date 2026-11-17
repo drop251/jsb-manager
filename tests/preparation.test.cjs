@@ -4,13 +4,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 function fn(name){const a=html.indexOf('  function '+name+'('),b=html.indexOf('\n  }',a);assert.ok(a>=0&&b>a);return html.slice(a,b+4);}
-function fixture({fail=false,failSelection=false,intention=null,exosHistorique=null}={}){
+function fixture({fail=false,failSelection=false,intention=null,exosHistorique=null,creneaux=[]}={}){
  const states=[];let index=0;const saved=[],exported=[],effects=[];
  const c={JSON,Date,Math,Object,console};vm.createContext(c);
  c.React={Fragment:'fragment',useState(initial){const i=index++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return [states[i],x=>states[i]=typeof x==='function'?x(states[i]):x];},useEffect(fn){effects.push(fn);}};
  c.h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)});
  c.lireJSON=()=>({infos:{},plan:{1:{phase:2,duree:'8'}}});c.sa=x=>x.toLowerCase();c.suffixeProfil=()=> '-test';c.usePlanning=()=>[];c.useHisto=()=>[];
- c.phasesDe=()=> ['Accueil','Échauffement','Technique','Opposition','Retour au calme'];c.phaseDefaut=()=>2;c.estJeuneJudo=()=>false;c.prochainsCreneaux=()=>[];
+ c.phasesDe=()=> ['Accueil','Échauffement','Technique','Opposition','Retour au calme'];c.phaseDefaut=()=>2;c.estJeuneJudo=()=>false;c.prochainsCreneaux=()=>creneaux;
  c.dateIsoLocale=()=> '2026-11-17';c.ajouterHisto=s=>{if(fail)return false;saved.push(s);return true;};c.materielSeance=()=> 'Tatami';c.uniq=xs=>[...new Set(xs)];c.sg=e=>e.sousGroupes||[];c.FORMATS_TAISO=[];
  c.construirePdf=()=>new Blob(['test']);c.enregistrerFichier=(...args)=>exported.push(args);c.SeanceDirecte='SeanceDirecte';
  c.window={confirm:()=>true};
@@ -55,7 +55,7 @@ test('Une reprise depuis le planning qui échoue conserve les informations du br
  assert.equal(f.saved[0].exos[0].duree,'8');
 });
 test('Une reprise réussie depuis le planning transmet le créneau et les informations de la séance',()=>{
- const f=fixture({intention:{type:'reprendre',id:'ancienne',cle:'2026-11-18|cours'}});
+ const f=fixture({intention:{type:'reprendre',id:'ancienne',cle:'2026-11-18|cours'},creneaux:[{cle:'2026-11-18|cours',date:'2026-11-18',heure:'19:00',cours:['Adultes'],texte:'Demain à 19h'}]});
  f.reprendreIntention();const t=f.render();button(t,'Enregistrer la séance').props.onClick();
  assert.equal(f.saved[0].infos.groupe,'Adultes');assert.equal(f.saved[0].infos._cours,'2026-11-18|cours');
  assert.equal(f.saved[0].exos[0].duree,'12');
@@ -67,4 +67,15 @@ test('Une reprise avec un exercice absent du catalogue conserve le brouillon au 
  assert.ok(text(find(t,n=>n.props.className==='cs-msg')).includes('1 exercice ne figure plus'));
  button(t,'Enregistrer la séance').props.onClick();
  assert.equal(f.saved[0].infos.groupe,'Poussins');assert.equal(f.saved[0].infos._cours,undefined);assert.equal(f.saved[0].exos[0].duree,'8');
+});
+
+test('Un ancien créneau indisponible ne transforme pas silencieusement la séance en séance du jour',()=>{
+ const f=fixture({intention:{type:'reprendre',id:'ancienne',cle:'2026-11-01|supprime'}});
+ f.reprendreIntention();let t=f.render();
+ const menu=find(t,n=>n.props.id==='cs-cours');assert.ok(text(menu).includes('Ancien créneau indisponible'));
+ button(t,'Enregistrer la séance').props.onClick();assert.equal(f.saved.length,0);
+ t=f.render();assert.ok(text(find(t,n=>n.props.className==='cs-msg')).includes('créneau choisi n’est plus disponible'));
+ button(t,'Exporter la fiche PDF').props.onClick();assert.equal(f.exported.length,0);
+ find(f.render(),n=>n.props.id==='cs-cours').props.onChange({target:{value:''}});
+ button(f.render(),'Enregistrer la séance').props.onClick();assert.equal(f.saved.length,1);assert.equal(f.saved[0].date,'2026-11-17');
 });

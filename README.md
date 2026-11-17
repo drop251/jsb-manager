@@ -256,3 +256,9 @@ Validation : 107 tests passent, dont reprise refusée avec conservation du group
 Une reprise est refusée si un exercice de la séance enregistrée ne figure plus dans le catalogue actuel. Le message indique combien d’exercices sont absents ; le brouillon et l’historique sont conservés. Cela évite de préparer ou d’enregistrer silencieusement une version tronquée après un changement de catalogue. Les séances dont les exercices sont présents restent reprenables.
 
 Validation : 108 tests passent, avec un cas mêlant exercice présent et exercice absent, et conservation des informations et du dosage du brouillon. La vérification Safari iPhone reste à effectuer.
+
+## Créneau indisponible dans un brouillon (17 novembre 2026)
+
+Si le créneau mémorisé ne figure plus dans les huit prochains jours proposés, « Pour quel cours ? » affiche explicitement cet ancien rattachement comme indisponible. L’enregistrement et l’export sont refusés tant que l’utilisateur n’a pas choisi un nouveau cours ou aujourd’hui sans créneau. Le brouillon reste disponible. Cette protection évite l’ancien repli silencieux sur la date du jour, y compris après suppression d’un créneau du planning.
+
+Validation : 109 tests passent, dont refus d’enregistrement et d’export, puis enregistrement après choix explicite d’aujourd’hui. Safari iPhone reste à vérifier.
