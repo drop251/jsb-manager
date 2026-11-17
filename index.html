@@ -3092,7 +3092,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var mots = normaliserRecherche(recherche).trim().split(/\s+/).filter(Boolean);
     var histoFiltree = histo.filter(function (s) {
       if (discipline && s.espace !== discipline) return false;
-      var texte = normaliserRecherche([s.titre, s.espace, (s.cours || []).join(' '), s.infos && s.infos.groupe, s.date, String(s.date || '').split('-').reverse().join('/')].join(' '));
+      var texte = normaliserRecherche([s.titre, s.espace, (s.cours || []).join(' '), s.infos && s.infos.groupe, s.infos && s.infos.objectif, s.infos && s.infos.thematique, (s.exos || []).map(function (x) { return x.nom; }).join(' '), s.date, String(s.date || '').split('-').reverse().join('/')].join(' '));
       return mots.every(function (mot) { return texte.indexOf(mot) >= 0; });
     });
     function confirmerSuppression(id) {
