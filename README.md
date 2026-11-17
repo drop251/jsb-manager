@@ -280,3 +280,8 @@ Validation : 115 tests passent, avec recherche sans accents, dates, combinaison 
 Préparer un autre cours ou reprendre une séance demande confirmation lorsqu’une préparation existe. Refuser conserve le brouillon. Une nouvelle préparation confirmée vide les anciens exercices et réglages ; l’écriture de la sélection doit réussir avant tout remplacement. Ouvrir de nouveau le même créneau conserve sa préparation. Les séances enregistrées restent inchangées.
 
 Validation : 119 tests passent, dont refus de reprise, refus d’un nouveau cours, nouveau cours confirmé et échec de stockage. La validation Safari iPhone reste à effectuer.
+
+
+## Séance du cours affiché sur l’accueil (17 novembre 2026)
+
+La carte du cours du jour retrouve désormais la séance à partir de l’horaire du cours, comme la vue « Cette semaine ». Lorsque le même groupe a plusieurs séances prévues le même jour, la carte ne lance plus par erreur la séance d’un autre horaire. Les anciennes séances sans heure restent compatibles selon la règle de secours déjà utilisée dans « Mes séances ».
