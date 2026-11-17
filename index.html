@@ -3390,6 +3390,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }, [cleBrouillon, infos, plan]);
     var planning = usePlanning(), histo = useHisto();
     var s5 = React.useState(null), direct = s5[0], setDirect = s5[1];
+    var s7 = React.useState(null), suppressionHisto = s7[0], setSuppressionHisto = s7[1];
+    var s8 = React.useState(''), erreurSuppressionHisto = s8[0], setErreurSuppressionHisto = s8[1];
+    function confirmerSuppressionHisto(id) {
+      if (!supprimerHisto(id)) { setErreurSuppressionHisto('Suppression impossible : la séance est conservée. Réessayez.'); return; }
+      setSuppressionHisto(null); setErreurSuppressionHisto('');
+    }
     // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
@@ -3597,13 +3603,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           }) : null,
           histoEsp.length ? h('details', { className: 'cs-histo' },
             h('summary', null, 'Séances enregistrées (' + histoEsp.length + ')'),
+            erreurSuppressionHisto ? h('p', { role: 'alert', className: 'cs-msg' }, erreurSuppressionHisto) : null,
             h('ul', null, histoEsp.map(function (s) {
               return h('li', { key: s.id },
                 h('div', { className: 'cs-nom' }, h('b', null, dateFr(s.date) + (s.heure ? ' · ' + heureFr(s.heure) : '') + ' · ' + (s.cours || []).join(', ')), h('span', null, s.titre + ' · ' + s.exos.length + ' exercices')),
                 h('div', { className: 'cs-reglages' },
                   h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { reprendre(s); } }, 'Reprendre'),
                   progressable(s) ? h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Reprendre la séance du ' + dateFr(s.date) + ' un cran plus dure', onClick: function () { reprendre(s, true); } }, 'Plus dur') : null,
-                  h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { supprimerHisto(s.id); } }, 'Supprimer')));
+                  suppressionHisto === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression de cette séance' }, h('span', null, 'Supprimer cette séance ? '), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppressionHisto(s.id); } }, 'Confirmer'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setSuppressionHisto(null); setErreurSuppressionHisto(''); } }, 'Conserver')) : h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setSuppressionHisto(s.id); setErreurSuppressionHisto(''); } }, 'Supprimer')));
             }))) : null)));
   }
 
