@@ -109,7 +109,7 @@ test('offline Safari video range responses and invalid ranges',async()=>{
   const suffix=await request('bytes=-2');assert.deepEqual([...new Uint8Array(await suffix.arrayBuffer())],[40,50]);
   assert.equal((await request('bytes=50-60')).status,416);
 });
-test('offline preparation downloads all referenced public and reserved media and rejects missing media',async()=>{
+test('offline preparation keeps videos, skips illustrations and rejects missing videos',async()=>{
   const {ctx}=environnement();vm.runInContext(fonction('preparerHorsLigne'),ctx);
   const saved=new Map();
   ctx.navigator.serviceWorker={controller:{}};ctx.location={href:'https://example.test/jsb-manager/'};ctx.URL=URL;ctx.AbortController=AbortController;
@@ -117,7 +117,8 @@ test('offline preparation downloads all referenced public and reserved media and
   ctx.VIDEOS={};ctx.IMG_PERSO={};ctx.caches={open:async()=>({match:async u=>saved.get(u),put:async(u,r)=>saved.set(u,r)}),match:async()=>new Response('shell')};
   ctx.fetch=async()=>new Response('media');const base=[{id:1},{id:2}];
   assert.match(await ctx.preparerHorsLigne(base,base,()=>{}),/disponible hors ligne/);
-  for(const u of ['illustres/catalogue.json','illustres/medias/1.jpg','illustres/medias/1.mp4','illustres/medias-v/2.bin','illustres/medias-v/2v.bin'])assert.ok(saved.has(u),u);
+  for(const u of ['illustres/catalogue.json','illustres/medias/1.mp4','illustres/medias-v/2v.bin'])assert.ok(saved.has(u),u);
+  assert.equal(saved.has('illustres/medias/1.jpg'),false);assert.equal(saved.has('illustres/medias-v/2.bin'),false);
   ctx.fetch=async()=>{throw Error('offline');};
   await ctx.preparerHorsLigne(base,base,()=>{}); // all cached, no network needed
   saved.delete('illustres/medias/1.mp4');await assert.rejects(ctx.preparerHorsLigne(base,base,()=>{}));

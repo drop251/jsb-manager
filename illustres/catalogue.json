@@ -30,7 +30,6 @@
    "niveau": "Intermédiaire",
    "id": 9001,
    "idSource": 5697,
-   "image": "medias/9001.jpg",
    "video": "medias/9001.mp4"
   },
   {
@@ -61,7 +60,6 @@
    "niveau": "Débutant",
    "id": 9004,
    "idSource": 5724,
-   "image": "medias/9004.jpg",
    "video": "medias/9004.mp4"
   },
   {
@@ -92,7 +90,6 @@
    "niveau": "Intermédiaire",
    "id": 9009,
    "idSource": 5762,
-   "image": "medias/9009.jpg",
    "video": "medias/9009.mp4"
   },
   {
@@ -123,7 +120,6 @@
    "niveau": "Débutant",
    "id": 9014,
    "idSource": 5804,
-   "image": "medias/9014.jpg",
    "video": "medias/9014.mp4"
   },
   {
@@ -154,7 +150,6 @@
    "niveau": "Débutant",
    "id": 9015,
    "idSource": 5858,
-   "image": "medias/9015.jpg",
    "video": "medias/9015.mp4"
   },
   {
@@ -185,7 +180,6 @@
    "niveau": "Débutant",
    "id": 9017,
    "idSource": 5860,
-   "image": "medias/9017.jpg",
    "video": "medias/9017.mp4"
   },
   {
@@ -247,7 +241,6 @@
    "niveau": "Débutant",
    "id": 9019,
    "idSource": 5930,
-   "image": "medias/9019.jpg",
    "video": "medias/9019.mp4"
   },
   {
@@ -279,7 +272,6 @@
    "niveau": "Intermédiaire",
    "id": 9021,
    "idSource": 6017,
-   "image": "medias/9021.jpg",
    "video": "medias/9021.mp4"
   },
   {
@@ -311,7 +303,6 @@
    "niveau": "Débutant",
    "id": 9023,
    "idSource": 6025,
-   "image": "medias/9023.jpg",
    "video": "medias/9023.mp4"
   }
  ],
