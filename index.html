@@ -32,6 +32,7 @@
 .cs-phase-options { margin-bottom: 8px; }
 </style>
 <style>body:has([role="dialog"][aria-modal="true"]), body:has([role="alertdialog"][aria-modal="true"]) { overflow: hidden; }</style>
+<style>.media-a-revoir { display:flex; align-items:center; justify-content:center; min-height:120px; padding:16px; box-sizing:border-box; background:var(--chip); color:var(--muted); font:inherit; text-align:center; } .sd .media-a-revoir { background:#283345; color:#fff; }</style>
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -2346,7 +2347,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Navigation clavier des fenêtres';
+  var VERSION_APP = '17/11/2026 · Cohérence des médias publics';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2537,6 +2538,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('p', { className: 'etiq' }, e.typeFiche === 'Technique' ? 'Fiche technique · référence' : 'Fiche exercice · situation pédagogique'),
         h('h2', null, e.nom),
         h(Description, { texte: e.description }),
+        e.mediasARevoir ? h('p', { className: 'gn-aide', role: 'status' }, e.mediasARevoir) : null,
         p.usage ? h('p', { className: 'fiche-usage' }, texteUsage(p.usage)) : null,
         h('div', { className: 'pastilles' },
           niveauTexte(e, judo) ? h(Grade, { texte: niveauTexte(e, judo) }) : null,
@@ -2917,9 +2919,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (ids[x.id]) return; ids[x.id] = true;
       var e = parId[x.id]; if (!e) return;
       if (VIDEOS[e.id]) locaux.push(Stockage.lire(cleVideo(e.id)).then(function (v) { if (!v || !v.buf || !v.buf.byteLength) throw new Error('video'); }));
-      else if (EN_LIGNE.vidC[e.id]) urls.push('illustres/' + EN_LIGNE.vidC[e.id].f);
-      else if (EN_LIGNE.vid[e.id]) urls.push(EN_LIGNE.vid[e.id]);
-      if (!IMG_PERSO[e.id]) {
+      else if (!e.mediasARevoir && EN_LIGNE.vidC[e.id]) urls.push('illustres/' + EN_LIGNE.vidC[e.id].f);
+      else if (!e.mediasARevoir && EN_LIGNE.vid[e.id]) urls.push(EN_LIGNE.vid[e.id]);
+      if (!IMG_PERSO[e.id] && !e.mediasARevoir) {
         if (EN_LIGNE.imgC[e.id]) urls.push('illustres/' + EN_LIGNE.imgC[e.id].f);
         else if (EN_LIGNE.img[e.id] && EN_LIGNE.img[e.id].indexOf('illustres/') === 0) urls.push(EN_LIGNE.img[e.id]);
       }
@@ -6720,6 +6722,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (iP) return h('img', { className: 'illus perso' + (p.petit ? ' petit' : ''), src: iP, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
     var sIA = svgIA(p.e);
     if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
+    if (p.e.mediasARevoir && !/^data:image\//.test(p.e.image || '')) return h('div', { className: 'illus media-a-revoir' + (p.petit ? ' petit' : ''), role: 'img', 'aria-label': 'Visuel à corriger : ' + p.e.nom }, 'Visuel à corriger');
     if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', width: 200, height: 150 });
     var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
     var deco = [];
@@ -6913,7 +6916,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return Promise.all([Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}),
       Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {}), chargerVideos()]);
   }
-  function imagePerso(e) { return IMG_PERSO[e.id] || EN_LIGNE.img[e.id] || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
+  function imagePerso(e) { return IMG_PERSO[e.id] || (!e.mediasARevoir && EN_LIGNE.img[e.id]) || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
   function reduireImage(fichier) {
     return new Promise(function (ok, ko) {
       var url = URL.createObjectURL(fichier), img = new Image();
@@ -7036,7 +7039,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var EXT_VIDEO = /\.(mp4|m4v|mov|webm)$/i;
   function cleVideo(id) { return 'jsb-video-' + id; }
   function chargerVideos() { return Stockage.lire(CLE_VIDEOS).then(function (d) { if (d && typeof d === 'object') VIDEOS = d; }, function () {}); }
-  function aVideo(e) { return !!(e && (VIDEOS[e.id] || EN_LIGNE.vid[e.id])); }
+  function aVideo(e) { return !!(e && (VIDEOS[e.id] || (!e.mediasARevoir && EN_LIGNE.vid[e.id]))); }
   function estVideo(f) { return /^video\//.test(f.type || '') || EXT_VIDEO.test(f.name || ''); }
   function typeVideo(f) { return f.type || (/\.webm$/i.test(f.name) ? 'video/webm' : /\.mov$/i.test(f.name) ? 'video/quicktime' : 'video/mp4'); }
   function tailleTexte(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko'; }
@@ -7197,7 +7200,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // Exercice illustré : photo, dessin ou vidéo ajoutés sur l'appareil (ou image fournie avec l'exercice)
-  function illustre(e) { return !!(e && (IMG_PERSO[e.id] || VIDEOS[e.id] || EN_LIGNE.img[e.id] || EN_LIGNE.vid[e.id] || svgIA(e) || /^data:image\//.test(e.image || ''))); }
+  function illustre(e) { return !!(e && (IMG_PERSO[e.id] || VIDEOS[e.id] || (!e.mediasARevoir && (EN_LIGNE.img[e.id] || EN_LIGNE.vid[e.id])) || svgIA(e) || /^data:image\//.test(e.image || ''))); }
   // ===== Export complet (24/10/2026) : fiche(s) exercice avec photo, dessin et vidéo, dans un fichier .zip =====
   // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
   // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
@@ -7205,7 +7208,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var CHAMPS_FICHE = [['Dosage de base', 'dosage'], ['Critère de réussite', 'critere'], ['Famille', 'famillePrincipale'], ['Niveau', 'niveau'], ['Sous-groupe', 'sousGroupes'],
     ['Matériel', 'materielDetail'], ['Muscles cibles', 'muscles'], ['Moment de la séance', 'moment'], ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'],
     ['Accessibilité', 'accessibilite'], ['Inspiration', 'inspiration'], ['Format', 'format'],
-    ['Type de fiche', 'typeFiche'], ['Grade Judo', 'grade'], ['Équipement', 'equipement'], ['Ancienne famille', 'famille'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
+    ['Médias à revoir', 'mediasARevoir'], ['Type de fiche', 'typeFiche'], ['Grade Judo', 'grade'], ['Équipement', 'equipement'], ['Ancienne famille', 'famille'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
     ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'],
     ['Précision 12 ans et plus', 'precisionPublic'], ['Précaution ostéoporose', 'precaution'],
     ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
@@ -7227,9 +7230,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var ph = IMG_PERSO[e.id] || (/^data:image\//.test(e.image || '') ? e.image : ''), svg = svgIA(e);
     var r = { photo: ph ? dataUrlOctets(ph) : null, svg: svg || '', video: null };
     function octetsDe(url) { return fetch(url).then(function (x) { return x.ok ? x.arrayBuffer() : null; }).then(function (b) { return b ? new Uint8Array(b) : null; }, function () { return null; }); }
-    var p0 = !r.photo && EN_LIGNE.img[e.id] ? octetsDe(EN_LIGNE.img[e.id]).then(function (o) { if (o) r.photo = { ext: /\.png$/.test(EN_LIGNE.img[e.id]) ? 'png' : 'jpg', octets: o }; }) : Promise.resolve();
+    var p0 = !r.photo && !e.mediasARevoir && EN_LIGNE.img[e.id] ? octetsDe(EN_LIGNE.img[e.id]).then(function (o) { if (o) r.photo = { ext: /\.png$/.test(EN_LIGNE.img[e.id]) ? 'png' : 'jpg', octets: o }; }) : Promise.resolve();
     if (!VIDEOS[e.id]) return p0.then(function () {
-      if (!EN_LIGNE.vid[e.id]) return r;
+      if (!EN_LIGNE.vid[e.id] || e.mediasARevoir) return r;
       return blobVideoEnLigne(e.id).then(function (b) { return b ? b.arrayBuffer() : null; }).then(function (o) { if (o) r.video = { ext: /webm/.test((EN_LIGNE.vid[e.id] || '') + (EN_LIGNE.vidC[e.id] ? EN_LIGNE.vidC[e.id].type : '')) ? 'webm' : 'mp4', type: 'video/mp4', octets: new Uint8Array(o) }; return r; }, function () { return r; });
     });
     return p0.then(function () { return Stockage.lire(cleVideo(e.id)); }).then(function (d) {
@@ -7381,6 +7384,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (!Array.isArray(cible.sousGroupes)) cible.sousGroupes = [];
         ajouts.push(cible); parCle[k] = cible; parId[cible.id] = cible;
       }
+      if (Object.prototype.hasOwnProperty.call(x,'mediasARevoir')) cible.mediasARevoir = String(x.mediasARevoir || '');
       medias(x, cible);
       EN_LIGNE.n++;
     });

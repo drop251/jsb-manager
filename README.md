@@ -204,3 +204,10 @@ Une vérification réelle dans Chrome a confirmé que Maj+Tab depuis « Ma séan
 Le défilement de la page derrière une fenêtre modale est bloqué par CSS ; le contenu de la fenêtre reste défilable. Cette évolution ne constitue pas un audit complet d’accessibilité ni une vérification des lecteurs d’écran.
 
 Contrôles de cette série : filtres Taïso par niveau et réinitialisation, ouverture d’une fiche publique, ajout au brouillon et ouverture de Ma séance dans Chrome. La session ne contenait que les dix fiches publiques ; le catalogue personnel et Safari iPhone n’ont pas été vérifiés. Les tests automatiques couvrent la tabulation aux limites, les fenêtres imbriquées et l’absence de fenêtre ou de contrôle : 94 tests passent.
+
+
+## Cohérence des médias publics (17 novembre 2026)
+
+Le parcours enregistrer une préparation, retrouver la séance et la lancer a été vérifié dans Chrome. La fiche publique « Assis-debout de la chaise » conservait une image et une vidéo montrant une chaise au mur sans chaise. Ces associations sont retirées ; l’exercice, son identifiant et ses consignes restent disponibles, avec un message explicatif. Les fichiers restent dans le dépôt pour permettre leur révision. Aucun média de remplacement n’a été inventé.
+
+Le signalement empêche aussi une ancienne association publique de réapparaître dans la fiche, les exports et la préparation hors ligne. Les images et vidéos personnelles restent prioritaires et utilisables. Validation : 97 tests passent. Le catalogue personnel et Safari iPhone restent hors de cette vérification.
