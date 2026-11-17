@@ -300,3 +300,6 @@ La version du cache du service worker est incrémentée avec la recherche étend
 ## Lancement d’une ancienne séance (17 novembre 2026)
 
 Lorsqu’un exercice enregistré n’existe plus dans le catalogue courant, le lancement direct depuis l’historique affiche un avertissement indiquant que les consignes détaillées ne seront pas disponibles. Le chronométrage reste accessible pour ne pas rendre inutilisable la séance sauvegardée. Les exercices présents dans le catalogue continuent d’afficher leurs consignes et repères de sécurité.
+
+
+L’alerte du lancement direct permet aussi d’afficher les noms des exercices concernés pour les retrouver ou les réimporter plus facilement.
