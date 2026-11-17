@@ -2308,6 +2308,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (ids[String(e.id)]) throw new Error(ligne + 'identifiant en double (' + e.id + ').');
         ids[String(e.id)] = true;
         if (!Array.isArray(e.public) || !e.public.length || e.public.some(function (p) { return ['Judo', 'Taïso', 'Suivi et reprise'].indexOf(p) < 0; })) throw new Error(ligne + 'discipline inconnue ou absente.');
+        if (e.typeFiche != null && ['Exercice','Technique'].indexOf(e.typeFiche) < 0) throw new Error(ligne + 'typeFiche doit être Exercice ou Technique.');
         ['sousGroupes', 'ages'].forEach(function (k) { if (e[k] != null && (!Array.isArray(e[k]) || e[k].some(function (v) { return typeof v !== 'string'; }))) throw new Error(ligne + k + ' doit être une liste de textes.'); });
         ['description','categorie','categorieSecondaire','dosage','famille','famillePrincipale','sousFamille','technique','equipement','grade','niveau','moment','muscles','materielDetail','thematique'].forEach(function (k) { if (e[k] != null && typeof e[k] !== 'string') throw new Error(ligne + k + ' doit être un texte.'); });
       });
@@ -2343,8 +2344,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var GRADES = ['Blanche – Orange', 'Verte – Bleue', 'Marron – Noire'];
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
-  var VIDE = { q: '', sous: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Préparation simplifiée';
+  var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
+  var VERSION_APP = '17/11/2026 · Fiches techniques et exercices';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2458,6 +2459,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('span', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
           p.fav ? h(BoutonFavori, { e: e, fav: p.fav }) : null,
           h('button', { type: 'button', className: 'sheet-fermer', 'aria-label': 'Fermer la fiche', onClick: p.fermer }, h('svg', { viewBox: '0 0 24 24', width: 22, height: 22, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': 'true' }, h('path', { d: 'M6 6l12 12M18 6 6 18' })))),
+        h('p', { className: 'etiq' }, e.typeFiche === 'Technique' ? 'Fiche technique · référence' : 'Fiche exercice · situation pédagogique'),
         h('h2', null, e.nom),
         p.usage ? h('p', { className: 'fiche-usage' }, texteUsage(p.usage)) : null,
         h('div', { className: 'pastilles' },
@@ -2488,7 +2490,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
         h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
         h(BoutonExportFiche, { e: e })),
-        p.sel ? h('div', { className: 'sheet-pied' }, h('button', { type: 'button', className: 'sheet-ajout', 'aria-pressed': p.sel.has(e.id), onClick: function () { p.sel.toggle(e.id); } },
+        e.typeFiche === 'Technique' ? h('p', { className: 'gn-aide' }, 'Cette fiche explique la technique. Pour préparer la séance, choisissez un exercice qui la met en pratique.') : null,
+        p.sel && e.typeFiche !== 'Technique' ? h('div', { className: 'sheet-pied' }, h('button', { type: 'button', className: 'sheet-ajout', 'aria-pressed': p.sel.has(e.id), onClick: function () { p.sel.toggle(e.id); } },
           p.sel.has(e.id) ? '✓ Dans ma séance — retirer' : 'Ajouter à ma séance')) : null)), document.body);
   }
 
@@ -3113,6 +3116,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       toggle: function (id) { ecrire(has(id) ? ids.filter(function (x) { return x !== id; }) : ids.concat([id])); } };
   }
   function Plus(p) {
+    if (p.e.typeFiche === 'Technique') return null;
     var on = p.sel.has(p.e.id);
     return h('button', { type: 'button', className: 'cs-plus', 'aria-pressed': on, 'aria-label': (on ? 'Retirer de la séance : ' : 'Ajouter à la séance : ') + p.e.nom,
       onClick: function () { p.sel.toggle(p.e.id); } }, p.compact ? (on ? '✓' : '+') : on ? 'Dans la séance' : 'Ajouter');
@@ -4513,7 +4517,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     famillePrincipale: ['familleprincipale'],
     famille: ['famille'],
     sousFamille: ['sousfamille', 'sousfamilleexercice'],
-    tags: ['tags', 'motscles']
+    tags: ['tags', 'motscles'],
+    typeFiche: ['typefiche', 'naturedefiche']
   };
   function normaliserLigne(o) {
     var k = {}; Object.keys(o).forEach(function (c) { k[cle(c)] = o[c]; });
@@ -4833,6 +4838,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function verifierNouvelExerciceJudo(brut, e) {
     var erreurs = [];
     if (!e || !e.nom || !String(e.nom).trim()) return ['Nom obligatoire'];
+    var type = valeurChampPedagogique(brut, ['typeFiche','type de fiche','nature de fiche']);
+    if (type && ['Exercice','Technique'].indexOf(type) < 0) return ['typeFiche : choisir Exercice ou Technique'];
+    if (e.typeFiche === 'Technique') {
+      [['Description',['description']],['Vigilance',['vigilance']],['Critère de réussite',['critere','critereDeReussite']],['Public',['sousGroupes','categorieAge']],['Technique ou famille',['technique','famille','famillePrincipale']]].forEach(function (c) {
+        if (!valeurChampPedagogique(brut,c[1])) erreurs.push(c[0] + ' manquant');
+      });
+      if (e.public && e.public.indexOf('Judo') >= 0 && !valeurChampPedagogique(brut,['grade'])) erreurs.push('Grade manquant');
+      return erreurs;
+    }
     if (!e.public || e.public.indexOf('Judo') < 0) return erreurs; // moteur Taïso inchangé
     var obligatoires = [
       ['Description', ['description']], ['Thématique', ['thematique']], ['Dosage', ['dosage']],
@@ -4924,6 +4938,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var pub = /taiso|judo/.test(p) ? publicDe(x, texte) : pub0 || publicDe(x, texte);
     var cat = categorieDe(pub, x, texte), pil = piloteDe(x);
     var e = {
+      typeFiche: x.typeFiche || 'Exercice',
       famillePrincipale: String(x.famillePrincipale || ''), famille: String(x.famille || ''), sousFamille: String(x.sousFamille || ''), tags: Array.isArray(x.tags) ? x.tags.slice() : String(x.tags || ''),
       ref: String(x.ref || ''), nom: String(x.nom).trim(), categorie: cat, categorieSecondaire: x.categorieSecondaire || '', public: [pub],
       thematique: String(x.thematique || ''), description: String(x.description || '').trim() || String(x.nom),
@@ -4941,7 +4956,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || (FAMILLES[x.famille] ? x.famille : familleDe(e.nom, texte));
       e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
     } else {
-      e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = '';
+      e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = x.typeFiche === 'Technique' ? String(x.technique || '') : '';
       e.sousGroupes = sousGroupeTaiso(x, texte, cat, e.niveau);
     }
     if (pub === 'Judo') {
@@ -5020,23 +5035,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function ecrireIdMax(n) { try { if (n > lireIdMax()) localStorage.setItem(CLE_ID_MAX, String(n)); } catch (e) {} }
   function preparerAjouts(lignes, base) {
     // Numéros des exercices ajoutés : jamais réutilisés (compteur gardé sur l'appareil), jamais celui d'une photo ou vidéo déjà rangée
+    function cleFiche(e) { return cle(e.nom) + '|' + (e.public || [])[0] + '|' + (e.typeFiche || 'Exercice'); }
     var deja = {}, maxId = Math.max(5000, lireIdMax()), parCle = {}, parNom = {}, parId = {};
     function suivant() {
       do { maxId++; if (maxId >= 9000 && maxId < 20001) maxId = 20001; } while (IMG_PERSO[maxId] || ILLUS_IA[maxId] || VIDEOS[maxId] || parId[maxId]);
       return maxId;
     }
-    base.forEach(function (e) { var k0 = cle(e.nom) + '|' + (e.public || [])[0]; deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
+    base.forEach(function (e) { var k0 = cleFiche(e); deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
       var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
     var r = { ajouts: [], majFiches: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
     lignes.forEach(function (l) {
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
       var e = classer(l); if (!e) { r.refuses.push({ nom: valeurChampPedagogique(l,['nom']) || 'Sans nom', raisons: ['Nom obligatoire'] }); r.ignores++; return; }
-      var k = cle(e.nom) + '|' + e.public[0];
+      var k = cleFiche(e);
       // Ligne réduite au nom d'un exercice de la base (pour lui ajouter une illustration) : c'est cet exercice
       var seul = (!String(e.description || '').trim() || cle(e.description) === cle(e.nom)) && parNom[cle(e.nom)];
-      if (seul) { k = cle(seul.nom) + '|' + (seul.public || [])[0]; parCle[k] = seul; deja[k] = 1; }
+      if (seul) { k = cleFiche(seul); parCle[k] = seul; deja[k] = 1; }
       if (deja[k]) {
-        var ex = (l.id != null && parId[Number(l.id)] && cle(parId[Number(l.id)].nom) === cle(e.nom) ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
+        var ex = (l.id != null && parId[Number(l.id)] && cleFiche(parId[Number(l.id)]) === k ? parId[Number(l.id)] : null) || parCle[k] || parNom[cle(e.nom)];
         if (ex && (il.image || il.svg)) r.illustrations.push({ id: ex.id, nom: ex.nom, image: il.image, svg: il.svg });
         var majPeda = !!(ex && valeurChampPedagogique(l, ['description']) && !seul);
         if (majPeda) {
@@ -5055,8 +5071,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (il.image) e.image = il.image;
       if (il.svg) e.illustration = il.svg;
       deja[k] = 1; e.id = suivant(); r.ajouts.push(e);
-      var fe = formeEnfants(e);
-      if (fe.forme && !deja[cle(fe.forme.nom) + '|Judo']) { fe.forme.id = suivant(); deja[cle(fe.forme.nom) + '|Judo'] = 1; r.ajouts.push(fe.forme); r.formes++; }
+      var fe = e.typeFiche === 'Technique' ? {} : formeEnfants(e);
+      if (fe.forme && !deja[cleFiche(fe.forme)]) { fe.forme.id = suivant(); deja[cleFiche(fe.forme)] = 1; r.ajouts.push(fe.forme); r.formes++; }
       else if (fe.exclu) r.exclus[fe.exclu] = (r.exclus[fe.exclu] || 0) + 1;
     });
     return r;
@@ -5598,6 +5614,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return 0;
   }
   function genererSeanceJeunes(rep, tous, tout, graine) {
+    tous = tous.filter(function (e) { return e.typeFiche !== 'Technique'; });
+    tout = tout.filter(function (e) { return e.typeFiche !== 'Technique'; });
     var groupe = rep.groupe, eveil = estEveilJudo(groupe);
     if (!estJeuneJudo(groupe)) throw new Error('Groupe jeunes invalide');
     var minutes = parseInt(rep.duree,10) || 45;
@@ -5717,6 +5735,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return durees;
   }
   function genererSeance(rep, judo, tous, tout, graine) {
+    tous = tous.filter(function (e) { return e.typeFiche !== 'Technique'; });
+    tout = tout.filter(function (e) { return e.typeFiche !== 'Technique'; });
     if (judo && (rep.groupe === 'Éveils (4-5 ans)' || rep.groupe === 'Pré-poussins')) return genererSeanceJeunes(rep,tous,tout,graine);
     var r = hasard(graine), minutes = parseInt(rep.duree, 10) || 60, parId = {};
     tout.forEach(function (e) { parId[e.id] = e; });
@@ -5850,6 +5870,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   function Generateur(p) {
+    p = Object.assign({}, p, { donnees: p.donnees.filter(function (e) { return e.typeFiche !== 'Technique'; }), tout: p.tout.filter(function (e) { return e.typeFiche !== 'Technique'; }) });
     var judo = p.espace === 'Judo';
     var s1 = React.useState(0), etape = s1[0], setEtape = s1[1];
     var routineInit = lireRoutine(p.espace);
@@ -7046,7 +7067,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
   // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
   // Le .zip se réimporte dans « Ajouter des exercices » (autre appareil) : photos, dessins et vidéos reviennent avec.
-  var CHAMPS_FICHE = [['Moment de la séance', 'moment'], ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Format', 'format'],
+  var CHAMPS_FICHE = [['Type de fiche', 'typeFiche'], ['Moment de la séance', 'moment'], ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Format', 'format'],
     ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
     ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
     ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'], ['Famille principale', 'famillePrincipale'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
@@ -7345,7 +7366,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s8 = useState(null), genere = s8[0], setGenere = s8[1];
     // Rendu progressif de la liste : 24 cartes, puis 24 de plus quand on approche du bas (IntersectionObserver)
     var PAS_LISTE = 24, s9 = useState(PAS_LISTE), nbVisibles = s9[0], setNbVisibles = s9[1];
-    React.useEffect(function () { setNbVisibles(PAS_LISTE); }, [cle, f.sous, f.famille, f.sousFamille, f.cat, f.niv, f.mom, f.tech, f.fmt, f.q, f.acc, f.insp, f.grp, f.iso, f.uni, f.poly, f.fav, f.illus, tri, (f.dispo || []).join()]);
+    React.useEffect(function () { setNbVisibles(PAS_LISTE); }, [cle, f.sous, f.typeFiche, f.famille, f.sousFamille, f.cat, f.niv, f.mom, f.tech, f.fmt, f.q, f.acc, f.insp, f.grp, f.iso, f.uni, f.poly, f.fav, f.illus, tri, (f.dispo || []).join()]);
     // Liste compacte ou cartes (mémorisé), panneau des filtres, favoris et historique des séances
     var s10 = useState(lireVueListe), vueListe = s10[0], setVueListe = s10[1];
     var s11 = useState(false), panneauF = s11[0], setPanneauF = s11[1];
@@ -7389,7 +7410,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var donnees = demo ? BASE.concat(EXEMPLES) : BASE;
     function de(esp) { return donnees.filter(function (e) { return (e.public || []).indexOf(esp.label) >= 0; }); }
     function aller(k) { setCle(k); setF(VIDE); setOuverte(null); setTiroir(false); setPanneauF(false); try { history.replaceState(null, '', k ? '#' + k : location.pathname); } catch (err) {} try { window.scrollTo(0, 0); } catch (err) {} }
-    function maj(k, v) { var n = Object.assign({}, f); n[k] = v; if (k === 'famille' || k === 'sous') n.sousFamille = ''; if (k === 'sous') n.famille = ''; setF(n); }
+    function maj(k, v) { var n = Object.assign({}, f); n[k] = v; if (k === 'famille' || k === 'sous' || k === 'typeFiche') n.sousFamille = ''; if (k === 'sous' || k === 'typeFiche') n.famille = ''; setF(n); }
     var bandeau = demo ? h('div', { className: 'bandeau' }, 'Mode exemple : ces exercices servent seulement à montrer la présentation, ils ne sont pas dans la base.',
       h('button', { type: 'button', onClick: function () { setDemo(false); } }, 'Retirer les exemples')) : null;
     var entete = function (esp) {
@@ -7432,7 +7453,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('button', { key: esp.key, type: 'button', className: 'bloc' + (bientot ? ' bientot' : ''), style: teinte(esp.couleur), onClick: function () { aller(esp.key); } },
             h('span', { className: 'bloc-ico' }, h(Icone, { nom: ICONES[esp.key] ? esp.key : 'seance', taille: 26 })),
             h('span', { className: 'bloc-nom' }, esp.label),
-            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? 'Bientôt' : n + (n > 1 ? ' exercices' : ' exercice')),
+            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? 'Bientôt' : n + (n > 1 ? ' fiches' : ' fiche')),
             h('span', { className: 'bloc-txt' }, esp.intro),
             esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
         })),
@@ -7447,13 +7468,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (esp.special) return cadre(h('main', Object.assign({ style: teinte(esp.couleur) }, glisse), h('div', { className: 'wrap' }, entete(esp), bandeau,
       h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), esp.key === 'presences' ? h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)) : h(MesSeances, { aller: aller }))));
     var tous = de(esp);
-    var parPublic = tous.filter(function (e) { return !f.sous || sg(e).indexOf(f.sous) >= 0; });
+    var parPublic = tous.filter(function (e) { return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.typeFiche || (e.typeFiche || 'Exercice') === f.typeFiche); });
     var familles = famillesCatalogue(parPublic, esp.label);
     var sousFamilles = f.famille ? uniq(parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === f.famille; }).map(sousFamilleCatalogue).filter(Boolean)).sort(function (a,b) { return a.localeCompare(b,'fr'); }) : [];
     var socle = judo ? ['Poids du corps', 'Tatami', 'Judogi', 'Partenaire'] : ['Poids du corps', 'Tatami'];
     var q = sansAccent(f.q.trim());
     var liste = tous.filter(function (e) {
-      return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.famille || familleCatalogue(e, esp.label) === f.famille) && (!f.sousFamille || sousFamilleCatalogue(e) === f.sousFamille) && (!f.cat || court(e.categorie) === f.cat || e.categorieSecondaire === f.cat) &&
+      return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.typeFiche || (e.typeFiche || 'Exercice') === f.typeFiche) && (!f.famille || familleCatalogue(e, esp.label) === f.famille) && (!f.sousFamille || sousFamilleCatalogue(e) === f.sousFamille) && (!f.cat || court(e.categorie) === f.cat || e.categorieSecondaire === f.cat) &&
         (!f.niv || nv(e) === f.niv) && (!f.mom || momentsDe(e).indexOf(f.mom) >= 0) && (!f.tech || e.technique === f.tech) && (!f.acc || e.accessibilite === f.acc) && (!f.insp || e.inspiration === f.insp) && (!f.grp || e.groupeMusculaire === f.grp) && (!f.fmt || e.format === f.fmt) &&
         (!f.iso || e.isometrique) && (!f.uni || e.unilateral) && (!f.poly || e.polyarticulaire) && (!f.fav || fav.has(e.id)) && (!f.illus || illustre(e)) &&
         (!f.dispo.length || (e.equipement || '').split(' + ').every(function (x) { return socle.indexOf(x) >= 0 || f.dispo.indexOf(x) >= 0; })) &&
@@ -7469,13 +7490,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var fmtOpts = presents(tous, 'format', ['Solo', 'Binôme', 'Trio', 'Collectif']), momOpts = MOMENTS.filter(function (m) { return tous.some(function (e) { return momentsDe(e).indexOf(m) >= 0; }); }), techOpts = presents(tous, 'technique');
     var accOpts = presents(tous, 'accessibilite', ['Tous publics', 'Avec la variante douce', 'Publics entraînés uniquement']), inspOpts = presents(tous, 'inspiration');
     var nbPlus = ['fmt', 'tech', 'acc', 'insp', 'grp'].filter(function (k) { return f[k]; }).length + f.dispo.length + (f.iso ? 1 : 0) + (f.uni ? 1 : 0) + (f.poly ? 1 : 0) + (tri !== 'cat' ? 1 : 0);
-    var nbFiltres = ['famille', 'sousFamille', 'cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length + nbPlus + (f.fav ? 1 : 0) + (f.illus ? 1 : 0);
+    var nbFiltres = ['typeFiche', 'famille', 'sousFamille', 'cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length + nbPlus + (f.fav ? 1 : 0) + (f.illus ? 1 : 0);
     var nbIllus = tous.filter(illustre).length;
     // Filtres actifs en pastilles retirables d'une touche
     var actifs = [];
     if (f.fav) actifs.push(['Favoris', function () { maj('fav', false); }]);
     if (f.illus) actifs.push(['Illustrés', function () { maj('illus', false); }]);
-    [['famille', ''], ['sousFamille', ''], ['cat', ''], ['niv', ''], ['mom', ''], ['tech', ''], ['fmt', ''], ['acc', ''], ['insp', ''], ['grp', '']].forEach(function (x) { if (f[x[0]]) actifs.push([f[x[0]], function () { maj(x[0], ''); }]); });
+    [['typeFiche', ''], ['famille', ''], ['sousFamille', ''], ['cat', ''], ['niv', ''], ['mom', ''], ['tech', ''], ['fmt', ''], ['acc', ''], ['insp', ''], ['grp', '']].forEach(function (x) { if (f[x[0]]) actifs.push([f[x[0]], function () { maj(x[0], ''); }]); });
     [['iso', 'Isométriques'], ['uni', 'Unilatéraux'], ['poly', 'Poly-articulaires']].forEach(function (x) { if (f[x[0]]) actifs.push([x[1], function () { maj(x[0], false); }]); });
     f.dispo.forEach(function (x) { actifs.push([x, function () { maj('dispo', f.dispo.filter(function (y) { return y !== x; })); }]); });
     if (tri !== 'cat') actifs.push([tri === 'nom' ? 'Tri : A à Z' : 'Tri : niveau', function () { setTri('cat'); }]);
@@ -7488,8 +7509,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       esp.sous.length ? h('div', { className: 'sousgrille', role: 'group', 'aria-label': 'Sous-groupes', 'data-sans-glisse': '' }, [''].concat(esp.sous).map(function (x, i) {
         var n = x ? tous.filter(function (e) { return sg(e).indexOf(x) >= 0; }).length : tous.length;
         return h('button', { key: cle + x, type: 'button', className: 'sous', 'aria-pressed': f.sous === x, onClick: function () { maj('sous', x); } },
-          h('b', null, x || esp.sousTous), h('small', null, n + (n > 1 ? ' exercices' : ' exercice')));
+          h('b', null, x || esp.sousTous), h('small', null, n + (n > 1 ? ' fiches' : ' fiche')));
       })) : null,
+      h('div', { className: 'puces catalogue-types', role: 'group', 'aria-label': 'Type de fiche' }, [['','Tout'],['Exercice','Exercices'],['Technique','Fiches techniques']].map(function (t) {
+        return h('button', { key: t[0], type: 'button', className: 'btn', 'aria-pressed': (f.typeFiche || '') === t[0], onClick: function () { maj('typeFiche',t[0]); } }, t[1]);
+      })),
       familles.length ? h('section', { className: 'catalogue-familles', 'aria-label': 'Familles d’exercices', 'data-sans-glisse': '' },
         h('h2', null, 'Explorer par famille'),
         familles.length > 10 ? h(Champ, { id: 'c-famille', label: 'Famille', tous: 'Toutes (' + parPublic.length + ')', options: familles.map(function (fam) { return { value: fam, label: fam + ' (' + parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length + ')' }; }), value: f.famille || '', onChange: function (v) { maj('famille', v); } }) : h('div', { className: 'puces' }, [''].concat(familles).map(function (fam) {
@@ -7499,7 +7523,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null,
         f.famille === 'À classer' ? h('p', { className: 'gn-aide' }, 'Ces fiches n’ont pas encore de famille pédagogique identifiable. Elles restent disponibles.') : null) : null,
       h('div', { className: 'barre barre-recherche' },
-        h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher un exercice', placeholder: 'Rechercher un exercice', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
+        h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher une fiche', placeholder: 'Rechercher une fiche', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
         h('button', { type: 'button', className: 'btn filtres-btn' + (nbFiltres ? ' actif' : ''), 'aria-haspopup': 'dialog', onClick: function () { setPanneauF(true); } },
           h('svg', { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': 'true' }, h('path', { d: 'M4 6h16M7 12h10M10 18h4' })),
           'Filtres' + (nbFiltres ? ' (' + nbFiltres + ')' : ''))),
@@ -7512,7 +7536,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         actifs.map(function (x, i) { return h('button', { key: i, type: 'button', className: 'actif-puce', 'aria-label': 'Retirer le filtre ' + x[0], onClick: x[1] }, x[0], h('span', { 'aria-hidden': 'true' }, ' ✕')); }),
         h('button', { type: 'button', className: 'btn lien', onClick: toutEffacer }, 'Tout effacer')) : null,
       h('div', { className: 'barre barre-compte' },
-        h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' exercices' : ' exercice')),
+        h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')),
         nbIllus || f.illus ? h('button', { type: 'button', className: 'vue-btn illus-raccourci', 'aria-pressed': !!f.illus, onClick: function () { maj('illus', !f.illus); } }, 'Illustrés (' + nbIllus + ')') : null,
         h('div', { className: 'vue-choix', role: 'group', 'aria-label': 'Affichage' }, [['liste', 'Liste'], ['cartes', 'Cartes']].map(function (v) {
           return h('button', { key: v[0], type: 'button', className: 'vue-btn', 'aria-pressed': vueListe === v[0], onClick: function () { setVueListe(v[0]); ecrireVueListe(v[0]); } }, v[1]);
@@ -7546,7 +7570,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             !judo && grpOpts.length ? h(Champ, { id: 'f-zone', label: 'Zone de travail', tous: 'Toutes', options: grpOpts, value: f.grp, onChange: function (v) { maj('grp', v); } }) : null),
           h('div', { className: 'sheet-pied filtres-pied' },
             nbFiltres ? h('button', { type: 'button', className: 'btn', onClick: toutEffacer }, 'Tout effacer') : null,
-            h('button', { type: 'button', className: 'sheet-ajout filtres-voir', onClick: function () { setPanneauF(false); } }, 'Voir ' + liste.length + (liste.length > 1 ? ' exercices' : ' exercice'))))), document.body) : null,
+            h('button', { type: 'button', className: 'sheet-ajout filtres-voir', onClick: function () { setPanneauF(false); } }, 'Voir ' + liste.length + (liste.length > 1 ? ' fiches' : ' fiche'))))), document.body) : null,
       liste.length ? h('div', { className: 'grille' + (vueListe === 'liste' ? ' mode-liste' : '') }, liste.slice(0, nbVisibles).map(function (e, i) {
         var nv = niveauTexte(e, judo), u = usages[e.id], estFav = fav.has(e.id);
         var famille = familleCatalogue(e, esp.label), debutFamille = tri === 'cat' && (i === 0 || familleCatalogue(liste[i-1], esp.label) !== famille);
@@ -7554,14 +7578,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
+          e.typeFiche === 'Technique' ? h('span', { className: 'tag' }, 'Fiche technique') : null,
           h('span', { className: 'carte-nom' }, e.nom),
           h('span', { className: 'carte-pied' },
             e.exemple ? h('span', { className: 'tag ex' }, 'Exemple') : null,
             aVideo(e) ? h('span', { className: 'tag video' }, '▶ Vidéo') : null,
             nv ? h(Grade, { texte: nv }) : null,
             u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null));
-      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
-        h('span', null, tous.length ? 'Aucun exercice ne correspond à ce sous-groupe et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
+      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucune fiche' : 'Espace vide pour l\'instant'),
+        h('span', null, tous.length ? 'Aucune fiche ne correspond à ce public et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),
       (cle === 'taiso' || cle === 'judo') ? h(VerrouIllustres, { espace: esp.label }) : null,
       fiche ? h(Fiche, { e: fiche, espace: esp, fav: fav, usage: usages[fiche.id], sel: (cle === 'taiso' || cle === 'judo') ? sel : null, fermer: function () { setOuverte(null); } }) : null,

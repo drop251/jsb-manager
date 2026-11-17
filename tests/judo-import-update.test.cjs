@@ -74,3 +74,9 @@ test('les informations pédagogiques apparaissent dans les exports de fiches',()
     assert.match(html,new RegExp("\\['[^']+', '"+s+"'\\]"));
   }
 });
+test('Deux fiches de même nom et discipline restent distinctes lorsque leur type diffère',()=>{
+ const c={IMG_PERSO:{},ILLUS_IA:{},VIDEOS:{},lireIdMax:()=>5000,cle:x=>String(x||'').toLowerCase().trim(),illustrationDe:()=>({}),classer:l=>({...l,public:['Judo']}),verifierNouvelExerciceJudo:()=>[],formeEnfants:()=>{throw Error('Pas de forme enfant pour une fiche technique');}};
+ vm.createContext(c);vm.runInContext(fn('valeurChampPedagogique'),c);vm.runInContext(fn('preparerAjouts'),c);
+ const r=c.preparerAjouts([{nom:'O-soto-gari',description:'Description technique complète',typeFiche:'Technique'}],[{id:1,nom:'O-soto-gari',public:['Judo']}]);
+ assert.equal(r.ajouts.length,1);assert.equal(r.majFiches.length,0);assert.equal(r.ajouts[0].typeFiche,'Technique');assert.notEqual(r.ajouts[0].id,1);
+});

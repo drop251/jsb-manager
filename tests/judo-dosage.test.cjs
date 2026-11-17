@@ -119,3 +119,9 @@ test('Le mode combiné conserve les séries et les récupérations en séance di
  assert.ok(pl.filter(x=>x.type==='effort').every(x=>x.sec===120 && x.series===3 && x.limiteRepetitions===8));
  assert.ok(pl.filter(x=>x.type==='recup').every(x=>x.sec===45));
 });
+test('Une fiche technique exige ses repères de sécurité sans inventer un dosage d’exercice',()=>{
+ const c=init(),b=fichier('Adultes');b.typeFiche='Technique';b.dosage='';b.modeDosageJudo='';b.repetitions='';
+ const e={nom:b.nom,public:['Judo'],typeFiche:'Technique'};
+ assert.deepEqual([...c.verifierNouvelExerciceJudo(b,e)],[]);
+ b.vigilance='';assert.match(c.verifierNouvelExerciceJudo(b,e).join(' '),/Vigilance/);
+});

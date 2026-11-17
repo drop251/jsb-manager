@@ -98,4 +98,21 @@ test('L’ajout conserve les colonnes de classement sans remplacer une technique
  const e=c.classer(row,'Taïso');
  assert.equal(e.famillePrincipale,'Renforcement');assert.equal(e.sousFamille,'Jambes');assert.deepEqual([...e.tags],['Force','Appuis']);
  assert.equal(c.familleCatalogue(e,'Taïso'),'Renforcement');
+ const technique=c.classer({...row,typeFiche:'Technique',technique:'Squat'},'Taïso');
+ assert.equal(technique.typeFiche,'Technique');assert.equal(technique.technique,'Squat');
+});
+test('Le catalogue sépare les types explicitement et conserve les anciennes fiches comme exercices',()=>{
+ const f=appFixture();f.c.BASE.push({id:99,nom:'O-soto-gari',public:['Judo'],sousGroupes:['Poussins'],typeFiche:'Technique',technique:'Ashi-waza'});
+ let t=f.render();assert.equal(cards(t).length,4);
+ find(t,n=>n.type==='button'&&text(n)==='Fiches techniques').props.onClick();t=f.render();assert.equal(cards(t).length,1);assert.ok(cards(t)[0].includes('O-soto-gari'));
+ find(t,n=>n.type==='button'&&text(n)==='Exercices').props.onClick();t=f.render();assert.equal(cards(t).length,3);
+});
+test('Les fiches techniques ne proposent pas d’ajout direct à la séance',()=>{
+ const c=init();vm.runInContext(fn('Plus'),c);
+ assert.equal(c.Plus({e:{typeFiche:'Technique'}}),null);
+});
+test('Un type inconnu dans une base complète est refusé sans convertir les anciennes fiches',async()=>{
+ const c=init();const source=[{id:7,nom:'Ancien',public:['Judo']}];
+ const result=await c.lireBaseFichier({text:async()=>JSON.stringify(source)});assert.equal(result[0].typeFiche,undefined);
+ await assert.rejects(c.lireBaseFichier({text:async()=>JSON.stringify([{...source[0],typeFiche:'Séance'}])}),/typeFiche/);
 });

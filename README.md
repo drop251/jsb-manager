@@ -149,3 +149,14 @@ L’état distingue une version enregistrée dans l’historique d’un brouillo
 Les valeurs proposées non modifiées (groupe, durée, objectif, etc.) sont désormais enregistrées explicitement dans les informations de la séance et transmises au mode direct. Les valeurs personnalisées restent sélectionnables. Une reprise dont l’écriture échoue conserve le brouillon. L’export PDF s’arrête et laisse l’erreur visible si l’enregistrement dans l’historique échoue.
 
 Validation : 69 tests automatisés passent, dont des parcours de composants simulés couvrant l’enregistrement des valeurs proposées, le lancement, les retouches et les échecs de stockage. La validation visuelle et tactile sur Safari iPhone reste à effectuer.
+
+
+## Fiches techniques et exercices (17 novembre 2026)
+
+Le catalogue dispose des vues Tout, Exercices et Fiches techniques. `typeFiche` accepte les valeurs exactes `Exercice` et `Technique` dans une base JSON ou un fichier d’ajout (colonne « Type de fiche »). Une fiche sans ce champ conserve le comportement historique d’un exercice : aucun reclassement automatique ni changement d’identifiant.
+
+Une fiche technique sert de référence : elle reste consultable, illustrable et exportable, mais ne propose pas d’ajout direct à la sélection. Elle est exclue des générations Judo/Taïso, des routines et des remplacements du générateur, y compris pour les plus jeunes. Les anciennes sélections et séances déjà enregistrées ne sont pas supprimées.
+
+À l’ajout, une fiche technique doit fournir description, vigilance, critère de réussite, public et technique/famille ; le grade est également demandé en Judo. Elle ne nécessite pas un dosage d’exercice et ne crée pas de forme enfants automatique. Les exercices Judo conservent leurs contrôles pédagogiques et de dosage. Une fiche technique et un exercice peuvent partager un nom et une discipline sans fusionner leurs identifiants. La distinction suppose que le catalogue renseigne le type ; cette mise à jour ne prétend pas avoir audité ou converti le catalogue personnel.
+
+Les séances restent dans « Mes séances » avec leur structure propre et ne sont pas acceptées comme type de fiche de catalogue. Validation : 74 tests passent, avec contrôle de la séparation des imports, des types dans le catalogue et de l’exclusion des références techniques des générations et routines. La vérification visuelle sur iPhone reste à effectuer.
