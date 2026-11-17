@@ -2618,7 +2618,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     // Carte « Cours » : à l'heure du cours, l'appel et la séance prévue en un seul endroit
     var auj = dateIsoLocale(new Date()), etat = cren ? etatCreneau(cren) : '';
-    var prevue = cren ? lireHisto().filter(function (s) { return s.date === auj && (s.cours || []).some(function (c) { return cren.cours.indexOf(c) >= 0; }); })[0] : null;
+    var prevue = cren ? seancePrevue(lireHisto(), auj, cren.cours, cren.debut) : null;
     var carteCours = cren ? h('div', { className: 'cours-jour', role: 'region', 'aria-label': 'Cours de ' + heureFr(cren.debut) },
       h('div', { className: 'cours-jour-tete' },
         h('span', { className: 'cours-jour-etat ' + (etat === 'En cours' ? 'encours' : 'avenir') }, etat === 'En cours' ? 'En cours' : "Aujourd'hui"),
