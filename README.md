@@ -138,3 +138,14 @@ L’import complet JSON refuse les identifiants en double, les disciplines incon
 Deux corrections de dosage accompagnent cette version : « récup 30 s » ne devient plus une durée d’effort et le mode combiné conserve ses séries/récupérations en séance directe.
 
 Validation : `node --test tests/*.test.cjs` couvre les règles, les imports et des parcours de composants simulés (famille, sous-famille, recherche et filtres). Ces tests ne rendent pas les écrans dans un navigateur. La validation visuelle et tactile sur Safari iPhone reste à effectuer. La refonte complète du parcours de préparation et la séparation des types de fiches restent des chantiers suivants.
+
+
+## Préparation simplifiée (17 novembre 2026)
+
+Dans « Ma séance », le groupe, la thématique, la durée et l’objectif restent visibles. Les options et notes pédagogiques, le renommage des phases et les commandes secondaires (PDF et annulation) sont repliés. Les actions Enregistrer et Lancer sont regroupées ; le générateur mène à cet écran avec « Continuer dans Ma séance ».
+
+L’état distingue une version enregistrée dans l’historique d’un brouillon à enregistrer. Toute retouche de son contenu fait réapparaître cet état de brouillon. Ce repère reste en mémoire pendant l’ouverture de la page ; après rechargement, une préparation récupérée doit être enregistrée pour obtenir de nouveau cette confirmation. Il ne certifie pas la pertinence pédagogique de la séance.
+
+Les valeurs proposées non modifiées (groupe, durée, objectif, etc.) sont désormais enregistrées explicitement dans les informations de la séance et transmises au mode direct. Les valeurs personnalisées restent sélectionnables. Une reprise dont l’écriture échoue conserve le brouillon. L’export PDF s’arrête et laisse l’erreur visible si l’enregistrement dans l’historique échoue.
+
+Validation : 69 tests automatisés passent, dont des parcours de composants simulés couvrant l’enregistrement des valeurs proposées, le lancement, les retouches et les échecs de stockage. La validation visuelle et tactile sur Safari iPhone reste à effectuer.

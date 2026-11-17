@@ -21,6 +21,16 @@
 .fiche-outils { border-top: 1px solid var(--line); padding: 16px 0; }
 .fiche-outils summary, .filtres-panneau summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
 </style>
+<style>
+.cs-essentiels h3 { margin: 16px 0 8px; }
+.cs-essentiels { padding-bottom: 16px; }
+.cs-etat { padding: 12px 16px; margin: 12px 0; border-radius: 12px; background: var(--chip); }
+.cs-principales { margin: 8px 0 16px; }
+.cs-principales .cs-btn { flex: 1 1 180px; min-height: 48px; }
+.cs-outils summary, .cs-phase-options summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.cs-outils[open] { display: grid; gap: 8px; }
+.cs-phase-options { margin-bottom: 8px; }
+</style>
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -2334,7 +2344,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Catalogue par familles';
+  var VERSION_APP = '17/11/2026 · Préparation simplifiée';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -3228,6 +3238,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s2 = React.useState(function () { return brouillon && brouillon.infos || {}; }), infos = s2[0], setInfos = s2[1];
     var s3 = React.useState(function () { return brouillon && brouillon.plan || {}; }), plan = s3[0], setPlan = s3[1];
     var s4 = React.useState(''), msg = s4[0], setMsg = s4[1];
+    var etatSauve = React.useState(''), signatureSauvee = etatSauve[0], setSignatureSauvee = etatSauve[1];
     React.useEffect(function () {
       if (!ecrireJSON(cleBrouillon, { infos: infos, plan: plan, modifieLe: Date.now() })) setMsg('Brouillon non enregistré : stockage de cet appareil indisponible.');
     }, [cleBrouillon, infos, plan]);
@@ -3252,8 +3263,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
     // Bloc, dosage et travail prévus par le générateur (corps de séance Taïso en blocs)
     function extrasDe(e) { var x = plan[e.id] || {}, o = {}; ['bloc', 'dosage', 'travail', 'tours'].forEach(function (k) { if (x[k]) o[k] = x[k]; }); return o; }
-    function majPlan(id, k, v) { var np = Object.assign({}, plan); np[id] = Object.assign({}, np[id]); np[id][k] = v; setPlan(np); }
-    function majInfo(k, v) { var ni = Object.assign({}, infos); ni[k] = v; setInfos(ni); }
+    function majPlan(id, k, v) { setMsg(''); var np = Object.assign({}, plan); np[id] = Object.assign({}, np[id]); np[id][k] = v; setPlan(np); }
+    function majInfo(k, v) { setMsg(''); var ni = Object.assign({}, infos); ni[k] = v; setInfos(ni); }
     function abandonner() {
       if (!window.confirm('Annuler la préparation ' + p.espace + ' ? Les exercices, durées et informations non enregistrées seront effacés. Vos séances enregistrées seront conservées.')) return false;
       if (!sel.set([])) { setMsg('Annulation impossible : stockage indisponible. Réessayez.'); return false; }
@@ -3270,12 +3281,31 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var tempsJeunePlanifie = estJeuneJudo(infos.groupe || p.sous) && Array.isArray(infos.tempsPhases) ? infos.tempsPhases.reduce(function (a,b) { return a + Number(b || 0); },0) : 0;
     // Cours auquel la séance est rattachée (créneaux des 8 prochains jours du planning)
     var creneaux = prochainsCreneaux(planning, 8), coursChoisi = creneaux.filter(function (c) { return c.cle === infos._cours; })[0];
-    function enregistrerSeance(silencieux) {
-      var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
+    function infosEffectives() {
+      var effectives = Object.assign({}, infos);
+      ['groupe','thematique','public','objectif','intensite','format','duree'].forEach(function (k) { effectives[k] = val(k); });
+      effectives.materiel = infos.materiel !== undefined ? infos.materiel : materielSeance(items);
+      return effectives;
+    }
+    function exercicesPrepares() {
       var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
+      return exos;
+    }
+    function signaturePreparation() {
+      return JSON.stringify({ infos: infosEffectives(), exos: exercicesPrepares() });
+    }
+    function lancerPreparation() {
+      if (!items.length) return;
+      setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exercicesPrepares(), infos: infosEffectives(), trame: 3 });
+    }
+    function enregistrerSeance(silencieux) {
+      if (!items.length) { setMsg('Ajoutez au moins un exercice avant d’enregistrer.'); return false; }
+      var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
+      var exos = exercicesPrepares();
       var sauvegardeOK = ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
-        titre: val('thematique') || p.espace, exos: exos, infos: Object.assign({}, infos), enregistreLe: Date.now(), trame: 3 });
+        titre: val('thematique') || p.espace, exos: exos, infos: infosEffectives(), enregistreLe: Date.now(), trame: 3 });
       if (!sauvegardeOK) { setMsg('Enregistrement impossible : libérez de l’espace sur cet appareil et réessayez.'); return false; }
+      setSignatureSauvee(signaturePreparation());
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
       return true;
     }
@@ -3283,13 +3313,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function reprendre(s, dur) {
       var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
       var ids = [], np = {}; s.exos.map(function (x) { return dur ? plusDurExo(x) : x; }).forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
-      sel.set(ids); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
+      if (!sel.set(ids)) { setMsg('Reprise impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
+      setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
     }
     function telecharger() {
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
       var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
-      enregistrerSeance(true);
+      if (!enregistrerSeance(true)) return;
       enregistrerFichier('fiche-seance-' + p.espace.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '-' + new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2) + '.pdf', blob, setMsg);
     }
     function frequent(vals) { var c = {}, best = '', n = 0; vals.filter(Boolean).forEach(function (v) { c[v] = (c[v] || 0) + 1; if (c[v] > n) { n = c[v]; best = v; } }); return best; }
@@ -3315,16 +3346,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function val(k) { var v = infos[k] !== undefined ? infos[k] : defauts[k]; return k === 'duree' ? String(v || '').replace('Somme des exercices : ', '') : (v || ''); }
     function menu(k, label, large) {
       var brut = infos[k] !== undefined ? infos[k] : defauts[k], libre = !!infos['_' + k];
+      var valeurs = opts[k].slice(); if (brut && valeurs.indexOf(brut) < 0) valeurs.unshift(brut);
       return h('div', { className: 'cs-champ' + (large ? ' large' : '') }, h('label', { htmlFor: 'cs-' + k }, label),
         h('select', { id: 'cs-' + k, value: libre ? '__autre' : (brut || ''), onChange: function (ev) {
-          var ni = Object.assign({}, infos), v = ev.target.value; ni['_' + k] = v === '__autre'; ni[k] = v === '__autre' ? '' : v; setInfos(ni); } },
-          [h('option', { key: '', value: '' }, 'À choisir')].concat(opts[k].map(function (o) { return h('option', { key: o, value: o }, o); }), [h('option', { key: '__autre', value: '__autre' }, 'Autre (saisie libre)')])),
+          setMsg(''); var ni = Object.assign({}, infos), v = ev.target.value; ni['_' + k] = v === '__autre'; ni[k] = v === '__autre' ? '' : v; setInfos(ni); } },
+          [h('option', { key: '', value: '' }, 'À choisir')].concat(valeurs.map(function (o) { return h('option', { key: o, value: o }, o); }), [h('option', { key: '__autre', value: '__autre' }, 'Autre (saisie libre)')])),
         libre ? h('input', { id: 'cs-' + k + '-libre', 'aria-label': label + ' (saisie libre)', placeholder: 'Votre texte', value: infos[k] || '', onChange: function (ev) { majInfo(k, ev.target.value); } }) : null);
     }
     function champ(k, label, large, ph, defaut) {
       return h('div', { className: 'cs-champ' + (large ? ' large' : '') }, h('label', { htmlFor: 'cs-' + k }, label),
         h(large === 2 ? 'textarea' : 'input', { id: 'cs-' + k, value: infos[k] !== undefined ? infos[k] : (defaut || ''), placeholder: ph || '', rows: 2, onChange: function (ev) { majInfo(k, ev.target.value); } }));
     }
+    var estEnregistree = !!signatureSauvee && signatureSauvee === signaturePreparation();
+    var messageAffiche = !estEnregistree && /^Séance enregistrée/.test(msg) ? '' : msg;
     var resume = [val('groupe'), val('thematique'), val('duree'), val('intensite')].filter(Boolean).join(' · ');
     var histoEsp = histo.filter(function (s) { return s.espace === p.espace; }).slice(0, 12);
     var bouton = h('button', { type: 'button', className: 'cs-ouvrir', onClick: function () { setOuvert(true); setMsg(''); } }, 'Ma séance', h('small', null, n));
@@ -3337,33 +3371,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('div', null, h('div', { className: 'cs-sur' }, 'Séance ' + p.espace), h('h2', null, 'Ma séance'),
               h('p', null, n + (n > 1 ? ' activités' : ' activité') + ((tempsJeunePlanifie || total) ? ' · ' + (tempsJeunePlanifie || total) + ' min' : '') + ' · trame en ' + PH.length + ' phases')),
             h('div', { className: 'cs-actions' },
-              h('button', { type: 'button', className: 'cs-btn', onClick: function () { setOuvert(false); } }, 'Revenir aux exercices'),
-              (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null,
-              h('button', { type: 'button', className: 'cs-btn plein', disabled: !n, onClick: telecharger }, 'Générer la fiche (PDF)'),
-              n ? h('button', { type: 'button', className: 'cs-btn cs-lancer', onClick: function () {
-                var exos = []; PH.forEach(function (nom, i) { parPhase[i].forEach(function (e) { exos.push(Object.assign({ id: e.id, nom: e.nom, phase: i, duree: dureeDe(e) }, extrasDe(e))); }); });
-                setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exos, infos: { groupe: val('groupe'), intitulesPhases: infos.intitulesPhases }, trame: 3 }); } }, '▶ Lancer la séance') : null)),
+              h('button', { type: 'button', className: 'cs-btn', onClick: function () { setOuvert(false); } }, 'Ajouter des exercices'),
+              h('details', { className: 'cs-outils' }, h('summary', null, 'Plus d’actions'),
+                h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: telecharger }, 'Exporter la fiche PDF'),
+                (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null))),
+          h('p', { className: 'cs-etat', role: 'status' }, !items.length ? 'Commencez par ajouter des exercices.' : estEnregistree ? 'Cette version est enregistrée dans Mes séances.' : 'Brouillon : pensez à enregistrer cette version dans Mes séances.'),
+          h('div', { className: 'cs-actions cs-principales', 'aria-label': 'Enregistrer ou lancer la séance' },
+            h('button', { type: 'button', className: 'cs-btn plein cs-enregistrer', disabled: !items.length, onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance'),
+            h('button', { type: 'button', className: 'cs-btn cs-lancer', disabled: !items.length, onClick: lancerPreparation }, '▶ Lancer la séance')),
           direct ? h(SeanceDirecte, { seance: direct, base: p.donnees, fermer: function () { setDirect(null); } }) : null,
-          h('div', { className: 'cs-msg', role: 'status' }, msg),
+          h('div', { className: 'cs-msg', role: 'status' }, messageAffiche),
           !n ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun exercice sélectionné'), h('span', null, 'Revenez aux exercices et touchez « Ajouter » sur ceux que vous voulez mettre dans la séance.')) : null,
           h('section', { className: 'cs-cours' },
             h('label', { htmlFor: 'cs-cours', className: 'cs-cours-titre' }, 'Pour quel cours ?'),
             h('select', { id: 'cs-cours', value: infos._cours || '', onChange: function (ev) { majInfo('_cours', ev.target.value); } },
               [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
-            h('button', { type: 'button', className: 'cs-btn cs-enregistrer', disabled: !n, onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance'),
             !n && coursChoisi ? h('p', { className: 'cs-cours-aide' }, 'Ajoutez des exercices (ou générez la séance), puis enregistrez-la pour ce cours.') : null),
+          items.length ? h('section', { className: 'cs-infos cs-essentiels', 'aria-label': 'Public et objectif' },
+            h('h3', null, '1 · Public et objectif'),
+            h('div', { className: 'cs-champs' }, menu('groupe', 'Groupe'), menu('thematique', 'Thématique'), menu('duree', 'Durée totale'), menu('objectif', 'Objectif principal', 1))) : null,
           n ? h('details', { className: 'cs-infos' },
-            h('summary', null, h('span', null, 'Informations de la fiche'), h('small', null, resume || 'à compléter')),
+            h('summary', null, h('span', null, 'Options et notes pédagogiques'), h('small', null, resume || 'à compléter')),
             h('div', { className: 'cs-champs' },
-              menu('groupe', 'Groupe'), menu('thematique', 'Thématique'), menu('public', 'Public'), menu('duree', 'Durée totale'),
-              menu('intensite', judoEsp ? 'Intensité' : 'Intensité (effort ressenti)'), champ('materiel', 'Matériel', 0, '', materielSeance(items)), menu('objectif', 'Objectif principal', 1),
+              menu('public', 'Public'),
+              menu('intensite', judoEsp ? 'Intensité' : 'Intensité (effort ressenti)'), champ('materiel', 'Matériel', 0, '', materielSeance(items)),
               judoEsp ? null : menu('format', 'Format du corps de séance')),
             h('div', { className: 'cs-champs' }, champ('vigilance', 'Points de vigilance transversaux', 2), judoEsp ? null : champ('adaptations', 'Adaptations (variantes douces, limitations)', 2), champ('note', 'Note pédagogique', 2))) : null,
+          n ? h('h3', { className: 'cs-etape' }, '2 · Ajuster les activités') : null,
           n ? PH.map(function (nom, i) {
             var grp = parPhase[i], t = 0; grp.forEach(function (e) { t += parseFloat(dureeDe(e)) || 0; });
             return h('section', { key: nom, className: 'cs-phase' },
                              h('h3', null, h('span', null, (i + 1) + ' • ' + nom), h('small', null, grp.length + (grp.length > 1 ? ' activités' : ' activité') + ((infos.tempsPhases && infos.tempsPhases[i]) ? ' · ' + infos.tempsPhases[i] + ' min' : t ? ' · ' + t + ' min' : ''))),
-               judoEsp ? h('label', { className: 'cs-champ' }, 'Intitulé de cette phase (modifiable)', h('input', { type: 'text', value: nom, onChange: function (ev) { var arr = PH.slice(); arr[i] = ev.target.value || phasesDe('Judo',infos.groupe||p.sous)[i]; majInfo('intitulesPhases',arr); } })) : null,
+               judoEsp ? h('details', { className: 'cs-phase-options' }, h('summary', null, 'Renommer la phase'), h('label', { className: 'cs-champ' }, 'Intitulé de cette phase (modifiable)', h('input', { type: 'text', value: nom, onChange: function (ev) { var arr = PH.slice(); arr[i] = ev.target.value || phasesDe('Judo',infos.groupe||p.sous)[i]; majInfo('intitulesPhases',arr); } }))) : null,
                estJeuneJudo(infos.groupe || p.sous) ? h('label', { className: 'cs-champ' }, 'Durée de la phase (minutes, à titre indicatif)', h('input', { type: 'number', min: 0, max: 120, value: infos.tempsPhases && infos.tempsPhases[i] !== undefined ? infos.tempsPhases[i] : t, onChange: function (ev) { var temps = (infos.tempsPhases || []).slice(); temps[i] = Math.max(0,Number(ev.target.value)||0); majInfo('tempsPhases',temps); } })) : null,
                infos.reperesPhases && infos.reperesPhases[i] ? h('p', { className: 'gn-aide' }, infos.reperesPhases[i]) : null,
               grp.length ? h('ul', null, grp.map(function (e, k) {
@@ -6133,7 +6172,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var contenu;
     if (!res) {
       contenu = h('div', { className: 'gn-etape' },
-        h('div', { className: 'gn-entete-prepa' }, h('strong', null, 'Préparation Judo'), h('button', { type: 'button', className: 'cs-btn mini gn-annuler', onClick: demanderAnnulation }, 'Annuler la préparation')),
+        h('div', { className: 'gn-entete-prepa' }, h('strong', null, 'Préparation ' + p.espace), h('button', { type: 'button', className: 'cs-btn mini gn-annuler', onClick: demanderAnnulation }, 'Annuler la préparation')),
         erreurGeneration ? h('p', { className: 'gn-erreur', role: 'alert' }, erreurGeneration) : null,
         h('div', { className: 'gn-progres', role: 'img', 'aria-label': 'Question ' + (etape + 1) + ' sur 5' }, ETAPES.map(function (x, i) { return h('i', { key: i, className: i <= etape ? 'fait' : '' }); })),
         h('p', { className: 'gn-num' }, (etape + 1) + ' / 5 · ' + ETAPES[etape]),
@@ -6190,7 +6229,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('label', { htmlFor: 'gn-nom-m' }, 'Nom du modèle'), h('input', { id: 'gn-nom-m', type: 'text', value: nomModele, autoFocus: true, maxLength: 60, onChange: function (ev) { setNomModele(ev.target.value); }, onKeyDown: function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); setNomModele(null); } } }),
               h('button', { type: 'submit', className: 'cs-btn mini plein' }, 'Enregistrer'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setNomModele(null); } }, 'Annuler')),
           h('button', { type: 'button', className: 'cs-btn gn-lancer', disabled: !total, onClick: function () { setDirect({ espace: p.espace, titre: 'Séance générée ' + p.espace, exos: exosSeance(), trame: 2 }); } }, '▶ Lancer la séance'),
-          h('button', { type: 'button', className: 'cs-btn plein', disabled: !total, onClick: valider }, 'Valider dans « Ma séance »')),
+          h('button', { type: 'button', className: 'cs-btn plein', disabled: !total, onClick: valider }, 'Continuer dans Ma séance')),
         direct ? h(SeanceDirecte, { seance: direct, base: p.tout, fermer: function () { setDirect(null); } }) : null);
     }
     return ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: demanderAnnulation },
