@@ -250,3 +250,9 @@ Validation : 105 tests passent, dont demande de confirmation, conservation, supp
 Si la reprise d’une séance depuis le planning échoue lors de l’écriture de la sélection, les informations du brouillon et son rattachement au cours ne sont plus remplacés par ceux de la séance demandée. Le message d’échec reste visible. Une reprise réussie conserve le rattachement au créneau choisi.
 
 Validation : 107 tests passent, dont reprise refusée avec conservation du groupe, du dosage et du rattachement, et reprise réussie depuis le planning. Safari iPhone reste à vérifier.
+
+## Reprise et exercices absents du catalogue (17 novembre 2026)
+
+Une reprise est refusée si un exercice de la séance enregistrée ne figure plus dans le catalogue actuel. Le message indique combien d’exercices sont absents ; le brouillon et l’historique sont conservés. Cela évite de préparer ou d’enregistrer silencieusement une version tronquée après un changement de catalogue. Les séances dont les exercices sont présents restent reprenables.
+
+Validation : 108 tests passent, avec un cas mêlant exercice présent et exercice absent, et conservation des informations et du dosage du brouillon. La vérification Safari iPhone reste à effectuer.
