@@ -3383,6 +3383,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     } }, [jeton]);
     var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace, infos.groupe || p.sous, infos.intitulesPhases);
     var items = sel.ids.map(function (id) { return p.donnees.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
+    var idsIntrouvables = sel.ids.filter(function (id) { return !p.donnees.some(function (e) { return e.id === id; }); });
+    function verifierSelection() {
+      if (!idsIntrouvables.length) return true;
+      setMsg('La préparation contient des exercices introuvables. Réimportez les fiches manquantes ou retirez-les explicitement avant de continuer.'); return false;
+    }
+    function retirerIntrouvables() {
+      if (!sel.set(sel.ids.filter(function (id) { return idsIntrouvables.indexOf(id) < 0; }))) { setMsg('Retrait impossible : stockage indisponible. La préparation est conservée.'); return; }
+      setSignatureSauvee(''); setMsg('Les exercices introuvables ont été retirés de cette préparation. Les séances enregistrées sont conservées.');
+    }
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
     // Bloc, dosage et travail prévus par le générateur (corps de séance Taïso en blocs)
@@ -3419,10 +3428,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return JSON.stringify({ infos: infosEffectives(), exos: exercicesPrepares() });
     }
     function lancerPreparation() {
+      if (!verifierSelection()) return;
       if (!items.length) return;
       setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exercicesPrepares(), infos: infosEffectives(), trame: 3 });
     }
     function enregistrerSeance(silencieux) {
+      if (!verifierSelection()) return false;
       if (!items.length) { setMsg('Ajoutez au moins un exercice avant d’enregistrer.'); return false; }
       if (infos._cours && !coursChoisi) { setMsg('Le créneau choisi n’est plus disponible. Choisissez un cours dans « Pour quel cours ? » ou sélectionnez aujourd’hui sans créneau avant d’enregistrer.'); return false; }
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
@@ -3445,6 +3456,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return true;
     }
     function telecharger() {
+      if (!verifierSelection()) return;
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
       var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
@@ -3485,7 +3497,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('div', { className: 'cs-champ' + (large ? ' large' : '') }, h('label', { htmlFor: 'cs-' + k }, label),
         h(large === 2 ? 'textarea' : 'input', { id: 'cs-' + k, value: infos[k] !== undefined ? infos[k] : (defaut || ''), placeholder: ph || '', rows: 2, onChange: function (ev) { majInfo(k, ev.target.value); } }));
     }
-    var estEnregistree = !!signatureSauvee && signatureSauvee === signaturePreparation();
+    var estEnregistree = !idsIntrouvables.length && !!signatureSauvee && signatureSauvee === signaturePreparation();
     var messageAffiche = !estEnregistree && /^Séance enregistrée/.test(msg) ? '' : msg;
     var resume = [val('groupe'), val('thematique'), val('duree'), val('intensite')].filter(Boolean).join(' · ');
     var histoEsp = histo.filter(function (s) { return s.espace === p.espace; }).slice(0, 12);
@@ -3503,6 +3515,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('details', { className: 'cs-outils' }, h('summary', null, 'Plus d’actions'),
                 h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: telecharger }, 'Exporter la fiche PDF'),
                 (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null))),
+          idsIntrouvables.length ? h('div', { className: 'cs-msg', role: 'alert' },
+            h('p', null, idsIntrouvables.length + (idsIntrouvables.length > 1 ? ' exercices sélectionnés sont introuvables' : ' exercice sélectionné est introuvable') + ' dans le catalogue actuel. Réimportez les fiches manquantes ou retirez-les de cette préparation.'),
+            h('button', { type: 'button', className: 'cs-btn', onClick: retirerIntrouvables }, 'Retirer les exercices introuvables')) : null,
           h('p', { className: 'cs-etat', role: 'status' }, !items.length ? 'Commencez par ajouter des exercices.' : estEnregistree ? 'Cette version est enregistrée dans Mes séances.' : 'Brouillon : pensez à enregistrer cette version dans Mes séances.'),
           h('div', { className: 'cs-actions cs-principales', 'aria-label': 'Enregistrer ou lancer la séance' },
             h('button', { type: 'button', className: 'cs-btn plein cs-enregistrer', disabled: !items.length, onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance'),

@@ -262,3 +262,9 @@ Validation : 108 tests passent, avec un cas mêlant exercice présent et exercic
 Si le créneau mémorisé ne figure plus dans les huit prochains jours proposés, « Pour quel cours ? » affiche explicitement cet ancien rattachement comme indisponible. L’enregistrement et l’export sont refusés tant que l’utilisateur n’a pas choisi un nouveau cours ou aujourd’hui sans créneau. Le brouillon reste disponible. Cette protection évite l’ancien repli silencieux sur la date du jour, y compris après suppression d’un créneau du planning.
 
 Validation : 109 tests passent, dont refus d’enregistrement et d’export, puis enregistrement après choix explicite d’aujourd’hui. Safari iPhone reste à vérifier.
+
+## Brouillons contenant des exercices introuvables (17 novembre 2026)
+
+« Ma séance » indique le nombre d’exercices sélectionnés absents du catalogue. Le lancement, l’enregistrement et l’export ne peuvent plus ignorer silencieusement ces références. L’éducateur peut réimporter les fiches manquantes ou utiliser « Retirer les exercices introuvables » pour poursuivre avec les exercices disponibles. Ce retrait ne modifie pas les séances de l’historique ; un échec de stockage conserve la sélection. Une sélection entièrement introuvable peut également être vidée avec cette commande.
+
+Validation : 112 tests passent, dont blocage du lancement/enregistrement/export d’une sélection partiellement introuvable, poursuite après retrait explicite, échec de stockage et sélection entièrement introuvable. La validation visuelle sur Safari iPhone reste à effectuer.
