@@ -313,3 +313,8 @@ Retirer un exercice introuvable de la préparation supprime aussi ses réglages 
 ## Suppression depuis l’historique intégré à « Ma séance » (17 novembre 2026)
 
 La liste secondaire des séances enregistrées dans le préparateur utilise maintenant la même confirmation que l’historique principal. Une écriture refusée affiche une erreur et conserve la séance ; « Conserver » ferme la demande.
+
+
+## Anciennes séances sans horaire (17 novembre 2026)
+
+Une séance ancienne sans heure ne peut plus être affectée à plusieurs créneaux similaires le même jour. « Cette semaine » l’utilise en secours uniquement lorsqu’un seul créneau correspond à ce groupe ce jour-là. La carte du jour exige un horaire correspondant. Les séances sans heure restent consultables et lançables depuis l’historique ; aucun enregistrement n’est modifié.
