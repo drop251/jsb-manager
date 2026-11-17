@@ -80,3 +80,10 @@ test('Deux fiches de même nom et discipline restent distinctes lorsque leur typ
  const r=c.preparerAjouts([{nom:'O-soto-gari',description:'Description technique complète',typeFiche:'Technique'}],[{id:1,nom:'O-soto-gari',public:['Judo']}]);
  assert.equal(r.ajouts.length,1);assert.equal(r.majFiches.length,0);assert.equal(r.ajouts[0].typeFiche,'Technique');assert.notEqual(r.ajouts[0].id,1);
 });
+test('Une correction qui omet le classement conserve famille, sous-famille et tags existants',()=>{
+ const c={IMG_PERSO:{},ILLUS_IA:{},VIDEOS:{},lireIdMax:()=>5000,cle:x=>String(x||'').toLowerCase().replace(/[^a-z]/g,''),illustrationDe:()=>({}),classer:l=>({...l,public:['Judo'],famillePrincipale:'',famille:'',sousFamille:'',tags:''}),verifierNouvelExerciceJudo:()=>[],formeEnfants:()=>({})};
+ vm.createContext(c);vm.runInContext(fn('valeurChampPedagogique'),c);vm.runInContext(fn('preparerAjouts'),c);
+ const old={id:1,nom:'O-soto-gari',public:['Judo'],description:'Ancienne',famillePrincipale:'Travail debout',sousFamille:'Jambes',tags:['Appuis']};
+ const r=c.preparerAjouts([{nom:'O-soto-gari',description:'Nouvelle consigne'}],[old]);assert.equal(r.majFiches[0].famillePrincipale,'Travail debout');assert.equal(r.majFiches[0].sousFamille,'Jambes');assert.deepEqual([...r.majFiches[0].tags],['Appuis']);assert.equal(old.description,'Ancienne');
+ const clear=c.preparerAjouts([{nom:'O-soto-gari',description:'Nouvelle consigne',sousFamille:''}],[old]);assert.equal(clear.majFiches[0].sousFamille,'');
+});

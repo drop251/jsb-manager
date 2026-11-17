@@ -171,3 +171,16 @@ Le changement de type contrôle les champs nécessaires au nouveau type et refus
 Un échec de stockage n’applique pas les modifications. Le profil de destination est capturé avant l’écriture. Les médias du catalogue publié retrouvent la fiche par son identifiant même après un changement de type ; les nouvelles fiches sont rapprochées par nom, discipline et type. Les séances enregistrées restent conservées.
 
 Validation : tests de conservation des identifiants/médias, d’échec de stockage, de séparation des profils, de validation du changement de type et de rattachement des médias publiés. La vérification visuelle sur Safari iPhone reste à effectuer.
+
+
+## Imports de corrections fiabilisés (17 novembre 2026)
+
+Un fichier contenant uniquement des corrections de fiches existantes atteint maintenant l’aperçu d’import : il n’est plus annoncé vide. L’aperçu liste les fiches à modifier, leur identifiant conservé et les principaux champs modifiés avec leurs valeurs avant/après (les textes longs sont abrégés dans cet aperçu). Rien n’est écrit avant confirmation.
+
+Lorsqu’un fichier de correction omet famille principale, famille, sous-famille ou tags, ces données existantes sont conservées. Une colonne explicitement fournie vide permet de vider le champ correspondant. Les contrôles de complétude Judo restent applicables aux corrections ; cela ne transforme pas l’import en outil de modification partielle des prescriptions.
+
+Les fiches, corrections et illustrations d’un lot sont enregistrées dans une seule transaction IndexedDB. Les images en mémoire ne changent qu’après confirmation de cette écriture. Une erreur conserve l’aperçu et réactive les commandes pour réessayer. Les confirmations multiples sont bloquées et une lecture de fichier dépassée par un nouveau choix ne remplace plus l’aperçu courant.
+
+Les vidéos sont enregistrées séparément après ce lot : elles peuvent échouer individuellement, et leur nombre effectivement enregistré est annoncé. L’import entier, vidéos comprises, n’est donc pas une transaction unique. Si IndexedDB refuse la transaction des fiches/images, cette étape échoue sans chargement partiel ; elle n’utilise pas un secours local pour contourner cet échec.
+
+Validation : 85 tests passent, dont fichier composé de corrections seules, conservation/effacement explicite du classement, transaction fiches/images, échec d’écriture et refus pédagogique. Validation visuelle et import sur Safari iPhone restant à effectuer.
