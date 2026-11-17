@@ -318,3 +318,8 @@ La liste secondaire des séances enregistrées dans le préparateur utilise main
 ## Anciennes séances sans horaire (17 novembre 2026)
 
 Une séance ancienne sans heure ne peut plus être affectée à plusieurs créneaux similaires le même jour. « Cette semaine » l’utilise en secours uniquement lorsqu’un seul créneau correspond à ce groupe ce jour-là. La carte du jour exige un horaire correspondant. Les séances sans heure restent consultables et lançables depuis l’historique ; aucun enregistrement n’est modifié.
+
+
+## État vide du catalogue (17 novembre 2026)
+
+Quand la recherche ne trouve aucun exercice, l’écran reprend le texte recherché, distingue cette situation d’un filtrage sans résultat et propose d’effacer la recherche et les filtres en une action. Le choix du sous-groupe reste conservé. L’état vide réel de l’espace garde son bouton de démonstration.
