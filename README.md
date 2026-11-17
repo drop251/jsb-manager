@@ -225,3 +225,10 @@ Les données personnelles déjà stockées sur les appareils et les sauvegardes 
 Les boutons d’ajout passent sous les cartes pour ne plus recouvrir les titres. Les noms s’affichent entièrement, y compris les noms longs. En mode liste, la colonne réservée aux anciennes vignettes est supprimée ; le bouton d’ajout dispose de sa propre colonne et les étiquettes reviennent à la ligne. Le filtre détaillé utilise aussi le terme « avec vidéo ». Aucun exercice ni dosage n’est modifié.
 
 Validation : suite automatique de 97 tests. Les réglages tactiles sur Safari iPhone restent à vérifier.
+
+
+## Enregistrement sans doublons (17 novembre 2026)
+
+Enregistrer plusieurs fois la même préparation, ou exporter sa fiche PDF après l’enregistrement, ne crée plus une nouvelle entrée identique. La comparaison porte sur date, heure, cours, discipline, titre, exercices, paramètres et trame ; elle ignore l’identifiant généré et l’horodatage d’enregistrement. Une préparation modifiée ou datée d’un autre cours reste une nouvelle version. Les anciens doublons ne sont pas supprimés.
+
+Validation : 100 tests, dont répétition d’enregistrement, ordre des champs, modification de dosage, autre date et échec de stockage. Aucun contrôle supplémentaire sur Safari iPhone dans cette série.
