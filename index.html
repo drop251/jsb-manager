@@ -2618,7 +2618,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     // Carte « Cours » : à l'heure du cours, l'appel et la séance prévue en un seul endroit
     var auj = dateIsoLocale(new Date()), etat = cren ? etatCreneau(cren) : '';
-    var prevue = cren ? seancePrevue(lireHisto(), auj, cren.cours, cren.debut) : null;
+    var prevue = cren ? seancePrevue(lireHisto(), auj, cren.cours, cren.debut, true) : null;
     var carteCours = cren ? h('div', { className: 'cours-jour', role: 'region', 'aria-label': 'Cours de ' + heureFr(cren.debut) },
       h('div', { className: 'cours-jour-tete' },
         h('span', { className: 'cours-jour-etat ' + (etat === 'En cours' ? 'encours' : 'avenir') }, etat === 'En cours' ? 'En cours' : "Aujourd'hui"),
@@ -2834,11 +2834,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return null;
   }
   function espaceDuCours(cours) { return (cours || []).some(function (c) { return /ta[iï]so/i.test(c); }) ? 'taiso' : 'judo'; }
-  function seancePrevue(histo, date, cours, heure) {
+  function seancePrevue(histo, date, cours, heure, horaireStrict) {
     var candidates = histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); });
-    if (!heure) return candidates[0] || null;
+    if (!heure) return horaireStrict ? null : candidates[0] || null;
     // Une préparation datée d'un autre horaire ne doit pas occuper ce créneau.
-    return candidates.filter(function (s) { return s.heure === heure; })[0] || candidates.filter(function (s) { return !s.heure; })[0] || null;
+    var exacte = candidates.filter(function (s) { return s.heure === heure; })[0];
+    if (exacte || horaireStrict) return exacte || null;
+    return candidates.filter(function (s) { return !s.heure; })[0] || null;
   }
 
   // --- Sons courts (Web Audio) et maintien de l'écran allumé
@@ -3122,7 +3124,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('section', { className: 'ms' },
       h('h2', { className: 'ms-h' }, 'Cette semaine'),
       creneaux.length ? h('ul', { className: 'ms-liste' }, creneaux.map(function (c) {
-        var pr = seancePrevue(histo, c.date, c.cours, c.heure), esp = espaceDuCours(c.cours);
+        var autreCoursMemeJour = creneaux.some(function (autre) { return autre.cle !== c.cle && autre.date === c.date && autre.cours.some(function (g) { return c.cours.indexOf(g) >= 0; }); });
+        var pr = seancePrevue(histo, c.date, c.cours, c.heure, autreCoursMemeJour), esp = espaceDuCours(c.cours);
         return h('li', { key: c.cle, className: 'ms-ligne' + (pr ? ' prevue' : '') },
           h('div', { className: 'ms-texte' }, h('b', null, c.texte),
             h('span', null, pr ? '✓ Séance prévue : ' + pr.titre + ' · ' + pr.exos.length + ' exercices' : 'À préparer')),
