@@ -268,3 +268,9 @@ Validation : 109 tests passent, dont refus d’enregistrement et d’export, pui
 « Ma séance » indique le nombre d’exercices sélectionnés absents du catalogue. Le lancement, l’enregistrement et l’export ne peuvent plus ignorer silencieusement ces références. L’éducateur peut réimporter les fiches manquantes ou utiliser « Retirer les exercices introuvables » pour poursuivre avec les exercices disponibles. Ce retrait ne modifie pas les séances de l’historique ; un échec de stockage conserve la sélection. Une sélection entièrement introuvable peut également être vidée avec cette commande.
 
 Validation : 112 tests passent, dont blocage du lancement/enregistrement/export d’une sélection partiellement introuvable, poursuite après retrait explicite, échec de stockage et sélection entièrement introuvable. La validation visuelle sur Safari iPhone reste à effectuer.
+
+## Recherche dans l’historique (17 novembre 2026)
+
+« Mes séances » permet de rechercher par titre, groupe ou date et de filtrer par Judo/Taïso. Les mots saisis peuvent être répartis entre titre et groupe ; accents et majuscules sont ignorés. Les dates ISO et jour/mois/année sont recherchables. Le nombre de résultats et un bouton d’effacement des filtres facilitent le retour à l’ensemble de l’historique. La pagination s’applique aux résultats et revient à trente à chaque changement de filtre. Les préparations de la semaine restent indépendantes de cette recherche.
+
+Validation : 115 tests passent, avec recherche sans accents, dates, combinaison de filtres, effacement, état sans résultat et pagination. La validation visuelle et tactile sur Safari iPhone reste à effectuer.

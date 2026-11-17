@@ -1297,6 +1297,9 @@ html, body { overflow-x: clip; }
 .ms-texte span { font-size: var(--t-s); color: var(--muted); }
 .ms-ligne.prevue .ms-texte span { color: var(--ok-t); font-weight: 600; }
 .ms-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ms-filtres { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+.ms-filtres label { display: flex; flex: 1 1 160px; flex-direction: column; gap: 6px; font-size: 14px; }
+.ms-filtres input, .ms-filtres select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
 .ms-actions .cs-btn.plein, .cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .ms-tuiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); }
 .ms-tuile { display: flex; flex-direction: column; gap: 4px; padding: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
@@ -3082,6 +3085,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var historiqueVisible = React.useState(30), nbHistorique = historiqueVisible[0], setNbHistorique = historiqueVisible[1];
     var suppression = React.useState(null), aSupprimer = suppression[0], setASupprimer = suppression[1];
     var erreurSuppression = React.useState(''), messageSuppression = erreurSuppression[0], setMessageSuppression = erreurSuppression[1];
+    var rechercheHisto = React.useState(''), recherche = rechercheHisto[0], setRecherche = rechercheHisto[1];
+    var disciplineHisto = React.useState(''), discipline = disciplineHisto[0], setDiscipline = disciplineHisto[1];
+    function changerFiltre(setter, valeur) { setter(valeur); setNbHistorique(30); setASupprimer(null); setMessageSuppression(''); }
+    function normaliserRecherche(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+    var mots = normaliserRecherche(recherche).trim().split(/\s+/).filter(Boolean);
+    var histoFiltree = histo.filter(function (s) {
+      if (discipline && s.espace !== discipline) return false;
+      var texte = normaliserRecherche([s.titre, s.espace, (s.cours || []).join(' '), s.infos && s.infos.groupe, s.date, String(s.date || '').split('-').reverse().join('/')].join(' '));
+      return mots.every(function (mot) { return texte.indexOf(mot) >= 0; });
+    });
     function confirmerSuppression(id) {
       if (!supprimerHisto(id)) { setMessageSuppression('Suppression impossible. La séance est conservée ; vous pouvez réessayer.'); return; }
       setASupprimer(null); setMessageSuppression('');
@@ -3126,9 +3139,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       })),
       h('h2', { className: 'ms-h' }, 'Historique'),
       messageSuppression ? h('p', { role: 'alert', className: 'cs-msg' }, messageSuppression) : null,
-      histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, nbHistorique).map(ligneSeance))
-        : h('p', { className: 'ms-vide' }, 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
-      histo.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histo.length - nbHistorique) + ')') : null,
+      histo.length ? h('div', { className: 'ms-filtres', role: 'search', 'aria-label': 'Rechercher une séance' },
+        h('label', null, 'Rechercher', h('input', { type: 'search', value: recherche, placeholder: 'Titre, groupe ou date', onChange: function (ev) { changerFiltre(setRecherche, ev.target.value); } })),
+        h('label', null, 'Discipline', h('select', { value: discipline, onChange: function (ev) { changerFiltre(setDiscipline, ev.target.value); } },
+          h('option', { value: '' }, 'Toutes'), h('option', { value: 'Judo' }, 'Judo'), h('option', { value: 'Taïso' }, 'Taïso'))),
+        recherche || discipline ? h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setRecherche(''); changerFiltre(setDiscipline, ''); } }, 'Effacer les filtres') : null) : null,
+      histo.length ? h('p', { className: 'ms-vide', role: 'status' }, histoFiltree.length + (histoFiltree.length > 1 ? ' séances trouvées' : ' séance trouvée')) : null,
+      histoFiltree.length ? h('ul', { className: 'ms-liste' }, histoFiltree.slice(0, nbHistorique).map(ligneSeance))
+        : h('p', { className: 'ms-vide' }, histo.length ? 'Aucune séance ne correspond. Modifiez ou effacez les filtres.' : 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
+      histoFiltree.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histoFiltree.length - nbHistorique) + ')') : null,
       h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
   }
