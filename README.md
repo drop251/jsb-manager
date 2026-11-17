@@ -232,3 +232,45 @@ Validation : suite automatique de 97 tests. Les réglages tactiles sur Safari iP
 Enregistrer plusieurs fois la même préparation, ou exporter sa fiche PDF après l’enregistrement, ne crée plus une nouvelle entrée identique. La comparaison porte sur date, heure, cours, discipline, titre, exercices, paramètres et trame ; elle ignore l’identifiant généré et l’horodatage d’enregistrement. Une préparation modifiée ou datée d’un autre cours reste une nouvelle version. Les anciens doublons ne sont pas supprimés.
 
 Validation : 100 tests, dont répétition d’enregistrement, ordre des champs, modification de dosage, autre date et échec de stockage. Aucun contrôle supplémentaire sur Safari iPhone dans cette série.
+
+## Préparations par horaire (17 novembre 2026)
+
+Dans « Cette semaine », le rattachement d’une séance prend désormais en compte l’heure du créneau. Deux cours du même groupe le même jour retrouvent chacun leur préparation ; une préparation à un autre horaire ne remplit plus un créneau encore vide. Les anciennes préparations sans heure restent proposées en secours, après recherche d’un horaire exact. Aucune séance enregistrée n’est modifiée.
+
+Validation : 102 tests passent, dont deux horaires pour un même groupe, un créneau sans préparation, la priorité de l’horaire exact et la compatibilité des anciennes séances sans heure. La vérification visuelle sur Safari iPhone reste à effectuer.
+
+## Suppression explicite des séances (17 novembre 2026)
+
+Dans l’historique, la croix affiche « Confirmer la suppression » et « Conserver » avant toute écriture. Une écriture refusée conserve la séance et affiche une erreur avec possibilité de réessayer. Aucune ancienne séance n’est supprimée automatiquement.
+
+Validation : 105 tests passent, dont demande de confirmation, conservation, suppression confirmée et échec de stockage. La vérification visuelle sur Safari iPhone reste à effectuer.
+
+## Conservation du brouillon après une reprise refusée (17 novembre 2026)
+
+Si la reprise d’une séance depuis le planning échoue lors de l’écriture de la sélection, les informations du brouillon et son rattachement au cours ne sont plus remplacés par ceux de la séance demandée. Le message d’échec reste visible. Une reprise réussie conserve le rattachement au créneau choisi.
+
+Validation : 107 tests passent, dont reprise refusée avec conservation du groupe, du dosage et du rattachement, et reprise réussie depuis le planning. Safari iPhone reste à vérifier.
+
+## Reprise et exercices absents du catalogue (17 novembre 2026)
+
+Une reprise est refusée si un exercice de la séance enregistrée ne figure plus dans le catalogue actuel. Le message indique combien d’exercices sont absents ; le brouillon et l’historique sont conservés. Cela évite de préparer ou d’enregistrer silencieusement une version tronquée après un changement de catalogue. Les séances dont les exercices sont présents restent reprenables.
+
+Validation : 108 tests passent, avec un cas mêlant exercice présent et exercice absent, et conservation des informations et du dosage du brouillon. La vérification Safari iPhone reste à effectuer.
+
+## Créneau indisponible dans un brouillon (17 novembre 2026)
+
+Si le créneau mémorisé ne figure plus dans les huit prochains jours proposés, « Pour quel cours ? » affiche explicitement cet ancien rattachement comme indisponible. L’enregistrement et l’export sont refusés tant que l’utilisateur n’a pas choisi un nouveau cours ou aujourd’hui sans créneau. Le brouillon reste disponible. Cette protection évite l’ancien repli silencieux sur la date du jour, y compris après suppression d’un créneau du planning.
+
+Validation : 109 tests passent, dont refus d’enregistrement et d’export, puis enregistrement après choix explicite d’aujourd’hui. Safari iPhone reste à vérifier.
+
+## Brouillons contenant des exercices introuvables (17 novembre 2026)
+
+« Ma séance » indique le nombre d’exercices sélectionnés absents du catalogue. Le lancement, l’enregistrement et l’export ne peuvent plus ignorer silencieusement ces références. L’éducateur peut réimporter les fiches manquantes ou utiliser « Retirer les exercices introuvables » pour poursuivre avec les exercices disponibles. Ce retrait ne modifie pas les séances de l’historique ; un échec de stockage conserve la sélection. Une sélection entièrement introuvable peut également être vidée avec cette commande.
+
+Validation : 112 tests passent, dont blocage du lancement/enregistrement/export d’une sélection partiellement introuvable, poursuite après retrait explicite, échec de stockage et sélection entièrement introuvable. La validation visuelle sur Safari iPhone reste à effectuer.
+
+## Recherche dans l’historique (17 novembre 2026)
+
+« Mes séances » permet de rechercher par titre, groupe ou date et de filtrer par Judo/Taïso. Les mots saisis peuvent être répartis entre titre et groupe ; accents et majuscules sont ignorés. Les dates ISO et jour/mois/année sont recherchables. Le nombre de résultats et un bouton d’effacement des filtres facilitent le retour à l’ensemble de l’historique. La pagination s’applique aux résultats et revient à trente à chaque changement de filtre. Les préparations de la semaine restent indépendantes de cette recherche.
+
+Validation : 115 tests passent, avec recherche sans accents, dates, combinaison de filtres, effacement, état sans résultat et pagination. La validation visuelle et tactile sur Safari iPhone reste à effectuer.

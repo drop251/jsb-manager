@@ -1297,6 +1297,9 @@ html, body { overflow-x: clip; }
 .ms-texte span { font-size: var(--t-s); color: var(--muted); }
 .ms-ligne.prevue .ms-texte span { color: var(--ok-t); font-weight: 600; }
 .ms-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ms-filtres { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+.ms-filtres label { display: flex; flex: 1 1 160px; flex-direction: column; gap: 6px; font-size: 14px; }
+.ms-filtres input, .ms-filtres select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
 .ms-actions .cs-btn.plein, .cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .ms-tuiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); }
 .ms-tuile { display: flex; flex-direction: column; gap: 4px; padding: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
@@ -2831,7 +2834,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return null;
   }
   function espaceDuCours(cours) { return (cours || []).some(function (c) { return /ta[iï]so/i.test(c); }) ? 'taiso' : 'judo'; }
-  function seancePrevue(histo, date, cours) { return histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); })[0] || null; }
+  function seancePrevue(histo, date, cours, heure) {
+    var candidates = histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); });
+    if (!heure) return candidates[0] || null;
+    // Une préparation datée d'un autre horaire ne doit pas occuper ce créneau.
+    return candidates.filter(function (s) { return s.heure === heure; })[0] || candidates.filter(function (s) { return !s.heure; })[0] || null;
+  }
 
   // --- Sons courts (Web Audio) et maintien de l'écran allumé
   var audioCtx = null;
@@ -3075,6 +3083,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var planning = usePlanning(), histo = useHisto();
     var s1 = React.useState(null), direct = s1[0], setDirect = s1[1];
     var historiqueVisible = React.useState(30), nbHistorique = historiqueVisible[0], setNbHistorique = historiqueVisible[1];
+    var suppression = React.useState(null), aSupprimer = suppression[0], setASupprimer = suppression[1];
+    var erreurSuppression = React.useState(''), messageSuppression = erreurSuppression[0], setMessageSuppression = erreurSuppression[1];
+    var rechercheHisto = React.useState(''), recherche = rechercheHisto[0], setRecherche = rechercheHisto[1];
+    var disciplineHisto = React.useState(''), discipline = disciplineHisto[0], setDiscipline = disciplineHisto[1];
+    function changerFiltre(setter, valeur) { setter(valeur); setNbHistorique(30); setASupprimer(null); setMessageSuppression(''); }
+    function normaliserRecherche(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+    var mots = normaliserRecherche(recherche).trim().split(/\s+/).filter(Boolean);
+    var histoFiltree = histo.filter(function (s) {
+      if (discipline && s.espace !== discipline) return false;
+      var texte = normaliserRecherche([s.titre, s.espace, (s.cours || []).join(' '), s.infos && s.infos.groupe, s.date, String(s.date || '').split('-').reverse().join('/')].join(' '));
+      return mots.every(function (mot) { return texte.indexOf(mot) >= 0; });
+    });
+    function confirmerSuppression(id) {
+      if (!supprimerHisto(id)) { setMessageSuppression('Suppression impossible. La séance est conservée ; vous pouvez réessayer.'); return; }
+      setASupprimer(null); setMessageSuppression('');
+    }
     var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
     var creneaux = prochainsCreneaux(planning, 8);
     function ouvrir(espace, intention) { if (intention) poserIntention(intention); p.aller(espace); }
@@ -3086,12 +3110,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'cs-btn mini plein', onClick: function () { setDirect(s); } }, 'Lancer'),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(s.espace === 'Taïso' ? 'taiso' : 'judo', { type: 'reprendre', id: s.id }); } }, 'Reprendre'),
           progressable(s) ? h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Reprendre la séance du ' + dateFr(s.date) + ' un cran plus dure', onClick: function () { ouvrir('taiso', { type: 'reprendre', id: s.id, plusDur: true }); } }, 'Plus dur') : null,
-          h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { supprimerHisto(s.id); } }, '✕')));
+          aSupprimer === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression' },
+            h('span', null, 'Supprimer cette séance ? '),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppression(s.id); } }, 'Confirmer la suppression'),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setASupprimer(null); setMessageSuppression(''); } }, 'Conserver')) :
+          h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setASupprimer(s.id); setMessageSuppression(''); } }, '✕')));
     }
     return h('section', { className: 'ms' },
       h('h2', { className: 'ms-h' }, 'Cette semaine'),
       creneaux.length ? h('ul', { className: 'ms-liste' }, creneaux.map(function (c) {
-        var pr = seancePrevue(histo, c.date, c.cours), esp = espaceDuCours(c.cours);
+        var pr = seancePrevue(histo, c.date, c.cours, c.heure), esp = espaceDuCours(c.cours);
         return h('li', { key: c.cle, className: 'ms-ligne' + (pr ? ' prevue' : '') },
           h('div', { className: 'ms-texte' }, h('b', null, c.texte),
             h('span', null, pr ? '✓ Séance prévue : ' + pr.titre + ' · ' + pr.exos.length + ' exercices' : 'À préparer')),
@@ -3110,9 +3138,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
       })),
       h('h2', { className: 'ms-h' }, 'Historique'),
-      histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, nbHistorique).map(ligneSeance))
-        : h('p', { className: 'ms-vide' }, 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
-      histo.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histo.length - nbHistorique) + ')') : null,
+      messageSuppression ? h('p', { role: 'alert', className: 'cs-msg' }, messageSuppression) : null,
+      histo.length ? h('div', { className: 'ms-filtres', role: 'search', 'aria-label': 'Rechercher une séance' },
+        h('label', null, 'Rechercher', h('input', { type: 'search', value: recherche, placeholder: 'Titre, groupe ou date', onChange: function (ev) { changerFiltre(setRecherche, ev.target.value); } })),
+        h('label', null, 'Discipline', h('select', { value: discipline, onChange: function (ev) { changerFiltre(setDiscipline, ev.target.value); } },
+          h('option', { value: '' }, 'Toutes'), h('option', { value: 'Judo' }, 'Judo'), h('option', { value: 'Taïso' }, 'Taïso'))),
+        recherche || discipline ? h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setRecherche(''); changerFiltre(setDiscipline, ''); } }, 'Effacer les filtres') : null) : null,
+      histo.length ? h('p', { className: 'ms-vide', role: 'status' }, histoFiltree.length + (histoFiltree.length > 1 ? ' séances trouvées' : ' séance trouvée')) : null,
+      histoFiltree.length ? h('ul', { className: 'ms-liste' }, histoFiltree.slice(0, nbHistorique).map(ligneSeance))
+        : h('p', { className: 'ms-vide' }, histo.length ? 'Aucune séance ne correspond. Modifiez ou effacez les filtres.' : 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
+      histoFiltree.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histoFiltree.length - nbHistorique) + ')') : null,
       h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
   }
@@ -3356,7 +3391,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
       if (x.type === 'preparer') { setInfos({ _cours: x.cle }); setPlan({}); setMsg(''); }
-      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { reprendre(s, x.plusDur); if (x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
+      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { if (reprendre(s, x.plusDur) && x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
       setOuvert(true);
     }, []);
     // Séance proposée par le générateur : phases, durées et en-tête pré-remplis, puis ouverture
@@ -3367,6 +3402,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     } }, [jeton]);
     var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace, infos.groupe || p.sous, infos.intitulesPhases);
     var items = sel.ids.map(function (id) { return p.donnees.filter(function (e) { return e.id === id; })[0]; }).filter(Boolean);
+    var idsIntrouvables = sel.ids.filter(function (id) { return !p.donnees.some(function (e) { return e.id === id; }); });
+    function verifierSelection() {
+      if (!idsIntrouvables.length) return true;
+      setMsg('La préparation contient des exercices introuvables. Réimportez les fiches manquantes ou retirez-les explicitement avant de continuer.'); return false;
+    }
+    function retirerIntrouvables() {
+      if (!sel.set(sel.ids.filter(function (id) { return idsIntrouvables.indexOf(id) < 0; }))) { setMsg('Retrait impossible : stockage indisponible. La préparation est conservée.'); return; }
+      setSignatureSauvee(''); setMsg('Les exercices introuvables ont été retirés de cette préparation. Les séances enregistrées sont conservées.');
+    }
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
     // Bloc, dosage et travail prévus par le générateur (corps de séance Taïso en blocs)
@@ -3403,11 +3447,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return JSON.stringify({ infos: infosEffectives(), exos: exercicesPrepares() });
     }
     function lancerPreparation() {
+      if (!verifierSelection()) return;
       if (!items.length) return;
       setDirect({ espace: p.espace, titre: val('thematique') || 'Ma séance ' + p.espace, exos: exercicesPrepares(), infos: infosEffectives(), trame: 3 });
     }
     function enregistrerSeance(silencieux) {
+      if (!verifierSelection()) return false;
       if (!items.length) { setMsg('Ajoutez au moins un exercice avant d’enregistrer.'); return false; }
+      if (infos._cours && !coursChoisi) { setMsg('Le créneau choisi n’est plus disponible. Choisissez un cours dans « Pour quel cours ? » ou sélectionnez aujourd’hui sans créneau avant d’enregistrer.'); return false; }
       var date = coursChoisi ? coursChoisi.date : dateIsoLocale(new Date()), cours = coursChoisi ? coursChoisi.cours : [val('groupe')].filter(Boolean);
       var exos = exercicesPrepares();
       var sauvegardeOK = ajouterHisto({ id: 's-' + date + '-' + sa(p.espace) + '-' + sa(cours.join('-')) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), date: date, heure: coursChoisi ? coursChoisi.heure : '', cours: cours, espace: p.espace,
@@ -3419,12 +3466,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     // dur : progression « un cran plus dur » (même durée, effort un peu plus long ou plus de répétitions)
     function reprendre(s, dur) {
+      var absents = s.exos.filter(function (x) { return !p.donnees.some(function (e) { return e.id === x.id; }); });
+      if (absents.length) { setMsg('Reprise impossible : ' + absents.length + (absents.length > 1 ? ' exercices ne figurent plus' : ' exercice ne figure plus') + ' dans le catalogue actuel. La séance enregistrée et le brouillon sont conservés.'); return false; }
       var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
       var ids = [], np = {}; s.exos.map(function (x) { return dur ? plusDurExo(x) : x; }).forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
       if (!sel.set(ids)) { setMsg('Reprise impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
       setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
+      return true;
     }
     function telecharger() {
+      if (!verifierSelection()) return;
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
       var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
@@ -3465,7 +3516,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('div', { className: 'cs-champ' + (large ? ' large' : '') }, h('label', { htmlFor: 'cs-' + k }, label),
         h(large === 2 ? 'textarea' : 'input', { id: 'cs-' + k, value: infos[k] !== undefined ? infos[k] : (defaut || ''), placeholder: ph || '', rows: 2, onChange: function (ev) { majInfo(k, ev.target.value); } }));
     }
-    var estEnregistree = !!signatureSauvee && signatureSauvee === signaturePreparation();
+    var estEnregistree = !idsIntrouvables.length && !!signatureSauvee && signatureSauvee === signaturePreparation();
     var messageAffiche = !estEnregistree && /^Séance enregistrée/.test(msg) ? '' : msg;
     var resume = [val('groupe'), val('thematique'), val('duree'), val('intensite')].filter(Boolean).join(' · ');
     var histoEsp = histo.filter(function (s) { return s.espace === p.espace; }).slice(0, 12);
@@ -3483,6 +3534,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('details', { className: 'cs-outils' }, h('summary', null, 'Plus d’actions'),
                 h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: telecharger }, 'Exporter la fiche PDF'),
                 (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null))),
+          idsIntrouvables.length ? h('div', { className: 'cs-msg', role: 'alert' },
+            h('p', null, idsIntrouvables.length + (idsIntrouvables.length > 1 ? ' exercices sélectionnés sont introuvables' : ' exercice sélectionné est introuvable') + ' dans le catalogue actuel. Réimportez les fiches manquantes ou retirez-les de cette préparation.'),
+            h('button', { type: 'button', className: 'cs-btn', onClick: retirerIntrouvables }, 'Retirer les exercices introuvables')) : null,
           h('p', { className: 'cs-etat', role: 'status' }, !items.length ? 'Commencez par ajouter des exercices.' : estEnregistree ? 'Cette version est enregistrée dans Mes séances.' : 'Brouillon : pensez à enregistrer cette version dans Mes séances.'),
           h('div', { className: 'cs-actions cs-principales', 'aria-label': 'Enregistrer ou lancer la séance' },
             h('button', { type: 'button', className: 'cs-btn plein cs-enregistrer', disabled: !items.length, onClick: function () { enregistrerSeance(false); } }, 'Enregistrer la séance'),
@@ -3493,7 +3547,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('section', { className: 'cs-cours' },
             h('label', { htmlFor: 'cs-cours', className: 'cs-cours-titre' }, 'Pour quel cours ?'),
             h('select', { id: 'cs-cours', value: infos._cours || '', onChange: function (ev) { majInfo('_cours', ev.target.value); } },
-              [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
+              [h('option', { key: '', value: '' }, creneaux.length ? 'Aujourd\'hui, sans créneau' : 'Aujourd\'hui')].concat(infos._cours && !coursChoisi ? [h('option', { key: infos._cours, value: infos._cours, disabled: true }, 'Ancien créneau indisponible — choisissez un cours')] : []).concat(creneaux.map(function (c) { return h('option', { key: c.cle, value: c.cle }, c.texte); }))),
             !n && coursChoisi ? h('p', { className: 'cs-cours-aide' }, 'Ajoutez des exercices (ou générez la séance), puis enregistrez-la pour ce cours.') : null),
           items.length ? h('section', { className: 'cs-infos cs-essentiels', 'aria-label': 'Public et objectif' },
             h('h3', null, '1 · Public et objectif'),
