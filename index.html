@@ -3372,7 +3372,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
       if (x.type === 'preparer') { setInfos({ _cours: x.cle }); setPlan({}); setMsg(''); }
-      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { reprendre(s, x.plusDur); if (x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
+      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { if (reprendre(s, x.plusDur) && x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
       setOuvert(true);
     }, []);
     // Séance proposée par le générateur : phases, durées et en-tête pré-remplis, puis ouverture
@@ -3439,6 +3439,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var ids = [], np = {}; s.exos.map(function (x) { return dur ? plusDurExo(x) : x; }).forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
       if (!sel.set(ids)) { setMsg('Reprise impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
       setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
+      return true;
     }
     function telecharger() {
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });

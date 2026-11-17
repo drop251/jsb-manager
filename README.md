@@ -244,3 +244,9 @@ Validation : 102 tests passent, dont deux horaires pour un même groupe, un cré
 Dans l’historique, la croix affiche « Confirmer la suppression » et « Conserver » avant toute écriture. Une écriture refusée conserve la séance et affiche une erreur avec possibilité de réessayer. Aucune ancienne séance n’est supprimée automatiquement.
 
 Validation : 105 tests passent, dont demande de confirmation, conservation, suppression confirmée et échec de stockage. La vérification visuelle sur Safari iPhone reste à effectuer.
+
+## Conservation du brouillon après une reprise refusée (17 novembre 2026)
+
+Si la reprise d’une séance depuis le planning échoue lors de l’écriture de la sélection, les informations du brouillon et son rattachement au cours ne sont plus remplacés par ceux de la séance demandée. Le message d’échec reste visible. Une reprise réussie conserve le rattachement au créneau choisi.
+
+Validation : 107 tests passent, dont reprise refusée avec conservation du groupe, du dosage et du rattachement, et reprise réussie depuis le planning. Safari iPhone reste à vérifier.
