@@ -211,3 +211,10 @@ Contrôles de cette série : filtres Taïso par niveau et réinitialisation, ouv
 Le parcours enregistrer une préparation, retrouver la séance et la lancer a été vérifié dans Chrome. La fiche publique « Assis-debout de la chaise » conservait une image et une vidéo montrant une chaise au mur sans chaise. Ces associations sont retirées ; l’exercice, son identifiant et ses consignes restent disponibles, avec un message explicatif. Les fichiers restent dans le dépôt pour permettre leur révision. Aucun média de remplacement n’a été inventé.
 
 Le signalement empêche aussi une ancienne association publique de réapparaître dans la fiche, les exports et la préparation hors ligne. Les images et vidéos personnelles restent prioritaires et utilisables. Validation : 97 tests passent. Le catalogue personnel et Safari iPhone restent hors de cette vérification.
+
+
+## Catalogue sans illustrations (17 novembre 2026)
+
+À la demande du propriétaire, les illustrations sont suspendues pendant la consolidation de l’application : aucune image enregistrée ou schématique n’est affichée, les commandes d’ajout et de génération d’image sont retirées des fiches et les exports de fiches sont sans illustration. Les associations d’images du catalogue public sont retirées. Les vidéos restent distinctes de cette suspension.
+
+Les données personnelles déjà stockées sur les appareils et les sauvegardes complètes ne sont pas effacées à distance. Les fichiers historiques du dépôt restent conservés. La future base n’est pas encore intégrée.

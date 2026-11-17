@@ -33,6 +33,11 @@
 </style>
 <style>body:has([role="dialog"][aria-modal="true"]), body:has([role="alertdialog"][aria-modal="true"]) { overflow: hidden; }</style>
 <style>.media-a-revoir { display:flex; align-items:center; justify-content:center; min-height:120px; padding:16px; box-sizing:border-box; background:var(--chip); color:var(--muted); font:inherit; text-align:center; } .sd .media-a-revoir { background:#283345; color:#fff; }</style>
+<style>/* Catalogue temporairement sans illustrations. */
+.et-visuel,.sd-illus { display:none; }
+.et-corps,.mode-liste .carte { grid-template-columns:minmax(0,1fr); }
+.mode-liste .carte > :not(.illus) { grid-column:1; }
+</style>
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -2347,7 +2352,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Cohérence des médias publics';
+  var VERSION_APP = '17/11/2026 · Catalogue sans illustrations';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2921,7 +2926,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (VIDEOS[e.id]) locaux.push(Stockage.lire(cleVideo(e.id)).then(function (v) { if (!v || !v.buf || !v.buf.byteLength) throw new Error('video'); }));
       else if (!e.mediasARevoir && EN_LIGNE.vidC[e.id]) urls.push('illustres/' + EN_LIGNE.vidC[e.id].f);
       else if (!e.mediasARevoir && EN_LIGNE.vid[e.id]) urls.push(EN_LIGNE.vid[e.id]);
-      if (!IMG_PERSO[e.id] && !e.mediasARevoir) {
+      if (false) { // Illustrations suspendues pendant la consolidation.
         if (EN_LIGNE.imgC[e.id]) urls.push('illustres/' + EN_LIGNE.imgC[e.id].f);
         else if (EN_LIGNE.img[e.id] && EN_LIGNE.img[e.id].indexOf('illustres/') === 0) urls.push(EN_LIGNE.img[e.id]);
       }
@@ -5288,7 +5293,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }).catch(function (err) { setMsg('Import interrompu : ' + (err.message || 'stockage indisponible')); }).finally(function () { if (!reussi) { verrouImport.current = false; setEnCours(false); } });
     }
     function exporter() {
-      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = IMG_PERSO[e.id]; if (ip) c.image = ip; return c; });
+      var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; delete c.image; delete c.illustration; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
     }
     // Retire les exercices ajoutés ET leurs photos, dessins et vidéos (sinon un prochain import pourrait en hériter)
@@ -6717,39 +6722,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return m.slice(0, 2);
   }
   function traits(liste, couleur, larg) { return liste.map(function (s, i) { return h('line', { key: i, x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: couleur, strokeWidth: larg, strokeLinecap: 'round' }); }); }
-  function Illustration(p) {
-    var iP = imagePerso(p.e);
-    if (iP) return h('img', { className: 'illus perso' + (p.petit ? ' petit' : ''), src: iP, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
-    var sIA = svgIA(p.e);
-    if (sIA) return h('img', { className: 'illus ia' + (p.petit ? ' petit' : ''), src: urlSvg(sIA), alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async' });
-    if (p.e.mediasARevoir && !/^data:image\//.test(p.e.image || '')) return h('div', { className: 'illus media-a-revoir' + (p.petit ? ' petit' : ''), role: 'img', 'aria-label': 'Visuel à corriger : ' + p.e.nom }, 'Visuel à corriger');
-    if (p.e.image) return h('img', { className: 'illus photo' + (p.petit ? ' petit' : ''), src: p.e.image, alt: 'Illustration : ' + p.e.nom, loading: p.petit ? 'lazy' : 'eager', decoding: 'async', width: 200, height: 150 });
-    var e = p.e, k = poseDe(e), P = POSES[k], mat = materielDe(e), gris = 'var(--muted)', c = 'var(--ct, var(--ink))', w = p.petit ? 5 : 4;
-    var deco = [];
-    if (P.deco === 'saut') deco.push(h('line', { key: 'd1', x1: 48, y1: 68, x2: 72, y2: 68, stroke: gris, strokeWidth: 2, strokeDasharray: '3 4', strokeLinecap: 'round' }));
-    if (P.deco === 'vitesse') deco.push(h('path', { key: 'd2', d: 'M24 30h12M20 40h14M26 50h10', stroke: gris, strokeWidth: 2, strokeLinecap: 'round', fill: 'none' }));
-    if (P.deco === 'rotation') deco.push(h('path', { key: 'd3', d: 'M38 22a12 12 0 0 1 10-14M82 22a12 12 0 0 0-10-14', stroke: gris, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' }));
-    if (P.deco === 'roulade') deco.push(h('path', { key: 'd4', d: 'M44 34a26 26 0 0 1 50 4', stroke: gris, strokeWidth: 2, fill: 'none', strokeDasharray: '4 4', strokeLinecap: 'round' }));
-    if (P.deco === 'projection') deco.push(h('path', { key: 'd5', d: 'M106 30q8 18-4 34', stroke: gris, strokeWidth: 2, fill: 'none', strokeDasharray: '4 4', strokeLinecap: 'round' }));
-    var eq = [];
-    mat.forEach(function (m, i) {
-      var g = 'var(--muted)', s = { stroke: g, strokeWidth: 2.5, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
-      if (m === 'haie') eq.push(h('path', Object.assign({ key: m, d: 'M86 72V58h16v14' }, s)));
-      if (m === 'echelle') eq.push(h('path', Object.assign({ key: m, d: 'M10 70h100M10 75h100M22 70v5M38 70v5M54 70v5M70 70v5M86 70v5M102 70v5' }, s, { strokeWidth: 1.5 })));
-      if (m === 'cerceau') eq.push(h('ellipse', Object.assign({ key: m, cx: 92, cy: 71, rx: 13, ry: 3.5 }, s)));
-      if (m === 'elastique') eq.push(h('path', Object.assign({ key: m, d: 'M76 42q10 6 20 0t16 6' }, s, { strokeWidth: 2 })));
-      if (m === 'corde') eq.push(h('path', Object.assign({ key: m, d: 'M47 6q-14 40 13 62q27-22 13-62' }, s, { strokeWidth: 1.5 })));
-      if (m === 'ballon') eq.push(h('circle', Object.assign({ key: m, cx: 84, cy: 34, r: 6 }, s)));
-      if (m === 'kettlebell') eq.push(h('path', Object.assign({ key: m, d: 'M72 60a6 6 0 1 0 0.1 0M69 55a3 3 0 0 1 6 0' }, s)));
-      if (m === 'step') eq.push(h('path', Object.assign({ key: m, d: 'M80 72v-8h28v8' }, s)));
-      if (m === 'baton') eq.push(h('line', { key: m, x1: 40, y1: 20, x2: 80, y2: 20, stroke: g, strokeWidth: 3, strokeLinecap: 'round' }));
-    });
-    return h('svg', { className: 'illus' + (p.petit ? ' petit' : ''), viewBox: '0 0 120 80', role: 'img', 'aria-label': 'Schéma : ' + e.nom },
-      h('line', { x1: 4, y1: 73, x2: 116, y2: 73, stroke: 'var(--line)', strokeWidth: 2 }),
-      deco, eq,
-      P.u ? traits(P.u, gris, w) : null, P.teteU ? h('circle', { cx: P.teteU[0], cy: P.teteU[1], r: 5.5, fill: gris }) : null,
-      traits(P.t, c, w), h('circle', { cx: P.tete[0], cy: P.tete[1], r: 5.5, fill: c }));
-  }
+  function Illustration(p) { return null; }
   // ---- Assistant JSB : chatbot Claude (capacité « sample » de claude.ai).
   // Disponible seulement quand l'app est ouverte dans claude.ai (window.claude) ; caché ailleurs (app installée, fichier).
   // Claude ne reçoit QUE la question, l'écran en cours et des exercices de la base — jamais les licenciés ni les présences.
@@ -6916,7 +6889,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return Promise.all([Stockage.lire(CLE_ILLUS_IA).then(function (d) { if (d && typeof d === 'object') ILLUS_IA = d; }, function () {}),
       Stockage.lire(CLE_IMG_PERSO).then(function (d) { if (d && typeof d === 'object') IMG_PERSO = d; }, function () {}), chargerVideos()]);
   }
-  function imagePerso(e) { return IMG_PERSO[e.id] || (!e.mediasARevoir && EN_LIGNE.img[e.id]) || (VIDEOS[e.id] && VIDEOS[e.id].vignette) || ''; }
+  function imagePerso(e) { return ''; }
   function reduireImage(fichier) {
     return new Promise(function (ok, ko) {
       var url = URL.createObjectURL(fichier), img = new Image();
@@ -6930,10 +6903,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       img.src = url;
     });
   }
-  function svgIA(e) {
-    var s = ILLUS_IA[e.id] || e.illustration;
-    return typeof s === 'string' && /^<svg[\s>]/.test(s) ? s : '';
-  }
+  function svgIA(e) { return ''; }
   // Autoriser Claude pour cette page : demande d'autorisation, ou panneau des autorisations si refusé
   var REFUS_CLAUDE = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled'];
   function autoriserClaude(setMsg) {
@@ -6990,47 +6960,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       + (e.equipement ? '\nMatériel : ' + e.equipement : '')
       + '\nPoints clés : ' + (e.critere || e.vigilance || '—');
   }
-  function BoutonIllusIA(p) {
-    var s1 = React.useState(null), sample = s1[0], setSample = s1[1];
-    var s2 = React.useState(''), etat = s2[0], setEtat = s2[1];   // '' | 'encours' | message
-    var ctl = React.useRef(null);
-    React.useEffect(function () {
-      var actif = true;
-      if (window.claude && typeof window.claude.use === 'function') window.claude.use('sample').then(function (f) { if (actif && f) setSample(function () { return f; }); }, function () {});
-      return function () { actif = false; if (ctl.current) ctl.current.abort(); };
-    }, []);
-    var e = p.e, existe = !!svgIA(e), perso = !!IMG_PERSO[e.id];
-    function choisirImage(ev) {
-      var f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
-      reduireImage(f).then(function (d) { IMG_PERSO = Object.assign({}, IMG_PERSO); IMG_PERSO[e.id] = d; return Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO); })
-        .then(function () { setEtat(''); p.maj(); }, function () { setEtat('Cette image n\'a pas pu être lue.'); });
-    }
-    function retirerImage() { IMG_PERSO = Object.assign({}, IMG_PERSO); delete IMG_PERSO[e.id]; Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO).then(function () { p.maj(); }); }
-    var boutonsImage = [
-      h('label', { key: 'img', className: 'cs-btn mini ia-image' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Choisir une image pour ' + e.nom, onChange: choisirImage }), perso ? 'Changer l\'image' : 'Ajouter une image'),
-      perso ? h('button', { key: 'ret', type: 'button', className: 'cs-btn mini', onClick: retirerImage }, 'Retirer l\'image') : null];
-    if (!sample) return h('div', { className: 'ia-barre' }, boutonsImage, etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
-    function creer() {
-      ctl.current = new AbortController(); setEtat('encours');
-      sample(entreeIllus(e), { signal: ctl.current.signal, cache: false }).then(function (r) {
-        var svg = nettoyerSvg(r.text);
-        ILLUS_IA = Object.assign({}, ILLUS_IA); ILLUS_IA[e.id] = svg;
-        return Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { setEtat(''); p.maj(); });
-      }).catch(function (err) {
-        var c = err && err.code;
-        setEtat(c === 'cancelled' ? '' : REFUS_CLAUDE.indexOf(c) >= 0 ? 'refus' : c === 'rate_limited' ? 'Limite d\'usage atteinte : réessayez plus tard.'
-          : c ? 'Le dessin n\'a pas abouti. Réessayez.' : 'Le dessin reçu était illisible. Réessayez.');
-      }).then(function () { ctl.current = null; });
-    }
-    function retirer() { ILLUS_IA = Object.assign({}, ILLUS_IA); delete ILLUS_IA[e.id]; Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA).then(function () { p.maj(); }); }
-    if (etat === 'encours') return h('div', { className: 'ia-barre', role: 'status' }, h('span', { className: 'ch-attente' }, h('i'), h('i'), h('i')), h('span', null, 'Claude dessine l\'illustration… (30 s à 2 min)'),
-      h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { if (ctl.current) ctl.current.abort(); } }, 'Arrêter'));
-    return h('div', { className: 'ia-barre' }, boutonsImage,
-      perso ? null : h('button', { type: 'button', className: 'cs-btn mini ia-creer', onClick: creer }, existe ? 'Redessiner avec Claude' : 'Créer l\'illustration avec Claude'),
-      !perso && existe && ILLUS_IA[e.id] ? h('button', { type: 'button', className: 'cs-btn mini', onClick: retirer }, 'Retirer') : null,
-      etat === 'refus' ? h('span', { className: 'ia-msg', role: 'alert' }, 'Claude n\'est pas encore autorisé pour cette page. ',
-        h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { autoriserClaude(setEtat); } }, 'Autoriser Claude')) : etat ? h('span', { className: 'ia-msg', role: 'alert' }, etat) : null);
-  }
+  function BoutonIllusIA(p) { return null; }
   // ===== Vidéos d'exercices (20/10/2026) : courtes vidéos de démonstration (format « fiche animée » JSB, 10-30 s) =====
   // Gardées uniquement sur l'appareil (IndexedDB), une entrée par vidéo : jsb-video-<id> = { type, buf: ArrayBuffer }.
   // L'index jsb-videos garde pour chaque exercice : type, taille, nom du fichier, date et vignette (1re image, JPEG).
@@ -7200,7 +7130,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // Exercice illustré : photo, dessin ou vidéo ajoutés sur l'appareil (ou image fournie avec l'exercice)
-  function illustre(e) { return !!(e && (IMG_PERSO[e.id] || VIDEOS[e.id] || (!e.mediasARevoir && (EN_LIGNE.img[e.id] || EN_LIGNE.vid[e.id])) || svgIA(e) || /^data:image\//.test(e.image || ''))); }
+  function illustre(e) { return !!(e && (VIDEOS[e.id] || (!e.mediasARevoir && EN_LIGNE.vid[e.id]))); }
   // ===== Export complet (24/10/2026) : fiche(s) exercice avec photo, dessin et vidéo, dans un fichier .zip =====
   // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
   // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
@@ -7227,10 +7157,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function extVideo(type) { return /webm/.test(type) ? 'webm' : /quicktime/.test(type) ? 'mov' : 'mp4'; }
   // Médias d'un exercice : photo (ajoutée sur l'appareil ou dans la base), dessin SVG, vidéo
   function mediasDe(e) {
-    var ph = IMG_PERSO[e.id] || (/^data:image\//.test(e.image || '') ? e.image : ''), svg = svgIA(e);
+    var ph = '', svg = ''; // Export sans illustration pendant la consolidation.
     var r = { photo: ph ? dataUrlOctets(ph) : null, svg: svg || '', video: null };
     function octetsDe(url) { return fetch(url).then(function (x) { return x.ok ? x.arrayBuffer() : null; }).then(function (b) { return b ? new Uint8Array(b) : null; }, function () { return null; }); }
-    var p0 = !r.photo && !e.mediasARevoir && EN_LIGNE.img[e.id] ? octetsDe(EN_LIGNE.img[e.id]).then(function (o) { if (o) r.photo = { ext: /\.png$/.test(EN_LIGNE.img[e.id]) ? 'png' : 'jpg', octets: o }; }) : Promise.resolve();
+    var p0 = Promise.resolve();
     if (!VIDEOS[e.id]) return p0.then(function () {
       if (!EN_LIGNE.vid[e.id] || e.mediasARevoir) return r;
       return blobVideoEnLigne(e.id).then(function (b) { return b ? b.arrayBuffer() : null; }).then(function (o) { if (o) r.video = { ext: /webm/.test((EN_LIGNE.vid[e.id] || '') + (EN_LIGNE.vidC[e.id] ? EN_LIGNE.vidC[e.id].type : '')) ? 'webm' : 'mp4', type: 'video/mp4', octets: new Uint8Array(o) }; return r; }, function () { return r; });
@@ -7400,7 +7330,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         EN_LIGNE.cle = cle; var m = o.medias || {}, images = [];
         fusionnerEnLigne(o.exercices || [], function (x, cible) {
           var r = m[String(x.id)] || {};
-          if (r.image && !IMG_PERSO[cible.id]) { EN_LIGNE.imgC[cible.id] = r.image; images.push([cible.id, r.image]); }
+          if (false && r.image && !IMG_PERSO[cible.id]) { EN_LIGNE.imgC[cible.id] = r.image; images.push([cible.id, r.image]); }
           if (r.video) { EN_LIGNE.vidC[cible.id] = r.video; EN_LIGNE.vid[cible.id] = 'chiffre'; }
         });
         EN_LIGNE.ouvert = true;
@@ -7428,7 +7358,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return fetch('illustres/catalogue.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
       if (!c || c.format !== 'jsb-illustres' || !Array.isArray(c.exercices)) return;
       fusionnerEnLigne(c.exercices, function (x, cible) {
-        if (/^medias\/[\w.-]+\.(jpe?g|png|webp)$/i.test(x.image || '')) EN_LIGNE.img[cible.id] = 'illustres/' + x.image;
+        if (false && /^medias\/[\w.-]+\.(jpe?g|png|webp)$/i.test(x.image || '')) EN_LIGNE.img[cible.id] = 'illustres/' + x.image;
         if (/^medias\/[\w.-]+\.(mp4|webm)$/i.test(x.video || '')) EN_LIGNE.vid[cible.id] = 'illustres/' + x.video;
       });
       if (c.verrou && c.verrou.donnees && c.verrou.sel) {
