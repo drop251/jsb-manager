@@ -160,3 +160,14 @@ Une fiche technique sert de référence : elle reste consultable, illustrable et
 À l’ajout, une fiche technique doit fournir description, vigilance, critère de réussite, public et technique/famille ; le grade est également demandé en Judo. Elle ne nécessite pas un dosage d’exercice et ne crée pas de forme enfants automatique. Les exercices Judo conservent leurs contrôles pédagogiques et de dosage. Une fiche technique et un exercice peuvent partager un nom et une discipline sans fusionner leurs identifiants. La distinction suppose que le catalogue renseigne le type ; cette mise à jour ne prétend pas avoir audité ou converti le catalogue personnel.
 
 Les séances restent dans « Mes séances » avec leur structure propre et ne sont pas acceptées comme type de fiche de catalogue. Validation : 74 tests passent, avec contrôle de la séparation des imports, des types dans le catalogue et de l’exclusion des références techniques des générations et routines. La vérification visuelle sur iPhone reste à effectuer.
+
+
+## Modifier le classement depuis une fiche (17 novembre 2026)
+
+Ouvrir une fiche puis « Modifier le classement » permet de changer son type, sa famille principale, sa sous-famille et ses tags. L’enregistrement crée ou actualise une correction locale du profil actif, sans recharger la page, changer l’identifiant ni toucher aux médias. Ces corrections sont incluses dans la sauvegarde complète et les exports existants. Vider la famille principale rétablit le recours à l’ancienne famille ou au classement de secours.
+
+Le changement de type contrôle les champs nécessaires au nouveau type et refuse un doublon de même nom/type/discipline. Une fiche sélectionnée doit être retirée du brouillon avant de devenir une référence technique. Une référence ne devient pas un exercice sans dosage et, en Judo, sans les informations pédagogiques requises. L’éditeur de classement ne complète pas ces données à la place de l’éducateur.
+
+Un échec de stockage n’applique pas les modifications. Le profil de destination est capturé avant l’écriture. Les médias du catalogue publié retrouvent la fiche par son identifiant même après un changement de type ; les nouvelles fiches sont rapprochées par nom, discipline et type. Les séances enregistrées restent conservées.
+
+Validation : tests de conservation des identifiants/médias, d’échec de stockage, de séparation des profils, de validation du changement de type et de rattachement des médias publiés. La vérification visuelle sur Safari iPhone reste à effectuer.
