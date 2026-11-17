@@ -121,3 +121,20 @@ Les noms de colonnes Excel exacts restent : `dureeBlocMin` (facultatif selon le 
 Le générateur Judo propose les modes compatibles avec l'âge dans **Critères pédagogiques avancés** ; les durées de phase sont des durées d'organisation. Le PDF de la séance affiche le dosage et, le cas échéant, le plafond des répétitions. Le mode séance directe conserve les séries des exercices en répétitions et peut afficher une durée associée à un maximum de répétitions lorsque ce mode est validé.
 
 Le Taïso conserve sa logique indépendante. Les séances et catalogues historiques ne sont pas effacés par la mise à jour. Les tests Node.js couvrent l'inférence des trois modes, l'import conditionnel, les catégories d'âge, la distinction effort/planning, les séries et la présence du maximum sur la fiche PDF. La validation pédagogique de la prescription et l'essai sur iPhone restent nécessaires.
+
+
+## Catalogue par familles (17 novembre 2026)
+
+Le catalogue Judo/Taïso propose une famille principale, un filtre de sous-famille lorsqu’elle est renseignée, et des en-têtes de groupes dans la liste. Les compteurs de familles portent sur le public sélectionné ; les autres filtres et la recherche déterminent le nombre de résultats affichés. Au-delà de dix familles, un sélecteur remplace les boutons pour limiter l’encombrement.
+
+Les champs `famillePrincipale`, `famille`, `sousFamille` et `tags` sont conservés à l’ajout et dans les exports de fiches. La famille principale explicite est prioritaire, puis l’ancienne famille. Sans ces champs, la navigation Judo utilise la famille technique déjà déclarée ; une fiche non identifiable reste dans « À classer ». En Taïso, la catégorie existante sert de famille de secours. Ce regroupement d’affichage ne réécrit pas la base, les identifiants, les favoris ni les médias. Il ne constitue pas un audit pédagogique du catalogue personnel.
+
+La recherche couvre les familles, sous-familles et tags. Le tri « Nom » respecte désormais l’ordre alphabétique. Les filtres détaillés de format, matériel et type de travail sont accessibles dans les deux disciplines ; le Taïso dispose aussi de l’accessibilité et de la zone de travail. Sans matériel coché, tous les équipements restent autorisés ; le tatami est inclus dans le socle Taïso.
+
+Les fiches placent l’organisation et le critère de réussite parmi les informations pédagogiques et replient les commandes de médias/export. L’historique propose les séances plus anciennes par lots de trente. Le retour tactile se déclenche uniquement depuis le bord gauche et ignore les contrôles et fenêtres.
+
+L’import complet JSON refuse les identifiants en double, les disciplines inconnues et les types de champs incompatibles avant toute écriture. Il conserve la compatibilité des anciennes fiches sans les nouveaux champs pédagogiques ; les contrôles détaillés de l’ajout Judo restent distincts. Un refus indique la ligne et la raison.
+
+Deux corrections de dosage accompagnent cette version : « récup 30 s » ne devient plus une durée d’effort et le mode combiné conserve ses séries/récupérations en séance directe.
+
+Validation : `node --test tests/*.test.cjs` couvre les règles, les imports et des parcours de composants simulés (famille, sous-famille, recherche et filtres). Ces tests ne rendent pas les écrans dans un navigateur. La validation visuelle et tactile sur Safari iPhone reste à effectuer. La refonte complète du parcours de préparation et la séparation des types de fiches restent des chantiers suivants.

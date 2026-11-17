@@ -12,6 +12,15 @@
 <meta name="apple-mobile-web-app-title" content="JSB Manager">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+.catalogue-familles { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.catalogue-familles h2 { font-size: 1rem; margin: 0 0 12px; }
+.catalogue-familles .champ { margin-top: 12px; }
+.catalogue-groupe { grid-column: 1 / -1; font-size: 1.125rem; margin: 20px 0 4px; }
+.mode-liste .catalogue-groupe { padding: 8px 16px; margin: 0; background: var(--chip); }
+.fiche-outils { border-top: 1px solid var(--line); padding: 16px 0; }
+.fiche-outils summary, .filtres-panneau summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
+</style>
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -2281,8 +2290,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function lireBaseFichier(fichier) {
     return fichier.text().then(function (t) {
       var d = JSON.parse(t); if (d && !Array.isArray(d) && Array.isArray(d.exercices)) d = d.exercices;
-      var ok = Array.isArray(d) && d.length > 0 && d.every(function (e) { return e && e.id != null && e.nom && Array.isArray(e.public); });
-      if (!ok) throw new Error('format');
+      if (!Array.isArray(d) || !d.length) throw new Error('La base doit contenir une liste non vide d’exercices.');
+      var ids = Object.create(null);
+      d.forEach(function (e, i) {
+        var ligne = 'Exercice ' + (i + 1) + ' : ';
+        if (!e || (typeof e.id !== 'string' && typeof e.id !== 'number') || !String(e.id).trim() || (typeof e.id === 'number' && !Number.isFinite(e.id)) || typeof e.nom !== 'string' || !e.nom.trim()) throw new Error(ligne + 'identifiant et nom obligatoires.');
+        if (ids[String(e.id)]) throw new Error(ligne + 'identifiant en double (' + e.id + ').');
+        ids[String(e.id)] = true;
+        if (!Array.isArray(e.public) || !e.public.length || e.public.some(function (p) { return ['Judo', 'Taïso', 'Suivi et reprise'].indexOf(p) < 0; })) throw new Error(ligne + 'discipline inconnue ou absente.');
+        ['sousGroupes', 'ages'].forEach(function (k) { if (e[k] != null && (!Array.isArray(e[k]) || e[k].some(function (v) { return typeof v !== 'string'; }))) throw new Error(ligne + k + ' doit être une liste de textes.'); });
+        ['description','categorie','categorieSecondaire','dosage','famille','famillePrincipale','sousFamille','technique','equipement','grade','niveau','moment','muscles','materielDetail','thematique'].forEach(function (k) { if (e[k] != null && typeof e[k] !== 'string') throw new Error(ligne + k + ' doit être un texte.'); });
+      });
       return d;
     });
   }
@@ -2296,7 +2314,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           if (!ok) { setMsg("Enregistrement impossible sur cet appareil."); return; }
           setMsg(d.length + ' exercices enregistrés sur cet appareil.'); setTimeout(function () { location.reload(); }, 600);
         });
-      }).catch(function () { setMsg("Ce fichier n'est pas une base d'exercices JSB Manager (exercices.json)."); });
+      }).catch(function (err) { setMsg("Import refusé : " + (err instanceof SyntaxError ? "Le fichier JSON est illisible." : err.message || "Format de base inconnu.")); });
     }
     var bouton = h('label', { className: props.discret ? 'lien-base' : 'btn pr-restaurer' }, h('input', { type: 'file', accept: '.json,application/json', onChange: choisir, 'aria-label': props.texte }), props.texte);
     return props.discret ? h('span', null, ' · ', bouton, msg ? ' — ' + msg : '') : h('div', { className: 'vide anim', style: { '--i': 4 } },
@@ -2315,8 +2333,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var GRADES = ['Blanche – Orange', 'Verte – Bleue', 'Marron – Noire'];
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
-  var VIDE = { q: '', sous: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '04/11/2026 · Judo : répétitions, durée, combinaison dès Benjamins';
+  var VIDE = { q: '', sous: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
+  var VERSION_APP = '17/11/2026 · Catalogue par familles';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2334,6 +2352,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function sg(e) { return e.sousGroupes || e.ages || []; }
   function sansAccent(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function teinte(c) { return { '--c': 'var(--' + c + ')', '--ct': 'var(--' + c + '-t)' }; }
+  // Classement de navigation uniquement : aucune réécriture des fiches historiques.
+  function familleCatalogue(e, espace) {
+    var explicite = String(e.famillePrincipale || e.famille || '').trim();
+    if (explicite) return explicite;
+    if (espace !== 'Judo') return court(e.categorie) || 'À classer';
+    var technique = String(e.technique || '').trim(), t = sansAccent(technique);
+    if (/osaekomi|kansetsu|shime|ne-waza/.test(t)) return 'Travail au sol';
+    if (/te-waza|koshi-waza|ashi-waza|sutemi|renraku|kaeshi/.test(t)) return 'Travail debout';
+    if (/ukemi|chute/.test(t)) return 'Chutes';
+    if (/kumi|saisie/.test(t)) return 'Saisies et garde';
+    if (/fondament|shisei|shintai|sabaki|kuzushi/.test(t)) return 'Fondamentaux';
+    if (/randori|opposition/.test(t)) return 'Opposition';
+    if (/jeux? moteur|motricit/.test(t)) return 'Jeux moteurs';
+    if (technique && !/preparation physique generale/.test(t)) return technique;
+    return 'À classer';
+  }
+  function sousFamilleCatalogue(e) {
+    return String(e.sousFamille || e.sousFamilleExercice || '').trim();
+  }
+  function texteCatalogue(e, espace) {
+    return sansAccent([e.nom, e.description, e.equipement, court(e.categorie), e.muscles,
+      e.materielDetail, e.thematique, e.technique, familleCatalogue(e, espace), sousFamilleCatalogue(e),
+      Array.isArray(e.tags) ? e.tags.join(' ') : e.tags || ''].join(' '));
+  }
+  function famillesCatalogue(exos, espace) {
+    return uniq(exos.map(function (e) { return familleCatalogue(e, espace); })).sort(function (a,b) {
+      if (a === b) return 0;
+      if (a === 'À classer') return 1;
+      if (b === 'À classer') return -1;
+      return a.localeCompare(b, 'fr');
+    });
+  }
   function espaceInitial() { var k = (location.hash || '').slice(1); return ESPACES.some(function (e) { return e.key === k; }) ? k : null; }
   var OBI = [['blanche', '#F4F3EF'], ['jaune', '#F2C230'], ['orange', '#EE8A1F'], ['verte', '#2F9A55'], ['bleue', '#2457C5'], ['marron', '#7A4A26'], ['noire', '#1D1D1F']];
   function ceinture(t) {
@@ -2408,21 +2458,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('figure', { className: 'illus-fiche' }, vueEtapes ? h(EtapesExo, { e: e }) : aVideo(e) ? h(VideoExo, { e: e, rev: rev }) : h(Illustration, { e: e, rev: rev })),
         etapesDe(e).length > 1 ? h('div', { className: 'ia-barre' }, h('button', { type: 'button', className: 'cs-btn mini etapes-btn', 'aria-pressed': vueEtapes, onClick: function () { setVueEtapes(!vueEtapes); } },
           vueEtapes ? (aVideo(e) ? 'Revoir la vidéo' : 'Revoir l\'illustration') : '▶ Étape par étape')) : null,
-        h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
-        h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
-        h(BoutonExportFiche, { e: e }),
         h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, sansCesure(e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1)))) : null,
-          fait('Dosage de base', e.dosage),
+          fait('Dosage de base', judo ? dosageAfficheJudo(e) : e.dosage),
+          fait('Organisation', e.organisation),
+          fait('Critère de réussite', e.critere),
+          fait('Famille', familleCatalogue(e, p.espace.label)),
+          fait('Sous-famille', sousFamilleCatalogue(e)),
           fait(judo ? 'Grade' : 'Niveau', niveauTexte(e, judo) ? h(Grade, { texte: niveauTexte(e, judo) }) : ''),
           fait(judo ? "Catégories d'âge" : 'Sous-groupe', sg(e).join(', ')),
           fait('Matériel', e.materielDetail ? e.materielDetail + (e.format === 'Binôme' ? ', partenaire' : '') : (e.equipement || '').split(' + ').join(', ')),
           fait('Muscles cibles', e.muscles),
-          [['Thématique', e.thematique], ['Technique ou famille préparée', e.technique], ['Moment de la séance', e.moment], ['Critère de réussite', e.critere], ['Variante plus facile', e.varianteFacile], ['Variante plus difficile', e.varianteDifficile], ['Précision 12 ans et plus', e.precisionPublic], ['Famille', e.famille], ['Accessibilité', e.accessibilite], ['Inspiration', e.inspiration], ['Précaution ostéoporose', e.precaution]].map(function (x) { return x[1] ? h('div', { key: x[0] }, h('dt', { className: 'etiq' }, x[0]), h('dd', null, x[1])) : null; }),
+          [['Thématique', e.thematique], ['Technique ou famille préparée', e.technique], ['Moment de la séance', e.moment], ['Variante plus facile', e.varianteFacile], ['Variante plus difficile', e.varianteDifficile], ['Précision 12 ans et plus', e.precisionPublic], ['Accessibilité', e.accessibilite], ['Inspiration', e.inspiration], ['Précaution ostéoporose', e.precaution]].map(function (x) { return x[1] ? h('div', { key: x[0] }, h('dt', { className: 'etiq' }, x[0]), h('dd', null, x[1])) : null; }),
           fait('Groupe musculaire', e.groupeMusculaire),
           fait('Format', e.format),
           fait('Type', type)),
+        h('details', { className: 'fiche-outils' }, h('summary', null, 'Médias et export'),
+        h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
+        h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
+        h(BoutonExportFiche, { e: e })),
         p.sel ? h('div', { className: 'sheet-pied' }, h('button', { type: 'button', className: 'sheet-ajout', 'aria-pressed': p.sel.has(e.id), onClick: function () { p.sel.toggle(e.id); } },
           p.sel.has(e.id) ? '✓ Dans ma séance — retirer' : 'Ajouter à ma séance')) : null)), document.body);
   }
@@ -2723,7 +2778,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     var d = lireDosage(x && x.dosage || e && e.dosage), m = parseFloat(x && x.duree), blocs = [];
     if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Durée + répétitions max' && Number(e.repetitionsMax)>0) {
-      return [{type:'effort',sec:secondesDosageJudo(e)||0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:1,series:1,limiteRepetitions:e.repetitionsMax}];
+      var seriesMixtes=d && d.series || 1, recupMixte=d ? d.recup : 30;
+      for (var sm=1; sm<=seriesMixtes; sm++) {
+        blocs.push({type:'effort',sec:secondesDosageJudo(e)||0,reps:'maximum '+e.repetitionsMax+' répétitions',serie:sm,series:seriesMixtes,limiteRepetitions:e.repetitionsMax});
+        if (sm<seriesMixtes) blocs.push({type:'recup',sec:recupMixte,serie:sm,series:seriesMixtes});
+      }
+      return blocs;
     }
     if (e && (e.public||[]).indexOf('Judo')>=0 && e.modeDosageJudo==='Répétitions') {
       var nombreJudo=repetitionsDoseJudo(e);
@@ -2897,6 +2957,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function MesSeances(p) {
     var planning = usePlanning(), histo = useHisto();
     var s1 = React.useState(null), direct = s1[0], setDirect = s1[1];
+    var historiqueVisible = React.useState(30), nbHistorique = historiqueVisible[0], setNbHistorique = historiqueVisible[1];
     var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
     var creneaux = prochainsCreneaux(planning, 8);
     function ouvrir(espace, intention) { if (intention) poserIntention(intention); p.aller(espace); }
@@ -2932,8 +2993,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
       })),
       h('h2', { className: 'ms-h' }, 'Historique'),
-      histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, 30).map(ligneSeance))
+      histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, nbHistorique).map(ligneSeance))
         : h('p', { className: 'ms-vide' }, 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
+      histo.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histo.length - nbHistorique) + ')') : null,
       h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
   }
@@ -4408,7 +4470,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     inspiration: ['reference', 'source', 'inspiration'],
     varianteFacile: ['variantefacile', 'simplification'],
     varianteDifficile: ['variantedifficile', 'complexification'],
-    critere: ['critere', 'criteredereussite']
+    critere: ['critere', 'criteredereussite'],
+    famillePrincipale: ['familleprincipale'],
+    famille: ['famille'],
+    sousFamille: ['sousfamille', 'sousfamilleexercice'],
+    tags: ['tags', 'motscles']
   };
   function normaliserLigne(o) {
     var k = {}; Object.keys(o).forEach(function (c) { k[cle(c)] = o[c]; });
@@ -4673,7 +4739,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var d=valeurChampPedagogique(brut,['duree_s','durée_s','dureeSec','durée en secondes']);
     if (d && Number(d)>0) return Number(d);
     var texte=String(valeurChampPedagogique(brut,['dosage'])||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    var sansRepos=texte.split(/(?:repos|recuperation|pause)\s*:?/)[0];
+    var sansRepos=texte.split(/(?:repos|recup(?:eration)?|pause)\s*:?/)[0];
     var m=sansRepos.match(/(\d+(?:[.,]\d+)?)\s*(secondes?|sec(?:ondes?)?\.?|s\b|minutes?|min\b)/);
     if (m) return Math.round(Number(m[1].replace(',','.'))*(m[2].startsWith('min')?60:1));
     // dureeBlocMin correspond au planning, pas au chronomètre de l'exercice.
@@ -4819,6 +4885,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var pub = /taiso|judo/.test(p) ? publicDe(x, texte) : pub0 || publicDe(x, texte);
     var cat = categorieDe(pub, x, texte), pil = piloteDe(x);
     var e = {
+      famillePrincipale: String(x.famillePrincipale || ''), famille: String(x.famille || ''), sousFamille: String(x.sousFamille || ''), tags: Array.isArray(x.tags) ? x.tags.slice() : String(x.tags || ''),
       ref: String(x.ref || ''), nom: String(x.nom).trim(), categorie: cat, categorieSecondaire: x.categorieSecondaire || '', public: [pub],
       thematique: String(x.thematique || ''), description: String(x.description || '').trim() || String(x.nom),
       dosage: String(x.dosage || ''), vigilance: String(x.vigilance || '').trim() || 'Exécution contrôlée ; arrêt en cas de douleur.',
@@ -4832,7 +4899,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
-      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || x.famille || familleDe(e.nom, texte);
+      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || (FAMILLES[x.famille] ? x.famille : familleDe(e.nom, texte));
       e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
     } else {
       e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = '';
@@ -6943,7 +7010,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var CHAMPS_FICHE = [['Moment de la séance', 'moment'], ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Format', 'format'],
     ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
     ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
-    ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'],
+    ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'], ['Famille principale', 'famillePrincipale'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
     ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration'],
     ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
     ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée indicative du bloc (min)', 'dureeBlocMin'],
@@ -7239,7 +7306,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s8 = useState(null), genere = s8[0], setGenere = s8[1];
     // Rendu progressif de la liste : 24 cartes, puis 24 de plus quand on approche du bas (IntersectionObserver)
     var PAS_LISTE = 24, s9 = useState(PAS_LISTE), nbVisibles = s9[0], setNbVisibles = s9[1];
-    React.useEffect(function () { setNbVisibles(PAS_LISTE); }, [cle, f.sous, f.cat, f.niv, f.mom, f.tech, f.fmt, f.q, f.acc, f.insp, f.grp, f.fav, f.illus, tri, (f.dispo || []).join()]);
+    React.useEffect(function () { setNbVisibles(PAS_LISTE); }, [cle, f.sous, f.famille, f.sousFamille, f.cat, f.niv, f.mom, f.tech, f.fmt, f.q, f.acc, f.insp, f.grp, f.iso, f.uni, f.poly, f.fav, f.illus, tri, (f.dispo || []).join()]);
     // Liste compacte ou cartes (mémorisé), panneau des filtres, favoris et historique des séances
     var s10 = useState(lireVueListe), vueListe = s10[0], setVueListe = s10[1];
     var s11 = useState(false), panneauF = s11[0], setPanneauF = s11[1];
@@ -7258,19 +7325,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var memo = React.useRef({ ecran: ecran, prof: profondeur, sens: '' });
     if (memo.current.ecran !== ecran) { memo.current.sens = memo.current.force || (profondeur >= memo.current.prof ? 'va-avant' : 'va-arriere'); memo.current.force = ''; memo.current.ecran = ecran; memo.current.prof = profondeur; }
     var glisse = { key: ecran, className: 'page ' + memo.current.sens };
-    // Glissement du doigt de gauche à droite, n'importe où sur l'écran : retour à l'accueil (ou fermeture de la fiche ouverte)
+    // Retour depuis le bord gauche ; les contrôles et fenêtres restent indépendants.
     var retourRef = React.useRef(null);
-    retourRef.current = ouverte ? function () { setOuverte(null); } : cle ? function () { aller(null); } : null;
-    // Glissement de droite à gauche : page précédente (fiche > catégorie > espace > accueil), l'écran suit le doigt
-    var precedentRef = React.useRef(null);
-    precedentRef.current = ouverte ? function () { setOuverte(null); }
-      : f.sous ? function () { memo.current.force = 'va-avant'; maj('sous', ''); }
-      : cle ? function () { memo.current.force = 'va-avant'; aller(null); } : null;
+    retourRef.current = ouverte ? function () { setOuverte(null); }
+      : f.sous ? function () { maj('sous', ''); }
+      : cle ? function () { aller(null); } : null;
     React.useEffect(function () {
       var x0 = null, y0 = 0, t0 = 0;
       function debut(ev) {
         var t = ev.touches[0], cible = ev.target;
-        x0 = ev.touches.length === 1 && !(cible.closest && cible.closest('input, select, textarea, .pr-tableau, .pr-puces, [data-sans-glisse]')) ? t.clientX : null;
+        x0 = ev.touches.length === 1 && t.clientX <= 28 && !(cible.closest && cible.closest('button, a, input, select, textarea, [role=dialog], .pr-tableau, .pr-puces, [data-sans-glisse]')) ? t.clientX : null;
         y0 = t.clientY; t0 = Date.now();
       }
       function fin(ev) {
@@ -7278,7 +7342,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var rapide = Date.now() - t0 < 800, adx = Math.abs(dx);
         if (!rapide || adx < 90 || dy > adx * 0.5) return;
         if (dx > 0 && retourRef.current) retourRef.current();
-        else if (dx < 0 && precedentRef.current) precedentRef.current();
+
       }
       window.addEventListener('touchstart', debut, { passive: true }); window.addEventListener('touchend', fin, { passive: true });
       return function () { window.removeEventListener('touchstart', debut); window.removeEventListener('touchend', fin); };
@@ -7286,7 +7350,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var donnees = demo ? BASE.concat(EXEMPLES) : BASE;
     function de(esp) { return donnees.filter(function (e) { return (e.public || []).indexOf(esp.label) >= 0; }); }
     function aller(k) { setCle(k); setF(VIDE); setOuverte(null); setTiroir(false); setPanneauF(false); try { history.replaceState(null, '', k ? '#' + k : location.pathname); } catch (err) {} try { window.scrollTo(0, 0); } catch (err) {} }
-    function maj(k, v) { var n = Object.assign({}, f); n[k] = v; setF(n); }
+    function maj(k, v) { var n = Object.assign({}, f); n[k] = v; if (k === 'famille' || k === 'sous') n.sousFamille = ''; if (k === 'sous') n.famille = ''; setF(n); }
     var bandeau = demo ? h('div', { className: 'bandeau' }, 'Mode exemple : ces exercices servent seulement à montrer la présentation, ils ne sont pas dans la base.',
       h('button', { type: 'button', onClick: function () { setDemo(false); } }, 'Retirer les exemples')) : null;
     var entete = function (esp) {
@@ -7344,35 +7408,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (esp.special) return cadre(h('main', Object.assign({ style: teinte(esp.couleur) }, glisse), h('div', { className: 'wrap' }, entete(esp), bandeau,
       h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), esp.key === 'presences' ? h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)) : h(MesSeances, { aller: aller }))));
     var tous = de(esp);
-    var socle = judo ? ['Poids du corps', 'Tatami', 'Judogi', 'Partenaire'] : ['Poids du corps'];
+    var parPublic = tous.filter(function (e) { return !f.sous || sg(e).indexOf(f.sous) >= 0; });
+    var familles = famillesCatalogue(parPublic, esp.label);
+    var sousFamilles = f.famille ? uniq(parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === f.famille; }).map(sousFamilleCatalogue).filter(Boolean)).sort(function (a,b) { return a.localeCompare(b,'fr'); }) : [];
+    var socle = judo ? ['Poids du corps', 'Tatami', 'Judogi', 'Partenaire'] : ['Poids du corps', 'Tatami'];
     var q = sansAccent(f.q.trim());
     var liste = tous.filter(function (e) {
-      return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.cat || court(e.categorie) === f.cat || e.categorieSecondaire === f.cat) &&
+      return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.famille || familleCatalogue(e, esp.label) === f.famille) && (!f.sousFamille || sousFamilleCatalogue(e) === f.sousFamille) && (!f.cat || court(e.categorie) === f.cat || e.categorieSecondaire === f.cat) &&
         (!f.niv || nv(e) === f.niv) && (!f.mom || momentsDe(e).indexOf(f.mom) >= 0) && (!f.tech || e.technique === f.tech) && (!f.acc || e.accessibilite === f.acc) && (!f.insp || e.inspiration === f.insp) && (!f.grp || e.groupeMusculaire === f.grp) && (!f.fmt || e.format === f.fmt) &&
         (!f.iso || e.isometrique) && (!f.uni || e.unilateral) && (!f.poly || e.polyarticulaire) && (!f.fav || fav.has(e.id)) && (!f.illus || illustre(e)) &&
         (!f.dispo.length || (e.equipement || '').split(' + ').every(function (x) { return socle.indexOf(x) >= 0 || f.dispo.indexOf(x) >= 0; })) &&
-        (!q || sansAccent([e.nom, e.description, e.equipement, court(e.categorie), e.muscles, e.materielDetail, e.thematique, e.technique].join(' ')).indexOf(q) >= 0);
+        (!q || texteCatalogue(e, esp.label).indexOf(q) >= 0);
     });
     var cats = uniq(tous.map(function (e) { return court(e.categorie); }).concat(tous.map(function (e) { return e.categorieSecondaire; }).filter(Boolean)));
-    var nom = function (a, b) { return (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, 'fr'); };
+    var nom = function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); };
     var rang = function (e) { var r = ORDRE_NIV.indexOf(nv(e)); return r < 0 ? 99 : r; };
     liste = liste.slice().sort(tri === 'nom' ? nom : tri === 'niv' ? function (a, b) { return rang(a) - rang(b) || nom(a, b); }
-      : function (a, b) { return cats.indexOf(court(a.categorie)) - cats.indexOf(court(b.categorie)) || nom(a, b); });
-    var eqs = judo ? MATERIEL_JUDO : uniq([].concat.apply([], tous.map(function (e) { return (e.equipement || '').split(' + '); }))).filter(function (x) { return x && socle.indexOf(x) < 0; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+      : function (a, b) { return familles.indexOf(familleCatalogue(a, esp.label)) - familles.indexOf(familleCatalogue(b, esp.label)) || sousFamilleCatalogue(a).localeCompare(sousFamilleCatalogue(b), 'fr') || nom(a, b); });
+    var eqs = uniq((judo ? MATERIEL_JUDO : []).concat([].concat.apply([], tous.map(function (e) { return (e.equipement || '').split(' + '); })))).filter(function (x) { return x && socle.indexOf(x) < 0; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
     var nivOpts = presents(tous, 'grade', ORDRE_NIV).concat(presents(tous, 'niveau', ORDRE_NIV)), grpOpts = presents(tous, 'groupeMusculaire', ['Haut du corps', 'Bas du corps', 'Core', 'Full body']);
     var fmtOpts = presents(tous, 'format', ['Solo', 'Binôme', 'Trio', 'Collectif']), momOpts = MOMENTS.filter(function (m) { return tous.some(function (e) { return momentsDe(e).indexOf(m) >= 0; }); }), techOpts = presents(tous, 'technique');
     var accOpts = presents(tous, 'accessibilite', ['Tous publics', 'Avec la variante douce', 'Publics entraînés uniquement']), inspOpts = presents(tous, 'inspiration');
-    var nbPlus = judo ? ['fmt', 'tech'].filter(function (k) { return f[k]; }).length + f.dispo.length + (f.iso ? 1 : 0) + (f.uni ? 1 : 0) + (f.poly ? 1 : 0) + (tri !== 'cat' ? 1 : 0) : 0;
-    var nbFiltres = ['cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length + nbPlus + (f.fav ? 1 : 0) + (f.illus ? 1 : 0);
+    var nbPlus = ['fmt', 'tech', 'acc', 'insp', 'grp'].filter(function (k) { return f[k]; }).length + f.dispo.length + (f.iso ? 1 : 0) + (f.uni ? 1 : 0) + (f.poly ? 1 : 0) + (tri !== 'cat' ? 1 : 0);
+    var nbFiltres = ['famille', 'sousFamille', 'cat', 'niv', 'mom'].filter(function (k) { return f[k]; }).length + nbPlus + (f.fav ? 1 : 0) + (f.illus ? 1 : 0);
     var nbIllus = tous.filter(illustre).length;
     // Filtres actifs en pastilles retirables d'une touche
     var actifs = [];
     if (f.fav) actifs.push(['Favoris', function () { maj('fav', false); }]);
     if (f.illus) actifs.push(['Illustrés', function () { maj('illus', false); }]);
-    [['cat', ''], ['niv', ''], ['mom', ''], ['tech', ''], ['fmt', '']].forEach(function (x) { if (f[x[0]]) actifs.push([f[x[0]], function () { maj(x[0], ''); }]); });
+    [['famille', ''], ['sousFamille', ''], ['cat', ''], ['niv', ''], ['mom', ''], ['tech', ''], ['fmt', ''], ['acc', ''], ['insp', ''], ['grp', '']].forEach(function (x) { if (f[x[0]]) actifs.push([f[x[0]], function () { maj(x[0], ''); }]); });
     [['iso', 'Isométriques'], ['uni', 'Unilatéraux'], ['poly', 'Poly-articulaires']].forEach(function (x) { if (f[x[0]]) actifs.push([x[1], function () { maj(x[0], false); }]); });
     f.dispo.forEach(function (x) { actifs.push([x, function () { maj('dispo', f.dispo.filter(function (y) { return y !== x; })); }]); });
-    if (tri !== 'cat') actifs.push([tri === 'nom' ? 'Tri : A à Z' : 'Tri : grade', function () { setTri('cat'); }]);
+    if (tri !== 'cat') actifs.push([tri === 'nom' ? 'Tri : A à Z' : 'Tri : niveau', function () { setTri('cat'); }]);
     function toutEffacer() { setF(Object.assign({}, VIDE, { sous: f.sous })); setTri('cat'); }
     function bascule(x) { maj('dispo', f.dispo.indexOf(x) >= 0 ? f.dispo.filter(function (y) { return y !== x; }) : f.dispo.concat([x])); }
     var fiche = ouverte ? donnees.filter(function (e) { return e.id === ouverte; })[0] : null;
@@ -7384,6 +7451,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return h('button', { key: cle + x, type: 'button', className: 'sous', 'aria-pressed': f.sous === x, onClick: function () { maj('sous', x); } },
           h('b', null, x || esp.sousTous), h('small', null, n + (n > 1 ? ' exercices' : ' exercice')));
       })) : null,
+      familles.length ? h('section', { className: 'catalogue-familles', 'aria-label': 'Familles d’exercices', 'data-sans-glisse': '' },
+        h('h2', null, 'Explorer par famille'),
+        familles.length > 10 ? h(Champ, { id: 'c-famille', label: 'Famille', tous: 'Toutes (' + parPublic.length + ')', options: familles.map(function (fam) { return { value: fam, label: fam + ' (' + parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length + ')' }; }), value: f.famille || '', onChange: function (v) { maj('famille', v); } }) : h('div', { className: 'puces' }, [''].concat(familles).map(function (fam) {
+          var n = fam ? parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length : parPublic.length;
+          return h('button', { key: fam, type: 'button', className: 'btn', 'aria-pressed': (f.famille || '') === fam, onClick: function () { maj('famille', fam); } }, (fam || 'Toutes') + ' (' + n + ')');
+        })),
+        sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null,
+        f.famille === 'À classer' ? h('p', { className: 'gn-aide' }, 'Ces fiches n’ont pas encore de famille pédagogique identifiable. Elles restent disponibles.') : null) : null,
       h('div', { className: 'barre barre-recherche' },
         h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher un exercice', placeholder: 'Rechercher un exercice', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
         h('button', { type: 'button', className: 'btn filtres-btn' + (nbFiltres ? ' actif' : ''), 'aria-haspopup': 'dialog', onClick: function () { setPanneauF(true); } },
@@ -7412,28 +7487,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'btn fav-filtre', 'aria-pressed': !!f.fav, onClick: function () { maj('fav', !f.fav); } }, '★ Mes favoris seulement' + (fav.ids.length ? ' (' + fav.ids.length + ')' : '')),
           h('button', { type: 'button', className: 'btn fav-filtre illus-filtre', 'aria-pressed': !!f.illus, disabled: !nbIllus && !f.illus, onClick: function () { maj('illus', !f.illus); } }, '▶ Exercices illustrés seulement (' + nbIllus + ')'),
           h('div', { className: 'filtres' },
-            h(Champ, { id: 'f-categorie', label: 'Catégorie', tous: 'Toutes', options: cats, value: f.cat, onChange: function (v) { maj('cat', v); } }),
+            h(Champ, { id: 'f-categorie', label: 'Qualité physique / catégorie', tous: 'Toutes', options: cats, value: f.cat, onChange: function (v) { maj('cat', v); } }),
             h(Champ, { id: 'f-niveau', label: judo ? 'Grade' : 'Niveau', tous: 'Tous', options: nivOpts, value: f.niv, onChange: function (v) { maj('niv', v); } }),
             !momOpts.length ? null : h(Champ, { id: 'f-moment', label: 'Moment', tous: 'Tous', options: momOpts, value: f.mom, onChange: function (v) { maj('mom', v); } })),
-          judo ? h('div', { className: 'tiroir' },
+          h('details', { className: 'tiroir' }, h('summary', null, 'Plus de filtres'),
             h('div', { className: 'champs' },
-              !techOpts.length ? null : h(Champ, { id: 'f-technique', label: 'Technique préparée', tous: 'Toutes', options: techOpts, value: f.tech, onChange: function (v) { maj('tech', v); } }),
+              !techOpts.length ? null : h(Champ, { id: 'f-technique', label: judo ? 'Technique préparée' : 'Technique / mouvement', tous: 'Toutes', options: techOpts, value: f.tech, onChange: function (v) { maj('tech', v); } }),
               h(Champ, { id: 'f-format', label: 'Format', tous: 'Tous', options: fmtOpts, value: f.fmt, onChange: function (v) { maj('fmt', v); } }),
-              h(Champ, { id: 'f-tri', label: 'Trier par', options: [{ value: 'cat', label: 'Catégorie' }, { value: 'nom', label: 'Nom (A à Z)' }, { value: 'niv', label: 'Grade' }], value: tri, onChange: setTri })),
+              h(Champ, { id: 'f-tri', label: 'Trier par', options: [{ value: 'cat', label: 'Familles' }, { value: 'nom', label: 'Nom (A à Z)' }, { value: 'niv', label: judo ? 'Grade' : 'Niveau' }], value: tri, onChange: setTri })),
             h('div', { className: 'champ' }, h('span', { className: 'etiq' }, 'Type de travail'), h('div', { className: 'puces' },
               [['iso', 'Isométriques'], ['uni', 'Unilatéraux'], ['poly', 'Poly-articulaires']].map(function (x) {
                 return h('button', { key: x[0], type: 'button', className: 'btn', 'aria-pressed': f[x[0]], onClick: function () { maj(x[0], !f[x[0]]); } }, x[1]);
               }))),
-            h('div', { className: 'champ' }, h('span', { className: 'etiq' }, 'Matériel dont je dispose (en plus du tatami, du judogi et du partenaire)'),
+            h('div', { className: 'champ' }, h('span', { className: 'etiq' }, judo ? 'Matériel disponible en plus du tatami, du judogi et du partenaire' : 'Matériel disponible en plus du poids du corps et du tatami'),
               h('div', { className: 'puces' }, eqs.map(function (x) {
                 return h('button', { key: x, type: 'button', className: 'btn', 'aria-pressed': f.dispo.indexOf(x) >= 0, onClick: function () { bascule(x); } }, x);
-              })))) : null,
+              }))),
+            !judo && accOpts.length ? h(Champ, { id: 'f-accessibilite', label: 'Accessibilité', tous: 'Toutes', options: accOpts, value: f.acc, onChange: function (v) { maj('acc', v); } }) : null,
+            !judo && grpOpts.length ? h(Champ, { id: 'f-zone', label: 'Zone de travail', tous: 'Toutes', options: grpOpts, value: f.grp, onChange: function (v) { maj('grp', v); } }) : null),
           h('div', { className: 'sheet-pied filtres-pied' },
             nbFiltres ? h('button', { type: 'button', className: 'btn', onClick: toutEffacer }, 'Tout effacer') : null,
             h('button', { type: 'button', className: 'sheet-ajout filtres-voir', onClick: function () { setPanneauF(false); } }, 'Voir ' + liste.length + (liste.length > 1 ? ' exercices' : ' exercice'))))), document.body) : null,
       liste.length ? h('div', { className: 'grille' + (vueListe === 'liste' ? ' mode-liste' : '') }, liste.slice(0, nbVisibles).map(function (e, i) {
         var nv = niveauTexte(e, judo), u = usages[e.id], estFav = fav.has(e.id);
-        return h('div', { key: e.id, className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
+        var famille = familleCatalogue(e, esp.label), debutFamille = tri === 'cat' && (i === 0 || familleCatalogue(liste[i-1], esp.label) !== famille);
+        return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille) : null,
+          h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
           h('span', { className: 'carte-nom' }, e.nom),
@@ -7441,7 +7520,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             e.exemple ? h('span', { className: 'tag ex' }, 'Exemple') : null,
             aVideo(e) ? h('span', { className: 'tag video' }, '▶ Vidéo') : null,
             nv ? h(Grade, { texte: nv }) : null,
-            u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null);
+            u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null));
       }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucun exercice' : 'Espace vide pour l\'instant'),
         h('span', null, tous.length ? 'Aucun exercice ne correspond à ce sous-groupe et à ces filtres.' : 'Les exercices de cet espace arriveront avec la nouvelle structure.'),
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Voir avec des exemples') : null),

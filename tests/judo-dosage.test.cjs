@@ -100,3 +100,22 @@ test('PDF : le mode combiné inclut bien le maximum de répétitions',()=>{
  const c=init();
  assert.match(c.dosageAfficheJudo({modeDosageJudo:'Durée + répétitions max',repetitionsMax:8,dosage:'2 min'}),/maximum 8 répétitions/);
 });
+
+
+test('La récupération abrégée ne devient pas une durée d’effort Judo',()=>{
+ const c=init();
+ for (const dosage of ['3 × 6 répétitions, récup 30 s','6 répétitions ; récup. 1 min','Maximum 8 répétitions, récup 30 s']) {
+  assert.equal(c.secondesDosageJudo({dosage}),0);
+  assert.equal(c.modeDosageJudoDe({dosage}),'Répétitions');
+ }
+ assert.equal(c.secondesDosageJudo({dosage:'3 × 20 s, récup 1 min'}),20);
+});
+test('Le mode combiné conserve les séries et les récupérations en séance directe',()=>{
+ const c=init();vm.runInContext(fn('lireDosage'),c);vm.runInContext(fn('planExercice'),c);
+ const e={public:['Judo'],modeDosageJudo:'Durée + répétitions max',repetitionsMax:8,dosage:'3 × 2 min, maximum 8 répétitions, récup 45 s'};
+ const pl=c.planExercice({duree:10},e);
+ assert.equal(pl.filter(x=>x.type==='effort').length,3);
+ assert.equal(pl.filter(x=>x.type==='recup').length,2);
+ assert.ok(pl.filter(x=>x.type==='effort').every(x=>x.sec===120 && x.series===3 && x.limiteRepetitions===8));
+ assert.ok(pl.filter(x=>x.type==='recup').every(x=>x.sec===45));
+});
