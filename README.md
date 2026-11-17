@@ -238,3 +238,9 @@ Validation : 100 tests, dont répétition d’enregistrement, ordre des champs, 
 Dans « Cette semaine », le rattachement d’une séance prend désormais en compte l’heure du créneau. Deux cours du même groupe le même jour retrouvent chacun leur préparation ; une préparation à un autre horaire ne remplit plus un créneau encore vide. Les anciennes préparations sans heure restent proposées en secours, après recherche d’un horaire exact. Aucune séance enregistrée n’est modifiée.
 
 Validation : 102 tests passent, dont deux horaires pour un même groupe, un créneau sans préparation, la priorité de l’horaire exact et la compatibilité des anciennes séances sans heure. La vérification visuelle sur Safari iPhone reste à effectuer.
+
+## Suppression explicite des séances (17 novembre 2026)
+
+Dans l’historique, la croix affiche « Confirmer la suppression » et « Conserver » avant toute écriture. Une écriture refusée conserve la séance et affiche une erreur avec possibilité de réessayer. Aucune ancienne séance n’est supprimée automatiquement.
+
+Validation : 105 tests passent, dont demande de confirmation, conservation, suppression confirmée et échec de stockage. La vérification visuelle sur Safari iPhone reste à effectuer.

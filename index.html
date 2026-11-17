@@ -3080,6 +3080,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var planning = usePlanning(), histo = useHisto();
     var s1 = React.useState(null), direct = s1[0], setDirect = s1[1];
     var historiqueVisible = React.useState(30), nbHistorique = historiqueVisible[0], setNbHistorique = historiqueVisible[1];
+    var suppression = React.useState(null), aSupprimer = suppression[0], setASupprimer = suppression[1];
+    var erreurSuppression = React.useState(''), messageSuppression = erreurSuppression[0], setMessageSuppression = erreurSuppression[1];
+    function confirmerSuppression(id) {
+      if (!supprimerHisto(id)) { setMessageSuppression('Suppression impossible. La séance est conservée ; vous pouvez réessayer.'); return; }
+      setASupprimer(null); setMessageSuppression('');
+    }
     var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
     var creneaux = prochainsCreneaux(planning, 8);
     function ouvrir(espace, intention) { if (intention) poserIntention(intention); p.aller(espace); }
@@ -3091,7 +3097,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'cs-btn mini plein', onClick: function () { setDirect(s); } }, 'Lancer'),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(s.espace === 'Taïso' ? 'taiso' : 'judo', { type: 'reprendre', id: s.id }); } }, 'Reprendre'),
           progressable(s) ? h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Reprendre la séance du ' + dateFr(s.date) + ' un cran plus dure', onClick: function () { ouvrir('taiso', { type: 'reprendre', id: s.id, plusDur: true }); } }, 'Plus dur') : null,
-          h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { supprimerHisto(s.id); } }, '✕')));
+          aSupprimer === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression' },
+            h('span', null, 'Supprimer cette séance ? '),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppression(s.id); } }, 'Confirmer la suppression'),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setASupprimer(null); setMessageSuppression(''); } }, 'Conserver')) :
+          h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setASupprimer(s.id); setMessageSuppression(''); } }, '✕')));
     }
     return h('section', { className: 'ms' },
       h('h2', { className: 'ms-h' }, 'Cette semaine'),
@@ -3115,6 +3125,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
       })),
       h('h2', { className: 'ms-h' }, 'Historique'),
+      messageSuppression ? h('p', { role: 'alert', className: 'cs-msg' }, messageSuppression) : null,
       histo.length ? h('ul', { className: 'ms-liste' }, histo.slice(0, nbHistorique).map(ligneSeance))
         : h('p', { className: 'ms-vide' }, 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
       histo.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histo.length - nbHistorique) + ')') : null,
