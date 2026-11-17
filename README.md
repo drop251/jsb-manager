@@ -303,3 +303,8 @@ Lorsqu’un exercice enregistré n’existe plus dans le catalogue courant, le l
 
 
 L’alerte du lancement direct permet aussi d’afficher les noms des exercices concernés pour les retrouver ou les réimporter plus facilement.
+
+
+## Nettoyage d’un retrait de fiche introuvable (17 novembre 2026)
+
+Retirer un exercice introuvable de la préparation supprime aussi ses réglages temporaires du brouillon (phase, durée et consignes de bloc). Le retrait ne touche pas aux séances déjà enregistrées. En cas d’échec de l’écriture de la sélection, ni la sélection ni le plan ne sont modifiés.

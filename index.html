@@ -3412,7 +3412,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function retirerIntrouvables() {
       if (!sel.set(sel.ids.filter(function (id) { return idsIntrouvables.indexOf(id) < 0; }))) { setMsg('Retrait impossible : stockage indisponible. La préparation est conservée.'); return; }
-      setSignatureSauvee(''); setMsg('Les exercices introuvables ont été retirés de cette préparation. Les séances enregistrées sont conservées.');
+      var planNettoye = Object.assign({}, plan);
+      Object.keys(planNettoye).forEach(function (id) { if (idsIntrouvables.some(function (absent) { return String(absent) === id; })) delete planNettoye[id]; });
+      setPlan(planNettoye); setSignatureSauvee(''); setMsg('Les exercices introuvables et leurs anciens réglages ont été retirés de cette préparation. Les séances enregistrées sont conservées.');
     }
     function autoriserRemplacement() {
       if (!sel.ids.length && !Object.keys(infos).length && !Object.keys(plan).length) return true;
