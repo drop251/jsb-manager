@@ -66,7 +66,7 @@ test('rôle, prerequis et niveau d’opposition gouvernent la phase',()=>{
 test('aucune fiche invalidée ne peut être sauvegardée en contournant l’aperçu',()=>{
   assert.match(html,/Import refusé : corrigez toutes les fiches/);
   assert.match(html,/Enregistrement bloqué : corrigez les fiches refusées/);
-  assert.match(html,/disabled: !!\(rapport\.refuses && rapport\.refuses\.length\)/);
+  assert.match(html,/disabled: enCours \|\| !!\(rapport\.refuses && rapport\.refuses\.length\)/);
   assert.match(html,/var erreursFiche = verifierNouvelExerciceJudo\(l, e\)/);
   assert.match(html,/roleCompatibleJudo\(e, phasePedagogique, rep\)/);
 });

@@ -2345,7 +2345,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Classement modifiable';
+  var VERSION_APP = '17/11/2026 · Imports de corrections fiabilisés';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5117,6 +5117,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var erreursMaj = verifierNouvelExerciceJudo(l, e);
           if (erreursMaj.length) { r.refuses.push({ nom: e.nom, raisons: erreursMaj }); return; }
           var ficheMaj = Object.assign({}, ex, e, { id: ex.id, ref: ex.ref || e.ref, ajoute: !!ex.ajoute, _jsbOverride: !ex.ajoute });
+          [['famillePrincipale',['famillePrincipale','famille principale']],['famille',['famille']],['sousFamille',['sousFamille','sous famille','sousFamilleExercice']],['tags',['tags','mots clés']]].forEach(function (c) {
+            var fourni = Object.keys(l).some(function (k) { return c[1].some(function (alias) { return cle(k) === cle(alias); }); });
+            if (!fourni && ex[c[0]] !== undefined) ficheMaj[c[0]] = ex[c[0]];
+          });
           ['image','illustration','video'].forEach(function (m) { if (!e[m] && ex[m]) ficheMaj[m] = ex[m]; });
           r.majFiches.push(ficheMaj);
           return;
@@ -5150,13 +5154,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
     }, Promise.resolve()).then(function () { return res; });
   }
+  function enregistrerFichesImport(rapport) {
+    if (!rapport || (rapport.refuses || []).length) return Promise.reject(new Error('Corrigez les fiches refusées avant d’enregistrer.'));
+    var cleAjouts = CLE_AJOUTS, cleImages = CLE_IMG_PERSO, cleIllus = CLE_ILLUS_IA;
+    var ajouts = rapport.ajouts || [], corrections = rapport.majFiches || [], il = rapport.illustrations || [];
+    var images = Object.assign({}, IMG_PERSO), dessins = Object.assign({}, ILLUS_IA);
+    il.forEach(function (x) { if (x.image) images[x.id] = x.image; else if (x.svg) dessins[x.id] = x.svg; });
+    return Stockage.lire(cleAjouts).then(function (anciens) {
+      var entrees = [], parId = Object.create(null);
+      if (ajouts.length || corrections.length) {
+        (Array.isArray(anciens) ? anciens : []).forEach(function (e) { if (e && e.id != null) parId[e.id] = e; });
+        ajouts.concat(corrections).forEach(function (e) { parId[e.id] = e; });
+        entrees.push([cleAjouts,Object.keys(parId).map(function (id) { return parId[id]; })]);
+      }
+      if (il.length) entrees.push([cleImages,images],[cleIllus,dessins]);
+      return (entrees.length ? Stockage.ecrireLot(entrees) : Promise.resolve(true)).then(function (ok) {
+        if (!ok) throw new Error('Écriture impossible : aucune fiche ni illustration de ce lot n’a été enregistrée.');
+        if (CLE_AJOUTS === cleAjouts) { IMG_PERSO = images; ILLUS_IA = dessins; }
+        if (ajouts.length) ecrireIdMax(Math.max.apply(null,ajouts.map(function (e) { return e.id; })));
+        return true;
+      });
+    });
+  }
   function GestionExercices(props) {
     var s1 = React.useState(null), rapport = s1[0], setRapport = s1[1];
     var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
+    var s3 = React.useState(false), enCours = s3[0], setEnCours = s3[1];
+    var verrouImport = React.useRef(false), lectureImport = React.useRef(0);
     var nbAjouts = BASE.filter(function (e) { return e.ajoute; }).length;
     // Photos des exercices de Judo (ajoutées sur l'appareil ou portées par un exercice importé)
     var photosJudo = BASE.filter(function (e) { return (e.public || []).indexOf('Judo') >= 0 && (IMG_PERSO[e.id] || (e.ajoute && /^data:image\//.test(e.image || ''))); });
     function retirerPhotosJudo() {
+      if (verrouImport.current) return;
       if (!window.confirm('Supprimer les photos des ' + photosJudo.length + ' exercices de Judo sur cet appareil ?\n\nLes exercices restent ; seules leurs photos sont retirées (les vidéos et dessins sont gardés).')) return;
       setMsg('Suppression des photos…');
       var ids = {}; photosJudo.forEach(function (e) { ids[e.id] = 1; });
@@ -5167,18 +5196,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }).then(function () { location.reload(); });
     }
     function choisir(ev) {
+      if (verrouImport.current) return;
+      var jetonLecture = ++lectureImport.current;
       var fs = Array.prototype.slice.call(ev.target.files || []); ev.target.value = ''; if (!fs.length) return;
       setMsg('Lecture et classement…'); setRapport(null);
       var vids = fs.filter(estVideo);
       var imgs = fs.filter(function (f) { return vids.indexOf(f) < 0 && (/^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|svg)$/i.test(f.name)); });
       var fichier = fs.filter(function (f) { return imgs.indexOf(f) < 0 && vids.indexOf(f) < 0; })[0];
       (fichier ? lireFichierExercices(fichier) : Promise.resolve([])).then(function (lignes) {
+        if (jetonLecture !== lectureImport.current) return;
         var r = preparerAjouts(lignes, BASE);
         if (r.refuses && r.refuses.length) { r.ajouts = []; r.majFiches = []; r.formes = 0; setRapport(r); setMsg('Import refusé : corrigez toutes les fiches signalées avant de réimporter ce fichier.'); return; }
         return imagesParNom(imgs, BASE.concat(r.ajouts)).then(function (ri) {
+          if (jetonLecture !== lectureImport.current) return;
           r.illustrations = r.illustrations.concat(ri.trouvees); r.sansExercice = ri.sansExercice;
           var rv = videosParNom(vids, BASE.concat(r.ajouts)); r.videos = rv.trouvees.concat(videosDesLignes(lignes, r, BASE)); r.sansExercice = r.sansExercice.concat(rv.sansExercice); r.lourdes = rv.lourdes;
-          if (!r.ajouts.length && !r.illustrations.length && !r.videos.length) {
+          if (!r.ajouts.length && !r.majFiches.length && !r.illustrations.length && !r.videos.length) {
             setMsg(rv.lourdes.length && !fichier && !imgs.length ? 'Vidéo trop lourde (maximum ' + tailleTexte(VIDEO_MAX) + ') : exportez-la en 720p, sur 10 à 30 secondes.'
               : (imgs.length || vids.length) && !fichier ? 'Aucune image ni vidéo reconnue : nommez chaque fichier comme l\'exercice (ex. « Chaise contre le mur.mp4 ») ou par son numéro (« 3071.mp4 »). Vous pouvez aussi ajouter la vidéo depuis la fiche de l\'exercice.'
               : imgs.length && !fichier ? 'Aucune image reconnue : nommez chaque image comme l\'exercice (ex. « Planche ventrale sur avant-bras.png ») ou par son numéro (« 2073.jpg »).'
@@ -5187,23 +5220,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           }
           setMsg(''); setRapport(r);
         });
-      }).catch(function () { setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx, .csv ou un export .zip, avec une colonne « Nom », ou des images nommées comme les exercices.'); });
+      }).catch(function () { if (jetonLecture !== lectureImport.current) return; setMsg('Ce fichier n\'a pas pu être lu. Utilisez un fichier .json, .xlsx, .csv ou un export .zip, avec une colonne « Nom », ou des images nommées comme les exercices.'); });
     }
     function enregistrer() {
+      if (verrouImport.current || !rapport) return;
       if (rapport.refuses && rapport.refuses.length) { setMsg('Enregistrement bloqué : corrigez les fiches refusées.'); return; }
-      var il = rapport.illustrations || [];
-      if (rapport.ajouts.length) ecrireIdMax(Math.max.apply(null, rapport.ajouts.map(function (e) { return e.id; })));
-      (rapport.ajouts.length || rapport.majFiches.length ? Stockage.lire(CLE_AJOUTS).then(function (anciens) {
-        var parId = {};
-        (Array.isArray(anciens) ? anciens : []).forEach(function (ex) { if (ex && ex.id) parId[ex.id] = ex; });
-        rapport.ajouts.concat(rapport.majFiches).forEach(function (ex) { parId[ex.id] = ex; });
-        return Stockage.ecrire(CLE_AJOUTS, Object.keys(parId).map(function (id) { return parId[id]; }));
-      }) : Promise.resolve(true)).then(function (ok) {
-        if (!ok || !il.length) return ok;
-        IMG_PERSO = Object.assign({}, IMG_PERSO); ILLUS_IA = Object.assign({}, ILLUS_IA);
-        il.forEach(function (x) { if (x.image) IMG_PERSO[x.id] = x.image; else if (x.svg) ILLUS_IA[x.id] = x.svg; });
-        return Promise.all([Stockage.ecrire(CLE_IMG_PERSO, IMG_PERSO), Stockage.ecrire(CLE_ILLUS_IA, ILLUS_IA)]).then(function (t) { return t[0] && t[1]; });
-      }).then(function (ok) {
+      verrouImport.current = true; setEnCours(true); ++lectureImport.current;
+      var il = rapport.illustrations || [], reussi = false;
+      enregistrerFichesImport(rapport).then(function (ok) {
         if (!ok) return ok;
         var vs = rapport.videos || [], nOk = 0;
         if (vs.length) setMsg('Enregistrement des vidéos…');
@@ -5214,8 +5238,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var vs = rapport.videos || [];
         setMsg([rapport.ajouts.length ? rapport.ajouts.length + ' exercices ajoutés' : '', rapport.majFiches.length ? rapport.majFiches.length + ' fiches mises à jour' : '', il.length ? il.length + (il.length > 1 ? ' illustrations intégrées' : ' illustration intégrée') : '',
           vs.length ? rapport.nVideos + (rapport.nVideos > 1 ? ' vidéos enregistrées' : ' vidéo enregistrée') + (rapport.nVideos < vs.length ? ' (' + (vs.length - rapport.nVideos) + ' non enregistrée' + (vs.length - rapport.nVideos > 1 ? 's' : '') + ' : espace insuffisant ?)' : '') : ''].filter(Boolean).join(', ') + '.');
+        reussi = true; setRapport(null);
         setTimeout(function () { location.reload(); }, 700);
-      });
+      }).catch(function (err) { setMsg('Import interrompu : ' + (err.message || 'stockage indisponible')); }).finally(function () { if (!reussi) { verrouImport.current = false; setEnCours(false); } });
     }
     function exporter() {
       var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; var ip = IMG_PERSO[e.id]; if (ip) c.image = ip; return c; });
@@ -5223,6 +5248,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     // Retire les exercices ajoutés ET leurs photos, dessins et vidéos (sinon un prochain import pourrait en hériter)
     function retirer() {
+      if (verrouImport.current) return;
       var ids = BASE.filter(function (e) { return e.ajoute; }).map(function (e) { return e.id; });
       var nMed = ids.filter(function (id) { return IMG_PERSO[id] || ILLUS_IA[id] || VIDEOS[id]; }).length;
       if (!window.confirm('Retirer les ' + nbAjouts + ' exercices ajoutés sur cet appareil' + (nMed ? ', avec les photos, dessins et vidéos de ' + nMed + ' d\'entre eux' : '') + ' ?\n\nPensez à « Exporter tout » avant : c\'est votre sauvegarde.')) return;
@@ -5243,19 +5269,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       h('h2', null, 'Ajouter des exercices'),
       h('p', null, 'Choisissez un fichier d\'exercices (.json, .xlsx, .csv), avec ou sans images et vidéos : l\'app les range toute seule en Judo ou Taïso.'),
       h('div', { className: 'gestion-actions gestion-principal' },
-        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,.zip,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
+        h('label', { className: 'btn plein pr-restaurer' }, h('input', { type: 'file', multiple: true, accept: '.json,.xlsx,.xls,.csv,.zip,image/*,.svg,video/*,.mp4,.mov,.m4v,.webm', onChange: choisir, disabled: enCours, 'aria-label': 'Choisir un fichier d\'exercices, des images ou des vidéos' }), 'Choisir un fichier, des images ou des vidéos')),
       h('details', { className: 'gestion-plus' }, h('summary', null, 'Comment l\'app range les exercices'), h('ul', { className: 'gestion-regles' },
-        h('li', null, h('strong', null, 'Judo'), ' — les nouvelles fiches exigent les champs essentiels du catalogue et six critères pédagogiques : compétence, rôle, prérequis, opposition, organisation, durée réelle. Import refusé en cas de manque.'),
+        h('li', null, h('strong', null, 'Judo'), ' — les nouvelles fiches exigent les champs essentiels du catalogue et six critères pédagogiques : compétence, rôle, prérequis, opposition, organisation et dosage vérifiable. Une prescription en répétitions n’impose pas de chronomètre. Import refusé en cas de manque.'),
         h('li', null, h('strong', null, 'Taïso'), ' — préparation physique des adultes, rangée en Gym douce (doux, mobilité, seniors) ou Training (intense, impact, charges), avec un niveau.'),
         h('li', null, 'Moment de la séance, catégorie et formes enfants (sans sutemi ni kansetsu, kumi-kata manche-revers) sont ajoutés aussi.'),
         h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'),
         h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'),
         h('li', null, h('strong', null, 'Export complet'), ' — « Exporter tout » crée un .zip avec chaque fiche lisible (description, sécurité, détails), les photos, les dessins et les vidéos. Pour tout retrouver sur un autre appareil, choisissez ce .zip ici. Chaque fiche s\'exporte aussi seule depuis l\'exercice.'))),
       h('div', { className: 'gestion-actions' },
-        h('button', { type: 'button', className: 'btn', onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches, photos et vidéos (.zip)'),
-        h('button', { type: 'button', className: 'btn', onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
-        photosJudo.length ? h('button', { type: 'button', className: 'btn lien', onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
-        nbAjouts ? h('button', { type: 'button', className: 'btn lien', onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
+        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches, photos et vidéos (.zip)'),
+        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
+        photosJudo.length ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
+        nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         rapport.refuses && rapport.refuses.length ? h('div', { role: 'alert' }, h('strong', null, rapport.refuses.length + ' fiche(s) refusée(s) : aucun nouvel exercice ne sera importé.'), h('ul', null, rapport.refuses.map(function (f,i) { return h('li', { key: i }, f.nom + ' : ' + f.raisons.join(' ; ')); }))) : null,
@@ -5263,6 +5289,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           rapport.majFiches.length ? rapport.majFiches.length + ' fiches existantes prêtes à être mises à jour' : '',
           rapport.illustrations.length ? rapport.illustrations.length + (rapport.illustrations.length > 1 ? ' illustrations' : ' illustration') + ' pour des exercices existants' : '',
           (rapport.videos || []).length ? rapport.videos.length + (rapport.videos.length > 1 ? ' vidéos' : ' vidéo') : ''].filter(Boolean).join(' · ')),
+        rapport.majFiches.length ? h('details', { className: 'gestion-corrections', open: true }, h('summary', null, 'Fiches existantes à corriger'),
+          h('ol', null, rapport.majFiches.map(function (e) {
+            var ancienne = BASE.filter(function (x) { return String(x.id) === String(e.id); })[0] || {};
+            var champs = [['Description','description'],['Point de sécurité','vigilance'],['Dosage','dosage'],['Réussite','critere'],['Type','typeFiche'],['Famille','famillePrincipale'],['Ancienne famille','famille'],['Sous-famille','sousFamille'],['Tags','tags'],['Groupe','sousGroupes'],['Grade','grade'],['Niveau','niveau'],['Technique','technique'],['Organisation','organisation'],['Compétence','competenceCiblee'],['Opposition','niveauOpposition'],['Matériel','equipement'],['Moment','moment']].filter(function (c) { return JSON.stringify(ancienne[c[1]]) !== JSON.stringify(e[c[1]]); });
+            function courtImport(v) { var t = Array.isArray(v) ? v.join(', ') : String(v == null || v === '' ? 'Non renseigné' : v); return t.length > 180 ? t.slice(0,177) + '…' : t; }
+            return h('li', { key:e.id }, h('strong', null, e.nom + ' · identifiant ' + e.id + ' conservé'),
+              champs.length ? h('ul', null, champs.map(function (c) { return h('li', { key:c[1] }, c[0] + ' : ' + courtImport(ancienne[c[1]]) + ' → ' + courtImport(e[c[1]])); })) : h('span', null, ' · Mise à jour des informations de la fiche'));
+          }))) : null,
         (rapport.videos || []).length ? h('ul', { className: 'gestion-videos' }, rapport.videos.map(function (v) {
           return h('li', { key: v.id + v.fichier.name }, '▶ ' + v.nom + ' — ' + tailleTexte(v.fichier.size) + (VIDEOS[v.id] ? ' (remplace la vidéo actuelle)' : ''));
         })) : null,
@@ -5284,8 +5318,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('li', { key: e.id }, h(Illustration, { e: e, petit: true }), e.nom + ' — ' + e.public[0] + ', ' + e.sousGroupes.join(' / ') + ', ' + e.moment + ', ' + e.categorie);
         }))) : null,
         h('div', { className: 'gestion-actions' },
-          h('button', { type: 'button', className: 'btn plein', disabled: !!(rapport.refuses && rapport.refuses.length), onClick: enregistrer }, rapport.refuses && rapport.refuses.length ? 'Import bloqué' : rapport.ajouts.length || rapport.majFiches.length ? 'Enregistrer les fiches' : 'Intégrer les illustrations'),
-          h('button', { type: 'button', className: 'btn', onClick: function () { setRapport(null); } }, 'Annuler'))) : null);
+          h('button', { type: 'button', className: 'btn plein', disabled: enCours || !!(rapport.refuses && rapport.refuses.length), onClick: enregistrer }, enCours ? 'Enregistrement…' : rapport.refuses && rapport.refuses.length ? 'Import bloqué' : rapport.ajouts.length || rapport.majFiches.length ? 'Enregistrer les fiches' : 'Intégrer les illustrations'),
+          h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { ++lectureImport.current; setRapport(null); setMsg('Import annulé : aucune modification enregistrée.'); } }, 'Annuler'))) : null);
   }
   // ---- Connexion : profils d'éducateurs sur l'appareil (prénom, nom, club, code facultatif à 4 chiffres).
   // Chaque profil a ses propres licenciés, présences, séances et exercices ajoutés. Le premier profil garde
