@@ -184,3 +184,14 @@ Les fiches, corrections et illustrations d’un lot sont enregistrées dans une 
 Les vidéos sont enregistrées séparément après ce lot : elles peuvent échouer individuellement, et leur nombre effectivement enregistré est annoncé. L’import entier, vidéos comprises, n’est donc pas une transaction unique. Si IndexedDB refuse la transaction des fiches/images, cette étape échoue sans chargement partiel ; elle n’utilise pas un secours local pour contourner cet échec.
 
 Validation : 85 tests passent, dont fichier composé de corrections seules, conservation/effacement explicite du classement, transaction fiches/images, échec d’écriture et refus pédagogique. Validation visuelle et import sur Safari iPhone restant à effectuer.
+
+
+## Format des fiches harmonisé (17 novembre 2026)
+
+La description apparaît sous le nom. La fiche présente ensuite : point de sécurité, dosage de base, critère de réussite, famille, niveau, sous-groupe, matériel, muscles cibles, moment, variantes facile/difficile, accessibilité, inspiration et format. Seuls les champs renseignés apparaissent. Le grade Judo et les autres métadonnées restent accessibles dans « Informations complémentaires ». L’export HTML reprend l’ordre des rubriques et conserve la description et la source complète ; les exports JSON conservent leurs clés canoniques.
+
+L’ajout reconnaît notamment les colonnes « Nom (exercice) », « Exécution », « Point de sécurité », « Dosage de base », « Critère de réussite », « Variante plus facile », « Variante plus difficile », « Accessibilité », « Inspiration » et « Technique ». Le validateur pédagogique et la lecture du dosage utilisent les alias déclarés par la normalisation. Les clés canoniques restent prioritaires et recommandées pour les fichiers JSON. Les colonnes pédagogiques supplémentaires du Judo restent nécessaires : les quinze rubriques de présentation ne les remplacent pas.
+
+L’accessibilité est conservée à l’ajout et à la correction. L’inspiration n’est plus tronquée à la première virgule ; aucune source n’est inventée si le champ est absent. Une correction sans colonne Accessibilité/Inspiration conserve les valeurs existantes. Le niveau de difficulté Judo, lorsqu’il est déclaré, reste distinct du grade. L’organisation détaillée ne suffit pas à satisfaire le champ Format requis par la validation Judo.
+
+Les anciens fichiers ne sont pas réécrits. La reconnaissance d’un intitulé ne garantit ni la pertinence pédagogique de sa valeur ni sa compatibilité avec tous les filtres. Validation : 90 tests passent, dont une fiche Judo complète à en-têtes français, la conservation des sources et de l’accessibilité, la séparation niveau/grade et l’ordre de présentation/export HTML. La vérification visuelle et tactile sur Safari iPhone reste à effectuer.

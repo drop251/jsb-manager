@@ -2310,7 +2310,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (!Array.isArray(e.public) || !e.public.length || e.public.some(function (p) { return ['Judo', 'Taïso', 'Suivi et reprise'].indexOf(p) < 0; })) throw new Error(ligne + 'discipline inconnue ou absente.');
         if (e.typeFiche != null && ['Exercice','Technique'].indexOf(e.typeFiche) < 0) throw new Error(ligne + 'typeFiche doit être Exercice ou Technique.');
         ['sousGroupes', 'ages'].forEach(function (k) { if (e[k] != null && (!Array.isArray(e[k]) || e[k].some(function (v) { return typeof v !== 'string'; }))) throw new Error(ligne + k + ' doit être une liste de textes.'); });
-        ['description','categorie','categorieSecondaire','dosage','famille','famillePrincipale','sousFamille','technique','equipement','grade','niveau','moment','muscles','materielDetail','thematique'].forEach(function (k) { if (e[k] != null && typeof e[k] !== 'string') throw new Error(ligne + k + ' doit être un texte.'); });
+        ['description','categorie','categorieSecondaire','dosage','famille','famillePrincipale','sousFamille','technique','equipement','grade','niveau','moment','muscles','materielDetail','thematique','vigilance','critere','varianteFacile','varianteDifficile','accessibilite','inspiration','precaution'].forEach(function (k) { if (e[k] != null && typeof e[k] !== 'string') throw new Error(ligne + k + ' doit être un texte.'); });
       });
       return d;
     });
@@ -2345,7 +2345,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Imports de corrections fiabilisés';
+  var VERSION_APP = '17/11/2026 · Format des fiches harmonisé';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2518,6 +2518,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           h('button', { type: 'button', className: 'sheet-fermer', 'aria-label': 'Fermer la fiche', onClick: p.fermer }, h('svg', { viewBox: '0 0 24 24', width: 22, height: 22, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': 'true' }, h('path', { d: 'M6 6l12 12M18 6 6 18' })))),
         h('p', { className: 'etiq' }, e.typeFiche === 'Technique' ? 'Fiche technique · référence' : 'Fiche exercice · situation pédagogique'),
         h('h2', null, e.nom),
+        h(Description, { texte: e.description }),
         p.usage ? h('p', { className: 'fiche-usage' }, texteUsage(p.usage)) : null,
         h('div', { className: 'pastilles' },
           niveauTexte(e, judo) ? h(Grade, { texte: niveauTexte(e, judo) }) : null,
@@ -2527,22 +2528,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('figure', { className: 'illus-fiche' }, vueEtapes ? h(EtapesExo, { e: e }) : aVideo(e) ? h(VideoExo, { e: e, rev: rev }) : h(Illustration, { e: e, rev: rev })),
         etapesDe(e).length > 1 ? h('div', { className: 'ia-barre' }, h('button', { type: 'button', className: 'cs-btn mini etapes-btn', 'aria-pressed': vueEtapes, onClick: function () { setVueEtapes(!vueEtapes); } },
           vueEtapes ? (aVideo(e) ? 'Revoir la vidéo' : 'Revoir l\'illustration') : '▶ Étape par étape')) : null,
-        h(Description, { texte: e.description }),
         h('dl', { className: 'faits' },
           e.vigilance ? h('div', { className: 'securite' }, h('dt', { className: 'etiq' }, 'Point de sécurité'), h('dd', null, sansCesure(e.vigilance.charAt(0).toUpperCase() + e.vigilance.slice(1)))) : null,
           fait('Dosage de base', judo ? dosageAfficheJudo(e) : e.dosage),
-          fait('Organisation', e.organisation),
           fait('Critère de réussite', e.critere),
           fait('Famille', familleCatalogue(e, p.espace.label)),
-          fait('Sous-famille', sousFamilleCatalogue(e)),
-          fait(judo ? 'Grade' : 'Niveau', niveauTexte(e, judo) ? h(Grade, { texte: niveauTexte(e, judo) }) : ''),
-          fait(judo ? "Catégories d'âge" : 'Sous-groupe', sg(e).join(', ')),
+          fait('Niveau', e.niveau),
+          fait('Sous-groupe', sg(e).join(', ')),
           fait('Matériel', e.materielDetail ? e.materielDetail + (e.format === 'Binôme' ? ', partenaire' : '') : (e.equipement || '').split(' + ').join(', ')),
           fait('Muscles cibles', e.muscles),
-          [['Thématique', e.thematique], ['Technique ou famille préparée', e.technique], ['Moment de la séance', e.moment], ['Variante plus facile', e.varianteFacile], ['Variante plus difficile', e.varianteDifficile], ['Précision 12 ans et plus', e.precisionPublic], ['Accessibilité', e.accessibilite], ['Inspiration', e.inspiration], ['Précaution ostéoporose', e.precaution]].map(function (x) { return x[1] ? h('div', { key: x[0] }, h('dt', { className: 'etiq' }, x[0]), h('dd', null, x[1])) : null; }),
+          fait('Moment de la séance', e.moment),
+          fait('Variante plus facile', e.varianteFacile),
+          fait('Variante plus difficile', e.varianteDifficile),
+          fait('Accessibilité', e.accessibilite),
+          fait('Inspiration', e.inspiration),
+          fait('Format', e.format)),
+        h('details', { className: 'fiche-outils' }, h('summary', null, 'Informations complémentaires'),
+          h('dl', { className: 'faits' },
+          fait('Grade Judo', judo ? e.grade : ''),
+          fait('Organisation', e.organisation),
+          fait('Sous-famille', sousFamilleCatalogue(e)),
+          fait('Thématique', e.thematique),
+          fait('Technique ou famille préparée', e.technique),
+          fait('Précision 12 ans et plus', e.precisionPublic),
+          fait('Précaution ostéoporose', e.precaution),
           fait('Groupe musculaire', e.groupeMusculaire),
-          fait('Format', e.format),
-          fait('Type', type)),
+          fait('Type', type))),
         h(ClassementFiche, { key: e.id, e: e, sel: p.sel }),
         h('details', { className: 'fiche-outils' }, h('summary', null, 'Médias et export'),
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
@@ -4559,24 +4570,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     categorieAge: ['categorieage', 'categoriedage', 'age', 'ages', 'publiccible', 'tranchedage', 'sousgroupes', 'sousgroupe'],
     public: ['public', 'discipline', 'espace', 'activite'],
     moment: ['moment', 'momentdelaseance', 'phase', 'partie'],
-    niveau: ['niveau', 'niveaugrade', 'grade', 'difficulte'],
+    niveau: ['niveau', 'niveaugrade', 'difficulte'],
+    grade: ['grade', 'ceinture'],
+    technique: ['technique','familletechnique','techniqueoufamillepreparee'],
     muscles: ['muscles', 'musclescibles', 'groupesmusculaires'],
     equipement: ['equipement', 'materiel'],
     format: ['format', 'organisation'],
     pilote: ['pilote', 'pilotestructure', 'typedetravail', 'structure'],
     vigilance: ['vigilance', 'securite', 'securiteprophylaxie', 'precautions', 'precaution', 'pointdesecurite'],
-    dosage: ['dosage', 'volume', 'series', 'repetitions'],
+    dosage: ['dosage', 'dosagedebase', 'volume', 'series', 'repetitions'],
     thematique: ['thematique', 'thematiquetechnicotactique', 'theme', 'objectif'],
     ref: ['ref', 'id', 'code', 'numero'],
     inspiration: ['reference', 'source', 'inspiration'],
-    varianteFacile: ['variantefacile', 'simplification'],
-    varianteDifficile: ['variantedifficile', 'complexification'],
+    varianteFacile: ['variantefacile', 'varianteplusfacile', 'simplification'],
+    varianteDifficile: ['variantedifficile', 'varianteplusdifficile', 'complexification'],
     critere: ['critere', 'criteredereussite'],
     famillePrincipale: ['familleprincipale'],
     famille: ['famille'],
     sousFamille: ['sousfamille', 'sousfamilleexercice'],
     tags: ['tags', 'motscles'],
-    typeFiche: ['typefiche', 'naturedefiche']
+    typeFiche: ['typefiche', 'naturedefiche'],
+    accessibilite: ['accessibilite','adaptations'],
+    precaution: ['precautionosteoporose']
   };
   function normaliserLigne(o) {
     var k = {}; Object.keys(o).forEach(function (c) { k[cle(c)] = o[c]; });
@@ -4796,6 +4811,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function valeurChampPedagogique(brut, noms) {
     function clef(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
     var colonnes = Object.keys(brut || {});
+    var etendus = [];
+    noms.forEach(function (nom) {
+      etendus.push(nom);
+      if (typeof CHAMPS !== 'undefined' && CHAMPS[nom]) CHAMPS[nom].forEach(function (alias) {
+        // L’organisation détaillée ne remplace pas le format Solo/Binôme/Trio/Collectif.
+        if (!(nom === 'format' && alias === 'organisation')) etendus.push(alias);
+      });
+    });
+    noms = etendus;
     for (var i = 0; i < noms.length; i++) for (var j = 0; j < colonnes.length; j++) {
       if (clef(colonnes[j]) === clef(noms[i])) {
         var v = brut[colonnes[j]];
@@ -5003,7 +5027,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       dosage: String(x.dosage || ''), vigilance: String(x.vigilance || '').trim() || 'Exécution contrôlée ; arrêt en cas de douleur.',
       muscles: String(x.muscles || ''), format: formatDe(x, pub), pilote: pil, equipement: equipementDe(x, pub), materielDetail: String(x.materielDetail || x.equipement || ''),
       varianteFacile: String(x.varianteFacile || ''), varianteDifficile: String(x.varianteDifficile || ''), critere: String(x.critere || ''),
-      inspiration: x.inspiration ? String(x.inspiration).split(',')[0] : 'Ajouté depuis l\'app', groupeMusculaire: x.groupeMusculaire || '',
+      accessibilite: String(x.accessibilite || '').trim(), precaution: String(x.precaution || '').trim(),
+      inspiration: String(x.inspiration || '').trim(), groupeMusculaire: x.groupeMusculaire || '',
       isometrique: pil === 'Isométrique', unilateral: pil === 'Unilatéral', polyarticulaire: pil === 'Poly-articulaire', ajoute: true
     };
     if (/^data:image\//.test(brut.image || '')) e.image = brut.image;
@@ -5011,7 +5036,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     e.moment = momentDe(pub, cat, x, texte);
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
-      e.grade = gradeDe(x); e.niveau = ''; e.technique = x.technique || (FAMILLES[x.famille] ? x.famille : familleDe(e.nom, texte));
+      e.grade = gradeDe(x); e.niveau = /^(debutant|intermediaire|expert|confirme)$/.test(sansAcc(x.niveau || '')) ? niveauDe(x) : ''; e.technique = x.technique || (FAMILLES[x.famille] ? x.famille : familleDe(e.nom, texte));
       e.precisionPublic = /adaptable/.test(sansAcc(x.categorieAge || '')) ? String(x.categorieAge) : '';
     } else {
       e.niveau = niveauDe(x); e.grade = ''; e.categorieAge = ''; e.technique = x.typeFiche === 'Technique' ? String(x.technique || '') : '';
@@ -5117,7 +5142,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var erreursMaj = verifierNouvelExerciceJudo(l, e);
           if (erreursMaj.length) { r.refuses.push({ nom: e.nom, raisons: erreursMaj }); return; }
           var ficheMaj = Object.assign({}, ex, e, { id: ex.id, ref: ex.ref || e.ref, ajoute: !!ex.ajoute, _jsbOverride: !ex.ajoute });
-          [['famillePrincipale',['famillePrincipale','famille principale']],['famille',['famille']],['sousFamille',['sousFamille','sous famille','sousFamilleExercice']],['tags',['tags','mots clés']]].forEach(function (c) {
+          [['famillePrincipale',['famillePrincipale','famille principale']],['famille',['famille']],['sousFamille',['sousFamille','sous famille','sousFamilleExercice']],['tags',['tags','mots clés']],['accessibilite',['accessibilite','adaptations']],['inspiration',['inspiration','reference','source']]].forEach(function (c) {
             var fourni = Object.keys(l).some(function (k) { return c[1].some(function (alias) { return cle(k) === cle(alias); }); });
             if (!fourni && ex[c[0]] !== undefined) ficheMaj[c[0]] = ex[c[0]];
           });
@@ -7159,11 +7184,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Une fiche : fiche.html (lisible partout), fiche.json, photo.jpg, illustration.svg, video.mp4.
   // Toute la base : exercices.json (chemins vers les médias), medias/, fiches/ (une page par exercice illustré), index.html.
   // Le .zip se réimporte dans « Ajouter des exercices » (autre appareil) : photos, dessins et vidéos reviennent avec.
-  var CHAMPS_FICHE = [['Type de fiche', 'typeFiche'], ['Moment de la séance', 'moment'], ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Format', 'format'],
-    ['Dosage de base', 'dosage'], ['Grade', 'grade'], ['Niveau', 'niveau'], ['Matériel', 'materielDetail'], ['Équipement', 'equipement'], ['Muscles cibles', 'muscles'],
-    ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'], ['Critère de réussite', 'critere'],
-    ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'], ['Précision 12 ans et plus', 'precisionPublic'], ['Famille', 'famille'], ['Famille principale', 'famillePrincipale'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
-    ['Accessibilité', 'accessibilite'], ['Précaution ostéoporose', 'precaution'], ['Inspiration', 'inspiration'],
+  var CHAMPS_FICHE = [['Dosage de base', 'dosage'], ['Critère de réussite', 'critere'], ['Famille', 'famillePrincipale'], ['Niveau', 'niveau'], ['Sous-groupe', 'sousGroupes'],
+    ['Matériel', 'materielDetail'], ['Muscles cibles', 'muscles'], ['Moment de la séance', 'moment'], ['Variante plus facile', 'varianteFacile'], ['Variante plus difficile', 'varianteDifficile'],
+    ['Accessibilité', 'accessibilite'], ['Inspiration', 'inspiration'], ['Format', 'format'],
+    ['Type de fiche', 'typeFiche'], ['Grade Judo', 'grade'], ['Équipement', 'equipement'], ['Ancienne famille', 'famille'], ['Sous-famille', 'sousFamille'], ['Tags', 'tags'],
+    ['Catégorie', 'categorie'], ['Catégorie secondaire', 'categorieSecondaire'], ['Groupe musculaire', 'groupeMusculaire'], ['Thématique', 'thematique'], ['Technique ou famille préparée', 'technique'],
+    ['Précision 12 ans et plus', 'precisionPublic'], ['Précaution ostéoporose', 'precaution'],
     ['Compétence ciblée', 'competenceCiblee'], ['Rôle pédagogique', 'rolePedagogique'], ['Prérequis', 'prerequis'],
     ['Niveau d’opposition', 'niveauOpposition'], ['Organisation Tori/Uke, rotations et repos', 'organisation'], ['Durée indicative du bloc (min)', 'dureeBlocMin'],
     ['Mode de dosage Judo', 'modeDosageJudo'], ['Maximum de répétitions par judoka', 'repetitionsMax']];
@@ -7203,7 +7229,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function ficheHtml(e, chemins, retour) {
     var pastilles = [(e.public || []).join(', '), (e.sousGroupes || []).join(', '), e.grade || e.niveau, e.moment, e.format, e.dosage].filter(Boolean);
-    var lignes = CHAMPS_FICHE.map(function (x) { return e[x[1]] ? '<dt>' + esc(x[0]) + '</dt><dd>' + esc(e[x[1]]) + '</dd>' : ''; }).join('');
+    var lignes = CHAMPS_FICHE.map(function (x) { var v = x[1] === 'famillePrincipale' ? (e.famillePrincipale || e.famille) : x[1] === 'materielDetail' ? (e.materielDetail || e.equipement) : e[x[1]]; if (Array.isArray(v)) v = v.join(', '); return v ? '<dt>' + esc(x[0]) + '</dt><dd>' + esc(v) + '</dd>' : ''; }).join('');
     return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(e.nom) + '</title>'
       + '<style>:root{color-scheme:light}body{margin:0;background:#F4F5EF;color:#1F2839;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}'
       + 'main{max-width:760px;margin:0 auto;padding:24px 16px 48px}header{border-bottom:3px solid #E2B157;padding-bottom:12px;margin-bottom:16px}'
@@ -7214,11 +7240,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       + 'dl{display:grid;grid-template-columns:minmax(9em,30%) 1fr;gap:6px 14px;margin:0}dt{color:#6B7280;font-size:.875rem}dd{margin:0}'
       + 'a{color:#1F2839}@media(max-width:520px){dl{grid-template-columns:1fr}dd{margin-bottom:6px}}@media print{body{background:#fff}video{display:none}}</style></head><body><main>'
       + (retour ? '<p><a href="' + esc(retour) + '">‹ Toutes les fiches</a></p>' : '')
-      + '<header><div class="marque">JSB Manager · fiche exercice' + (e.id ? ' n° ' + esc(e.id) : '') + '</div><h1>' + esc(e.nom) + '</h1><div class="p">' + pastilles.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div></header>'
+      + '<header><div class="marque">JSB Manager · ' + (e.typeFiche === 'Technique' ? 'fiche technique' : 'fiche exercice') + (e.id ? ' n° ' + esc(e.id) : '') + '</div><h1>' + esc(e.nom) + '</h1>' + (e.description ? '<p>' + esc(e.description) + '</p>' : '') + '<div class="p">' + pastilles.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div></header>'
       + (chemins.video ? '<figure><video src="' + esc(chemins.video) + '" controls loop muted playsinline' + (chemins.photo ? ' poster="' + esc(chemins.photo) + '"' : '') + '></video></figure>' : '')
       + (chemins.photo ? '<figure><img src="' + esc(chemins.photo) + '" alt="Illustration : ' + esc(e.nom) + '"></figure>' : '')
       + (chemins.svg ? '<figure><img src="' + esc(chemins.svg) + '" alt="Dessin : ' + esc(e.nom) + '"></figure>' : '')
-      + '<h2>Description</h2><p>' + esc(e.description) + '</p>'
       + (e.vigilance ? '<h2>Point de sécurité</h2><p class="vig">' + esc(e.vigilance) + '</p>' : '')
       + (lignes ? '<h2>Détails</h2><dl>' + lignes + '</dl>' : '')
       + '</main></body></html>';
