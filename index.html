@@ -3390,7 +3390,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
-      if (x.type === 'preparer') { setInfos({ _cours: x.cle }); setPlan({}); setMsg(''); }
+      if (x.type === 'preparer') { preparerCours(x.cle); }
       if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { if (reprendre(s, x.plusDur) && x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
       setOuvert(true);
     }, []);
@@ -3410,6 +3410,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function retirerIntrouvables() {
       if (!sel.set(sel.ids.filter(function (id) { return idsIntrouvables.indexOf(id) < 0; }))) { setMsg('Retrait impossible : stockage indisponible. La préparation est conservée.'); return; }
       setSignatureSauvee(''); setMsg('Les exercices introuvables ont été retirés de cette préparation. Les séances enregistrées sont conservées.');
+    }
+    function autoriserRemplacement() {
+      if (!sel.ids.length && !Object.keys(infos).length && !Object.keys(plan).length) return true;
+      return window.confirm('Remplacer la préparation en cours ? Ses exercices, dosages et informations seront remplacés. Les séances déjà enregistrées sont conservées.');
+    }
+    function preparerCours(cle) {
+      if (infos._cours === cle) return true;
+      if (!autoriserRemplacement()) { setMsg('La préparation en cours est conservée.'); return false; }
+      if (!sel.set([])) { setMsg('Nouvelle préparation impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
+      setSignatureSauvee(''); setInfos({ _cours: cle }); setPlan({}); setMsg(''); return true;
     }
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
     function dureeDe(e) { var x = plan[e.id]; return x && x.duree ? x.duree : ''; }
@@ -3470,6 +3480,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (absents.length) { setMsg('Reprise impossible : ' + absents.length + (absents.length > 1 ? ' exercices ne figurent plus' : ' exercice ne figure plus') + ' dans le catalogue actuel. La séance enregistrée et le brouillon sont conservés.'); return false; }
       var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
       var ids = [], np = {}; s.exos.map(function (x) { return dur ? plusDurExo(x) : x; }).forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
+      if (!autoriserRemplacement()) { setMsg('La préparation en cours est conservée.'); return false; }
       if (!sel.set(ids)) { setMsg('Reprise impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
       setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
       return true;
