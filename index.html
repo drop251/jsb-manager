@@ -1467,7 +1467,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .sheet .etiq { font-size: .8125rem; }
 .sheet .cs-btn.mini { font-size: .875rem; }
 .sheet .pastille { font-size: .8125rem; }
-/* Raccourci « Illustrés » dans la barre du compte */
+/* Raccourci « Avec vidéo » dans la barre du compte */
 .barre-compte { flex-wrap: wrap; row-gap: 8px; }
 .barre-compte .compte { white-space: nowrap; }
 .barre-compte .illus-raccourci { flex: none; margin-left: auto; border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; white-space: nowrap; }
@@ -5328,7 +5328,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'),
         h('li', null, h('strong', null, 'Export complet'), ' — « Exporter tout » crée un .zip avec chaque fiche lisible (description, sécurité, détails), les photos, les dessins et les vidéos. Pour tout retrouver sur un autre appareil, choisissez ce .zip ici. Chaque fiche s\'exporte aussi seule depuis l\'exercice.'))),
       h('div', { className: 'gestion-actions' },
-        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches, photos et vidéos (.zip)'),
+        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches et vidéos (.zip)'),
         h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
         photosJudo.length ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
@@ -7388,7 +7388,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       })),
       h('div', { className: 'verrou-boite' },
         h('h2', { id: 'verrou-titre' }, '🔒 ' + v.n + (v.n > 1 ? ' exercices ' : ' exercice ') + (v.espace || 'Taïso') + (v.n > 1 ? ' réservés' : ' réservé')),
-        h('p', null, 'Réservés aux adhérents et éducateurs du club. Entrez le code pour les débloquer sur cet appareil : fiches, photos et vidéos.'),
+        h('p', null, 'Réservés aux adhérents et éducateurs du club. Entrez le code pour les débloquer sur cet appareil : fiches et vidéos.'),
         h('form', { className: 'verrou-form', onSubmit: valider },
           h('label', { className: 'sr-seul', htmlFor: 'verrou-code' }, 'Code du club'),
           h('input', { id: 'verrou-code', type: 'password', autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false, placeholder: 'Code du club', value: code, onChange: function (ev) { setCode(ev.target.value); } }),
@@ -7566,7 +7566,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Filtres actifs en pastilles retirables d'une touche
     var actifs = [];
     if (f.fav) actifs.push(['Favoris', function () { maj('fav', false); }]);
-    if (f.illus) actifs.push(['Illustrés', function () { maj('illus', false); }]);
+    if (f.illus) actifs.push(['Avec vidéo', function () { maj('illus', false); }]);
     [['typeFiche', ''], ['famille', ''], ['sousFamille', ''], ['cat', ''], ['niv', ''], ['mom', ''], ['tech', ''], ['fmt', ''], ['acc', ''], ['insp', ''], ['grp', '']].forEach(function (x) { if (f[x[0]]) actifs.push([f[x[0]], function () { maj(x[0], ''); }]); });
     [['iso', 'Isométriques'], ['uni', 'Unilatéraux'], ['poly', 'Poly-articulaires']].forEach(function (x) { if (f[x[0]]) actifs.push([x[1], function () { maj(x[0], false); }]); });
     f.dispo.forEach(function (x) { actifs.push([x, function () { maj('dispo', f.dispo.filter(function (y) { return y !== x; })); }]); });
@@ -7608,7 +7608,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('button', { type: 'button', className: 'btn lien', onClick: toutEffacer }, 'Tout effacer')) : null,
       h('div', { className: 'barre barre-compte' },
         h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')),
-        nbIllus || f.illus ? h('button', { type: 'button', className: 'vue-btn illus-raccourci', 'aria-pressed': !!f.illus, onClick: function () { maj('illus', !f.illus); } }, 'Illustrés (' + nbIllus + ')') : null,
+        nbIllus || f.illus ? h('button', { type: 'button', className: 'vue-btn illus-raccourci', 'aria-pressed': !!f.illus, onClick: function () { maj('illus', !f.illus); } }, 'Avec vidéo (' + nbIllus + ')') : null,
         h('div', { className: 'vue-choix', role: 'group', 'aria-label': 'Affichage' }, [['liste', 'Liste'], ['cartes', 'Cartes']].map(function (v) {
           return h('button', { key: v[0], type: 'button', className: 'vue-btn', 'aria-pressed': vueListe === v[0], onClick: function () { setVueListe(v[0]); ecrireVueListe(v[0]); } }, v[1]);
         }))),
