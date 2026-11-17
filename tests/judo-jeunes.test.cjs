@@ -92,9 +92,11 @@ test('Séances Éveils : les rituels restent des temps encadrés, pas de faux ex
     exercise(5,'Jeu coopératif à deux',g,'Corps de séance','Application','Coopération','Binôme'),
     exercise(6,'Jeu calme de respiration',g,'Fin de séance','Retour au calme','Sans opposition')
   ];
+  pool.push({...pool[2],id:99,typeFiche:'Technique'});
   const r=c.genererSeanceJeunes({groupe:g,duree:'45 min',objectif:'Coordination et motricité'},pool,pool,43);
   assert.equal(r.phases.reduce((s,p)=>s+p.minutes,0),45);
   assert.equal(r.phases.length,5);
+  assert.ok(r.phases.every(p=>p.exercices.every(x=>x.e.id!==99)));
   assert.equal(r.phases[0].exercices.length,0);
   assert.ok(r.phases.every(p=>p.minutes===p.transitions+p.exercices.reduce((s,x)=>s+x.duree,0)));
   assert.ok(r.phases[0].repere.includes('salut'));
