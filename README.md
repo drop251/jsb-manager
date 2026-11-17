@@ -232,3 +232,9 @@ Validation : suite automatique de 97 tests. Les réglages tactiles sur Safari iP
 Enregistrer plusieurs fois la même préparation, ou exporter sa fiche PDF après l’enregistrement, ne crée plus une nouvelle entrée identique. La comparaison porte sur date, heure, cours, discipline, titre, exercices, paramètres et trame ; elle ignore l’identifiant généré et l’horodatage d’enregistrement. Une préparation modifiée ou datée d’un autre cours reste une nouvelle version. Les anciens doublons ne sont pas supprimés.
 
 Validation : 100 tests, dont répétition d’enregistrement, ordre des champs, modification de dosage, autre date et échec de stockage. Aucun contrôle supplémentaire sur Safari iPhone dans cette série.
+
+## Préparations par horaire (17 novembre 2026)
+
+Dans « Cette semaine », le rattachement d’une séance prend désormais en compte l’heure du créneau. Deux cours du même groupe le même jour retrouvent chacun leur préparation ; une préparation à un autre horaire ne remplit plus un créneau encore vide. Les anciennes préparations sans heure restent proposées en secours, après recherche d’un horaire exact. Aucune séance enregistrée n’est modifiée.
+
+Validation : 102 tests passent, dont deux horaires pour un même groupe, un créneau sans préparation, la priorité de l’horaire exact et la compatibilité des anciennes séances sans heure. La vérification visuelle sur Safari iPhone reste à effectuer.

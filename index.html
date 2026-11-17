@@ -2831,7 +2831,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return null;
   }
   function espaceDuCours(cours) { return (cours || []).some(function (c) { return /ta[iï]so/i.test(c); }) ? 'taiso' : 'judo'; }
-  function seancePrevue(histo, date, cours) { return histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); })[0] || null; }
+  function seancePrevue(histo, date, cours, heure) {
+    var candidates = histo.filter(function (s) { return s.date === date && (s.cours || []).some(function (c) { return cours.indexOf(c) >= 0; }); });
+    if (!heure) return candidates[0] || null;
+    // Une préparation datée d'un autre horaire ne doit pas occuper ce créneau.
+    return candidates.filter(function (s) { return s.heure === heure; })[0] || candidates.filter(function (s) { return !s.heure; })[0] || null;
+  }
 
   // --- Sons courts (Web Audio) et maintien de l'écran allumé
   var audioCtx = null;
@@ -3091,7 +3096,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('section', { className: 'ms' },
       h('h2', { className: 'ms-h' }, 'Cette semaine'),
       creneaux.length ? h('ul', { className: 'ms-liste' }, creneaux.map(function (c) {
-        var pr = seancePrevue(histo, c.date, c.cours), esp = espaceDuCours(c.cours);
+        var pr = seancePrevue(histo, c.date, c.cours, c.heure), esp = espaceDuCours(c.cours);
         return h('li', { key: c.cle, className: 'ms-ligne' + (pr ? ' prevue' : '') },
           h('div', { className: 'ms-texte' }, h('b', null, c.texte),
             h('span', null, pr ? '✓ Séance prévue : ' + pr.titre + ' · ' + pr.exos.length + ' exercices' : 'À préparer')),
