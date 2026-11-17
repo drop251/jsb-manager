@@ -2352,7 +2352,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Cartes et listes lisibles';
+  var VERSION_APP = '17/11/2026 · Enregistrement sans doublons';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2768,8 +2768,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // --- Historique des séances : { id, date, heure, cours: [..], espace, titre, exos: [{ id, nom, phase, duree }], infos }
   function cleHisto() { return 'jsb-historique' + suffixeProfil(); }
   function lireHisto() { var l = lireJSON(cleHisto(), []); return Array.isArray(l) ? l.filter(function (x) { return x && x.date && Array.isArray(x.exos); }) : []; }
+  function signatureSeanceHistorique(s) {
+    function stable(v) {
+      if (Array.isArray(v)) return v.map(stable);
+      if (v && typeof v === 'object') { var o = {}; Object.keys(v).sort().forEach(function (k) { o[k] = stable(v[k]); }); return o; }
+      return v;
+    }
+    return JSON.stringify(stable({ date:s.date, heure:s.heure || '', cours:s.cours || [], espace:s.espace, titre:s.titre, exos:s.exos, infos:s.infos || {}, trame:s.trame }));
+  }
   function ajouterHisto(entree) {
-    var l = lireHisto().filter(function (x) { return x.id !== entree.id; });
+    var existantes = lireHisto(), signature = signatureSeanceHistorique(entree);
+    if (existantes.some(function (x) { return signatureSeanceHistorique(x) === signature; })) return true;
+    var l = existantes.filter(function (x) { return x.id !== entree.id; });
     l.unshift(entree); l.sort(function (a, b) { return (b.date + (b.heure || '')).localeCompare(a.date + (a.heure || '')); });
     if (!ecrireJSON(cleHisto(), l.slice(0, 200))) return false;
     try { window.dispatchEvent(new Event('jsb-histo')); } catch (e) {}
