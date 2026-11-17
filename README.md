@@ -218,3 +218,10 @@ Le signalement empêche aussi une ancienne association publique de réapparaîtr
 À la demande du propriétaire, les illustrations sont suspendues pendant la consolidation de l’application : aucune image enregistrée ou schématique n’est affichée, les commandes d’ajout et de génération d’image sont retirées des fiches et les exports de fiches sont sans illustration. Les associations d’images du catalogue public sont retirées. Les vidéos restent distinctes de cette suspension.
 
 Les données personnelles déjà stockées sur les appareils et les sauvegardes complètes ne sont pas effacées à distance. Les fichiers historiques du dépôt restent conservés. La future base n’est pas encore intégrée.
+
+
+## Lisibilité du catalogue sans images (17 novembre 2026)
+
+Les boutons d’ajout passent sous les cartes pour ne plus recouvrir les titres. Les noms s’affichent entièrement, y compris les noms longs. En mode liste, la colonne réservée aux anciennes vignettes est supprimée ; le bouton d’ajout dispose de sa propre colonne et les étiquettes reviennent à la ligne. Le filtre détaillé utilise aussi le terme « avec vidéo ». Aucun exercice ni dosage n’est modifié.
+
+Validation : suite automatique de 97 tests. Les réglages tactiles sur Safari iPhone restent à vérifier.
