@@ -2345,7 +2345,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Fiches techniques et exercices';
+  var VERSION_APP = '17/11/2026 · Classement modifiable';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -2443,6 +2443,63 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return h('div', { key: i, className: 'desc-partie' + (x[0] ? '' : ' consigne') }, x[0] ? h('h3', null, x[0]) : null, h('p', null, txt));
     }));
   }
+  function enregistrerClassementFiche(e, valeurs) {
+    if (!e || e.id == null) return Promise.reject(new Error('Fiche introuvable.'));
+    var type = valeurs.typeFiche || 'Exercice';
+    if (['Exercice','Technique'].indexOf(type) < 0) return Promise.reject(new Error('Choisissez Exercice ou Technique.'));
+    var champs = { typeFiche: type, famillePrincipale: String(valeurs.famillePrincipale || '').trim(), sousFamille: String(valeurs.sousFamille || '').trim(),
+      tags: uniq(String(valeurs.tags || '').split(',').map(function (t) { return t.trim(); }).filter(Boolean)) };
+    var candidate = Object.assign({}, e, champs);
+    if (type !== (e.typeFiche || 'Exercice')) {
+      if (BASE.some(function (x) { return String(x.id) !== String(e.id) && cle(x.nom) === cle(e.nom) && (x.typeFiche || 'Exercice') === type && (x.public || []).some(function (p) { return (e.public || []).indexOf(p) >= 0; }); })) return Promise.reject(new Error('Une fiche de ce nom et de ce type existe déjà dans cette discipline.'));
+      var erreurs = verifierNouvelExerciceJudo(candidate, candidate);
+      if (type === 'Exercice' && !String(candidate.dosage || '').trim()) erreurs.push('Un dosage est nécessaire pour convertir cette référence en exercice.');
+      if (erreurs.length) return Promise.reject(new Error('Changement de type impossible : ' + erreurs.join(' · ')));
+    }
+    var cleProfil = CLE_AJOUTS;
+    return Stockage.lire(cleProfil).then(function (anciens) {
+      var liste = Array.isArray(anciens) ? anciens.slice() : [], index = -1;
+      liste.forEach(function (x,i) { if (x && String(x.id) === String(e.id)) index = i; });
+      var actuelle = index >= 0 ? liste[index] : {};
+      var fiche = Object.assign({}, e, actuelle, champs, { id: e.id, ajoute: !!e.ajoute, _jsbOverride: !e.ajoute });
+      if (index >= 0) liste[index] = fiche; else liste.push(fiche);
+      return Stockage.ecrire(cleProfil,liste).then(function (ok) {
+        if (!ok) throw new Error('Enregistrement impossible sur cet appareil. Les modifications ne sont pas appliquées.');
+        return fiche;
+      });
+    });
+  }
+  function ClassementFiche(p) {
+    var e = p.e;
+    var st = React.useState(function () { return { typeFiche: e.typeFiche || 'Exercice', famillePrincipale: e.famillePrincipale || e.famille || '', sousFamille: sousFamilleCatalogue(e), tags: Array.isArray(e.tags) ? e.tags.join(', ') : e.tags || '' }; }), valeurs = st[0], setValeurs = st[1];
+    var sm = React.useState(''), msg = sm[0], setMsg = sm[1];
+    var se = React.useState(false), attente = se[0], setAttente = se[1];
+    function changer(k,v) { var n = Object.assign({},valeurs); n[k] = v; setValeurs(n); setMsg(''); }
+    function enregistrer(ev) {
+      ev.preventDefault(); if (attente) return;
+      if (valeurs.typeFiche === 'Technique' && e.typeFiche !== 'Technique' && p.sel && p.sel.has(e.id)) {
+        setMsg('Retirez cette fiche de la préparation en cours avant de la transformer en référence technique.'); return;
+      }
+      var profilEdition = CLE_AJOUTS;
+      setAttente(true); setMsg('Enregistrement…');
+      enregistrerClassementFiche(e,valeurs).then(function (fiche) {
+        if (CLE_AJOUTS !== profilEdition) return;
+        BASE = BASE.map(function (x) { return String(x.id) === String(fiche.id) ? fiche : x; });
+        window.dispatchEvent(new Event('jsb-catalogue'));
+        setMsg('Classement enregistré sur cet appareil.');
+      }).catch(function (err) { setMsg(err.message || 'Enregistrement impossible.'); }).finally(function () { setAttente(false); });
+    }
+    return h('details', { className: 'fiche-outils' }, h('summary', null, 'Modifier le classement'),
+      h('form', { onSubmit: enregistrer },
+        h('p', { className: 'gn-aide' }, 'Classement du profil actif, conservé sur cet appareil et dans les sauvegardes complètes.'),
+        h('fieldset', { disabled: attente, style: { border: 0, padding: 0, margin: 0 } },
+          h('label', { className: 'cs-champ' }, 'Type de fiche', h('select', { value: valeurs.typeFiche, onChange: function (ev) { changer('typeFiche',ev.target.value); } }, ['Exercice','Technique'].map(function (t) { return h('option', { key:t,value:t },t); }))),
+          [['famillePrincipale','Famille principale'],['sousFamille','Sous-famille'],['tags','Tags séparés par des virgules']].map(function (c) {
+            return h('label', { key:c[0],className:'cs-champ' }, c[1], h('input', { type:'text',value:valeurs[c[0]],onChange:function (ev) { changer(c[0],ev.target.value); } }));
+          }),
+          h('button', { type:'submit',className:'cs-btn plein' }, attente ? 'Enregistrement…' : 'Enregistrer le classement')),
+        h('p', { role:'status',className:'cs-msg' },msg)));
+  }
   function Fiche(p) {
     var r0 = React.useState(0), rev = r0[0], setRev = r0[1];
     var r1 = React.useState(false), vueEtapes = r1[0], setVueEtapes = r1[1];
@@ -2486,6 +2543,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           fait('Groupe musculaire', e.groupeMusculaire),
           fait('Format', e.format),
           fait('Type', type)),
+        h(ClassementFiche, { key: e.id, e: e, sel: p.sel }),
         h('details', { className: 'fiche-outils' }, h('summary', null, 'Médias et export'),
         h(BoutonIllusIA, { e: e, maj: function () { setRev(rev + 1); } }),
         h(BoutonVideo, { e: e, maj: function () { setRev(rev + 1); } }),
@@ -7234,10 +7292,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // Ajoute à la base les exercices d'un catalogue (un exercice déjà présent, même nom et même espace, reçoit seulement ses médias)
   function fusionnerEnLigne(liste, medias) {
     var parCle = {}, parId = {}, ajouts = [];
-    BASE.forEach(function (e) { parCle[cleEL(e.nom) + '|' + (e.public || [])[0]] = e; parId[e.id] = e; });
+    BASE.forEach(function (e) { parCle[cleEL(e.nom) + '|' + (e.public || [])[0] + '|' + (e.typeFiche || 'Exercice')] = e; parId[e.id] = e; });
     liste.forEach(function (x) {
       if (!x || !x.nom || !Array.isArray(x.public)) return;
-      var k = cleEL(x.nom) + '|' + x.public[0], cible = parCle[k];
+      var k = cleEL(x.nom) + '|' + x.public[0] + '|' + (x.typeFiche || 'Exercice');
+      var memeId = parId[x.id];
+      var cible = memeId && cleEL(memeId.nom) === cleEL(x.nom) && (memeId.public || [])[0] === x.public[0] ? memeId : parCle[k];
       if (!cible) {
         if (parId[x.id]) return;
         cible = Object.assign({}, x); delete cible.image; delete cible.video; delete cible.idSource; cible.enLigne = true;
@@ -7356,7 +7416,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function App() {
     var s1 = useState(espaceInitial), cle = s1[0], setCle = s1[1];
     var sP = useState(0), setTickProfil = sP[1];
-    React.useEffect(function () { function f() { setTickProfil(Date.now()); } window.addEventListener('jsb-profil', f); return function () { window.removeEventListener('jsb-profil', f); }; }, []);
+    React.useEffect(function () { function f() { setTickProfil(Date.now()); } window.addEventListener('jsb-profil', f); window.addEventListener('jsb-catalogue', f); return function () { window.removeEventListener('jsb-profil', f); window.removeEventListener('jsb-catalogue', f); }; }, []);
     var s2 = useState(VIDE), f = s2[0], setF = s2[1];
     var s3 = useState(null), ouverte = s3[0], setOuverte = s3[1];
     var s4 = useState(false), demo = s4[0], setDemo = s4[1];
@@ -7623,7 +7683,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       var ids = {}; BASE.forEach(function (e,i) { ids[e.id] = i; });
       a.forEach(function (e) { if (!e || !e.id) return;
         if (ids[e.id] !== undefined) { if (e._jsbOverride) BASE[ids[e.id]] = Object.assign({}, BASE[ids[e.id]], e, { ajoute: false }); }
-        else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: true })); }
+        else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: !e._jsbOverride })); }
       });
     }).catch(function () {}).then(chargerEnLigne);
   }
