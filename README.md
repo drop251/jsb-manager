@@ -274,3 +274,9 @@ Validation : 112 tests passent, dont blocage du lancement/enregistrement/export 
 « Mes séances » permet de rechercher par titre, groupe ou date et de filtrer par Judo/Taïso. Les mots saisis peuvent être répartis entre titre et groupe ; accents et majuscules sont ignorés. Les dates ISO et jour/mois/année sont recherchables. Le nombre de résultats et un bouton d’effacement des filtres facilitent le retour à l’ensemble de l’historique. La pagination s’applique aux résultats et revient à trente à chaque changement de filtre. Les préparations de la semaine restent indépendantes de cette recherche.
 
 Validation : 115 tests passent, avec recherche sans accents, dates, combinaison de filtres, effacement, état sans résultat et pagination. La validation visuelle et tactile sur Safari iPhone reste à effectuer.
+
+## Remplacement explicite du brouillon (17 novembre 2026)
+
+Préparer un autre cours ou reprendre une séance demande confirmation lorsqu’une préparation existe. Refuser conserve le brouillon. Une nouvelle préparation confirmée vide les anciens exercices et réglages ; l’écriture de la sélection doit réussir avant tout remplacement. Ouvrir de nouveau le même créneau conserve sa préparation. Les séances enregistrées restent inchangées.
+
+Validation : 119 tests passent, dont refus de reprise, refus d’un nouveau cours, nouveau cours confirmé et échec de stockage. La validation Safari iPhone reste à effectuer.
