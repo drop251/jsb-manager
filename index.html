@@ -2972,6 +2972,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function SeanceDirecte(p) {
     var exos = deroulerBlocs((p.seance.exos || []).filter(function (x) { return x && x.nom; })), PH = phasesSeance(p.seance);
     var parId = {}; (p.base || BASE).forEach(function (e) { parId[e.id] = e; });
+    var nbExosHorsCatalogue = exos.filter(function (x) { return !parId[x.id]; }).length;
     function planDe(n) { var x = exos[n]; return x ? planExercice(x, parId[x.id]) : []; }
     var s1 = React.useState(0), i = s1[0], setI = s1[1];
     var s5 = React.useState(0), bi = s5[0], setBi = s5[1];
@@ -3074,6 +3075,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         window.speechSynthesis ? h('button', { type: 'button', className: 'sd-voix', 'aria-pressed': voix, onClick: function () { var v = !voix; setVoix(v); ecrireJSON('jsb-voix', v); if (v) { try { var u = new SpeechSynthesisUtterance('Annonces vocales activées'); u.lang = 'fr-FR'; speechSynthesis.speak(u); } catch (err) {} } } }, voix ? '🔊 Voix' : '🔇 Voix') : null,
         h('button', { type: 'button', className: 'sd-quitter', 'aria-label': 'Quitter la séance', onClick: p.fermer, ref: function (n) { if (n && !n.dataset.vu) { n.dataset.vu = 1; n.focus(); } } }, '✕')),
       h('div', { className: 'sd-progres', 'aria-hidden': 'true' }, h('i', { style: { transform: 'scaleX(' + ((termine ? exos.length : i) / Math.max(1, exos.length)) + ')' } })),
+      nbExosHorsCatalogue ? h('p', { role: 'alert', className: 'sd-vigilance', style: { padding: '8px 16px' } }, nbExosHorsCatalogue + (nbExosHorsCatalogue > 1 ? ' exercices de cette séance ne sont plus dans le catalogue. Le chronométrage reste disponible, mais les consignes détaillées ne sont pas affichées.' : ' exercice de cette séance n’est plus dans le catalogue. Le chronométrage reste disponible, mais ses consignes détaillées ne sont pas affichées.')) : null,
       msgHors ? h('p', { role: 'status', className: 'pr-mini', style: { padding: '8px 16px' } }, msgHors) : null,
       corps), document.body);
   }

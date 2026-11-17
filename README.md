@@ -295,3 +295,8 @@ La recherche de « Mes séances » examine également les noms des exercices, l�
 ## Actualisation de la copie hors ligne (17 novembre 2026)
 
 La version du cache du service worker est incrémentée avec la recherche étendue dans l’historique. Lorsqu’un appareil se reconnecte, le nouveau service worker précharge la page actuelle, s’active puis retire l’ancienne copie de l’application. La navigation en ligne conserve son chargement réseau prioritaire.
+
+
+## Lancement d’une ancienne séance (17 novembre 2026)
+
+Lorsqu’un exercice enregistré n’existe plus dans le catalogue courant, le lancement direct depuis l’historique affiche un avertissement indiquant que les consignes détaillées ne seront pas disponibles. Le chronométrage reste accessible pour ne pas rendre inutilisable la séance sauvegardée. Les exercices présents dans le catalogue continuent d’afficher leurs consignes et repères de sécurité.
