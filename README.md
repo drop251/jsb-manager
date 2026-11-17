@@ -308,3 +308,8 @@ L’alerte du lancement direct permet aussi d’afficher les noms des exercices 
 ## Nettoyage d’un retrait de fiche introuvable (17 novembre 2026)
 
 Retirer un exercice introuvable de la préparation supprime aussi ses réglages temporaires du brouillon (phase, durée et consignes de bloc). Le retrait ne touche pas aux séances déjà enregistrées. En cas d’échec de l’écriture de la sélection, ni la sélection ni le plan ne sont modifiés.
+
+
+## Suppression depuis l’historique intégré à « Ma séance » (17 novembre 2026)
+
+La liste secondaire des séances enregistrées dans le préparateur utilise maintenant la même confirmation que l’historique principal. Une écriture refusée affiche une erreur et conserve la séance ; « Conserver » ferme la demande.
