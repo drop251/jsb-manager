@@ -290,3 +290,8 @@ La carte du cours du jour retrouve désormais la séance à partir de l’horair
 ## Recherche étendue dans l’historique (17 novembre 2026)
 
 La recherche de « Mes séances » examine également les noms des exercices, l’objectif et la thématique enregistrés dans la séance. Une séance peut ainsi être retrouvée à partir de son contenu, même si son titre est différent.
+
+
+## Actualisation de la copie hors ligne (17 novembre 2026)
+
+La version du cache du service worker est incrémentée avec la recherche étendue dans l’historique. Lorsqu’un appareil se reconnecte, le nouveau service worker précharge la page actuelle, s’active puis retire l’ancienne copie de l’application. La navigation en ligne conserve son chargement réseau prioritaire.
