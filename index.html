@@ -1575,6 +1575,32 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .gn-option.gn-modele { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .gn-modele small { color: var(--muted); font-weight: 400; font-size: .8125rem; }
 </style>
+<style id="interface-epuree-20261118">
+/* Interface épurée : une famille de caractères et une échelle plus régulière. */
+:root {
+  --display: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --body: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --t-xs: 0.8125rem;
+  --t-s: 0.9375rem;
+}
+*, *::before, *::after { font-stretch: normal !important; }
+body, button, input, select, textarea,
+h1, h2, h3, .bloc-nom, .carte-nom, .sous b, .tuile strong,
+.appbar-titre strong, .onglets-marque, .onglet-txt,
+.pr-groupe h3, .gestion h2, .gn h2, .sheet h2 {
+  font-family: var(--body);
+  font-stretch: normal;
+  font-variation-settings: "wdth" 100;
+}
+.onglets-marque, .onglet-txt { letter-spacing: 0; }
+@media (max-width: 959px) {
+  .onglet-txt { font-size: 0.75rem; line-height: 1.2; }
+}
+h1, .hero h1, h2, h3, .sheet h2, .gn h2, .cs-haut h2 {
+  font-stretch: normal;
+  letter-spacing: -0.015em;
+}
+</style>
 <div id="app"></div>
 <script>/**
  * @license React
@@ -2345,11 +2371,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       bouton, msg ? h('span', { role: 'status' }, msg) : null);
   }
   var ESPACES = [
-    { key: 'taiso', label: 'Taïso', couleur: 'taiso', intro: 'Préparation du corps : gym douce pour entretenir, training pour renforcer.', sous: ['Gym douce', 'Training'], sousTous: 'Tout le taïso' },
-    { key: 'judo', label: 'Judo', couleur: 'judo', intro: 'Chutes, déplacements, technique debout et au sol, randori.', sous: ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'], sousTous: 'Tous les âges' },
-    { key: 'suivi', label: 'Suivi et reprise', couleur: 'suivi', intro: "Prévention, réathlétisation après blessure et tests d'évaluation.", sous: [], sousTous: '' },
-    { key: 'seance', label: 'Mes séances', couleur: 'seance', intro: 'Vos cours de la semaine et leur séance, l\'historique, la fiche vierge.', sous: ['Semaine', 'Historique', 'Fiche PDF'], sousTous: '', special: true },
-    { key: 'presences', label: 'Présences', couleur: 'pres', intro: "Faire l'appel de chaque groupe et suivre l'assiduité de chaque judoka.", sous: ['Appel', 'Bilan', 'Export Excel'], sousTous: '', special: true }
+    { key: 'taiso', label: 'Taïso', couleur: 'taiso', intro: 'Gym douce et renforcement.', sous: ['Gym douce', 'Training'], sousTous: 'Tout le taïso' },
+    { key: 'judo', label: 'Judo', couleur: 'judo', intro: 'Chutes, techniques debout et au sol, randori.', sous: ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'], sousTous: 'Tous les âges' },
+    { key: 'suivi', label: 'Suivi et reprise', couleur: 'suivi', intro: "Prévention, reprise après blessure et tests.", sous: [], sousTous: '' },
+    { key: 'seance', label: 'Mes séances', couleur: 'seance', intro: 'Séances de la semaine et historique.', sous: ['Semaine', 'Historique', 'Fiche PDF'], sousTous: '', special: true },
+    { key: 'presences', label: 'Présences', couleur: 'pres', intro: "Appel et suivi de l'assiduité.", sous: ['Appel', 'Bilan', 'Export Excel'], sousTous: '', special: true }
   ];
   var NIVEAUX = ['Débutant', 'Intermédiaire', 'Expert'];
   var GRADES = ['Blanche – Orange', 'Verte – Bleue', 'Marron – Noire'];
@@ -7607,7 +7633,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
     if (!cle) {
       return cadre(h('main', glisse, h('div', { className: 'wrap' }, entete(null), bandeau,
-        h('div', { className: 'hero' }, h('h1', null, 'Préparer une séance'), h('p', { className: 'lead' }, 'Choisissez un espace pour parcourir les exercices, composer une séance ou faire l\'appel.')),
+        h('div', { className: 'hero' }, h('h1', null, 'Préparer une séance')),
         BASE_LOCALE && BASE.length === 0 ? h(ImportBase, { texte: 'Choisir le fichier exercices.json' }) : null,
         h(Aujourdhui, { aller: aller }),
         h('div', { className: 'blocs raccourcis' }, ESPACES.map(function (esp, i) {
@@ -7842,5 +7868,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 .grille.mode-liste .carte-w .cs-plus { position:static; align-self:center; justify-self:center; margin:8px 0; }
 .et-corps { grid-template-columns:minmax(0,1fr); }
 </style>
+
+
 </body>
 </html>
