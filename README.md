@@ -328,3 +328,8 @@ Quand la recherche ne trouve aucun exercice, l’écran reprend le texte recherc
 ## Repères des familles du catalogue (18 novembre 2026)
 
 Les listes triées par famille affichent le nombre de fiches correspondant à chaque famille après application des filtres et de la recherche. Le décompte évolue donc avec les résultats visibles.
+
+
+## Navigation clavier du panneau de filtres (18 novembre 2026)
+
+À l’ouverture du panneau, le focus reste dans la fenêtre pendant le parcours avec Tab ou Maj+Tab. Échap ferme le panneau et le focus revient au bouton « Filtres » qui l’a ouvert.
