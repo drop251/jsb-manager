@@ -2572,14 +2572,21 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function Fiche(p) {
     var r0 = React.useState(0), rev = r0[0], setRev = r0[1];
     var r1 = React.useState(false), vueEtapes = r1[0], setVueEtapes = r1[1];
+    var r2 = React.useState(window.innerWidth >= 900), cote = r2[0], setCote = r2[1];
+    React.useEffect(function () {
+      function majCote() { setCote(window.innerWidth >= 900); }
+      window.addEventListener('resize', majCote);
+      return function () { window.removeEventListener('resize', majCote); };
+    }, []);
     var e = p.e, judo = p.espace.key === 'judo';
+    var dialogRef = React.useRef(null);
+    React.useEffect(function () { if (dialogRef.current) dialogRef.current.focus(); }, [e.id]);
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
     // Tablette et ordinateur : la fiche s'affiche à côté de la liste (on peut toucher un autre exercice sans la fermer)
     React.useEffect(function () { document.body.classList.add('fiche-ouverte'); return function () { document.body.classList.remove('fiche-ouverte'); }; }, []);
-    var cote = window.innerWidth >= 900;
     return ReactDOM.createPortal(h('div', { className: 'voile voile-fiche', onClick: p.fermer },
-      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: function (n) { if (n) n.focus(); }, style: teinte(p.espace.couleur),
+      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: dialogRef, style: teinte(p.espace.couleur),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } },
         h('div', { className: 'sheet-barre' },
           h('span', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
@@ -7562,6 +7569,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () { function f() { setTickProfil(Date.now()); } window.addEventListener('jsb-profil', f); window.addEventListener('jsb-catalogue', f); return function () { window.removeEventListener('jsb-profil', f); window.removeEventListener('jsb-catalogue', f); }; }, []);
     var s2 = useState(VIDE), f = s2[0], setF = s2[1];
     var s3 = useState(null), ouverte = s3[0], setOuverte = s3[1];
+    var declencheurFiche = React.useRef(null);
+    React.useEffect(function () {
+      if (ouverte || !declencheurFiche.current) return;
+      if (declencheurFiche.current.isConnected) declencheurFiche.current.focus();
+      declencheurFiche.current = null;
+    }, [ouverte]);
     var s4 = useState(false), demo = s4[0], setDemo = s4[1];
     var s5 = useState(false), tiroir = s5[0], setTiroir = s5[1];
     var s6 = useState('cat'), tri = s6[0], setTri = s6[1];
@@ -7742,7 +7755,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         actifs.map(function (x, i) { return h('button', { key: i, type: 'button', className: 'actif-puce', 'aria-label': 'Retirer le filtre ' + x[0], onClick: x[1] }, x[0], h('span', { 'aria-hidden': 'true' }, ' ✕')); }),
         h('button', { type: 'button', className: 'btn lien', onClick: toutEffacer }, 'Tout effacer')) : null,
       h('div', { className: 'barre barre-compte' },
-        h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')),
+        liste.length ? h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')) : null,
         nbIllus || f.illus ? h('button', { type: 'button', className: 'vue-btn illus-raccourci', 'aria-pressed': !!f.illus, onClick: function () { maj('illus', !f.illus); } }, 'Avec vidéo (' + nbIllus + ')') : null,
         h('div', { className: 'vue-choix', role: 'group', 'aria-label': 'Affichage' }, [['liste', 'Liste'], ['cartes', 'Cartes']].map(function (v) {
           return h('button', { key: v[0], type: 'button', className: 'vue-btn', 'aria-pressed': vueListe === v[0], onClick: function () { setVueListe(v[0]); ecrireVueListe(v[0]); } }, v[1]);
@@ -7789,7 +7802,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var nv = niveauTexte(e, judo), u = usages[e.id], estFav = fav.has(e.id);
         var famille = familleCatalogue(e, esp.label), debutFamille = tri === 'cat' && (i === 0 || familleCatalogue(liste[i-1], esp.label) !== famille);
         return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille, h('span', { className: 'catalogue-groupe-nombre' }, ' · ' + effectifsFamille[famille])) : null,
-          h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
+          h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function (ev) { declencheurFiche.current = ev.currentTarget; setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
           e.typeFiche === 'Technique' ? h('span', { className: 'tag' }, 'Fiche technique') : null,
@@ -7799,7 +7812,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             aVideo(e) ? h('span', { className: 'tag video' }, '▶ Vidéo') : null,
             nv ? h(Grade, { texte: nv }) : null,
             u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null));
-      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucune fiche trouvée' : 'Aucune fiche pour l’instant'),
+      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide', role: 'status' }, h('strong', null, tous.length ? 'Aucune fiche trouvée' : 'Aucune fiche pour l’instant'),
         tous.length ? h('span', null, f.q ? 'Aucun résultat pour « ' + f.q + ' ». Vérifiez le texte ou élargissez les filtres.' : 'Modifiez ou effacez les filtres actifs.') : null,
         tous.length && (f.q || actifs.length) ? h('button', { type: 'button', className: 'btn plein', onClick: toutEffacer }, 'Effacer la recherche et les filtres') : null,
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Ouvrir la démo') : null),
