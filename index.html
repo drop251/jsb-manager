@@ -7664,9 +7664,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             h('span', { className: 'bloc-txt' }, esp.intro),
             esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
         })),
-        !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'La base est vide'),
-          h('span', null, 'Les exercices arriveront avec la nouvelle structure. En attendant, vous pouvez voir la présentation avec quelques exemples.'),
-          h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Voir avec des exemples')) : null,
+        !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'Aperçu de l’application'),
+          h('span', null, 'Découvrez les rubriques à partir de quelques exemples.'),
+          h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Ouvrir la démo')) : null,
         h('p', { className: 'version' }, BASE.length + ' fiches',
           BASE_LOCALE && BASE.length ? h(ImportBase, { discret: true, texte: 'Mettre à jour la base' }) : null))));
     }
