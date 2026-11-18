@@ -2400,7 +2400,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var ORDRE = { 'Débutant': 0, 'Intermédiaire': 1, 'Expert': 2 };
   var MATERIEL_JUDO = ['Cerceaux de couleur', 'Échelle', 'Corde à sauter', 'Haies', 'Ceinture', 'Élastique', 'Empreintes'];
   var VIDE = { q: '', sous: '', typeFiche: '', famille: '', sousFamille: '', cat: '', niv: '', grp: '', fmt: '', dispo: [], iso: false, uni: false, poly: false, mom: '', tech: '', acc: '', insp: '', fav: false, illus: false };
-  var VERSION_APP = '17/11/2026 · Enregistrement sans doublons';
   var MOMENTS = ['Échauffement', 'Corps de séance', 'Fin de séance'];
   // Accepte aussi les anciens noms de moments (base importée avant le reclassement du 13/10)
   function momentsDe(e) {
@@ -5789,7 +5788,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return h('div', { className: 'cx-menu-w' },
       h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
-        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné'), h('small', { className: 'cx-version' }, 'Version du ' + VERSION_APP)),
+        h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition('compte'); } }, 'Mon compte'),
         h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité'),
@@ -7668,7 +7667,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'La base est vide'),
           h('span', null, 'Les exercices arriveront avec la nouvelle structure. En attendant, vous pouvez voir la présentation avec quelques exemples.'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Voir avec des exemples')) : null,
-        h('p', { className: 'version' }, 'Version du ' + VERSION_APP + ' · ' + BASE.length + ' exercices',
+        h('p', { className: 'version' }, BASE.length + ' fiches',
           BASE_LOCALE && BASE.length ? h(ImportBase, { discret: true, texte: 'Mettre à jour la base' }) : null))));
     }
 
