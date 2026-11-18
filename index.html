@@ -7729,8 +7729,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var n = fam ? parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length : parPublic.length;
           return h('button', { key: fam, type: 'button', className: 'btn', 'aria-pressed': (f.famille || '') === fam, onClick: function () { maj('famille', fam); } }, (fam || 'Toutes') + ' (' + n + ')');
         })),
-        sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null,
-        f.famille === 'À classer' ? h('p', { className: 'gn-aide' }, 'Ces fiches n’ont pas encore de famille pédagogique identifiable. Elles restent disponibles.') : null) : null,
+        sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null) : null,
       h('div', { className: 'barre barre-recherche' },
         h('input', { id: 'recherche', className: 'cherche', type: 'search', 'aria-label': 'Rechercher une fiche', placeholder: 'Rechercher une fiche', value: f.q, onChange: function (ev) { maj('q', ev.target.value); } }),
         h('button', { type: 'button', className: 'btn filtres-btn' + (nbFiltres ? ' actif' : ''), 'aria-haspopup': 'dialog', 'aria-controls': 'filtres-panneau', onClick: function (ev) { declencheurFiltres.current = ev.currentTarget; setPanneauF(true); } },
