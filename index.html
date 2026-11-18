@@ -799,7 +799,7 @@ body { background: var(--bg); }
   .onglet-nav, .onglet-nav[aria-current="page"], .onglets .onglet-nav:nth-child(2)[aria-current="page"], .onglets .onglet-nav:nth-child(5)[aria-current="page"] {
     position: relative; z-index: 1; flex: none; min-width: 0; flex-direction: column; gap: 2px; padding: 0 2px; background: none; transition: color .25s; }
   .onglet-nav[aria-current="page"] { color: var(--nuit); }
-  .onglet-txt { max-width: none; opacity: .75; font-size: 0.6875rem; font-weight: 600; transform: none; transition: opacity .2s; overflow: visible; }
+  .onglet-txt { max-width: none; opacity: .75; font-size: 0.75rem; font-weight: 600; transform: none; transition: opacity .2s; overflow: visible; }
   .onglet-nav[aria-current="page"] .onglet-txt { opacity: 1; font-weight: 700; max-width: none; }
   .onglet-nav svg { width: 21px; height: 21px; }
 }
@@ -1032,7 +1032,7 @@ img.illus.photo, img.illus.ia, img.illus.perso { background-color: var(--chip); 
 
 /* Texte agrandi : la barre d'onglets, l'en-tête et les grands titres sont plafonnés (comme iOS / Android),
    le reste du texte suit le réglage sans limite. */
-@media (max-width: 959px) { .onglet-txt { font-size: min(0.6875rem, 13px); } .onglet-nav svg { flex: none; } }
+@media (max-width: 959px) { .onglet-txt { font-size: min(0.75rem, 13px); } .onglet-nav svg { flex: none; } }
 .appbar-titre strong { font-size: min(var(--t-l), 24px); }
 .appbar-titre small { font-size: min(var(--t-s), 17px); white-space: nowrap !important; }
 .cx-avatar.petit { font-size: min(0.875rem, 18px); }
@@ -1131,7 +1131,7 @@ html, body { overflow-x: clip; }
 .pr-cren-btn b { font-size: var(--t-m); }
 .pr-cren-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-xs); color: var(--muted); }
 .pr-cren-btn[aria-pressed="true"] { background: var(--sel-bg); border-color: var(--sel-bord); box-shadow: inset 0 0 0 1px var(--sel-bord); }
-.pr-cren-etat { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.pr-cren-etat { font-size: var(--t-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
 .pr-cren-etat.encours { color: var(--ok-t); } .pr-cren-etat.avenir { color: var(--muted); } .pr-cren-etat.passe { color: var(--muted); opacity: .8; }
 .pr-resume { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); padding: 6px 6px 6px 12px; border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
 .pr-resume-txt { min-width: 0; font-size: var(--t-s); line-height: 1.3; }
@@ -1217,7 +1217,7 @@ html, body { overflow-x: clip; }
 .mode-liste .carte > :not(.illus) { margin: 0; grid-column: 2; }
 .mode-liste .carte .illus.petit, .mode-liste .carte .illus.photo.petit, .mode-liste .carte .illus.ia.petit, .mode-liste .carte .illus.perso.petit {
   grid-column: 1; grid-row: 1 / span 3; align-self: center; order: 0; position: static; width: 72px; height: 56px !important; margin: 0; padding: 2px; border-radius: var(--r-s); }
-.mode-liste .carte-cat { font-size: 0.6875rem; }
+.mode-liste .carte-cat { font-size: var(--t-xs); }
 .mode-liste .carte-nom { font-size: 0.9375rem; line-height: 1.25; -webkit-line-clamp: 2; }
 .mode-liste .carte-pied { margin: 0; padding: 0; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
 .mode-liste .carte-w .cs-plus { top: calc(50% - 22px); right: 10px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%;
