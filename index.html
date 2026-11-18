@@ -1600,6 +1600,10 @@ h1, .hero h1, h2, h3, .sheet h2, .gn h2, .cs-haut h2 {
   font-stretch: normal;
   letter-spacing: -0.015em;
 }
+h1, .hero h1 {
+  font-size: clamp(1.75rem, calc(1.25rem + 2vw), 2.5rem);
+  line-height: 1.12;
+}
 /* Évite les libellés de 11–12 px dans les repères et états de l’application. */
 .mode-liste .carte-cat, .pr-cren-etat, .pr-tableau thead th,
 .et-vigil span, .et-sous, .sd-m-etiq, .sd-m-note, .ch-titre small {
