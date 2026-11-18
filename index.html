@@ -1299,10 +1299,11 @@ html, body { overflow-x: clip; }
 .ms-ligne.prevue .ms-texte span { color: var(--ok-t); font-weight: 600; }
 .ms-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .ms-filtres { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
-.ms-filtres label { display: flex; flex: 1 1 160px; flex-direction: column; gap: 6px; font-size: 14px; }
+.ms-filtres label { display: flex; flex: 1 1 160px; flex-direction: column; gap: 6px; font-size: var(--t-s); }
 .ms-filtres input, .ms-filtres select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; }
 .ms-actions .cs-btn.plein, .cours-jour .cs-btn.plein { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .ms-tuiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); }
+@media (max-width: 420px) { .ms-tuiles { grid-template-columns: 1fr; } }
 .ms-tuile { display: flex; flex-direction: column; gap: 4px; padding: var(--e3); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line); }
 .ms-tuile b { font-family: var(--display); font-size: var(--t-l); }
 .ms-tuile span { font-size: var(--t-s); color: var(--muted); }
@@ -3143,7 +3144,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return mots.every(function (mot) { return texte.indexOf(mot) >= 0; });
     });
     function confirmerSuppression(id) {
-      if (!supprimerHisto(id)) { setMessageSuppression('Suppression impossible. La séance est conservée ; vous pouvez réessayer.'); return; }
+      if (!supprimerHisto(id)) { setMessageSuppression('Séance conservée. Réessayez la suppression.'); return; }
       setASupprimer(null); setMessageSuppression('');
     }
     var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
@@ -3159,7 +3160,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           progressable(s) ? h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Reprendre la séance du ' + dateFr(s.date) + ' un cran plus dure', onClick: function () { ouvrir('taiso', { type: 'reprendre', id: s.id, plusDur: true }); } }, 'Plus dur') : null,
           aSupprimer === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression' },
             h('span', null, 'Supprimer cette séance ? '),
-            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppression(s.id); } }, 'Confirmer la suppression'),
+            h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppression(s.id); } }, 'Supprimer'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setASupprimer(null); setMessageSuppression(''); } }, 'Conserver')) :
           h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setASupprimer(s.id); setMessageSuppression(''); } }, '✕')));
     }
@@ -3175,12 +3176,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             pr ? h('button', { type: 'button', className: 'cs-btn mini plein', onClick: function () { setDirect(pr); } }, 'Lancer') : null,
             h('button', { type: 'button', className: 'cs-btn mini' + (pr ? '' : ' plein'), onClick: function () { ouvrir(esp, pr ? { type: 'reprendre', id: pr.id, cle: c.cle } : { type: 'preparer', cle: c.cle }); } }, pr ? 'Modifier' : 'Préparer')));
       })) : h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun cours dans votre planning'),
-        h('span', null, 'Renseignez vos créneaux de la semaine : chaque cours apparaîtra ici avec sa séance prévue.'),
+        h('span', null, 'Ajoutez vos créneaux dans Présences pour afficher vos cours ici.'),
         h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'planning'); } catch (e) {} p.aller('presences'); } }, 'Renseigner mon planning')),
       h('h2', { className: 'ms-h' }, 'Ma séance en cours'),
       h('div', { className: 'ms-tuiles' }, [['judo', 'Judo', nJ], ['taiso', 'Taïso', nT]].map(function (x) {
         return h('div', { key: x[0], className: 'ms-tuile' },
-          h('b', null, x[1]), h('span', null, x[2] ? x[2] + (x[2] > 1 ? ' exercices' : ' exercice') : 'Vide'),
+          h('b', null, x[1]), h('span', null, x[2] ? x[2] + (x[2] > 1 ? ' exercices' : ' exercice') : 'Aucun exercice sélectionné'),
           h('div', { className: 'ms-actions' },
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'ouvrir' }); } }, 'Ouvrir'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
@@ -3192,9 +3193,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('label', null, 'Discipline', h('select', { value: discipline, onChange: function (ev) { changerFiltre(setDiscipline, ev.target.value); } },
           h('option', { value: '' }, 'Toutes'), h('option', { value: 'Judo' }, 'Judo'), h('option', { value: 'Taïso' }, 'Taïso'))),
         recherche || discipline ? h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setRecherche(''); changerFiltre(setDiscipline, ''); } }, 'Effacer les filtres') : null) : null,
-      histo.length ? h('p', { className: 'ms-vide', role: 'status' }, histoFiltree.length + (histoFiltree.length > 1 ? ' séances trouvées' : ' séance trouvée')) : null,
+      histo.length ? h('p', { className: 'ms-vide', role: 'status' }, histoFiltree.length ? histoFiltree.length + (histoFiltree.length > 1 ? ' séances trouvées' : ' séance trouvée') : 'Aucune séance trouvée.') : null,
       histoFiltree.length ? h('ul', { className: 'ms-liste' }, histoFiltree.slice(0, nbHistorique).map(ligneSeance))
-        : h('p', { className: 'ms-vide' }, histo.length ? 'Aucune séance ne correspond. Modifiez ou effacez les filtres.' : 'Les séances enregistrées depuis « Ma séance » (ou dont vous générez la fiche PDF) apparaîtront ici.'),
+        : !histo.length ? h('p', { className: 'ms-vide' }, 'Créez une séance dans « Ma séance » ou générez sa fiche PDF pour la retrouver ici.') : null,
       histoFiltree.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histoFiltree.length - nbHistorique) + ')') : null,
       h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
@@ -3438,7 +3439,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s7 = React.useState(null), suppressionHisto = s7[0], setSuppressionHisto = s7[1];
     var s8 = React.useState(''), erreurSuppressionHisto = s8[0], setErreurSuppressionHisto = s8[1];
     function confirmerSuppressionHisto(id) {
-      if (!supprimerHisto(id)) { setErreurSuppressionHisto('Suppression impossible : la séance est conservée. Réessayez.'); return; }
+      if (!supprimerHisto(id)) { setErreurSuppressionHisto('Séance conservée. Réessayez la suppression.'); return; }
       setSuppressionHisto(null); setErreurSuppressionHisto('');
     }
     // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
@@ -3655,7 +3656,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 h('div', { className: 'cs-reglages' },
                   h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { reprendre(s); } }, 'Reprendre'),
                   progressable(s) ? h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Reprendre la séance du ' + dateFr(s.date) + ' un cran plus dure', onClick: function () { reprendre(s, true); } }, 'Plus dur') : null,
-                  suppressionHisto === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression de cette séance' }, h('span', null, 'Supprimer cette séance ? '), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppressionHisto(s.id); } }, 'Confirmer'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setSuppressionHisto(null); setErreurSuppressionHisto(''); } }, 'Conserver')) : h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setSuppressionHisto(s.id); setErreurSuppressionHisto(''); } }, 'Supprimer')));
+                  suppressionHisto === s.id ? h('div', { role: 'group', 'aria-label': 'Confirmer la suppression de cette séance' }, h('span', null, 'Supprimer cette séance ? '), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { confirmerSuppressionHisto(s.id); } }, 'Supprimer'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setSuppressionHisto(null); setErreurSuppressionHisto(''); } }, 'Conserver')) : h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer la séance du ' + dateFr(s.date), onClick: function () { setSuppressionHisto(s.id); setErreurSuppressionHisto(''); } }, 'Supprimer')));
             }))) : null)));
   }
 
@@ -5615,7 +5616,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (etat.vue === 'choix') {
       corps = h('div', { className: 'cx-carte cx-choix' },
         h('h1', null, 'Bienvenue'),
-        h('p', { className: 'cx-intro' }, 'Connectez-vous à votre espace ou créez votre profil d\'éducateur. Vos licenciés, présences et séances restent sur cet appareil.'),
+        h('p', { className: 'cx-intro' }, 'Accédez à votre profil d\'éducateur ou créez-en un. Vos licenciés, présences et séances restent sur cet appareil.'),
         h('div', { className: 'cx-actions colonne' },
           h('button', { type: 'button', className: 'cx-btn plein', onClick: function () { vers('identifier'); } }, 'S\'identifier'),
           h('button', { type: 'button', className: 'cx-btn', onClick: function () { vers('creer'); } }, 'Créer un profil')),
@@ -7658,7 +7659,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           return h('button', { key: esp.key, type: 'button', className: 'bloc' + (bientot ? ' bientot' : ''), style: teinte(esp.couleur), onClick: function () { aller(esp.key); } },
             h('span', { className: 'bloc-ico' }, h(Icone, { nom: ICONES[esp.key] ? esp.key : 'seance', taille: 26 })),
             h('span', { className: 'bloc-nom' }, esp.label),
-            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? 'Bientôt' : n + (n > 1 ? ' fiches' : ' fiche')),
+            esp.key !== 'seance' ? h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? null : bientot ? 'Bientôt' : n + (n > 1 ? ' fiches' : ' fiche')) : null,
             h('span', { className: 'bloc-txt' }, esp.intro),
             esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
         })),
