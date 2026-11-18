@@ -7562,6 +7562,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () { function f() { setTickProfil(Date.now()); } window.addEventListener('jsb-profil', f); window.addEventListener('jsb-catalogue', f); return function () { window.removeEventListener('jsb-profil', f); window.removeEventListener('jsb-catalogue', f); }; }, []);
     var s2 = useState(VIDE), f = s2[0], setF = s2[1];
     var s3 = useState(null), ouverte = s3[0], setOuverte = s3[1];
+    var declencheurFiche = React.useRef(null);
+    React.useEffect(function () {
+      if (ouverte || !declencheurFiche.current) return;
+      if (declencheurFiche.current.isConnected) declencheurFiche.current.focus();
+      declencheurFiche.current = null;
+    }, [ouverte]);
     var s4 = useState(false), demo = s4[0], setDemo = s4[1];
     var s5 = useState(false), tiroir = s5[0], setTiroir = s5[1];
     var s6 = useState('cat'), tri = s6[0], setTri = s6[1];
@@ -7789,7 +7795,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var nv = niveauTexte(e, judo), u = usages[e.id], estFav = fav.has(e.id);
         var famille = familleCatalogue(e, esp.label), debutFamille = tri === 'cat' && (i === 0 || familleCatalogue(liste[i-1], esp.label) !== famille);
         return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille, h('span', { className: 'catalogue-groupe-nombre' }, ' · ' + effectifsFamille[famille])) : null,
-          h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
+          h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function (ev) { declencheurFiche.current = ev.currentTarget; setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
           e.typeFiche === 'Technique' ? h('span', { className: 'tag' }, 'Fiche technique') : null,
