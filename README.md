@@ -323,3 +323,8 @@ Une séance ancienne sans heure ne peut plus être affectée à plusieurs créne
 ## État vide du catalogue (17 novembre 2026)
 
 Quand la recherche ne trouve aucun exercice, l’écran reprend le texte recherché, distingue cette situation d’un filtrage sans résultat et propose d’effacer la recherche et les filtres en une action. Le choix du sous-groupe reste conservé. L’état vide réel de l’espace garde son bouton de démonstration.
+
+
+## Repères des familles du catalogue (18 novembre 2026)
+
+Les listes triées par famille affichent le nombre de fiches correspondant à chaque famille après application des filtres et de la recherche. Le décompte évolue donc avec les résultats visibles.

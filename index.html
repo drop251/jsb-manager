@@ -17,6 +17,7 @@
 .catalogue-familles h2 { font-size: 1rem; margin: 0 0 12px; }
 .catalogue-familles .champ { margin-top: 12px; }
 .catalogue-groupe { grid-column: 1 / -1; font-size: 1.125rem; margin: 20px 0 4px; }
+.catalogue-groupe-nombre { color: var(--muted); font-size: .875em; font-weight: 500; }
 .mode-liste .catalogue-groupe { padding: 8px 16px; margin: 0; background: var(--chip); }
 .fiche-outils { border-top: 1px solid var(--line); padding: 16px 0; }
 .fiche-outils summary, .filtres-panneau summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
@@ -7646,6 +7647,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var rang = function (e) { var r = ORDRE_NIV.indexOf(nv(e)); return r < 0 ? 99 : r; };
     liste = liste.slice().sort(tri === 'nom' ? nom : tri === 'niv' ? function (a, b) { return rang(a) - rang(b) || nom(a, b); }
       : function (a, b) { return familles.indexOf(familleCatalogue(a, esp.label)) - familles.indexOf(familleCatalogue(b, esp.label)) || sousFamilleCatalogue(a).localeCompare(sousFamilleCatalogue(b), 'fr') || nom(a, b); });
+    var effectifsFamille = {};
+    liste.forEach(function (e) { var famille = familleCatalogue(e, esp.label); effectifsFamille[famille] = (effectifsFamille[famille] || 0) + 1; });
     var eqs = uniq((judo ? MATERIEL_JUDO : []).concat([].concat.apply([], tous.map(function (e) { return (e.equipement || '').split(' + '); })))).filter(function (x) { return x && socle.indexOf(x) < 0; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
     var nivOpts = presents(tous, 'grade', ORDRE_NIV).concat(presents(tous, 'niveau', ORDRE_NIV)), grpOpts = presents(tous, 'groupeMusculaire', ['Haut du corps', 'Bas du corps', 'Core', 'Full body']);
     var fmtOpts = presents(tous, 'format', ['Solo', 'Binôme', 'Trio', 'Collectif']), momOpts = MOMENTS.filter(function (m) { return tous.some(function (e) { return momentsDe(e).indexOf(m) >= 0; }); }), techOpts = presents(tous, 'technique');
@@ -7735,7 +7738,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       liste.length ? h('div', { className: 'grille' + (vueListe === 'liste' ? ' mode-liste' : '') }, liste.slice(0, nbVisibles).map(function (e, i) {
         var nv = niveauTexte(e, judo), u = usages[e.id], estFav = fav.has(e.id);
         var famille = familleCatalogue(e, esp.label), debutFamille = tri === 'cat' && (i === 0 || familleCatalogue(liste[i-1], esp.label) !== famille);
-        return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille) : null,
+        return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille, h('span', { className: 'catalogue-groupe-nombre' }, ' · ' + effectifsFamille[famille])) : null,
           h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function () { setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
           h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
