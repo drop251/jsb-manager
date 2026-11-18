@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 1114)
-Total output lines: 72
-
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
 var CACHE = 'jsb-manager-20261118-interface-epuree-v30';
@@ -28,7 +25,14 @@ self.addEventListener('fetch', function (ev) {
   if (url.pathname.indexOf('/illustres/') >= 0) {
     var catalogue = /catalogue\.json$/.test(url.pathname);
     ev.respondWith(caches.open('jsb-illustres').then(async function (c) {
-      var comp…114 tokens truncated…lle - Number(m[2]));
+      var complet = new Request(req.url), range = req.headers.get('range');
+      var local = await c.match(complet);
+      // Safari demande les vidéos par plages : servir aussi ces plages depuis la copie complète.
+      if (range && local) {
+        var buf = await local.arrayBuffer(), taille = buf.byteLength;
+        var m = /^bytes=(\d*)-(\d*)$/.exec(range), debut, fin;
+        if (m && (m[1] || m[2])) {
+          debut = m[1] ? Number(m[1]) : Math.max(0, taille - Number(m[2]));
           fin = m[1] && m[2] ? Math.min(Number(m[2]), taille - 1) : taille - 1;
           if (debut <= fin && debut < taille) {
             var h = new Headers(local.headers); h.set('Content-Range', 'bytes ' + debut + '-' + fin + '/' + taille);
