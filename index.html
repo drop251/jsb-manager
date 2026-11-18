@@ -7742,7 +7742,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         actifs.map(function (x, i) { return h('button', { key: i, type: 'button', className: 'actif-puce', 'aria-label': 'Retirer le filtre ' + x[0], onClick: x[1] }, x[0], h('span', { 'aria-hidden': 'true' }, ' ✕')); }),
         h('button', { type: 'button', className: 'btn lien', onClick: toutEffacer }, 'Tout effacer')) : null,
       h('div', { className: 'barre barre-compte' },
-        h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')),
+        liste.length ? h('span', { className: 'compte', 'aria-live': 'polite' }, liste.length + (liste.length > 1 ? ' fiches' : ' fiche')) : null,
         nbIllus || f.illus ? h('button', { type: 'button', className: 'vue-btn illus-raccourci', 'aria-pressed': !!f.illus, onClick: function () { maj('illus', !f.illus); } }, 'Avec vidéo (' + nbIllus + ')') : null,
         h('div', { className: 'vue-choix', role: 'group', 'aria-label': 'Affichage' }, [['liste', 'Liste'], ['cartes', 'Cartes']].map(function (v) {
           return h('button', { key: v[0], type: 'button', className: 'vue-btn', 'aria-pressed': vueListe === v[0], onClick: function () { setVueListe(v[0]); ecrireVueListe(v[0]); } }, v[1]);
@@ -7799,7 +7799,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             aVideo(e) ? h('span', { className: 'tag video' }, '▶ Vidéo') : null,
             nv ? h(Grade, { texte: nv }) : null,
             u ? h('span', { className: 'tag usage' }, texteUsage(u)) : e.format && e.format !== 'Solo' ? h('span', { className: 'tag' }, e.format) : e.pilote ? h('span', { className: 'tag' }, e.pilote) : null)), (cle === 'taiso' || cle === 'judo') ? h(Plus, { e: e, sel: sel, compact: vueListe === 'liste' }) : null));
-      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide' }, h('strong', null, tous.length ? 'Aucune fiche trouvée' : 'Aucune fiche pour l’instant'),
+      }), liste.length > nbVisibles ? h('div', { ref: sentinelle, className: 'liste-suite', 'aria-hidden': 'true' }) : null) : h('div', { className: 'vide', role: 'status' }, h('strong', null, tous.length ? 'Aucune fiche trouvée' : 'Aucune fiche pour l’instant'),
         tous.length ? h('span', null, f.q ? 'Aucun résultat pour « ' + f.q + ' ». Vérifiez le texte ou élargissez les filtres.' : 'Modifiez ou effacez les filtres actifs.') : null,
         tous.length && (f.q || actifs.length) ? h('button', { type: 'button', className: 'btn plein', onClick: toutEffacer }, 'Effacer la recherche et les filtres') : null,
         !tous.length && !demo ? h('button', { type: 'button', className: 'btn plein', onClick: function () { setDemo(true); } }, 'Ouvrir la démo') : null),
