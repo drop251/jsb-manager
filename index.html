@@ -2573,13 +2573,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var r0 = React.useState(0), rev = r0[0], setRev = r0[1];
     var r1 = React.useState(false), vueEtapes = r1[0], setVueEtapes = r1[1];
     var e = p.e, judo = p.espace.key === 'judo';
+    var dialogRef = React.useRef(null);
+    React.useEffect(function () { if (dialogRef.current) dialogRef.current.focus(); }, [e.id]);
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
     // Tablette et ordinateur : la fiche s'affiche à côté de la liste (on peut toucher un autre exercice sans la fermer)
     React.useEffect(function () { document.body.classList.add('fiche-ouverte'); return function () { document.body.classList.remove('fiche-ouverte'); }; }, []);
     var cote = window.innerWidth >= 900;
     return ReactDOM.createPortal(h('div', { className: 'voile voile-fiche', onClick: p.fermer },
-      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: function (n) { if (n) n.focus(); }, style: teinte(p.espace.couleur),
+      h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: dialogRef, style: teinte(p.espace.couleur),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') p.fermer(); } },
         h('div', { className: 'sheet-barre' },
           h('span', { className: 'carte-cat' }, court(e.categorie) + (e.categorieSecondaire ? ' / ' + e.categorieSecondaire : '')),
