@@ -7654,11 +7654,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         h('div', { className: 'blocs raccourcis' }, ESPACES.map(function (esp, i) {
           var n = de(esp).length;
           var bientot = !esp.special && n === 0;
-          if (bientot && !demo) return null;   // section encore vide (« Suivi et reprise ») : masquée tant qu'elle n'a pas d'exercices
+          if (bientot && esp.key !== 'suivi' && !demo) return null; // Suivi reste visible pour afficher son état de disponibilité.
           return h('button', { key: esp.key, type: 'button', className: 'bloc' + (bientot ? ' bientot' : ''), style: teinte(esp.couleur), onClick: function () { aller(esp.key); } },
             h('span', { className: 'bloc-ico' }, h(Icone, { nom: ICONES[esp.key] ? esp.key : 'seance', taille: 26 })),
             h('span', { className: 'bloc-nom' }, esp.label),
-            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? 'Bientôt' : n + (n > 1 ? ' fiches' : ' fiche')),
+            h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? 'Semaine et historique' : bientot ? (esp.key === 'suivi' ? 'En préparation' : 'Bientôt') : n + (n > 1 ? ' fiches' : ' fiche')),
             h('span', { className: 'bloc-txt' }, esp.intro),
             esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
         })),
