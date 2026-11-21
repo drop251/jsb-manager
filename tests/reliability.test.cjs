@@ -160,7 +160,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
     sa:x=>String(x||'').toLowerCase(),techniqueDe:x=>x,scoreObjectifJudo:()=>0,
     sg:e=>e.sousGroupes,momentsDe:e=>[e.moment],
     illustre:()=>false,evite:()=>false,estMobilite:()=>false,
-    formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',formatsDe:()=>['Circuit'],
+    formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',niveauEffectifTaiso:()=> 'Débutant',supervisionRequiseTaiso:()=>false,formatsDe:()=>['Circuit'],
     niveauOk:()=>true,zoneDe:()=>'tronc',cibleZones:()=>0,
     construireBlocs:()=>[],zonesTravaillees:()=>({}),compatibleDosageJudo:()=>true
   };
@@ -211,7 +211,7 @@ test('Judo objectives are pedagogical and prioritize relevant exercises without 
 });
 
 test('Taiso material filter supports a truly equipment-free session',()=>{
-  const ctx={evite:()=>false};vm.createContext(ctx);vm.runInContext(fonction('okTaiso'),ctx);
+  const ctx={evite:()=>false,supervisionRequiseTaiso:()=>false};vm.createContext(ctx);vm.runInContext(fonction('okTaiso'),ctx);
   const rep={sansMateriel:true,binome:false,contraintes:[]};
   assert.equal(ctx.okTaiso({equipement:'Tatami',format:'Solo'},rep),true);
   assert.equal(ctx.okTaiso({equipement:'Kettlebell',format:'Solo'},rep),false);
