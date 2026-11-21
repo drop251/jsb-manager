@@ -47,3 +47,15 @@ test('PWA pre-caches the edge-swipe module',()=>{
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
   assert.match(sw,/\.\/jsb-edge-swipe\.js/);
 });
+
+test('toutes les zones contenteditable excluent le retour tactile, y compris les variantes non true',()=>{
+  const { IGNORE_SELECTOR }=require('../jsb-edge-swipe.js');
+  assert.match(IGNORE_SELECTOR,/\[contenteditable\]/);
+  const h=harness();
+  const editable={allowed:true,closest:selector=>selector.includes('[contenteditable]')?{}:null};
+  h.e('touchstart',[h.t(12)],editable);
+  h.e('touchmove',[h.t(145)],editable);
+  h.e('touchend',[h.t(145)],editable);
+  assert.equal(h.stats().commits,0);
+  h.dispose();
+});
