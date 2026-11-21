@@ -1,6 +1,6 @@
-# Recette d'import — catalogue Taïso (lot pilote de cinq exercices)
+# Recette d'import — catalogue Taïso (pilote V34 historique)
 
-**État : protocole de recette, non exécuté sur le fichier source.** Ce document ne signifie pas que le fichier Excel a été intégré. La branche `main` ne doit pas être modifiée par cette recette avant validation.
+**État : protocole historique V34, remplacé pour le travail courant par `recette-taiso-v46.md`. Non exécuté sur le fichier source.** Ce document ne signifie pas que le fichier Excel a été intégré. La branche `main` ne doit pas être modifiée par cette recette avant validation.
 
 ## Périmètre
 - Discipline : **Taïso uniquement**.
