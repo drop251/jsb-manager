@@ -31,3 +31,16 @@ Les deux classeurs V46 ont été **identifiés dans la bibliothèque**, mais la 
 Le protocole automatisé (précontrôle, rapprochement et rapport Markdown) reste opérationnel sur des **exports JSON accessibles**, mais ne prouve pas la validation des classeurs.
 
 **État : NO GO pour l'import en production.** Ne pas fusionner la PR de recette comme validation du catalogue.
+
+## Vérification du code réel de l'importeur (21 novembre 2026)
+
+Lecture directe du blob `index.html` du commit principal `52f69afd7869391bcbf6d61515e1af38fb62c4a0`.
+
+- **ImportBase** : `lireBaseFichier` appelle `fichier.text()` puis `JSON.parse` et vérifie des identifiants obligatoires. Il s'agit du flux de **base complète JSON**, à ne pas utiliser pour les vingt corrections.
+- **GestionExercices** : `lireFichierExercices` accepte `.json`, `.csv`/`.txt`, `.zip` et les classeurs lus par `XLSX.read`. Le format `.xlsx` est donc prévu dans le code. Cette vérification du code ne remplace pas une ouverture du classeur V46 sur Safari.
+- La conversion `XLSX.utils.sheet_to_json` préserve la colonne `index` si elle existe ; cette colonne n'est **pas** automatiquement renommée en `id` par le lecteur.
+- `preparerAjouts` compare une clé formée par **nom normalisé, discipline et type de fiche**. Une correspondance avec fiche existante peut produire une mise à jour sur l'ID existant ; sans correspondance, l'algorithme peut proposer une nouvelle fiche avec un nouvel ID.
+- La référence historique de type `JSB-TAISO-RENF-0055` n'est pas une garantie d'ID applicatif. L'aperçu et la base locale de test doivent confirmer le lien avant validation.
+- Les tests spécifiques `tests/taiso-v46-lecture-xlsx.test.cjs` utilisent un lecteur XLSX simulé pour vérifier le routage et la conservation des colonnes ; ils **ne chargent pas le fichier XLSX réel**, et ne prouvent pas l'import sur iPhone.
+
+**Décision opérationnelle :** utiliser uniquement le flux **ajouts/corrections** sur un profil isolé sauvegardé. Refuser le lot si l'aperçu indique un ajout inattendu, un doublon, une nouvelle référence ou une modification d'une fiche hors lot.
