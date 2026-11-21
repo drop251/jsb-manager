@@ -62,10 +62,10 @@ test('Rapport Markdown : toutes les fiches, informations comparables et visa sta
  const r=rapprocher([{...fiche(12,'Gainage | ventral'),dosage:'30 secondes'},{...fiche(13,'Squat'),dosage:'8 répétitions'}],[{...fiche(12,'Gainage | ventral'),dosage:'10 répétitions'},fiche(13,'Squat')]);
  const md=rapportMarkdown(r);
  assert.ok(md.includes('NO GO IMPORT'));
- assert.ok(md.includes('Gainage \\| ventral'));
+ assert.ok(md.includes(String.raw`Gainage \\| ventral`));
  assert.ok(md.includes('CONFLIT_CONTENU'));
  assert.ok(md.includes('dosage'));
- assert.ok(md.includes('non comparables') || md.includes('non comparables'.replace('non','non')));
+ assert.ok(md.includes('Champs non comparables'));
  assert.ok(md.includes('À renseigner'));
  assert.ok(md.includes('Visa du staff'));
  assert.equal(md.split('\\n').filter(x=>x.includes('À renseigner')).length,2);
