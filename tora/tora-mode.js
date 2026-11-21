@@ -96,6 +96,12 @@
       const id='JSB-TORA-'+String(i+1).padStart(3,'0');
       const possibles=parNom.get(norm(row[0])) || [];
       const eligibles=possibles.filter(function (e) {
+        // Une fiche sans discipline ou tranche d'âge explicite doit être vérifiée,
+        // pas présentée comme une correspondance prête pour l'Éveil.
+        const disciplines=Array.isArray(e.public) ? e.public : (e.public ? [e.public] : []);
+        const groupes=Array.isArray(e.sousGroupes) ? e.sousGroupes : (e.sousGroupes ? [e.sousGroupes] : []);
+        if (!disciplines.some(function (v) { return norm(v)==='judo'; }) ||
+            !groupes.some(estEveil)) return false;
         const correspondance=trouver(e);
         return correspondance && correspondance.id===id;
       });
