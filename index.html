@@ -5276,18 +5276,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function preparerAjouts(lignes, base) {
     // Numéros des exercices ajoutés : jamais réutilisés (compteur gardé sur l'appareil), jamais celui d'une photo ou vidéo déjà rangée
     function cleFiche(e) { return cle(e.nom) + '|' + (e.public || [])[0] + '|' + (e.typeFiche || 'Exercice'); }
-    var deja = {}, maxId = Math.max(5000, lireIdMax()), parCle = {}, parNom = {}, parId = {};
+    var deja = {}, maxId = Math.max(5000, lireIdMax()), parCle = {}, parNom = {}, parId = {}, parRef = Object.create(null), vusLigne = Object.create(null), vusRef = Object.create(null);
     function suivant() {
       do { maxId++; if (maxId >= 9000 && maxId < 20001) maxId = 20001; } while (IMG_PERSO[maxId] || ILLUS_IA[maxId] || VIDEOS[maxId] || parId[maxId]);
       return maxId;
     }
     base.forEach(function (e) { var k0 = cleFiche(e); deja[k0] = 1; parCle[k0] = e; parId[e.id] = e;
-      var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null; if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
-    var r = { ajouts: [], majFiches: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
+      var n = cle(e.nom); parNom[n] = parNom[n] === undefined ? e : null;
+      var code = cle(e.ref || ''); if (code) { if (!Object.prototype.hasOwnProperty.call(parRef, code)) parRef[code] = e; else if (parRef[code] !== e) parRef[code] = null; }
+      if (((e.id >= 5001 && e.id <= 8999) || e.id >= 20001) && e.id > maxId) maxId = e.id; });
+    var r = { totalLignes: lignes.length, ajouts: [], majFiches: [], doublons: [], ignores: 0, formes: 0, exclus: {}, illustrations: [], liens: 0, refuses: [] };
     lignes.forEach(function (l) {
       var il = illustrationDe(l); if (il.lien && !il.image && !il.svg) r.liens++;
       var e = classer(l); if (!e) { r.refuses.push({ nom: valeurChampPedagogique(l,['nom']) || 'Sans nom', raisons: ['Nom obligatoire'] }); r.ignores++; return; }
-      var k = cleFiche(e);
+      var k = cleFiche(e), codeRef = cle(e.ref || '');
+      if (vusLigne[k]) { r.refuses.push({ nom: e.nom, raisons: ['Exercice répété dans ce fichier : conserver une seule ligne par exercice, discipline et type'] }); return; }
+      vusLigne[k] = true;
+      if (codeRef) {
+        if (vusRef[codeRef] && vusRef[codeRef] !== k) { r.refuses.push({ nom: e.nom, raisons: ['Référence utilisée par plusieurs exercices du même fichier : ' + e.ref] }); return; }
+        vusRef[codeRef] = k;
+        if (Object.prototype.hasOwnProperty.call(parRef, codeRef) && (!parRef[codeRef] || cleFiche(parRef[codeRef]) !== k)) {
+          r.refuses.push({ nom: e.nom, raisons: ['Référence déjà associée à une autre fiche de la bibliothèque : ' + e.ref] }); return;
+        }
+      }
       // Ligne réduite au nom d'un exercice de la base (pour lui ajouter une illustration) : c'est cet exercice
       var seul = (!String(e.description || '').trim() || cle(e.description) === cle(e.nom)) && parNom[cle(e.nom)];
       if (seul) { k = cleFiche(seul); parCle[k] = seul; deja[k] = 1; }
@@ -5407,6 +5418,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function enregistrer() {
       if (verrouImport.current || !rapport) return;
       if (rapport.refuses && rapport.refuses.length) { setMsg('Enregistrement bloqué : corrigez les fiches refusées.'); return; }
+      var nbFiches = (rapport.ajouts || []).length + (rapport.majFiches || []).length;
+      var nbMedias = (rapport.illustrations || []).length + (rapport.videos || []).length;
+      var question = 'Confirmer l’enregistrement sur cet appareil de ' + nbFiches + ' fiche(s) et ' + nbMedias + ' média(s) ?';
+      if (nbFiches >= 20) question += '\n\nImport important : vérifiez votre sauvegarde et réalisez d’abord un pilote contrôlé.';
+      question += '\n\nVous pouvez encore annuler sans modifier la bibliothèque.';
+      if (!window.confirm(question)) { setMsg('Enregistrement annulé : aucune modification apportée.'); return; }
       verrouImport.current = true; setEnCours(true); ++lectureImport.current;
       var il = rapport.illustrations || [], reussi = false;
       enregistrerFichesImport(rapport).then(function (ok) {
@@ -5466,6 +5483,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
+        h('p', { className: 'gestion-msg' }, (rapport.totalLignes || 0) + ' ligne(s) analysée(s) en aperçu, sans écriture dans la bibliothèque. ' + (rapport.doublons || []).length + ' déjà présente(s) sans correction. ' + (rapport.refuses || []).length + ' refusée(s).'),
         rapport.refuses && rapport.refuses.length ? h('div', { role: 'alert' }, h('strong', null, rapport.refuses.length + ' fiche(s) refusée(s) : aucun nouvel exercice ne sera importé.'), h('ul', null, rapport.refuses.map(function (f,i) { return h('li', { key: i }, f.nom + ' : ' + f.raisons.join(' ; ')); }))) : null,
         h('strong', null, [rapport.ajouts.length ? rapport.ajouts.length + ' exercices prêts à être ajoutés' + (rapport.formes ? ', dont ' + rapport.formes + (rapport.formes > 1 ? ' formes enfants' : ' forme enfants') : '') : '',
           rapport.majFiches.length ? rapport.majFiches.length + ' fiches existantes prêtes à être mises à jour' : '',
