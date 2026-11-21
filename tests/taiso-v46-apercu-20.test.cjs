@@ -74,3 +74,28 @@ test('V46 : modification de correction ne doit pas changer le nombre de fiches a
  ctx.preparerAjouts(manifest.items.map(row),base);
  assert.equal(JSON.stringify(base),original);
 });
+
+test('V46 : une fiche Technique Taïso homonyme ne remplace pas un Exercice Taïso',()=>{
+ const ctx=env(),base=anciens();
+ const technique={id:99001,nom:base[0].nom,public:['Taïso'],typeFiche:'Technique',description:'Fiche technique indépendante'};
+ base.push(technique);
+ const original=JSON.stringify(base);
+ const report=ctx.preparerAjouts(manifest.items.map(row),base);
+ assert.equal(report.majFiches.length,20);
+ assert.equal(report.ajouts.length,0);
+ assert.equal(report.refuses.length,0);
+ assert.equal(report.majFiches[0].id,base[0].id);
+ assert.ok(report.majFiches.every(x=>x.id!==technique.id));
+ assert.equal(JSON.stringify(base),original);
+});
+test('V46 : un Exercice Judo homonyme et une Technique Taïso restent intacts',()=>{
+ const ctx=env(),base=anciens();
+ base.push({id:99001,nom:base[0].nom,public:['Taïso'],typeFiche:'Technique'});
+ base.push({id:99002,nom:base[0].nom,public:['Judo'],typeFiche:'Exercice'});
+ const before=JSON.stringify(base);
+ const report=ctx.preparerAjouts(manifest.items.map(row),base);
+ assert.equal(report.majFiches.length,20);
+ assert.equal(report.ajouts.length,0);
+ assert.ok(report.majFiches.every(x=>x.id!==99001&&x.id!==99002));
+ assert.equal(JSON.stringify(base),before);
+});
