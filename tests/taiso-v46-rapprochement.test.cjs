@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {rapprocher}=require('../scripts/taiso-rapprochement.cjs');
+const {rapprocher,rapportMarkdown}=require('../scripts/taiso-rapprochement.cjs');
 const fiche=(id,nom)=>({id,nom,public:['Taïso']});
 test('Rapprochement exact ID + nom insensible aux accents, sans mutation',()=>{
  const a=[fiche(1,'Équilibre sur un pied')],b=[fiche('1','Equilibre sur un pied')];
@@ -56,4 +56,20 @@ test('Les synonymes de sécurité connus sont comparés',()=>{
  const r=rapprocher([{...fiche(9,'Squat'),pointSecurite:'Genou aligné'}],[{...fiche(9,'Squat'),vigilance:'Genou valgus interdit'}]);
  assert.equal(r.entrees[0].statut,'CONFLIT_CONTENU');
  assert.ok(r.entrees[0].comparaison.divergences.includes('securite'));
+});
+
+test('Rapport Markdown : toutes les fiches, informations comparables et visa staff figurent',()=>{
+ const r=rapprocher([{...fiche(12,'Gainage | ventral'),dosage:'30 secondes'},{...fiche(13,'Squat'),dosage:'8 répétitions'}],[{...fiche(12,'Gainage | ventral'),dosage:'10 répétitions'},fiche(13,'Squat')]);
+ const md=rapportMarkdown(r);
+ assert.ok(md.includes('NO GO IMPORT'));
+ assert.ok(md.includes('Gainage \\| ventral'));
+ assert.ok(md.includes('CONFLIT_CONTENU'));
+ assert.ok(md.includes('dosage'));
+ assert.ok(md.includes('non comparables') || md.includes('non comparables'.replace('non','non')));
+ assert.ok(md.includes('À renseigner'));
+ assert.ok(md.includes('Visa du staff'));
+ assert.equal(md.split('\\n').filter(x=>x.includes('À renseigner')).length,2);
+});
+test('Rapport Markdown : refus d’un objet sans entrées',()=>{
+ assert.throws(()=>rapportMarkdown({}),/invalide/);
 });
