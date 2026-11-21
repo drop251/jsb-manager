@@ -54,3 +54,26 @@ Cela protège notamment contre une sélection accidentelle du fichier `JSB_Taiso
 Les tests `taiso-v46-lecture-xlsx.test.cjs` couvrent le refus avant chargement, des variantes de nom et la lecture normale d'un fichier candidat `A_VALIDER`.
 
 **Limite explicite :** le verrou est basé sur le **nom du fichier**, et non sur une signature interne ou une certification du contenu. Renommer un fichier de contrôle supprimerait cette protection ; elle ne remplace pas la revue des données, l'aperçu ni une décision de validation humaine. Aucune écriture de base n'a été effectuée dans cette recette.
+
+
+## Audit croisé des branches — 21 novembre 2026 (V51)
+
+Les branches de recette ne sont **pas** des branches empilées :
+
+| Branche / PR | Comparaison à `qa/taiso-import-pilote-20261121` | Fonction à préserver |
+|---|---|---|
+| `fix/import-preflight-collisions-v48` (#54) | Divergence : QA +41 commits, branche #54 +4 commits depuis la base commune | Collisions de références et confirmation avant écriture |
+| `fix/taiso-supervision-expert-materiel-v47` (#51) | Divergence : QA +41 commits, branche #51 +8 commits depuis la base commune | Supervision explicite, niveau Expert, matériel sans doublon |
+
+Ces nombres sont des instantanés de comparaison GitHub, **pas** un pronostic de conflits de fusion. Les trois branches touchent `index.html` et au moins deux touchent `tests/catalogue.test.cjs`. L'absence de conflit Git textuel ne prouverait pas la compatibilité fonctionnelle.
+
+### Plan d'intégration vérifiable — ne rien importer
+
+1. Préparer une **branche d'intégration séparée** ; ne pas fusionner directement la QA V46 dans `main`.
+2. Reporter ou fusionner de manière contrôlée les corrections des PR #54, #51 et #56, avec comparaison des changements de `index.html` et `tests/catalogue.test.cjs`. Éviter d'intégrer deux fois un même correctif.
+3. Exécuter la suite complète `node --test tests/*.test.cjs` **sur cette branche combinée** ; les 166 tests verts du workflow #213 ne suffisent pas.
+4. Rejouer les tests `import-preflight.test.cjs`, `taiso-supervision.test.cjs`, `taiso-v46-apercu-20.test.cjs`, `taiso-v46-identites.test.cjs` et `taiso-v46-lecture-xlsx.test.cjs` sur le même commit.
+5. Vérifier ensemble les invariants : **0 référence détournée**, **0 doublon au réimport**, **0 écriture après annulation**, **supervision non restaurée implicitement**, **0 fiche Technique ou Judo modifiée par un lot Taïso**, et refus du fichier `NON_IMPORT`.
+6. Compléter la recette Safari/PWA et les contrôles des vingt véritables fiches V46 avec preuve de sauvegarde/restauration.
+
+**Décision : NO GO pour la fusion de production comme pour l'import.** Les contrôles automatisés individuels ne remplacent ni la validation de la branche combinée ni les essais terrain.
