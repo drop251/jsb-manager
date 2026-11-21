@@ -9,10 +9,10 @@ function fonction(n){
  const j=html.indexOf('\n  }',i);assert.ok(j>=0,'Fin de fonction absente');
  return html.slice(i,j+4);
 }
-function fixture(rows){
+function fixture(rows,sheetName='Exercices'){
  const ctx={
    window:{},Promise,
-   XLSX:{read(input,options){ctx.reads.push({input,options});return {SheetNames:['Exercices'],Sheets:{Exercices:{}}};},
+   XLSX:{read(input,options){ctx.reads.push({input,options});return {SheetNames:[sheetName],Sheets:{[sheetName]:{}}};},
       utils:{sheet_to_json(){return rows;}}},
    reads:[],
    imagesDuClasseur(){return {};},
@@ -64,4 +64,15 @@ test('Un lot candidat explicitement À VALIDER suit la lecture habituelle, sans 
  const rows=await c.lireFichierExercices({name:'JSB_Taiso_V46_20_Fiches_Normalisees_A_VALIDER.xlsx',arrayBuffer:async()=>new ArrayBuffer(2)});
  assert.equal(rows.length,1);
  assert.equal(c.reads.length,1);
+});
+
+test('Renommer un classeur de pilotage ne permet pas son import',async()=>{
+ const c=fixture([{nom:'Ligne de pilotage non destinée aux exercices'}],'00_Pilotage');
+ await assert.rejects(c.lireFichierExercices({name:'lot-valide.xlsx',arrayBuffer:async()=>new ArrayBuffer(2)}),/Classeur de pilotage/);
+ assert.equal(c.reads.length,1);
+});
+test('La feuille Exercices reste importable après le verrou de pilotage',async()=>{
+ const c=fixture([{'Nom (exercice)':'Face pull élastique'}],'Exercices');
+ const rows=await c.lireFichierExercices({name:'lot-v46.xlsx',arrayBuffer:async()=>new ArrayBuffer(2)});
+ assert.equal(rows.length,1);
 });
