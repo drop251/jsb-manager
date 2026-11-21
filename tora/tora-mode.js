@@ -58,8 +58,10 @@
   function trouver(exercice) {
     const e=exercice||{};
     if (norm(e.typeFiche)==='technique') return null;
+    const disciplines=Array.isArray(e.public) ? e.public : (e.public ? [e.public] : []);
+    if (disciplines.length && !disciplines.some(function (v) { return norm(v)==='judo'; })) return null;
     const opposition=norm(e.niveauOpposition);
-    if (opposition && !['sans opposition','cooperation','aucune'].includes(opposition)) return null;
+    if (opposition && !['sans opposition','cooperation','cooperation sans resistance','aucune'].includes(opposition)) return null;
     const publics=Array.isArray(e.sousGroupes) ? e.sousGroupes : e.sousGroupes ? [e.sousGroupes] : [];
     if (publics.length && !publics.some(estEveil)) return null;
     const s=PAR_NOM.get(norm(e.nom || e.Nom || e.name));
@@ -72,9 +74,44 @@
       consigne:modeAffichage==='aventure' ? (s.histoire+' '+s.consigne) : s.consigne,
       id:s.id };
   }
+  // Diagnostic non destructif : les fiches Judo importées peuvent rester locales à l'appareil.
+  function auditerCatalogue(catalogue) {
+    const base=Array.isArray(catalogue) ? catalogue
+      : catalogue && Array.isArray(catalogue.exercices) ? catalogue.exercices : null;
+    if (!base) throw new TypeError('Catalogue attendu : tableau ou objet { exercices: tableau }');
+    const parNom=new Map();
+    base.forEach(function (e) {
+      if (!e || typeof e!=='object') return;
+      const n=norm(e.nom || e.Nom || e.name);
+      if (!n) return;
+      if (!parNom.has(n)) parNom.set(n, []);
+      parNom.get(n).push(e);
+    });
+    const details=ENTREES.map(function (row,i) {
+      const id='JSB-TORA-'+String(i+1).padStart(3,'0');
+      const possibles=parNom.get(norm(row[0])) || [];
+      const eligibles=possibles.filter(function (e) {
+        const correspondance=trouver(e);
+        return correspondance && correspondance.id===id;
+      });
+      const statut=eligibles.length>1 ? 'doublon' : eligibles.length===1 ? 'prete'
+        : possibles.length ? 'incompatible' : 'absente';
+      const fiche=eligibles.length===1 ? eligibles[0] : null;
+      return {id:id, nomTechnique:row[0], statut:statut,
+        exerciceId:fiche ? (fiche.id == null ? fiche.ref || null : fiche.id) : null};
+    });
+    return {
+      totalHistoires:details.length,
+      pretes:details.filter(function (d) { return d.statut==='prete'; }).length,
+      absentes:details.filter(function (d) { return d.statut==='absente'; }).length,
+      incompatibles:details.filter(function (d) { return d.statut==='incompatible'; }).length,
+      doublons:details.filter(function (d) { return d.statut==='doublon'; }).length,
+      details:details
+    };
+  }
   const intro='Aujourd’hui, Tora a besoin de nous pour réussir ses missions au dojo. Nous allons apprendre en jouant et en nous aidant.';
   const conclusion='Tora nous remercie pour nos essais, notre attention et notre entraide. Nous terminons par le salut.';
-  const api=Object.freeze({norm,estEveil,mode,actif,trouver,pourEnfant,intro,conclusion,
+  const api=Object.freeze({norm,estEveil,mode,actif,trouver,pourEnfant,auditerCatalogue,intro,conclusion,
     modes:MODES.slice(),nombre:ENTREES.length});
   if (typeof module==='object' && module.exports) module.exports=api;
   root.JSBTora=api;
