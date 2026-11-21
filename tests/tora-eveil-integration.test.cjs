@@ -63,6 +63,22 @@ test('Tora : exclusion des techniques et des situations d’opposition', () => {
   assert.equal(Tora.trouver(ex(nom, { niveauOpposition: 'Sans opposition' }))?.id, 'JSB-TORA-020');
 });
 
+
+test('Tora : les récits originaux complets sont réservés au mode aventure', () => {
+  const fiche = ex('Chemin d’appuis au sol');
+  const avant = JSON.stringify(fiche);
+  const courte = Tora.pourEnfant(fiche, 'courtes');
+  const aventure = Tora.pourEnfant(fiche, 'aventure');
+  assert.equal(courte.id, aventure.id);
+  assert.equal(courte.titre, aventure.titre);
+  assert.equal(courte.consigne, 'Pose tes pieds sur les pierres pour aider Tora à traverser.');
+  assert.match(aventure.consigne, /rivière enchantée/);
+  assert.ok(aventure.consigne.endsWith(courte.consigne));
+  assert.ok(aventure.consigne.length > courte.consigne.length);
+  assert.equal(JSON.stringify(fiche), avant, 'dosage, vigilance et technique inchangés');
+  assert.equal(Tora.pourEnfant(fiche, 'sans'), null);
+});
+
 test('Tora : chaîne complète générateur → préparation → PDF et cache déclarés', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
