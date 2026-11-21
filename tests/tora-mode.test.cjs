@@ -53,3 +53,13 @@ test('JSB : le script principal reste syntaxiquement valide', () => {
   assert.ok(js.length>300000,'script principal introuvable');
   assert.doesNotThrow(()=>new vm.Script(js,{filename:'index-app.js'}));
 });
+
+test('Tora : aucune extension aux âges voisins ni aux variantes de Technique', () => {
+  assert.equal(Tora.estEveil('Éveils 3 ans'), false);
+  assert.equal(Tora.estEveil('Éveils 4 ans'), false);
+  assert.equal(Tora.estEveil('Éveils 4–5 ans'), true);
+  assert.equal(Tora.estEveil('Éveils 5–6 ans'), false);
+  assert.equal(Tora.estEveil('Éveils 4–6 ans'), false);
+  assert.equal(Tora.trouver({...judo, typeFiche: ' technique '}), null);
+  assert.equal(Tora.trouver({...judo, typeFiche: 'TECHNIQUE'}), null);
+});
