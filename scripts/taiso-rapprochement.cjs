@@ -106,15 +106,62 @@ function rapprocher(candidats, controle) {
     totalControle:controle.length,repartition,entrees,
     decision:'NO_GO_IMPORT',note:'Tout statut nécessite une décision humaine ; aucune fusion ni écriture.'};
 }
+/**
+ * Produit un procès-verbal Markdown lisible par le staff.
+ * Ne valide aucune fiche automatiquement : colonne décision laissée à compléter.
+ */
+function cellule(v) {
+  return String(v == null ? '' : v).replace(/\|/g,'\\|').replace(/[\r\n]+/g,' ').trim();
+}
+function rapportMarkdown(rapport) {
+  if (!rapport || !Array.isArray(rapport.entrees)) throw TypeError('Rapport de rapprochement invalide');
+  const lignes=[
+    '# Revue Taïso — rapport de rapprochement',
+    '',
+    '**Statut : NO GO IMPORT.** Rapport documentaire, sans modification du catalogue.',
+    '',
+    '- Fiches candidates analysées : '+rapport.totalCandidats,
+    '- Entrées de contrôle analysées : '+rapport.totalControle,
+    '',
+    '| Statut | Nombre |',
+    '|---|---:|',
+    ...Object.entries(rapport.repartition).map(([statut,n])=>'| '+cellule(statut)+' | '+n+' |'),
+    '',
+    '## Décisions par fiche',
+    '',
+    '| Ligne | ID | Exercice | Situation | Références (lignes) | Champs divergents | Champs non comparables | Décision staff |',
+    '|---:|---|---|---|---|---|---|---|',
+    ...rapport.entrees.map(e=>[
+      e.ligne,
+      cellule(e.id),
+      cellule(e.nom),
+      cellule(e.statut),
+      (e.references||[]).map(r=>r.ligne).join(', '),
+      (e.comparaison?.divergences||[]).join(', '),
+      (e.comparaison?.nonComparables||[]).join(', '),
+      'À renseigner'
+    ].map(cellule).join(' | ')).map(x=>'| '+x+' |'),
+    '',
+    '## Visa du staff',
+    '',
+    '- Responsable de vérification :',
+    '- Date :',
+    '- Observations et actions correctives :',
+    '- Décision globale : **NO GO tant que les fiches et la recette d’import ne sont pas validées**',
+    ''
+  ];
+  return lignes.join('\n');
+}
 if (require.main === module) {
-  const [a,b]=process.argv.slice(2);
+  const [a,b,format]=process.argv.slice(2);
   if(!a||!b) {process.stderr.write('Usage: node scripts/taiso-rapprochement.cjs candidats.json controle_NON_IMPORT.json\n');process.exitCode=2;}
   else {
     try {
       if(!/non[_ -]?import/i.test(b)) throw Error('Le second fichier doit porter explicitement NON_IMPORT');
+      if (format && format!=='--markdown') throw Error('Format inconnu : utiliser --markdown');
       const out=rapprocher(charger(a),charger(b));
-      process.stdout.write(JSON.stringify(out,null,2)+'\n');
+      process.stdout.write(format==='--markdown' ? rapportMarkdown(out) : JSON.stringify(out,null,2)+'\n');
     } catch(err) {process.stderr.write(String(err.message)+'\n');process.exitCode=2;}
   }
 }
-module.exports={normaliser,idDe,nomDe,charger,rapprocher,comparerChamps};
+module.exports={normaliser,idDe,nomDe,charger,rapprocher,comparerChamps,rapportMarkdown};
