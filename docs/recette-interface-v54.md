@@ -63,3 +63,10 @@ Pour chaque échec : identifiant UI-xx, environnement (macOS/iOS, version Safari
 - UI-01 à UI-14 : recette manuelle non renseignée, sans présumer d'un succès sur appareil.
 - Focus effectif, navigation tactile, persistance après fermeture et cache hors ligne Safari : à éprouver sur appareil réel.
 - **Décision** : conserver la PR #55 en brouillon et ne pas fusionner automatiquement.
+
+## Renforcement des tests responsive — 21 novembre 2026
+- Commit évalué : `2cd93c1b2b25b33ad4403f30697cf9648bd6df74`.
+- GitHub Actions `44896591919` : **success**, **121 tests réussis, 0 échec, 0 ignoré**.
+- Nouvelle suite `tests/fiche-responsive.test.cjs` : vérifie le statut modal de la fiche lors des changements de largeur (mobile ↔ desktop) et la présence d'une référence de focus utilisée à l'ouverture.
+- Ces tests unitaires ne se substituent pas aux tests avec lecteurs d'écran et gestes tactiles sur Safari iPhone.
+- Conserver la PR #55 en brouillon jusqu'à la recette UI-01 à UI-14.
