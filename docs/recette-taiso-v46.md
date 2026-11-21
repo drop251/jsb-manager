@@ -125,3 +125,17 @@ node scripts/taiso-rapprochement.cjs candidats-v46.json controle-v46_NON_IMPORT.
 ```
 
 Le rapport contient : les comptes réellement lus, la répartition des statuts, une ligne par exercice candidat (ID, nom, références, champs divergents, champs non comparables), une colonne **« Décision staff : À renseigner »** et un espace de visa. La commande lit les deux JSON mais ne les modifie pas. Ce n'est pas un export du catalogue validé, ni une preuve que les fichiers Excel originaux ont été vérifiés. La décision finale reste **NO GO IMPORT** par défaut.
+
+## Verrou d'identité sur les 20 corrections historiques
+
+Un manifeste **NON IMPORTABLE** a été ajouté : `docs/manifeste-corrections-taiso-v46.NON_IMPORT.json`. Il enregistre les vingt paires (nom, référence historique) issues du rapprochement documentaire. La valeur `idApplicatif` y reste volontairement `null` : un ID local ne peut pas être inféré depuis un index Excel ou depuis la référence `JSB-TAISO-RENF-xxxx`.
+
+Précontrôle facultatif sur des exports JSON autorisés :
+```sh
+node scripts/taiso-verifier-identites.cjs lot-v46.json > controle-identites.json
+node scripts/taiso-verifier-identites.cjs lot-v46.json base-locale-de-test.json > controle-identites-local.json
+```
+
+Le module n'écrit rien et ne crée aucun fichier d'import ; sa sortie est un rapport JSON. Il bloque les doublons de noms, les fiches hors manifeste, les entrées manquantes, les ambiguïtés du catalogue local et toute attribution d'ID applicatif dans le manifeste. Il signale les colonnes `index` sans les réutiliser comme identifiant. Même si le contrôle ne relève aucune anomalie, le rapport reste `NO_GO_IMPORT` : décision humaine et recette Safari/iPhone indispensables.
+
+**Ne jamais utiliser un export de la base locale contenant des données personnelles sans protection adaptée** ; le rapprochement des exercices peut être réalisé sur un profil de test ne contenant que les fiches nécessaires.
