@@ -63,3 +63,9 @@ test('Tora : aucune extension aux âges voisins ni aux variantes de Technique', 
   assert.equal(Tora.trouver({...judo, typeFiche: ' technique '}), null);
   assert.equal(Tora.trouver({...judo, typeFiche: 'TECHNIQUE'}), null);
 });
+
+test('Tora : les 24 associations ont un nom unique et un contenu exploitable', () => {
+  const source = require('node:fs').readFileSync(require('node:path').join(root, 'tora/tora-mode.js'), 'utf8');
+  assert.match(source, /new Set\(noms\)\.size !== ENTREES\.length/);
+  assert.equal(Tora.nombre, 24);
+});
