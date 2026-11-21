@@ -59,3 +59,9 @@ Cette trame sert à **vérifier les compteurs et le rendu**, pas à créer des e
 Le compteur « histoires disponibles » signale uniquement les **correspondances techniques** dans le catalogue actif (nom technique, discipline et groupe explicites, absence d'opposition non autorisée). Il ne certifie ni la qualité scientifique de l'exercice, ni sa sécurité absolue, ni sa disponibilité chez tous les utilisateurs.
 
 Dans la publication publique du dépôt, `illustres/catalogue.json` contient **10 fiches Taïso et aucune fiche Judo**, ce qui donne normalement 0 / 24 sur cette base seule. La base d'un coach peut être différente, car elle est importée sur son appareil.
+
+## Dossier de validation des 24 exercices
+
+Le fichier [`fiches-pedagogiques-a-valider.json`](./fiches-pedagogiques-a-valider.json) conserve **24 propositions pédagogiques** issues du prototype Tora : objectif, action, organisation, dosage, niveau d'opposition, critères de réussite, variantes, accessibilité et points de sécurité. Le statut de **chaque fiche reste « à vérifier »** ; aucune validation terrain n'est présumée.
+
+**Ce fichier n'est pas au format d'import applicatif** : les objets restent dans `fiches_revue`, sans propriété racine `exercices`. Il ne doit pas être renommé en catalogue actif ni chargé automatiquement. Avant un import, il faudra contrôler les champs obligatoires Judo de JSB Manager, vérifier les consignes avec un éducateur qualifié, attribuer des identifiants applicatifs stables et tester sur une copie de la base.
