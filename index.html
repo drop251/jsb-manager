@@ -4748,7 +4748,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     tags: ['tags', 'motscles'],
     typeFiche: ['typefiche', 'naturedefiche'],
     accessibilite: ['accessibilite','adaptations'],
-    precaution: ['precautionosteoporose']
+    precaution: ['precautionosteoporose'],
+    supervisionRequise: ['supervisionrequise','supervisionobligatoire','encadrementobligatoire']
   };
   function normaliserLigne(o) {
     var k = {}; Object.keys(o).forEach(function (c) { k[cle(c)] = o[c]; });
@@ -4927,7 +4928,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function equipementDe(x, pub) {
     var m = sansAcc(x.equipement || ''), r = pub === 'Judo' ? ['Tatami'] : [];
-    if (/judogi|veste/.test(m)) r.push('Judogi'); if (/ceinture/.test(m)) r.push('Ceinture'); if (/elastique/.test(m)) r.push('Élastique');
+    if (/judogi|veste/.test(m)) r.push('Judogi'); if (/ceinture/.test(m)) r.push('Ceinture'); if (pub === 'Judo' && /elastique/.test(m)) r.push('Élastique');
     if (pub === 'Judo' && formatDe(x, pub) !== 'Solo') r.push('Partenaire');
     if (pub === 'Taïso') r.push(x.equipement && !/aucun/.test(m) ? String(x.equipement) : 'Poids du corps');
     return r.join(' + ');
@@ -5191,6 +5192,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (/^data:image\//.test(brut.image || '')) e.image = brut.image;
     if (typeof brut.illustration === 'string' && brut.illustration.indexOf('<svg') >= 0) { try { e.illustration = nettoyerSvg(brut.illustration); } catch (err) {} }
     e.moment = momentDe(pub, cat, x, texte);
+    if (pub === 'Taïso') {
+      var marqueurSupervision = Array.isArray(e.tags) ? e.tags.join(' ') : String(e.tags || '');
+      e.supervisionRequise = /^(oui|true|1)$/i.test(String(x.supervisionRequise || '')) || /supervision obligatoire|encadrement obligatoire|encadrant requis|supervision requise/.test(sansAcc(marqueurSupervision));
+    }
     if (pub === 'Judo') {
       var ages = agesDe(x); e.sousGroupes = ages; e.categorieAge = AGE_TXT[ages[0]];
       e.grade = gradeDe(x); e.niveau = /^(debutant|intermediaire|expert|confirme)$/.test(sansAcc(x.niveau || '')) ? niveauDe(x) : ''; e.technique = x.technique || (FAMILLES[x.famille] ? x.famille : familleDe(e.nom, texte));
@@ -5303,6 +5308,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             var fourni = Object.keys(l).some(function (k) { return c[1].some(function (alias) { return cle(k) === cle(alias); }); });
             if (!fourni && ex[c[0]] !== undefined) ficheMaj[c[0]] = ex[c[0]];
           });
+          if (ex.supervisionRequise && !Object.keys(l).some(function (k) { return ['supervisionRequise','supervision obligatoire','encadrement obligatoire','tags','mots clés'].some(function (alias) { return cle(k) === cle(alias); }); })) ficheMaj.supervisionRequise = true;
           ['image','illustration','video'].forEach(function (m) { if (!e[m] && ex[m]) ficheMaj[m] = ex[m]; });
           r.majFiches.push(ficheMaj);
           return;
@@ -5993,12 +5999,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   // Taïso : un exercice est possible si le groupe peut le faire (contraintes « À éviter »), si le travail à deux est
   // choisi pour les exercices en binôme, et si son matériel est disponible (le partenaire n'est pas du matériel)
+  function supervisionRequiseTaiso(e) {
+    if (!e) return false;
+    if (e.supervisionRequise === true || e.supervisionRequise === 1 || /^(oui|true|1)$/i.test(String(e.supervisionRequise || ''))) return true;
+    var tags = Array.isArray(e.tags) ? e.tags.join(', ') : String(e.tags || '');
+    return /supervision obligatoire|encadrement obligatoire|encadrant requis|supervision requise/.test(sansA(tags + ' ' + (e.vigilance || '') + ' ' + (e.accessibilite || '')));
+  }
   function okTaiso(e, rep) {
+    if (supervisionRequiseTaiso(e) && (!rep || rep.supervision !== true)) return false;
     if (evite(e, rep.contraintes)) return false;
     var eq = (e.equipement || '').split(' + ').filter(Boolean), aDeux = e.format === 'Binôme' || eq.indexOf('Partenaire') >= 0;
     if (aDeux && !rep.binome) return false;
     if (rep.sansMateriel) return eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami'; });
-    return !(rep.materiel && rep.materiel.length) || eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami' || x === 'Partenaire' || rep.materiel.indexOf(x) >= 0; });
+    return !(rep.materiel && rep.materiel.length) || eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami' || x === 'Partenaire' || rep.materiel.some(function (m) { return m === x || (/elastique|\bbande\b/.test(sansA(m)) && /elastique|\bbande\b/.test(sansA(x))); }); });
   }
   // Répartir les minutes sans dépasser la durée de la phase à cause des arrondis.
   function repartirDurees(minutes, nombre) {
@@ -6019,7 +6032,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (sg(e).indexOf(rep.groupe) < 0) return false;
       var eq = (e.equipement || '').split(' + ').filter(Boolean);
       if (judo) return eq.every(function (x) { return autorise.indexOf(x) >= 0; });
-      if (!niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))) return false;
+      if (!niveauOk(e, niveauEffectifTaiso(rep))) return false;
       if (rep.groupe === 'Gym douce' && (estImpact(e) || e.accessibilite === 'Publics entraînés uniquement')) return false;
       return okTaiso(e, rep);
     });
@@ -6027,7 +6040,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var routine = routineIDs.map(function (id) { return parId[id]; }).filter(function (e) {
       if (!e) return false;
       if (judo) return (e.equipement || '').split(' + ').filter(Boolean).every(function (m) { return autorise.indexOf(m) >= 0; });
-      return niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe)) && (rep.groupe !== 'Gym douce' || e.accessibilite !== 'Publics entraînés uniquement') && okTaiso(e, rep);
+      return niveauOk(e, niveauEffectifTaiso(rep)) && (rep.groupe !== 'Gym douce' || e.accessibilite !== 'Publics entraînés uniquement') && okTaiso(e, rep);
     });
     var minRoutine = Math.max(5, Math.min(12, routine.length));
     var reste = Math.max(15, minutes - minRoutine);
@@ -6079,7 +6092,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.calme === 'Étirements') { var t = fin.filter(function (e) { return !MOTS_CALME.test(sa(e.nom)); }); return t.length ? t : fin; }
       return fin;
     }
-    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = rep.niveau || niveauParDefaut(rep.groupe);
+    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = judo ? null : niveauEffectifTaiso(rep);
     // Taïso : le corps de séance (en blocs) est construit en premier, pour cibler l'échauffement et les étirements sur les zones travaillées
     var blocsCorps = null, zones = {};
     if (!judo) {
@@ -6151,10 +6164,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Taïso : les réponses de la dernière fois sont reprises (un seul écran), avec le matériel habituel coché d'office
     var cleReponses = 'jsb-gen-' + sa(p.espace).replace(/[^a-z]/g, '') + String(CLE_SEL).replace('jsb-seances', '');
     var s2 = React.useState(function () {
-      var r0 = { groupe: p.sous || '', duree: p.espace === 'Judo' && estEveilJudo(p.sous) ? '45 min' : '60 min', routine: routineInit || routineParDefaut(p.tout), famille: '', technique: '', materiel: [], sansMateriel: false };
+      var r0 = { groupe: p.sous || '', duree: p.espace === 'Judo' && estEveilJudo(p.sous) ? '45 min' : '60 min', routine: routineInit || routineParDefaut(p.tout), famille: '', technique: '', materiel: [], sansMateriel: false, supervision: false };
       if (judo) return r0;
       var memo = lireJSON(cleReponses, null), eq = uniq([].concat.apply([], p.donnees.map(function (e) { return (e.equipement || '').split(' + '); })));
-      if (memo) return Object.assign(r0, memo, { groupe: p.sous || memo.groupe || '', routine: r0.routine });
+      if (memo) return Object.assign(r0, memo, { groupe: p.sous || memo.groupe || '', routine: r0.routine, supervision: false });
       return Object.assign(r0, { objectif: 'Varié', calme: 'Les deux', materiel: eq.filter(function (x) { return /lastique|b[aâ]ton|ballon|kettlebell|m[ée]decine|corde [àa] sauter|step|plot/i.test(x); }) });
     }), rep = s2[0], setRep = s2[1];
     var s6 = React.useState(null), direct = s6[0], setDirect = s6[1];
@@ -6174,7 +6187,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function sansCles(o, cles) { var n = {}; Object.keys(o).forEach(function (k) { if (cles.indexOf(k) < 0) n[k] = o[k]; }); return n; }
     function enregistrerModele(nom) {
       var m = { id: 'm' + Date.now(), nom: nom, cree: Date.now(),
-        rep: { groupe: rep.groupe, objectif: rep.objectif, materiel: rep.materiel, calme: rep.calme, format: rep.format, niveau: rep.niveau, duree: rep.duree, participants: rep.participants || 0, intensite: rep.intensite || 0, contraintes: rep.contraintes || [], binome: !!rep.binome, sansMateriel: !!rep.sansMateriel, illustres: !!rep.illustres },
+        rep: { groupe: rep.groupe, objectif: rep.objectif, materiel: rep.materiel, calme: rep.calme, format: rep.format, niveau: rep.niveau, duree: rep.duree, participants: rep.participants || 0, intensite: rep.intensite || 0, contraintes: rep.contraintes || [], binome: !!rep.binome, sansMateriel: !!rep.sansMateriel, supervision: !!rep.supervision, illustres: !!rep.illustres },
         phases: res.phases.map(function (ph) {
           return Object.assign(sansCles(ph, ['exercices', 'blocs']), { blocs: ph.blocs ? ph.blocs.map(function (b) { return sansCles(b, ['items', 'materiel']); }) : null,
             exos: ph.exercices.map(function (x) { return Object.assign(sansCles(x, ['e']), { id: x.e.id }); }) });
@@ -6185,15 +6198,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     function chargerModele(m) {
       var parId = {}; p.tout.forEach(function (e) { parId[e.id] = e; });
+      var exclusSupervision = 0;
       var phases = m.phases.map(function (ph) {
-        var ex = ph.exos.filter(function (o) { return parId[o.id]; }).map(function (o) { return Object.assign(sansCles(o, ['id']), { e: parId[o.id] }); });
+        var ex = ph.exos.filter(function (o) {
+          if (!parId[o.id]) return false;
+          if (!judo && supervisionRequiseTaiso(parId[o.id]) && !rep.supervision) { exclusSupervision++; return false; }
+          return true;
+        }).map(function (o) { return Object.assign(sansCles(o, ['id']), { e: parId[o.id] }); });
         var n = Object.assign(sansCles(ph, ['exos', 'blocs']), { exercices: ex, blocs: null });
         if (ph.blocs) n.blocs = ph.blocs.map(function (b) { var it = ex.filter(function (x) { return x.bloc === b.nom; }); return Object.assign({}, b, { items: it, materiel: materielBlocs(it) }); });
         return n;
       });
-      setRep(Object.assign({}, rep, m.rep, { routine: rep.routine })); setOuverts({}); setEdition(null);
+      setRep(Object.assign({}, rep, m.rep, { routine: rep.routine, supervision: !!rep.supervision })); setOuverts({}); setEdition(null);
       setPrecedentRes(null); setChoixRemplacement(null);
-      setRes({ manques: [], phases: phases });
+      setRes({ manques: exclusSupervision ? ['Modèle : exercices avec supervision obligatoire écartés (encadrement non autorisé).'] : [], phases: phases });
     }
     React.useEffect(function () {
       var actif = true;
@@ -6212,7 +6230,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var s4 = React.useState(Date.now() % 100000 + 1), graine = s4[0], setGraine = s4[1];
     var s5 = React.useState(false), editRoutine = s5[0], setEditRoutine = s5[1];
     function maj(k, v) { var n = Object.assign({}, rep); n[k] = v; setRep(n); return n; }
-    var candidatsRoutine = p.tout.filter(function (e) { return estMobilite(e) && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)'); })
+    var candidatsRoutine = p.tout.filter(function (e) { return estMobilite(e) && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)') && (judo || !supervisionRequiseTaiso(e) || !!rep.supervision); })
       .sort(function (a, b) { var ia = rep.routine.indexOf(a.id), ib = rep.routine.indexOf(b.id); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || (a.ordre || 0) - (b.ordre || 0) || a.nom.localeCompare(b.nom, 'fr'); });
     var groupes = judo ? ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Minimes', 'Cadets', 'Juniors', 'Adultes'] : ['Gym douce', 'Training'];
     var objectifs = judo ? OBJECTIFS_JUDO : ['Varié', 'Renforcement', 'Gainage', 'Cardio', 'Équilibre et coordination', 'Pliométrie (impact)'];
@@ -6294,6 +6312,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             return option((i >= 0 ? (i + 1) + '. ' : '') + e.nom, i >= 0, function () { maj('routine', i >= 0 ? rep.routine.filter(function (x) { return x !== e.id; }) : rep.routine.concat([e.id])); }, e.id);
           })) : null)),
         section('gq-objectif', 'Objectif', chips('objectif', objectifs)),
+        section('gq-niveau', 'Niveau du groupe', h('div', { className: 'gn-choix gn-chips' }, (rep.groupe === 'Gym douce' ? ['Débutant'] : NIVEAUX_TAISO).map(function (n) {
+          return option(n, niveauEffectifTaiso(rep) === n, function () { maj('niveau', n); }, 'niveau-' + n);
+        }))),
         h('details', { className: 'gn-avances' },
           h('summary', null, 'Matériel disponible', h('small', null, rep.sansMateriel ? 'Sans matériel' : (rep.materiel || []).length ? rep.materiel.length + ' équipement(s) sélectionné(s)' : 'Tout matériel possible')),
           section('gq-materiel', 'Matériel pour la séance', h('div', null, h('p', { className: 'gn-aide' }, 'Choisissez « Sans matériel » pour utiliser uniquement le poids du corps et le tatami. Sans autre choix, tous les équipements sont possibles.'),
@@ -6304,6 +6325,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           section('gq-eviter', 'À éviter pour ce groupe', h('div', null, h('p', { className: 'gn-aide' }, 'Les exercices qui sollicitent ces zones, ou dont la fiche signale un risque pour elles, sont écartés.'),
           h('div', { className: 'gn-choix multi gn-chips' }, CONTRAINTES.map(function (c) { var l = rep.contraintes || [], on = l.indexOf(c) >= 0; return option(c, on, function () { maj('contraintes', on ? l.filter(function (x) { return x !== c; }) : l.concat([c])); }, 'c' + c); })))),
         section('gq-binome', 'Travail à deux', h('div', { className: 'gn-choix gn-chips' }, option('Exercices en binôme (avec un partenaire)', !!rep.binome, function () { maj('binome', !rep.binome); }, 'binome'))),
+        section('gq-supervision', 'Encadrement des exercices sensibles', h('div', null,
+          h('p', { className: 'gn-aide' }, 'Exclus par défaut. Activez uniquement si un encadrant supervise directement les montages et les répétitions.'),
+          h('div', { className: 'gn-choix gn-chips' }, option('Autoriser avec supervision', !!rep.supervision, function () { maj('supervision', !rep.supervision); }, 'supervision')))),
         section('gq-pers', 'Nombre de participants (environ)', h('div', { className: 'gn-choix gn-chips' }, [6, 10, 15, 20, 25].map(function (n) {
           return option(n === 25 ? '25 et +' : String(n), rep.participants === n, function () { maj('participants', rep.participants === n ? 0 : n); }, 'p' + n); })))),
         section('gq-calme', 'Fin de séance', chips('calme', ['Étirements', 'Respiration et relaxation', 'Les deux'])),
@@ -6363,10 +6387,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         return judo ? (e.equipement || '').split(' + ').filter(Boolean).every(function (m) { return ['Tatami', 'Judogi', 'Partenaire', 'Poids du corps'].concat(MATERIEL_JUDO).indexOf(m) >= 0; }) : okTaiso(e, rep);
       });
       var m = function (k) { return function (e) { return momentsDe(e).indexOf(k) >= 0; }; }, l;
-      if (ph.nom === 'Mobilité') l = p.tout.filter(function (e) { return estMobilite(e) && !u[e.id] && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)'); });
-      else if (ph.nom === 'Échauffement') l = base.filter(function (e) { return m('Échauffement')(e) && !estMobilite(e) && (judo || niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))); });
+      if (ph.nom === 'Mobilité') l = p.tout.filter(function (e) { return estMobilite(e) && !u[e.id] && ((e.public || []).indexOf(p.espace) >= 0 || e.categorie === 'Mobilité articulaire (routine)') && (judo || okTaiso(e, rep)); });
+      else if (ph.nom === 'Échauffement') l = base.filter(function (e) { return m('Échauffement')(e) && !estMobilite(e) && (judo || niveauOk(e, niveauEffectifTaiso(rep))); });
       else if (ph.nom === 'Corps de séance' && ph.format) l = base.filter(function (e) { return m('Corps de séance')(e) && convient(e, ph.format) && niveauOk(e, ph.niveau) && (!doux || !estImpact(e)); });
-      else if (ph.nom === 'Corps de séance' || ph.nom === 'Randori') l = base.filter(function (e) { return m('Corps de séance')(e) && (judo || niveauOk(e, rep.niveau || niveauParDefaut(rep.groupe))); });
+      else if (ph.nom === 'Corps de séance' || ph.nom === 'Randori') l = base.filter(function (e) { return m('Corps de séance')(e) && (judo || niveauOk(e, niveauEffectifTaiso(rep))); });
       else if (ph.nom === 'Retour au calme') l = base.filter(function (e) { return m('Fin de séance')(e) && calme(e); });
       else l = base.filter(m('Fin de séance'));
              if (judo) l = l.filter(function (e) { return compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, ph.nom, rep)); });
@@ -6492,7 +6516,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           })),
           h('p', { className: 'gn-aide', id: 'gn-niveau-l' }, 'Niveau maximum des exercices'),
           h('div', { className: 'gn-durees gn-niveaux', role: 'group', 'aria-labelledby': 'gn-niveau-l' }, NIVEAUX_TAISO.map(function (nv) {
-            return option(nv, (rep.niveau || niveauParDefaut(rep.groupe)) === nv, function () { var n = maj('niveau', nv); generer(n); }, 'n-' + nv);
+            return option(nv, (niveauEffectifTaiso(rep)) === nv, function () { var n = maj('niveau', nv); generer(n); }, 'n-' + nv);
           })),
           h('p', { className: 'gn-aide', id: 'gn-int-l' }, 'Intensité'),
           h('div', { className: 'gn-durees gn-intensites', role: 'group', 'aria-labelledby': 'gn-int-l' }, INTENSITES.map(function (t, k) {
@@ -6552,10 +6576,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return false;
     });
   }
-  var NIVEAUX_TAISO = ['Débutant', 'Intermédiaire', 'Confirmé'];
+  var NIVEAUX_TAISO = ['Débutant', 'Intermédiaire', 'Confirmé', 'Expert'];
   function formatsDe(groupe) { return groupe === 'Gym douce' ? FORMATS_DOUX : FORMATS_TAISO; }
   function formatParDefaut(groupe) { return 'Circuit'; }
   function niveauParDefaut(groupe) { return groupe === 'Gym douce' ? 'Débutant' : 'Intermédiaire'; }
+  function niveauEffectifTaiso(rep) {
+    if (!rep || rep.groupe === 'Gym douce') return 'Débutant';
+    return NIVEAUX_TAISO.indexOf(rep.niveau) >= 0 ? rep.niveau : niveauParDefaut(rep.groupe);
+  }
   function sansA(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function zoneDe(e) {
     var c = e.categorie || '', t = sansA(e.muscles);
