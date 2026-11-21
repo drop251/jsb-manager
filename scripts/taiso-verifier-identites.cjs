@@ -41,6 +41,19 @@ function controle(lot,manifeste,baseLocale=null){
  for(let i=0;i<lot.length;i++){
    const f=lot[i];
    if(!f||typeof f!=='object'||Array.isArray(f)){erreurs.push({code:'FICHE_INVALIDE',ligne:i+1});continue;}
+   // Les corrections V46 ciblent uniquement des Exercices Taïso. Le type et la
+   // discipline absents restent tolérés pour les anciens exports, mais une
+   // valeur explicite incompatible interdit le rapprochement.
+   const typeDeclare=f.typeFiche??f['Type de fiche']??f.type;
+   const disciplineDeclare=f.discipline??f.Discipline??f.public??f.Public;
+   if(typeDeclare!==undefined&&typeDeclare!==null&&String(typeDeclare).trim()&&norm(typeDeclare)!=='exercice'){
+     erreurs.push({code:'TYPE_SOURCE_INCOMPATIBLE',ligne:i+1,valeur:String(typeDeclare)});
+   }
+   if(disciplineDeclare!==undefined&&disciplineDeclare!==null){
+     const disciplines=[].concat(disciplineDeclare).map(norm).filter(Boolean);
+     if(disciplines.length&&!disciplines.includes('taiso')||disciplines.some(x=>x!=='taiso'))
+       erreurs.push({code:'DISCIPLINE_SOURCE_INCOMPATIBLE',ligne:i+1,valeur:disciplines.join(', ')});
+   }
    const nom=String(f.nom??f['Nom (exercice)']??f.Nom??'').trim();
    const k=norm(nom);if(!k)erreurs.push({code:'NOM_MANQUANT',ligne:i+1});
    if(vus.has(k))erreurs.push({code:'NOM_REPETE_LOT',ligne:i+1,premiere:vus.get(k)});
