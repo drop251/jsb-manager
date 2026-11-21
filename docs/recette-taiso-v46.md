@@ -89,3 +89,16 @@ L'application doit être testée avec un **fichier de test dérivé des 20 fiche
 - Sauvegarde vérifiée :
 - Incidents / correctifs :
 - Visa final :
+
+## Précontrôle automatisé ajouté sur la branche QA
+
+Un script **non destructif** `scripts/taiso-preflight.cjs` reçoit uniquement un export **JSON** (tableau ou `{ "exercices": [...] }`). Il ne lit pas directement un classeur Excel ; aucune équivalence avec l'importeur natif de l'application n'est présumée.
+
+```sh
+node scripts/taiso-preflight.cjs chemin/vers/lot-v46.json 20
+node --test tests/taiso-v46-preflight.test.cjs
+```
+
+Le script vérifie : identifiants absents ou répétés, nom absent, discipline différente de Taïso, détection préventive des noms répétés, vérification indicative de six champs fondamentaux et **blocage par nom** des fichiers portant `NON_IMPORT`. Il ne prétend pas certifier les quinze champs du cahier des charges et ne valide pas les 20 lignes sans le fichier réel. Un résultat `A_VALIDER` ne permet jamais une mise en production.
+
+La suite CI générale peut échouer sur des tests d'interface préexistants ; le statut d'exécution doit être vérifié après chaque commit. Une correction du test de clic de filtre a été faite sur cette branche de recette uniquement.
