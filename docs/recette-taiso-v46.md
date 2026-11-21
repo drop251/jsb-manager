@@ -112,6 +112,6 @@ node scripts/taiso-rapprochement.cjs chemin/vers/candidats-v46.json chemin/vers/
 node --test tests/taiso-v46-rapprochement.test.cjs
 ```
 
-Le second nom de fichier doit contenir `NON_IMPORT`. La commande n'accède pas aux fichiers Excel directement. Les catégories calculées sont : `CORRESPONDANCE_EXACTE`, `CONFLIT_ID_NOM`, `NOM_SEUL`, `AMBIGU_REFERENCE`, `AMBIGU_CANDIDATS`, `INCOMPLET` et `AUCUNE_CORRESPONDANCE`. Le rapport contient les lignes sources correspondantes et renvoie systématiquement `NO_GO_IMPORT` ; même les correspondances exactes doivent être validées par une personne responsable.
+Le second nom de fichier doit contenir `NON_IMPORT`. La commande n'accède pas aux fichiers Excel directement. Les catégories calculées sont : `CORRESPONDANCE_ID_NOM`, `CONFLIT_CONTENU`, `CONFLIT_ID_NOM`, `NOM_SEUL`, `AMBIGU_REFERENCE`, `AMBIGU_CANDIDATS`, `INCOMPLET` et `AUCUNE_CORRESPONDANCE`. Le rapport contient les lignes sources correspondantes et renvoie systématiquement `NO_GO_IMPORT` ; même les concordances ID/nom doivent être validées par une personne responsable. Les écarts de dosage, consignes de sécurité, critère de réussite, famille, sous-famille, niveau, format ou matériel sont signalés lorsqu'ils sont comparables. Un champ manquant dans une source reste non comparable, jamais déclaré identique.
 
 **Important :** aucune comparaison réelle V46 n'a été exécutée tant que les deux exports ne sont pas accessibles. Les comptes 20 et 244 sont issus des noms des classeurs, pas du traitement des lignes.
