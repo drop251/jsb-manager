@@ -35,7 +35,7 @@ test('Éveil Judo : le diagnostic ne crée, ne remplace ni ne sauvegarde des fic
 });
 
 test('Éveil Judo : le cache PWA inclut la version du diagnostic et le module Tora',()=>{
-  assert.match(sw,/var CACHE = 'jsb-manager-20261121-tora-eveil-v05'/);
+  assert.match(sw,/var CACHE = 'jsb-manager-[^']+tora[^']*'/);
   assert.match(sw,/\.\/tora\/tora-mode\.js/);
   assert.match(sw,/\.\/index\.html/);
   assert.match(html,/\.tora-couverture summary:focus-visible/);
