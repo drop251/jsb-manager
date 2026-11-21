@@ -22,6 +22,21 @@ function controle(lot,manifeste,baseLocale=null){
    refs.add(f.referenceHistorique);
    if(f.idApplicatif!==null)erreurs.push({code:'ID_APPLICATIF_PREATTRIBUE',ref:f.referenceHistorique});
  }
+ // Un identifiant d'application doit désigner une seule fiche dans toute la base locale.
+ // Le contrôle est global : deux fiches de disciplines différentes ne peuvent pas partager un ID.
+ if(baseLocale!==null){
+   const idsLocaux=new Map();
+   baseLocale.forEach((x,i)=>{
+     if(!x||typeof x!=='object'||Array.isArray(x)){
+       erreurs.push({code:'FICHE_LOCALE_INVALIDE',ligne:i+1});return;
+     }
+     const id=x.id??x.ID??x.identifiant;
+     if(id===undefined||id===null||String(id).trim()==='')return;
+     const cle=String(id).trim();
+     if(idsLocaux.has(cle))erreurs.push({code:'ID_LOCAL_DUPLIQUE',id:cle,premiere:idsLocaux.get(cle),ligne:i+1});
+     else idsLocaux.set(cle,i+1);
+   });
+ }
  const vus=new Map();
  for(let i=0;i<lot.length;i++){
    const f=lot[i];
@@ -38,8 +53,11 @@ function controle(lot,manifeste,baseLocale=null){
    const ref=m.referenceHistorique;
    let locaux=null;
    if(baseLocale!==null){
-     locaux=baseLocale.filter(x=>norm(x?.nom)===k&&([].concat(x?.public??x?.discipline??[]).some(v=>norm(v)==='taiso')));
-     if(locaux.length!==1)erreurs.push({ligne:i+1,code:locaux.length?'BASE_LOCALE_AMBIGUE':'FICHE_ABSENTE_BASE_LOCALE',nom,nombre:locaux.length});
+     const memeNomTaïso=baseLocale.filter(x=>norm(x?.nom)===k&&([].concat(x?.public??x?.discipline??[]).some(v=>norm(v)==='taiso')));
+     // Sans typeFiche, l'historique traite la fiche comme un Exercice.
+     // Une Technique homonyme ne doit jamais être associée à une correction d'Exercice.
+     locaux=memeNomTaïso.filter(x=>norm(x.typeFiche??'Exercice')==='exercice');
+     if(locaux.length!==1)erreurs.push({ligne:i+1,code:locaux.length?'BASE_LOCALE_AMBIGUE':memeNomTaïso.length?'TYPE_FICHE_INCOMPATIBLE':'FICHE_ABSENTE_BASE_LOCALE',nom,nombre:locaux.length});
    }
    rencontres.push({ligne:i+1,nom,referenceHistorique:ref,
      idApplicatifObserve:locaux?.length===1?(locaux[0].id??null):null,statut:'VALIDATION_HUMAINE_REQUISE'});
