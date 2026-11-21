@@ -1,0 +1,148 @@
+{
+  "schema": "jsb-taiso-v46-corrections-qa-v1",
+  "usage": "CONTROLE_DOCUMENTAIRE_NON_IMPORTABLE",
+  "documentation": "Rapprochement par nom normalisé avec l’onglet 01_Candidats_244. Références historiques, non confirmées comme IDs applicatifs.",
+  "expectedCount": 20,
+  "items": [
+    {
+      "sourceIndex": 0,
+      "nom": "Descente nordique assistée",
+      "referenceHistorique": "JSB-TAISO-RENF-0021",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 1,
+      "nom": "Tirage vertical élastique vers la poitrine",
+      "referenceHistorique": "JSB-TAISO-RENF-0050",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 2,
+      "nom": "Face pull élastique",
+      "referenceHistorique": "JSB-TAISO-RENF-0055",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 3,
+      "nom": "Pull-apart élastique devant la poitrine",
+      "referenceHistorique": "JSB-TAISO-RENF-0078",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 4,
+      "nom": "Lancer de médecine-ball poitrine contre mur",
+      "referenceHistorique": "JSB-TAISO-RENF-0093",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 5,
+      "nom": "Lancer rotatoire médecine-ball contre mur",
+      "referenceHistorique": "JSB-TAISO-RENF-0094",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 6,
+      "nom": "Tirage élastique alterné en binôme",
+      "referenceHistorique": "JSB-TAISO-RENF-0098",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 7,
+      "nom": "Poussée paume contre paume isométrique",
+      "referenceHistorique": "JSB-TAISO-RENF-0099",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 8,
+      "nom": "Presse landmine unilatérale debout",
+      "referenceHistorique": "JSB-TAISO-RENF-0138",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 9,
+      "nom": "Extension triceps au-dessus de la tête avec élastique",
+      "referenceHistorique": "JSB-TAISO-RENF-0139",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 10,
+      "nom": "Traction supination assistée par bande",
+      "referenceHistorique": "JSB-TAISO-RENF-0149",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 11,
+      "nom": "Traction négative avec appui de départ",
+      "referenceHistorique": "JSB-TAISO-RENF-0150",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 12,
+      "nom": "Rétraction des omoplates à l'élastique bras bas",
+      "referenceHistorique": "JSB-TAISO-RENF-0168",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 13,
+      "nom": "Rotation externe de hanche assise avec bande",
+      "referenceHistorique": "JSB-TAISO-RENF-0179",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 14,
+      "nom": "Essorage contrôlé d'une serviette à deux mains",
+      "referenceHistorique": "JSB-TAISO-RENF-0181",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 15,
+      "nom": "Lancer médecine-ball au-dessus de la tête vers l’avant",
+      "referenceHistorique": "JSB-TAISO-RENF-0192",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 16,
+      "nom": "Fente sautée avec retour en appui stable",
+      "referenceHistorique": "JSB-TAISO-RENF-0193",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 17,
+      "nom": "Relais de tirage élastique en binôme avec ancrage",
+      "referenceHistorique": "JSB-TAISO-RENF-0196",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 18,
+      "nom": "Gainage debout miroir avec élastique individuel",
+      "referenceHistorique": "JSB-TAISO-RENF-0198",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    },
+    {
+      "sourceIndex": 19,
+      "nom": "Rotation interne de hanche assise avec bande légère",
+      "referenceHistorique": "JSB-TAISO-RENF-0243",
+      "statut": "BLOQUE_ESSAI_TERRAIN",
+      "idApplicatif": null
+    }
+  ]
+}
