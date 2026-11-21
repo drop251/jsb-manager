@@ -44,3 +44,22 @@ Ne fusionner #55 que si : la suite automatique est verte ; UI-01 à UI-14 sont d
 Pour chaque échec : identifiant UI-xx, environnement (macOS/iOS, version Safari, navigateur ou PWA), scénario reproductible, résultat attendu/observé, capture si possible, gravité, correctif et résultat du nouveau test.
 
 **Statut initial de la recette** : non exécutée sur appareil réel. Ne pas confondre présence de ce protocole et validation de la livraison.
+
+## Contrôle CI confirmé — 21 novembre 2026
+- Commit évalué : `ccfdc940ebd51a767f63de95c0990339d9c21839`
+- GitHub Actions, exécution `44896383547` : **success**.
+- Tests JavaScript : **119 réussis, 0 échec, 0 ignoré**.
+- Les trois échecs précédents de `tests/seances-suppression.test.cjs` venaient de libellés d'interface modifiés dans la consolidation. Les assertions ont été alignées sur les nouveaux libellés tout en conservant les vérifications de suppression ciblée et de conservation en cas d'échec.
+- Avertissement non bloquant : `actions/checkout@v4` utilise une version de Node.js dont le support est en transition ; mise à niveau à traiter séparément.
+
+## Traçabilité des PR sources
+- **#48** : libellés « Mes séances », champs et messages d'état vide repris ; adaptations combinées avec #50 pour le statut de suivi.
+- **#49** : adaptations de focus, mode modal, bibliothèque vide et tests repris.
+- **#50** : visibilité de « Suivi et reprise » et libellé « En préparation » repris ; condition et badge fusionnés avec les changements de #48.
+- **Cache PWA** : un seul nom de cache V54 remplace les changements distincts de chaque branche.
+- Ce contrôle compare les ajouts de code source des trois PR avec le diff de #55 ; les différences restantes correspondent aux lignes volontairement combinées et aux noms de cache remplacés. Il ne constitue pas une validation fonctionnelle Safari/PWA.
+
+## Points de sortie non vérifiés
+- UI-01 à UI-14 : recette manuelle non renseignée, sans présumer d'un succès sur appareil.
+- Focus effectif, navigation tactile, persistance après fermeture et cache hors ligne Safari : à éprouver sur appareil réel.
+- **Décision** : conserver la PR #55 en brouillon et ne pas fusionner automatiquement.
