@@ -39,3 +39,47 @@ test('tout manifeste contenant un ID applicatif pré-attribué est invalide',()=
  const r=controle([{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}],bad);
  assert.ok(r.erreurs.some(x=>x.code==='ID_APPLICATIF_PREATTRIBUE'));
 });
+
+test('la même dénomination dans deux disciplines ne fusionne pas les fiches',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:45,nom:'Face pull élastique',public:['Judo']},{id:46,nom:'Face pull élastique',public:['Taïso'],typeFiche:'Exercice'},{id:47,nom:'Descente nordique assistée',public:['Taïso']}];
+ const r=controle(lot,m,base);
+ assert.equal(r.erreurs.length,0);
+ assert.equal(r.rencontres[0].idApplicatifObserve,46);
+});
+test('une Technique homonyme est écartée du rapprochement avec un Exercice',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:45,nom:'Face pull élastique',public:['Taïso'],typeFiche:'Technique'},{id:46,nom:'Face pull élastique',public:['Taïso'],typeFiche:'Exercice'},{id:47,nom:'Descente nordique assistée',public:['Taïso']}];
+ const r=controle(lot,m,base);
+ assert.equal(r.erreurs.length,0);
+ assert.equal(r.rencontres[0].idApplicatifObserve,46);
+});
+test('une Technique seule ne peut pas satisfaire une correction Exercice',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:45,nom:'Face pull élastique',public:['Taïso'],typeFiche:'Technique'},{id:47,nom:'Descente nordique assistée',public:['Taïso']}];
+ const r=controle(lot,m,base);
+ assert.ok(r.erreurs.some(e=>e.code==='TYPE_FICHE_INCOMPATIBLE'));
+ assert.equal(r.rencontres[0].idApplicatifObserve,null);
+});
+test('des fiches distinctes portant le même ID local provoquent un blocage',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:57,nom:'Face pull élastique',public:['Taïso']},{id:57,nom:'Descente nordique assistée',public:['Taïso']}];
+ const snapshot=JSON.stringify([lot,base]);
+ const r=controle(lot,m,base);
+ assert.ok(r.erreurs.some(e=>e.code==='ID_LOCAL_DUPLIQUE'));
+ assert.equal(JSON.stringify([lot,base]),snapshot);
+});
+test('une collision ID entre disciplines reste détectée même si les noms diffèrent',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:57,nom:'Face pull élastique',public:['Taïso']},{id:58,nom:'Descente nordique assistée',public:['Taïso']},{id:57,nom:'Autre technique',public:['Judo']}];
+ const r=controle(lot,m,base);
+ assert.ok(r.erreurs.some(e=>e.code==='ID_LOCAL_DUPLIQUE'));
+});
+test('une identité locale unique reste observable sans autoriser un import',()=>{
+ const lot=[{nom:'Face pull élastique'},{nom:'Descente nordique assistée'}];
+ const base=[{id:501,nom:'Face pull élastique',public:['Taïso'],typeFiche:'Exercice'},{id:502,nom:'Descente nordique assistée',public:['Taïso']}];
+ const r=controle(lot,m,base);
+ assert.equal(r.erreurs.length,0);
+ assert.equal(r.statut,'NO_GO_IMPORT');
+ assert.equal(r.rencontres[0].idApplicatifObserve,501);
+});
