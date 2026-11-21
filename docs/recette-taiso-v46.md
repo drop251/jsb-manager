@@ -115,3 +115,13 @@ node --test tests/taiso-v46-rapprochement.test.cjs
 Le second nom de fichier doit contenir `NON_IMPORT`. La commande n'accède pas aux fichiers Excel directement. Les catégories calculées sont : `CORRESPONDANCE_ID_NOM`, `CONFLIT_CONTENU`, `CONFLIT_ID_NOM`, `NOM_SEUL`, `AMBIGU_REFERENCE`, `AMBIGU_CANDIDATS`, `INCOMPLET` et `AUCUNE_CORRESPONDANCE`. Le rapport contient les lignes sources correspondantes et renvoie systématiquement `NO_GO_IMPORT` ; même les concordances ID/nom doivent être validées par une personne responsable. Les écarts de dosage, consignes de sécurité, critère de réussite, famille, sous-famille, niveau, format ou matériel sont signalés lorsqu'ils sont comparables. Un champ manquant dans une source reste non comparable, jamais déclaré identique.
 
 **Important :** aucune comparaison réelle V46 n'a été exécutée tant que les deux exports ne sont pas accessibles. Les comptes 20 et 244 sont issus des noms des classeurs, pas du traitement des lignes.
+
+## Rapport de revue lisible par le staff
+
+Outre le JSON de comparaison, le programme peut produire un fichier Markdown à compléter manuellement :
+
+```sh
+node scripts/taiso-rapprochement.cjs candidats-v46.json controle-v46_NON_IMPORT.json --markdown > revue-taiso-v46.md
+```
+
+Le rapport contient : les comptes réellement lus, la répartition des statuts, une ligne par exercice candidat (ID, nom, références, champs divergents, champs non comparables), une colonne **« Décision staff : À renseigner »** et un espace de visa. La commande lit les deux JSON mais ne les modifie pas. Ce n'est pas un export du catalogue validé, ni une preuve que les fichiers Excel originaux ont été vérifiés. La décision finale reste **NO GO IMPORT** par défaut.
