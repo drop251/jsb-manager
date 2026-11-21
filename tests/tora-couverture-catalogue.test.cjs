@@ -47,6 +47,19 @@ test('Audit Tora : le catalogue GitHub public ne constitue pas la base Judo impo
  assert.equal(audit.absentes,24);
 });
 
+test('Audit Tora : sans public ou âge explicite la fiche doit être vérifiée',()=>{
+ const donnees=[
+   fiche('Salut et repères du dojo',{public:undefined}),
+   fiche('Chemin d’appuis au sol',{sousGroupes:[]}),
+   fiche('Parcours libre entre plots',{sousGroupes:['Benjamins']}),
+   fiche('Quadrupédie libre',{public:['Judo'],sousGroupes:['Éveils (4-5 ans)']})
+ ];
+ const audit=Tora.auditerCatalogue(donnees);
+ assert.equal(audit.pretes,1);
+ assert.equal(audit.incompatibles,3);
+ assert.equal(audit.absentes,20);
+});
+
 test('Audit Tora : refuse une entrée qui n’est pas un catalogue',()=>{
  assert.throws(()=>Tora.auditerCatalogue(null),/Catalogue attendu/);
  assert.throws(()=>Tora.auditerCatalogue({exercices:{}}),/Catalogue attendu/);
