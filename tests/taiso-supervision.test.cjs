@@ -83,7 +83,8 @@ test('L’interface propose un consentement explicite et protège les modèles s
 test('La supervision ne revient pas automatiquement depuis les préférences Taïso', () => {
   const debut = 'var s2 = React.useState(function () {';
   const fin = '}), rep = s2[0], setRep = s2[1];';
-  const i = html.indexOf(debut), j = html.indexOf(fin, i);
+  const composant = html.indexOf('function Generateur(p) {');
+  const i = html.indexOf(debut, composant), j = html.indexOf(fin, i);
   assert.ok(i >= 0 && j > i, 'Initialisation du générateur introuvable');
   const corps = html.slice(i + debut.length, j);
   const rep = vm.runInNewContext('(function () {' + corps + '})()', {
