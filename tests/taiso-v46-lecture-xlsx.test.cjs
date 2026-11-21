@@ -41,3 +41,27 @@ test('L import Excel échoue clairement si la bibliothèque XLSX est absente',as
  const c=fixture([]);c.window.XLSX=null;
  await assert.rejects(c.lireFichierExercices({name:'v46.xlsx',arrayBuffer:async()=>new ArrayBuffer(2)}),/outil/);
 });
+
+test('Un classeur de contrôle NON_IMPORT est refusé avant toute lecture de données',async()=>{
+ const c=fixture([]);
+ let lu=false;
+ await assert.rejects(
+   c.lireFichierExercices({name:'JSB_Taiso_V46_Controle_Normalisation_244_NON_IMPORT.xlsx',
+     arrayBuffer:async()=>{lu=true;return new ArrayBuffer(2);}}),
+   /NON IMPORT/
+ );
+ assert.equal(lu,false);
+ assert.equal(c.reads.length,0);
+});
+test('Le refus couvre aussi un nom de contrôle contenant des espaces ou tirets',async()=>{
+ const c=fixture([]);
+ for(const name of ['controle NON IMPORT.csv','controle-non-import.json','controle.non_import.xlsx']){
+   await assert.rejects(c.lireFichierExercices({name,text:async()=>{throw Error('L\u2019import ne doit pas commencer');},arrayBuffer:async()=>{throw Error('L\u2019import ne doit pas commencer');}}),/NON IMPORT/);
+ }
+});
+test('Un lot candidat explicitement À VALIDER suit la lecture habituelle, sans import implicite',async()=>{
+ const c=fixture([{'Nom (exercice)':'Face pull élastique'}]);
+ const rows=await c.lireFichierExercices({name:'JSB_Taiso_V46_20_Fiches_Normalisees_A_VALIDER.xlsx',arrayBuffer:async()=>new ArrayBuffer(2)});
+ assert.equal(rows.length,1);
+ assert.equal(c.reads.length,1);
+});
