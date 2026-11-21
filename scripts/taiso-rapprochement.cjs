@@ -33,6 +33,36 @@ function indexer(rows) {
   });
   return {ids,noms};
 }
+/**
+ * Comparaison prudente des champs disponibles dans les deux sources.
+ * Une absence de champ dans l'un des exports est «non comparable»,
+ * jamais considérée comme une égalité.
+ */
+const CHAMPS = {
+  securite:['pointSecurite','pointDeSecurite','vigilance','Point de sécurité'],
+  dosage:['dosage','dosageBase','Dosage de base'],
+  critere:['critereReussite','critereDeReussite','Critère de réussite'],
+  famille:['famillePrincipale','famille','Famille'],
+  sousFamille:['sousFamille','sousFamillePrincipale','Sous-famille'],
+  niveau:['niveau','Niveau'],
+  format:['format','Format'],
+  equipement:['equipement','materiel','Matériel']
+};
+function valeur(row, alias) {
+  const key=alias.find(k=>Object.hasOwn(row,k) && row[k]!==undefined && row[k]!==null && String(row[k]).trim()!=='');
+  if (!key) return null;
+  const v=row[key];
+  return Array.isArray(v)?v.map(normaliser).sort().join(' | '):normaliser(v);
+}
+function comparerChamps(a,b) {
+  const divergences=[],nonComparables=[],comparables=[];
+  for(const [champ,aliases] of Object.entries(CHAMPS)) {
+    const x=valeur(a,aliases),y=valeur(b,aliases);
+    if(x===null || y===null) nonComparables.push(champ);
+    else {comparables.push(champ);if(x!==y)divergences.push(champ);}
+  }
+  return {divergences,nonComparables,comparables};
+}
 function rapprocher(candidats, controle) {
   if (!Array.isArray(candidats) || !Array.isArray(controle))
     throw TypeError('Deux tableaux sont requis');
@@ -53,7 +83,15 @@ function rapprocher(candidats, controle) {
     else if (candidatsId.length>1 || candidatsNom.length>1 || refs.size>1) {
       fiche.statut='AMBIGU_REFERENCE';fiche.motif='Plusieurs références possibles dans le contrôle';
     } else if (candidatsId.length===1 && candidatsNom.length===1 && candidatsId[0]===candidatsNom[0]) {
-      fiche.statut='CORRESPONDANCE_EXACTE';fiche.motif='Même identifiant et même nom normalisé';
+      const comparaison=comparerChamps(row,controle[candidatsId[0]]);
+      fiche.comparaison=comparaison;
+      if (comparaison.divergences.length) {
+        fiche.statut='CONFLIT_CONTENU';
+        fiche.motif='Même ID et nom, mais divergences dans les champs comparables';
+      } else {
+        fiche.statut='CORRESPONDANCE_ID_NOM';
+        fiche.motif='Identifiant et nom concordants ; contenu à confirmer';
+      }
     } else if (candidatsId.length===1) {
       fiche.statut='CONFLIT_ID_NOM';fiche.motif='Identifiant identique mais nom différent ou absent';
     } else if (candidatsNom.length===1) {
@@ -79,4 +117,4 @@ if (require.main === module) {
     } catch(err) {process.stderr.write(String(err.message)+'\n');process.exitCode=2;}
   }
 }
-module.exports={normaliser,idDe,nomDe,charger,rapprocher};
+module.exports={normaliser,idDe,nomDe,charger,rapprocher,comparerChamps};
