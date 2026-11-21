@@ -17,7 +17,7 @@
   }));
   function estEveil(groupe) {
     const g=norm(groupe);
-    return /\\beveils?\\b/.test(g) && (/4 5/.test(g) || (!/\\b(6|7|8|9|10|11|12)\\b/.test(g)));
+    return /\beveils?\b/.test(g) && (/4 5/.test(g) || (!/\b(6|7|8|9|10|11|12)\b/.test(g)));
   }
   function mode(mode) { return MODES.indexOf(mode)>=0 ? mode : 'sans'; }
   function actif(espace, groupe, choix) {
