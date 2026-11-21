@@ -45,7 +45,11 @@
   }));
   function estEveil(groupe) {
     const g=norm(groupe);
-    return /\beveils?\b/.test(g) && (/4 5/.test(g) || (!/\b(6|7|8|9|10|11|12)\b/.test(g)));
+    if (!/\beveils?\b/.test(g)) return false;
+    const ages = g.match(/\b\d+\b/g) || [];
+    // Sans âge précisé, le groupe « Éveils » reste compatible avec la nomenclature du générateur.
+    // Avec un âge explicite, limiter aux enfants de 4–5 ans.
+    return ages.length === 0 || (ages.every(function (age) { return age === '4' || age === '5'; }) && ages.includes('4') && ages.includes('5'));
   }
   function mode(mode) { return MODES.indexOf(mode)>=0 ? mode : 'sans'; }
   function actif(espace, groupe, choix) {
@@ -53,7 +57,7 @@
   }
   function trouver(exercice) {
     const e=exercice||{};
-    if (e.typeFiche==='Technique') return null;
+    if (norm(e.typeFiche)==='technique') return null;
     const opposition=norm(e.niveauOpposition);
     if (opposition && !['sans opposition','cooperation','aucune'].includes(opposition)) return null;
     const publics=Array.isArray(e.sousGroupes) ? e.sousGroupes : e.sousGroupes ? [e.sousGroupes] : [];
