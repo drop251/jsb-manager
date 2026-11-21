@@ -60,8 +60,18 @@ self.addEventListener('fetch', function (ev) {
       function locale() { return caches.match('./index.html', { ignoreSearch: true }); }
       var minuteur = setTimeout(function () { locale().then(function (r) { if (r && !fini) { fini = true; ok(r); } }); }, 3000);
       fetch(req, { cache: 'no-cache' }).then(function (rep) {
-        if (rep.ok) { var copie = rep.clone(); caches.open(CACHE).then(function (c) { c.put('./index.html', copie); }); }
-        if (!fini) { fini = true; clearTimeout(minuteur); ok(rep); }
+        if (rep.ok) {
+          var copie = rep.clone();
+          caches.open(CACHE).then(function (c) { return c.put('./index.html', copie); }).catch(function () {});
+          if (!fini) { fini = true; clearTimeout(minuteur); ok(rep); }
+          return;
+        }
+        // Réponse HTTP en erreur : préférer la copie de l'application si elle existe.
+        locale().then(function (r) {
+          if (!fini) { fini = true; clearTimeout(minuteur); ok(r || rep); }
+        }).catch(function () {
+          if (!fini) { fini = true; clearTimeout(minuteur); ok(rep); }
+        });
       }).catch(function () {
         locale().then(function (r) { if (!fini) { fini = true; clearTimeout(minuteur); ok(r || Response.error()); } });
       });
