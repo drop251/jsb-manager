@@ -12,7 +12,7 @@ function extraire(name){
 }
 function nodes(n){return n&&typeof n==='object'?[n,...n.children.flatMap(nodes)]:[];}
 function fixture(largeur){
- const states=[],refs=[],effects=[];let cursor=0,refCursor=0,listener=null,focusCalls=0;
+ const states=[],refs=[],effects=[];let cursor=0,refCursor=0,listener=null,focusCalls=0,closeCalls=0;
  const win={innerWidth:largeur,addEventListener(event,fn){if(event==='resize')listener=fn;},removeEventListener(event,fn){if(event==='resize'&&listener===fn)listener=null;}};
  const doc={body:{classList:{add(){},remove(){}}}};
  const ctx={
@@ -36,7 +36,7 @@ function fixture(largeur){
  };
  vm.createContext(ctx);vm.runInContext(extraire('Fiche'),ctx);
  const e={id:101,nom:'Exercice de contrôle',categorie:'Test',public:['Judo'],dosage:'6 répétitions'};
- const props={e,espace:{key:'judo',label:'Judo'},fermer(){}};
+ const props={e,espace:{key:'judo',label:'Judo'},fermer(){closeCalls++;}};
  return {
   render(){cursor=0;refCursor=0;effects.length=0;return ctx.Fiche(props);},
   runEffects(){const cleanups=effects.map(fn=>fn());return cleanups;},
@@ -45,7 +45,9 @@ function fixture(largeur){
    assert.ok(refs[0],'Référence de fiche absente');
    refs[0].current={focus(){focusCalls++;}};
   },
-  get focusCalls(){return focusCalls;}
+  get focusCalls(){return focusCalls;},
+  get closeCalls(){return closeCalls;},
+  get resizeSubscribed(){return !!listener;}
  };
 }
 function dialog(tree){const n=nodes(tree).find(n=>n.props.role==='dialog');assert.ok(n,'Dialog absent');return n;}
@@ -59,4 +61,21 @@ test('La fiche conserve une référence stable pour recevoir le focus à l’ouv
  const f=fixture(390),tree=f.render();const d=dialog(tree);
  assert.ok(d.props.ref&&typeof d.props.ref==='object','ref objet nécessaire');
  f.attachAndFocus();f.runEffects();assert.equal(f.focusCalls,1);
+});
+
+test('La fermeture Escape et le clic sur le voile n’effacent pas la fiche sans action explicite',()=>{
+ const f=fixture(390),t=f.render(),d=dialog(t);
+ d.props.onKeyDown({key:'Tab'});assert.equal(f.closeCalls,0);
+ d.props.onKeyDown({key:'Escape'});assert.equal(f.closeCalls,1);
+ const overlay=nodes(t).find(n=>n.props.className==='voile voile-fiche');
+ assert.ok(overlay&&typeof overlay.props.onClick==='function');
+ overlay.props.onClick();assert.equal(f.closeCalls,2);
+ let stopped=false;d.props.onClick({stopPropagation(){stopped=true;}});
+ assert.equal(stopped,true,'Un clic dans la fiche ne doit pas atteindre le voile');
+});
+test('Le gestionnaire de redimensionnement est retiré lors du démontage',()=>{
+ const f=fixture(390);f.render();const cleanups=f.runEffects();
+ assert.equal(f.resizeSubscribed,true);
+ cleanups.filter(fn=>typeof fn==='function').forEach(fn=>fn());
+ assert.equal(f.resizeSubscribed,false);
 });
