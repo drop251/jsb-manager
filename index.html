@@ -7599,7 +7599,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     React.useEffect(function () {
       // Un seul contrôleur : remplace l'ancien couple touchstart/touchend.
       if (!window.JSBEdgeSwipe) return;
-      var geste = null, remise = null;
+      var geste = null, remise = null, restitution = null;
       function racine() { return document.querySelector('main.page'); }
       function mouvementReduit() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -7612,15 +7612,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         el.style.animation = contexte.animation;
         el.style.willChange = contexte.willChange;
       }
-      function terminer(avecRetourVisuel) {
+      function nettoyerRemise() {
         if (remise) { clearTimeout(remise); remise = null; }
+        if (restitution) { restaurer(restitution); restitution = null; }
+      }
+      function terminer(avecRetourVisuel) {
+        nettoyerRemise();
         if (!geste) return;
         var courant = geste;
         geste = null;
         if (avecRetourVisuel && !mouvementReduit() && courant.element.isConnected) {
           courant.element.style.transition = 'transform 160ms ease-out';
           courant.element.style.transform = 'translate3d(0px,0,0)';
-          remise = setTimeout(function () { restaurer(courant); remise = null; }, 180);
+          restitution = courant;
+          remise = setTimeout(function () { restaurer(courant); restitution = null; remise = null; }, 180);
         } else restaurer(courant);
       }
       var detacher = window.JSBEdgeSwipe.attach({
@@ -7654,8 +7659,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
       return function () {
         detacher();
-        if (remise) clearTimeout(remise);
         terminer(false);
+        nettoyerRemise();
       };
     }, []);
     var donnees = demo ? BASE.concat(EXEMPLES) : BASE;
