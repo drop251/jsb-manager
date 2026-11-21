@@ -42,6 +42,7 @@
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
+<script src="./tora/tora-mode.js"></script>
 
 
 <style>
@@ -3386,10 +3387,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       items.forEach(function (e) {
         police('normal', 7.5);
         var pe = plan[e.id] || {};
+        var toraPDF = !vierge && espace === 'Judo' && window.JSBTora
+          && window.JSBTora.actif(espace, infos.groupe, infos.modeHistoireTora)
+          ? window.JSBTora.pourEnfant(e, infos.modeHistoireTora) : null;
         var c = taiso ? [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(pe.bloc || e.categorie, lc[1]), lignes(e.nom, lc[2]), lignes(pe.dosage || e.dosage || '', lc[3]),
             lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.varianteFacile ? ' Plus facile : ' + e.varianteFacile + '.' : ''), lc[4]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[5])]
           : [[durees[e.id] ? durees[e.id] + ' min' : ''], lignes(e.rolePedagogique || e.categorie, lc[1]), lignes(e.nom, lc[2]),
-          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + (espace === 'Judo' ? dosageAfficheJudo(e) : e.dosage) + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
+          lignes(e.description + (/[.!?]$/.test(e.description) ? '' : '.') + (e.competenceCiblee ? ' Compétence : ' + e.competenceCiblee + '.' : '') + (e.dosage ? ' Dosage : ' + (espace === 'Judo' ? dosageAfficheJudo(e) : e.dosage) + '.' : '') + (e.organisation ? ' Organisation : ' + e.organisation + '.' : '') + (e.prerequis && !/^(aucun|sans)$/i.test(e.prerequis) ? ' Prérequis : ' + e.prerequis + '.' : '') + (toraPDF ? ' Histoire de Tora : ' + toraPDF.titre + '. À dire aux enfants : ' + toraPDF.consigne : ''), lc[3]), lignes((e.critere ? e.critere + '. ' : '') + (e.vigilance || ''), lc[4])];
         var ht = Math.max.apply(null, c.map(function (l) { return l.length; })) * 9 + 10; place(ht);
         x = M; c.forEach(function (l, k) { police(k === 2 ? 'bold' : 'normal', 7.5); cellule(x, lc[k], ht, l); x += lc[k]; }); y += ht;
       });
@@ -3483,6 +3487,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     function extrasDe(e) { var x = plan[e.id] || {}, o = {}; ['bloc', 'dosage', 'travail', 'tours'].forEach(function (k) { if (x[k]) o[k] = x[k]; }); return o; }
     function majPlan(id, k, v) { setMsg(''); var np = Object.assign({}, plan); np[id] = Object.assign({}, np[id]); np[id][k] = v; setPlan(np); }
     function majInfo(k, v) { setMsg(''); var ni = Object.assign({}, infos); ni[k] = v; setInfos(ni); }
+    function carteHistoireTora(e) {
+      if (!window.JSBTora || !window.JSBTora.actif(p.espace, infos.groupe || p.sous, infos.modeHistoireTora)) return null;
+      var story = window.JSBTora.pourEnfant(e, infos.modeHistoireTora);
+      return story ? h('aside', { className: 'tora-histoire' },
+        h('strong', null, story.titre), h('p', null, 'Pour les enfants : ' + story.consigne)) : null;
+    }
     function abandonner() {
       if (!window.confirm('Annuler la préparation ' + p.espace + ' ? Les exercices, durées et informations non enregistrées seront effacés. Vos séances enregistrées seront conservées.')) return false;
       if (!sel.set([])) { setMsg('Annulation impossible : stockage indisponible. Réessayez.'); return false; }
@@ -3626,6 +3636,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               menu('intensite', judoEsp ? 'Intensité' : 'Intensité (effort ressenti)'), champ('materiel', 'Matériel', 0, '', materielSeance(items)),
               judoEsp ? null : menu('format', 'Format du corps de séance')),
             h('div', { className: 'cs-champs' }, champ('vigilance', 'Points de vigilance transversaux', 2), judoEsp ? null : champ('adaptations', 'Adaptations (variantes douces, limitations)', 2), champ('note', 'Note pédagogique', 2))) : null,
+          judoEsp && n && window.JSBTora && window.JSBTora.estEveil(infos.groupe || p.sous)
+            ? h('section', { className: 'cs-tora' },
+              h('label', { htmlFor: 'cs-tora-mode' }, 'Histoires de Tora'),
+              h('select', { id: 'cs-tora-mode', value: window.JSBTora.mode(infos.modeHistoireTora),
+                onChange: function (ev) { majInfo('modeHistoireTora', ev.target.value); } },
+                h('option', { value: 'sans' }, 'Séance classique'),
+                h('option', { value: 'courtes' }, 'Histoires par exercice'),
+                h('option', { value: 'aventure' }, 'Aventure complète')),
+              infos.modeHistoireTora === 'aventure' ? h('p', { className: 'tora-intro' }, window.JSBTora.intro) : null,
+              h('p', { className: 'gn-aide' }, 'Si une histoire manque, seule la fiche technique est affichée.')) : null,
           n ? h('h3', { className: 'cs-etape' }, '2 · Ajuster les activités') : null,
           n ? PH.map(function (nom, i) {
             var grp = parPhase[i], t = 0; grp.forEach(function (e) { t += parseFloat(dureeDe(e)) || 0; });
@@ -3637,6 +3657,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               grp.length ? h('ul', null, grp.map(function (e, k) {
                 return h('li', { key: e.id },
                   h('div', { className: 'cs-nom' }, h('b', null, e.nom), h('span', null, (plan[e.id] && plan[e.id].bloc ? plan[e.id].bloc + ' · ' + (plan[e.id].dosage || '') : e.categorie + ((plan[e.id] && plan[e.id].dosage) || e.dosage ? ' · ' + ((plan[e.id] && plan[e.id].dosage) || e.dosage) : '')))),
+                  carteHistoireTora(e),
                   h('div', { className: 'cs-reglages' },
                     h('label', { className: 'cs-mini cs-duree' }, 'Min', h('input', { type: 'number', min: 0, inputMode: 'numeric', value: dureeDe(e), onChange: function (ev) { majPlan(e.id, 'duree', ev.target.value); } })),
                     h('label', { className: 'cs-mini' }, 'Phase', h('select', { value: i, onChange: function (ev) { majPlan(e.id, 'phase', parseInt(ev.target.value, 10)); } },
@@ -6151,7 +6172,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // Taïso : les réponses de la dernière fois sont reprises (un seul écran), avec le matériel habituel coché d'office
     var cleReponses = 'jsb-gen-' + sa(p.espace).replace(/[^a-z]/g, '') + String(CLE_SEL).replace('jsb-seances', '');
     var s2 = React.useState(function () {
-      var r0 = { groupe: p.sous || '', duree: p.espace === 'Judo' && estEveilJudo(p.sous) ? '45 min' : '60 min', routine: routineInit || routineParDefaut(p.tout), famille: '', technique: '', materiel: [], sansMateriel: false };
+      var r0 = { groupe: p.sous || '', modeHistoireTora: 'sans', duree: p.espace === 'Judo' && estEveilJudo(p.sous) ? '45 min' : '60 min', routine: routineInit || routineParDefaut(p.tout), famille: '', technique: '', materiel: [], sansMateriel: false };
       if (judo) return r0;
       var memo = lireJSON(cleReponses, null), eq = uniq([].concat.apply([], p.donnees.map(function (e) { return (e.equipement || '').split(' + '); })));
       if (memo) return Object.assign(r0, memo, { groupe: p.sous || memo.groupe || '', routine: r0.routine });
@@ -6346,7 +6367,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       corps = h('div', null,
         h('div', { className: 'gn-choix' }, familles.map(function (c) { return option(c, rep.famille === c, function () { var n = Object.assign({}, rep, { famille: c, technique: '' }); setRep(n); }); })),
         techniques.length ? h('div', { className: 'gn-choix multi gn-sous' }, [option('Toutes', !rep.technique, function () { maj('technique', ''); }, '__toutes')].concat(techniques.map(function (t) { return option(t, rep.technique === t, function () { maj('technique', t); }); }))) : null, pedagogiePanneau());
-      if (estEveilJudo(rep.groupe)) { titre = 'Quel type de jeux souhaitez-vous ?'; aide = 'Le jeu et l’exploration motrice guident le choix ; aucune technique formelle à imposer.'; corps = h('p', { className: 'gn-aide' }, 'Le générateur choisit des jeux de déplacement, un parcours moteur et des situations coopératives en fonction de l’objectif retenu.'); }
+      if (estEveilJudo(rep.groupe)) {
+        titre = 'Quel type de jeux souhaitez-vous ?';
+        aide = 'Le jeu et l’exploration motrice guident le choix ; aucune technique formelle à imposer.';
+        corps = h('div', null,
+          h('p', { className: 'gn-aide' }, 'Le générateur choisit des jeux de déplacement, un parcours moteur et des situations coopératives selon l’objectif retenu.'),
+          h('fieldset', { className: 'tora-choix' },
+            h('legend', null, 'Présentation de la séance'),
+            h('div', { className: 'gn-choix gn-chips' }, [
+              ['sans','Séance classique'],
+              ['courtes','Une histoire par exercice'],
+              ['aventure','Aventure complète de Tora']
+            ].map(function (c) { return option(c[1], (rep.modeHistoireTora || 'sans') === c[0], function () { maj('modeHistoireTora', c[0]); }, 'tora-' + c[0]); })),
+            h('p', { className: 'gn-aide' }, 'Les histoires ne changent ni les exercices, ni leur dosage, ni les consignes de sécurité.'))); 
+      }
       if (rep.groupe === 'Pré-poussins') aide = 'La famille technique est facultative : privilégier les fondamentaux et les jeux pédagogiques.';
       peutSuivre = estJeuneJudo(rep.groupe) || !!rep.famille;
     } else if (etape === 3) {
@@ -6410,6 +6444,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       retoucher(i, x, Object.assign({}, x, { dosage: texte, travail: d ? t : x.travail }));
     }
     function ligneExo(i, x, detail) {
+      var histoireTora = judo && window.JSBTora && window.JSBTora.actif('Judo', rep.groupe, rep.modeHistoireTora)
+        ? window.JSBTora.pourEnfant(x.e, rep.modeHistoireTora) : null;
       var cle = i + '-' + x.e.id, ouvert = !!ouverts[cle], u = usages[x.e.id], edite = edition && edition.cle === cle;
       var alternatives = choixRemplacement && choixRemplacement.cle === cle ? choixRemplacement.candidats : null;
       return h('li', { key: x.e.id, className: 'gn-exo' },
@@ -6431,6 +6467,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               h('b', null, e.nom), h('small', null, [court(e.categorie), e.equipement].filter(Boolean).join(' · '))));
           })),
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setChoixRemplacement(null); } }, 'Annuler le choix')) : null,
+        histoireTora ? h('aside', { className: 'tora-histoire' },
+          h('strong', null, histoireTora.titre), h('p', null, 'À raconter : ' + histoireTora.consigne)) : null,
         ouvert ? h('div', { className: 'gn-exo-fiche' }, h('p', null, sansCesure(x.e.description)),
           judo ? h('p', { className: 'gn-exo-usage' }, 'Dosage : ' + dosageAfficheJudo(x.e) + (x.e.modeDosageJudo==='Répétitions' ? ' · sans chronomètre obligatoire' : '') + ' · Temps indicatif dans la séance : '+x.duree+' min') : null,
           x.e.vigilance ? h('p', { className: 'gn-exo-vig' }, '⚠ ' + sansCesure(x.e.vigilance)) : null,
@@ -6449,6 +6487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         objectif: [rep.objectif && rep.objectif !== 'Varié' ? 'Objectif : ' + rep.objectif : '', tech ? 'Technique : ' + tech : '', rep.calme ? 'Retour au calme : ' + rep.calme.toLowerCase() : ''].filter(Boolean).join(' · ') };
       if (infos.objectif) infos._objectif = true;
       if (judo) infos.intitulesPhases = res.phases.map(function (ph) { return ph.libelle || ph.nom; });
+      if (judo && estEveilJudo(rep.groupe)) infos.modeHistoireTora = window.JSBTora ? window.JSBTora.mode(rep.modeHistoireTora) : 'sans';
       if (judo && estJeuneJudo(rep.groupe)) { infos.tempsPhases = res.phases.map(function (ph) { return ph.minutes; }); infos.reperesPhases = res.phases.map(function (ph) { return ph.repere || ''; }); }
       if (!judo) {
         var cps = res.phases.filter(function (x) { return x.blocs; })[0];
@@ -6506,6 +6545,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           var lignes = c.blocs.filter(function (b) { return b.materiel.length; }).map(function (b) { return b.nom.replace(/ · .*/, '') + ' : ' + texteMateriel(b, c.format, rep.participants || 0); });
           return h('p', { className: 'gn-materiel' }, h('b', null, 'Matériel à installer : '), lignes.length ? lignes.join(' · ') + (rep.participants ? ' (pour ' + rep.participants + ' participants)' : ' (indiquez le nombre de participants pour les quantités)') : 'aucun, poids du corps uniquement');
         })(),
+        judo && estEveilJudo(rep.groupe) && rep.modeHistoireTora === 'aventure' && window.JSBTora
+          ? h('p', { className: 'tora-intro' }, window.JSBTora.intro) : null,
         res.manques.length ? h('p', { className: 'gn-aide', role: 'status' }, 'Points pédagogiques à compléter ou vérifier : ' + res.manques.join(' · ') + '. Contrôlez avant utilisation.') : null,
         precedentRes ? h('button', { type: 'button', className: 'cs-btn mini', onClick: annulerRetouche }, '↶ Annuler la dernière retouche') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
@@ -7881,6 +7922,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 .grille.mode-liste .carte-pied { flex-wrap:wrap; overflow:visible; }
 .grille.mode-liste .carte-w .cs-plus { position:static; align-self:center; justify-self:center; margin:8px 0; }
 .et-corps { grid-template-columns:minmax(0,1fr); }
+</style>
+<style id="tora-styles">
+.tora-choix { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 14px; }
+.tora-choix legend, .cs-tora label { font-weight: 700; }
+.tora-histoire, .tora-intro, .cs-tora { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); margin: 10px 0; }
+.tora-histoire p, .tora-intro, .cs-tora p { margin: 5px 0 0; }
+.cs-tora select { display: block; margin-top: 6px; min-height: 44px; max-width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+@media print { .tora-histoire { break-inside: avoid; } }
 </style>
 
 
