@@ -79,7 +79,7 @@ test('Parcours Judo : famille, sous-famille, recherche et changement de public r
 });
 test('Parcours Taïso : filtres de matériel accessibles et retrait rétablit le catalogue',()=>{
  const {render}=appFixture('taiso');let tree=render();assert.equal(cards(tree).length,2);
- find(tree,n=>n.props.className==='btn filtres-btn').props.onClick();tree=render();
+ find(tree,n=>n.props.className==='btn filtres-btn').props.onClick({currentTarget:{getBoundingClientRect:()=>({top:0,bottom:0,left:0,right:0,width:0,height:0})}});tree=render();
  assert.ok(nodes(tree).some(n=>n.props.id==='f-accessibilite'));
  find(tree,n=>n.type==='button'&&text(n)==='Kettlebell').props.onClick();tree=render();
  // Le tatami est toujours disponible : les deux fiches restent compatibles.
