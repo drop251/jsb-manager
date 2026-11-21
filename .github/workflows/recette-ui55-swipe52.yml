@@ -1,0 +1,19 @@
+name: Recette integration UI V54 et swipe V2.7
+
+on:
+  push:
+    branches:
+      - integration/ui55-swipe52-20261121
+  workflow_dispatch:
+
+jobs:
+  tests-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer la version combinée
+        uses: actions/checkout@v4
+      - name: Environnement Node
+        run: node --version
+      - name: Vérifier tous les tests JSB Manager
+        run: node --test tests/*.test.cjs
