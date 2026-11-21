@@ -48,7 +48,7 @@ test('V46 : aperçu de 20 corrections sur fiches locales correspondantes = 20 mi
  assert.equal(report.ajouts.length,0);
  assert.equal(report.refuses.length,0);
  assert.equal(report.doublons.length,0);
- assert.deepEqual(report.majFiches.map(e=>e.id),base.map(e=>e.id));
+ assert.deepEqual(Array.from(report.majFiches,e=>e.id),base.map(e=>e.id));
  assert.equal(report.majFiches[0].image,'data:image/png;base64,AAAA');
  assert.equal(JSON.stringify(base),before);
 });
