@@ -39,6 +39,11 @@
       .replace(/[\u0300-\u036f]/g,'').toLowerCase()
       .replace(/[^a-z0-9]+/g,' ').trim();
   }
+  // Éviter toute association silencieusement écrasée lors d'un ajout éditorial.
+  const noms = ENTREES.map(function (r) { return norm(r[0]); });
+  if (new Set(noms).size !== ENTREES.length || ENTREES.some(function (r) {
+    return !norm(r[0]) || !String(r[1] || '').trim() || !String(r[2] || '').trim();
+  })) throw new Error('Associations Tora invalides ou dupliquées');
   const PAR_NOM = new Map(ENTREES.map(function (r,i) {
     return [norm(r[0]), { id:'JSB-TORA-'+String(i+1).padStart(3,'0'),
       nomTechnique:r[0], titre:r[1], consigne:r[2], histoire:HISTOIRES[i] }];
