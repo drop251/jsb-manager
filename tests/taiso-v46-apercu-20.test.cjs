@@ -12,6 +12,7 @@ function source(name){
 function env(){
  const c={
   IMG_PERSO:{},ILLUS_IA:{},VIDEOS:{},lireIdMax:()=>5000,
+  CHAMPS:{description:['Exécution']},
   cle:v=>String(v??'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''),
   illustrationDe:()=>({image:'',svg:'',lien:false}),
   classer:l=>({nom:l['Nom (exercice)'],public:['Taïso'],typeFiche:l['Type de fiche']||'Exercice',
