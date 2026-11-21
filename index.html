@@ -4762,6 +4762,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return r;
   }
   function lireFichierExercices(fichier) {
+    if (/non[\\s._-]*import/i.test(fichier.name || '')) return Promise.reject(new Error('Fichier de contrôle NON IMPORT : utilisation interdite. Choisissez exclusivement un lot validé de fiches.'));
     if (/\.json$/i.test(fichier.name)) return fichier.text().then(function (t) {
       var d = JSON.parse(t); if (d && !Array.isArray(d)) d = d.exercices || d.exercises || [];
       if (!Array.isArray(d)) throw new Error('format'); return d;
