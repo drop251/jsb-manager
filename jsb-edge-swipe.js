@@ -8,7 +8,7 @@
   if (root) root.JSBEdgeSwipe = api;
 }(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
-  var IGNORE_SELECTOR = 'button,a,input,select,textarea,[contenteditable="true"],[role="dialog"],[role="slider"],[data-sans-glisse],[data-jsb-no-swipe],.pr-tableau,.pr-puces';
+  var IGNORE_SELECTOR = 'button,a,input,select,textarea,[contenteditable],[role="dialog"],[role="slider"],[data-sans-glisse],[data-jsb-no-swipe],.pr-tableau,.pr-puces';
   function num(v, d) { return Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d; }
   function noop() {}
   function safe(fn, fallback) { try { return typeof fn === 'function' ? fn() : fallback; } catch (_err) { return fallback; } }
