@@ -68,7 +68,7 @@ test('Rapport Markdown : toutes les fiches, informations comparables et visa sta
  assert.ok(md.includes('Champs non comparables'));
  assert.ok(md.includes('À renseigner'));
  assert.ok(md.includes('Visa du staff'));
- assert.equal(md.split('\\n').filter(x=>x.includes('À renseigner')).length,2);
+ assert.equal(md.match(/À renseigner/g)?.length,2);
 });
 test('Rapport Markdown : refus d’un objet sans entrées',()=>{
  assert.throws(()=>rapportMarkdown({}),/invalide/);
