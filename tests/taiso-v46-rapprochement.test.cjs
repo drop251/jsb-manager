@@ -6,7 +6,7 @@ const fiche=(id,nom)=>({id,nom,public:['Taïso']});
 test('Rapprochement exact ID + nom insensible aux accents, sans mutation',()=>{
  const a=[fiche(1,'Équilibre sur un pied')],b=[fiche('1','Equilibre sur un pied')];
  const original=JSON.stringify([a,b]);const r=rapprocher(a,b);
- assert.equal(r.entrees[0].statut,'CORRESPONDANCE_EXACTE');
+ assert.equal(r.entrees[0].statut,'CORRESPONDANCE_ID_NOM');
  assert.equal(r.decision,'NO_GO_IMPORT');
  assert.equal(JSON.stringify([a,b]),original);
 });
@@ -37,4 +37,23 @@ test('Aucune correspondance ne signifie pas validation de création',()=>{
 test('Les deux comptes réels figurent au rapport, aucune hypothèse de 20/244',()=>{
  const r=rapprocher([fiche(1,'X')],[fiche(1,'X'),fiche(2,'Y')]);
  assert.equal(r.totalCandidats,1);assert.equal(r.totalControle,2);
+});
+
+test('Deux fiches de même ID et nom divergent sur le dosage : conflit de contenu',()=>{
+ const a=[{...fiche(7,'Gainage'),dosage:'30 secondes',famille:'Renforcement'}];
+ const b=[{...fiche(7,'Gainage'),dosage:'12 répétitions',famille:'Renforcement'}];
+ const r=rapprocher(a,b);
+ assert.equal(r.entrees[0].statut,'CONFLIT_CONTENU');
+ assert.deepEqual(r.entrees[0].comparaison.divergences,['dosage']);
+});
+test('Un champ absent dans la référence ne vaut pas confirmation du contenu',()=>{
+ const r=rapprocher([{...fiche(8,'Fente'),dosage:'8 répétitions'}],[fiche(8,'Fente')]);
+ assert.equal(r.entrees[0].statut,'CORRESPONDANCE_ID_NOM');
+ assert.ok(r.entrees[0].comparaison.nonComparables.includes('dosage'));
+ assert.equal(r.decision,'NO_GO_IMPORT');
+});
+test('Les synonymes de sécurité connus sont comparés',()=>{
+ const r=rapprocher([{...fiche(9,'Squat'),pointSecurite:'Genou aligné'}],[{...fiche(9,'Squat'),vigilance:'Genou valgus interdit'}]);
+ assert.equal(r.entrees[0].statut,'CONFLIT_CONTENU');
+ assert.ok(r.entrees[0].comparaison.divergences.includes('securite'));
 });
