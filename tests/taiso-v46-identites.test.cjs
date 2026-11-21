@@ -83,3 +83,22 @@ test('une identité locale unique reste observable sans autoriser un import',()=
  assert.equal(r.statut,'NO_GO_IMPORT');
  assert.equal(r.rencontres[0].idApplicatifObserve,501);
 });
+
+test('une ligne source explicitement Judo est refusée malgré un nom du manifeste Taïso',()=>{
+ const r=controle([{nom:'Face pull élastique',discipline:'Judo'},{nom:'Descente nordique assistée',discipline:'Taïso'}],m);
+ assert.ok(r.erreurs.some(e=>e.code==='DISCIPLINE_SOURCE_INCOMPATIBLE'&&e.ligne===1));
+ assert.equal(r.statut,'NO_GO_IMPORT');
+});
+test('une fiche source Technique ne peut pas passer comme correction Exercice',()=>{
+ const r=controle([{nom:'Face pull élastique',typeFiche:'Technique'},{nom:'Descente nordique assistée',typeFiche:'Exercice'}],m);
+ assert.ok(r.erreurs.some(e=>e.code==='TYPE_SOURCE_INCOMPATIBLE'&&e.ligne===1));
+});
+test('une discipline Taïso déclarée et un type Exercice restent compatibles',()=>{
+ const r=controle([{nom:'Face pull élastique',discipline:'Taïso',typeFiche:'Exercice'},{nom:'Descente nordique assistée',public:['Taïso'],typeFiche:'Exercice'}],m);
+ assert.equal(r.erreurs.length,0);
+ assert.equal(r.statut,'NO_GO_IMPORT');
+});
+test('un public mixte Judo/Taïso est refusé pour un lot de corrections strictement Taïso',()=>{
+ const r=controle([{nom:'Face pull élastique',public:['Taïso','Judo']},{nom:'Descente nordique assistée',discipline:'Taïso'}],m);
+ assert.ok(r.erreurs.some(e=>e.code==='DISCIPLINE_SOURCE_INCOMPATIBLE'));
+});
