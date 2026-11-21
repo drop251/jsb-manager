@@ -6092,7 +6092,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (rep.calme === 'Étirements') { var t = fin.filter(function (e) { return !MOTS_CALME.test(sa(e.nom)); }); return t.length ? t : fin; }
       return fin;
     }
-    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = niveauEffectifTaiso(rep);
+    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = judo ? null : niveauEffectifTaiso(rep);
     // Taïso : le corps de séance (en blocs) est construit en premier, pour cibler l'échauffement et les étirements sur les zones travaillées
     var blocsCorps = null, zones = {};
     if (!judo) {
