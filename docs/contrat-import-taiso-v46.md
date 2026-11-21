@@ -44,3 +44,13 @@ Lecture directe du blob `index.html` du commit principal `52f69afd7869391bcbf6d6
 - Les tests spécifiques `tests/taiso-v46-lecture-xlsx.test.cjs` utilisent un lecteur XLSX simulé pour vérifier le routage et la conservation des colonnes ; ils **ne chargent pas le fichier XLSX réel**, et ne prouvent pas l'import sur iPhone.
 
 **Décision opérationnelle :** utiliser uniquement le flux **ajouts/corrections** sur un profil isolé sauvegardé. Refuser le lot si l'aperçu indique un ajout inattendu, un doublon, une nouvelle référence ou une modification d'une fiche hors lot.
+
+## Verrou applicatif « NON_IMPORT » dans la PR #56
+
+La fonction réelle `lireFichierExercices(fichier)` de `index.html` refuse désormais **avant lecture** tout nom de fichier contenant `NON_IMPORT` ou `NON IMPORT` (variantes d'espaces, tirets et points). Un message explicite oriente vers un lot de fiches validé.
+
+Cela protège notamment contre une sélection accidentelle du fichier `JSB_Taiso_V46_Controle_Normalisation_244_NON_IMPORT.xlsx`, dont la première feuille est un tableau de pilotage, **pas** les exercices destinés à l'import. La fonction d'ajouts/corrections ne lit plus ce fichier tant que sa dénomination contient la mention de blocage.
+
+Les tests `taiso-v46-lecture-xlsx.test.cjs` couvrent le refus avant chargement, des variantes de nom et la lecture normale d'un fichier candidat `A_VALIDER`.
+
+**Limite explicite :** le verrou est basé sur le **nom du fichier**, et non sur une signature interne ou une certification du contenu. Renommer un fichier de contrôle supprimerait cette protection ; elle ne remplace pas la revue des données, l'aperçu ni une décision de validation humaine. Aucune écriture de base n'a été effectuée dans cette recette.
