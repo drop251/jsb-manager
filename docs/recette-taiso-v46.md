@@ -102,3 +102,16 @@ node --test tests/taiso-v46-preflight.test.cjs
 Le script vérifie : identifiants absents ou répétés, nom absent, discipline différente de Taïso, détection préventive des noms répétés, vérification indicative de six champs fondamentaux et **blocage par nom** des fichiers portant `NON_IMPORT`. Il ne prétend pas certifier les quinze champs du cahier des charges et ne valide pas les 20 lignes sans le fichier réel. Un résultat `A_VALIDER` ne permet jamais une mise en production.
 
 La suite CI générale peut échouer sur des tests d'interface préexistants ; le statut d'exécution doit être vérifié après chaque commit. Une correction du test de clic de filtre a été faite sur cette branche de recette uniquement.
+
+## Rapprochement documentaire des 20 fiches avec les 244 contrôles
+
+L'outil `scripts/taiso-rapprochement.cjs` compare **deux exports JSON** en lecture seule, sans import ni fusion :
+
+```sh
+node scripts/taiso-rapprochement.cjs chemin/vers/candidats-v46.json chemin/vers/controle-v46_NON_IMPORT.json > rapport-rapprochement.json
+node --test tests/taiso-v46-rapprochement.test.cjs
+```
+
+Le second nom de fichier doit contenir `NON_IMPORT`. La commande n'accède pas aux fichiers Excel directement. Les catégories calculées sont : `CORRESPONDANCE_EXACTE`, `CONFLIT_ID_NOM`, `NOM_SEUL`, `AMBIGU_REFERENCE`, `AMBIGU_CANDIDATS`, `INCOMPLET` et `AUCUNE_CORRESPONDANCE`. Le rapport contient les lignes sources correspondantes et renvoie systématiquement `NO_GO_IMPORT` ; même les correspondances exactes doivent être validées par une personne responsable.
+
+**Important :** aucune comparaison réelle V46 n'a été exécutée tant que les deux exports ne sont pas accessibles. Les comptes 20 et 244 sont issus des noms des classeurs, pas du traitement des lignes.
