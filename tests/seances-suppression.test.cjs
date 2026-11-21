@@ -1,10 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
 function fixture(fail=false,liste=null){
- const states=[];let index=0,deleted=[];let histo=liste||[{id:'a',date:'2026-11-17',cours:['Adultes'],espace:'Judo',titre:'Appuis',exos:[]}];
- const c={React:{useState(v){const i=index++;if(!(i in states))states[i]=v;return [states[i],v=>states[i]=v];}},h:(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),usePlanning:()=>[],useHisto:()=>histo,lireSel:()=>({}),prochainsCreneaux:()=>[],dateFr:x=>x,heureFr:x=>x,progressable:()=>false,SeanceType:'type',SeanceDirecte:'direct',supprimerHisto:id=>{if(fail)return false;deleted.push(id);histo=histo.filter(x=>x.id!==id);return true;}};
+ const states=[];let index=0,deleted=[],attempts=0;let histo=liste||[{id:'a',date:'2026-11-17',cours:['Adultes'],espace:'Judo',titre:'Appuis',exos:[]}];
+ const c={React:{useState(v){const i=index++;if(!(i in states))states[i]=v;return [states[i],v=>states[i]=v];}},h:(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),usePlanning:()=>[],useHisto:()=>histo,lireSel:()=>({}),prochainsCreneaux:()=>[],dateFr:x=>x,heureFr:x=>x,progressable:()=>false,SeanceType:'type',SeanceDirecte:'direct',supprimerHisto:id=>{attempts++;if(fail===true||(fail==='once'&&attempts===1))return false;deleted.push(id);histo=histo.filter(x=>x.id!==id);return true;}};
  vm.createContext(c);const start=html.indexOf('  function MesSeances(');vm.runInContext(html.slice(start,html.indexOf('\n  }',start)+4),c);
- return {render(){index=0;return c.MesSeances({aller(){}});},deleted};
+ return {render(){index=0;return c.MesSeances({aller(){}});},deleted,get attempts(){return attempts;}};
 }
 function nodes(n){return n&&typeof n==='object'?[n,...n.children.flatMap(nodes)]:[];}
 function text(n){return n&&typeof n==='object'?n.children.map(text).join(''):String(n??'');}
@@ -33,4 +33,25 @@ test('La pagination porte sur les résultats et revient à trente après un chan
  const f=fixture(false,Array.from({length:65},(_,i)=>({...seancesRecherche[0],id:String(i)})));
  assert.equal(lignes(f).length,30);click(f,'Voir les séances précédentes (35)');assert.equal(lignes(f).length,60);
  changer(f,'input','appuis');assert.equal(lignes(f).length,30);assert.ok(text(f.render()).includes('65 séances trouvées'));
+});
+
+test('La suppression parmi deux séances ne modifie pas la séance conservée',()=>{
+ const f=fixture(false,seancesRecherche);
+ assert.equal(lignes(f).length,2);
+ click(f,'✕');click(f,'Supprimer');
+ assert.deepEqual(f.deleted,['j']);
+ assert.equal(lignes(f).length,1);
+ assert.equal(lignes(f)[0].props.key,'t');
+ assert.ok(text(f.render()).includes('Mobilité douce'));
+});
+test('Après un premier échec de stockage, un nouvel essai supprime la séance une seule fois',()=>{
+ const f=fixture('once');
+ click(f,'✕');click(f,'Supprimer');
+ assert.equal(f.attempts,1);assert.deepEqual(f.deleted,[]);
+ assert.ok(text(f.render()).includes('Appuis'));
+ assert.ok(nodes(f.render()).some(n=>n.props.role==='alert'));
+ click(f,'Supprimer');
+ assert.equal(f.attempts,2);assert.deepEqual(f.deleted,['a']);
+ assert.ok(!text(f.render()).includes('Appuis'));
+ assert.ok(!nodes(f.render()).some(n=>n.props.role==='alert'));
 });
