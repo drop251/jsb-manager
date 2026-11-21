@@ -6370,6 +6370,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (estEveilJudo(rep.groupe)) {
         titre = 'Quel type de jeux souhaitez-vous ?';
         aide = 'Le jeu et l’exploration motrice guident le choix ; aucune technique formelle à imposer.';
+        // Diagnostic du catalogue local ; n'ajoute, ne corrige et ne supprime aucune fiche.
+        var couvertureTora = window.JSBTora && typeof window.JSBTora.auditerCatalogue === 'function'
+          ? window.JSBTora.auditerCatalogue(p.tout) : null;
         corps = h('div', null,
           h('p', { className: 'gn-aide' }, 'Le générateur choisit des jeux de déplacement, un parcours moteur et des situations coopératives selon l’objectif retenu.'),
           h('fieldset', { className: 'tora-choix' },
@@ -6379,7 +6382,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               ['courtes','Une histoire par exercice'],
               ['aventure','Aventure complète de Tora']
             ].map(function (c) { return option(c[1], (rep.modeHistoireTora || 'sans') === c[0], function () { maj('modeHistoireTora', c[0]); }, 'tora-' + c[0]); })),
-            h('p', { className: 'gn-aide' }, 'Les histoires ne changent ni les exercices, ni leur dosage, ni les consignes de sécurité.'))); 
+            h('p', { className: 'gn-aide' }, 'Les histoires ne changent ni les exercices, ni leur dosage, ni les consignes de sécurité.')),
+          (rep.modeHistoireTora || 'sans') !== 'sans' && couvertureTora
+            ? h('details', { className: 'tora-couverture' },
+                h('summary', null, 'Histoires disponibles : ' + couvertureTora.pretes + ' / ' + couvertureTora.totalHistoires),
+                h('p', { className: 'gn-aide' }, 'Diagnostic du catalogue présent sur cet appareil, sans modification des exercices. Correspondance ne signifie pas validation pédagogique.'),
+                h('p', { className: 'gn-aide' }, 'À vérifier : ' + couvertureTora.absentes + ' absentes · ' + couvertureTora.incompatibles + ' incompatibles · ' + couvertureTora.doublons + ' doublons.'),
+                couvertureTora.details.some(function (x) { return x.statut !== 'prete'; })
+                  ? h('ul', { className: 'tora-couverture-liste' },
+                      couvertureTora.details.filter(function (x) { return x.statut !== 'prete'; }).map(function (x) {
+                        return h('li', { key: x.id }, x.nomTechnique + ' — ' + (x.statut === 'absente' ? 'absente du catalogue' : x.statut === 'doublon' ? 'plusieurs fiches compatibles' : 'fiche incompatible'));
+                      }))
+                  : h('p', { className: 'gn-aide' }, 'Toutes les correspondances sont disponibles. Vérifier encore les consignes de sécurité avant la séance.'))
+            : null);
       }
       if (rep.groupe === 'Pré-poussins') aide = 'La famille technique est facultative : privilégier les fondamentaux et les jeux pédagogiques.';
       peutSuivre = estJeuneJudo(rep.groupe) || !!rep.famille;
@@ -7925,6 +7940,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </style>
 <style id="tora-styles">
 .tora-choix { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 14px; }
+.tora-couverture { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.tora-couverture summary { cursor: pointer; font-weight: 650; font-size: 13px; }
+.tora-couverture summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.tora-couverture-liste { padding-left: 19px; max-height: 220px; overflow-y: auto; font-size: 12px; line-height: 1.6; }
+
 .tora-choix legend, .cs-tora label { font-weight: 700; }
 .tora-histoire, .tora-intro, .cs-tora { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); margin: 10px 0; }
 .tora-histoire p, .tora-intro, .cs-tora p { margin: 5px 0 0; }
