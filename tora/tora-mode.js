@@ -79,6 +79,17 @@
       consigne:modeAffichage==='aventure' ? (s.histoire+' '+s.consigne) : s.consigne,
       id:s.id };
   }
+  // Récit attaché uniquement à une fiche d'exercice explicitement Judo Éveil 4–5 ans.
+  // Aucun exercice n'est créé ou modifié par cette présentation.
+  function fichePedagogique(exercice) {
+    const e=exercice || {};
+    const publics=Array.isArray(e.public) ? e.public : (e.public ? [e.public] : []);
+    const groupes=Array.isArray(e.sousGroupes) ? e.sousGroupes : (e.sousGroupes ? [e.sousGroupes] : []);
+    if (!publics.some(function (v) { return norm(v)==='judo'; }) || !groupes.some(estEveil)) return null;
+    const s=trouver(e);
+    return s ? {id:s.id, nomTechnique:s.nomTechnique, titre:s.titre,
+      histoire:s.histoire, consigne:s.consigne} : null;
+  }
   // Diagnostic non destructif : les fiches Judo importées peuvent rester locales à l'appareil.
   function auditerCatalogue(catalogue) {
     const base=Array.isArray(catalogue) ? catalogue
@@ -122,7 +133,7 @@
   }
   const intro='Aujourd’hui, Tora a besoin de nous pour réussir ses missions au dojo. Nous allons apprendre en jouant et en nous aidant.';
   const conclusion='Tora nous remercie pour nos essais, notre attention et notre entraide. Nous terminons par le salut.';
-  const api=Object.freeze({norm,estEveil,mode,actif,trouver,pourEnfant,auditerCatalogue,intro,conclusion,
+  const api=Object.freeze({norm,estEveil,mode,actif,trouver,pourEnfant,fichePedagogique,auditerCatalogue,intro,conclusion,
     modes:MODES.slice(),nombre:ENTREES.length});
   if (typeof module==='object' && module.exports) module.exports=api;
   root.JSBTora=api;
