@@ -43,7 +43,7 @@ test('JSB : scripts Tora chargés et précachés par le service worker', () => {
   assert.match(html, /src="\.\/tora\/tora-mode\.js"/);
   assert.match(sw, /\.\/tora\/tora-mode\.js/);
   assert.match(html, /infos\.modeHistoireTora\s*=/);
-  assert.match(html, /majInfo\('modeHistoireTora'/);
+  assert.match(html, /h\(HistoireToraFiche, \{ e: e \}\)/);
   assert.match(html, /toraPDF\.consigne/);
 });
 test('JSB : le script principal reste syntaxiquement valide', () => {
