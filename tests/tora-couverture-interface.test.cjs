@@ -15,7 +15,7 @@ test('Tora est présenté dans la fiche exercice Éveil et repéré en biblioth�
  assert.match(bloc,/window\.JSBTora\.fichePedagogique\(p\.e\)/);
  assert.match(bloc,/histoire\.histoire/);
  assert.match(bloc,/histoire\.consigne/);
- assert.match(html,/judo \? h\(HistoireToraFiche, \{ e: e \}\) : null/);
+ assert.match(html,/judo && typeof HistoireToraFiche === 'function' \? h\(HistoireToraFiche, \{ e: e \}\) : null/);
  assert.match(html,/judo && window\.JSBTora && window\.JSBTora\.fichePedagogique\(e\) \? h\('span', \{ className: 'tag tora-tag' \}/);
  assert.doesNotMatch(bloc,/\b(?:majInfo|setInfos|setPlan|importer|sauvegarder)\s*\(/);
 });
