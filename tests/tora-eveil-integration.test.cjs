@@ -84,8 +84,8 @@ test('Tora : chaîne complète générateur → préparation → PDF et cache d�
   const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
   assert.match(html, /src=["']\.\/tora\/tora-mode\.js["']/);
   assert.match(html, /modeHistoireTora/);
-  assert.match(html, /window\.JSBTora\.pourEnfant\(x\.e,/);
-  assert.match(html, /window\.JSBTora\.pourEnfant\(e,/);
+  assert.match(html, /window\.JSBTora\.fichePedagogique\(x\.e\)/);
+  assert.match(html, /window\.JSBTora\.fichePedagogique\(e\)/);
   assert.match(html, /toraPDF.*?Histoire de Tora/s);
   assert.match(sw, /tora\/tora-mode\.js/);
 });
