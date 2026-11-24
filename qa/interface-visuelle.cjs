@@ -36,6 +36,10 @@ fs.mkdirSync('qa-captures',{recursive:true});
      await nav.getByRole('button',{name:label,exact:true}).click();
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
+     if(label==='Présences'){
+      await page.getByRole('tablist',{name:'Présences',exact:true}).waitFor({state:'visible',timeout:45000});
+      assert.equal(await page.getByText('Chargement des présences…',{exact:true}).count(),0);
+     }
      await snapshot('0'+(n+2)+'-'+label.toLowerCase().replace('ï','i').replace('é','e'));
      if(label==='Taïso'){
       const open=page.getByRole('button',{name:'Générer une séance',exact:true});
@@ -84,6 +88,13 @@ fs.mkdirSync('qa-captures',{recursive:true});
       for(const b of layout.buttons){
         assert.ok(b.w>=44 && b.h>=44 && b.x>=-1 && b.right<=layout.viewport+1 && b.top>=-1 && b.bottom<=size.height+1 && b.labelFits,JSON.stringify({size,b}));
       }
+      const details=await page.locator('.aujourdhui .tuile small').evaluateAll(nodes=>nodes.map(n=>{
+       const s=getComputedStyle(n),r=n.getBoundingClientRect(),card=n.closest('.tuile').getBoundingClientRect();
+       return {text:n.textContent,wrap:s.whiteSpace,overflow:s.textOverflow,inside:r.left>=card.left-1&&r.right<=card.right+1,
+        fits:n.scrollWidth<=n.clientWidth+2};
+      }));
+      assert.ok(details.length>=2,'Descriptions accueil absentes');
+      for(const d of details)assert.ok(d.wrap==='normal'&&d.overflow==='clip'&&d.inside&&d.fits,JSON.stringify({size,d}));
       await snapshot('08-'+size.width+'x'+size.height);
       console.log('PASS responsive',engine,theme,JSON.stringify({size,layout}));
     }

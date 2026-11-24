@@ -207,3 +207,16 @@
   .onglets { bottom: calc(4px + env(safe-area-inset-bottom,0px)); }
   .onglet-nav { min-height: 44px; }
 }
+
+/* V4 — lisibilité des informations utiles de l'accueil. */
+.aujourdhui { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: stretch; }
+.aujourdhui .tuile { min-width: 0; gap: 6px; text-align: left; }
+.aujourdhui .tuile-tete { min-width: 0; max-width: 100%; line-height: 1.35; }
+.aujourdhui .tuile-tete svg { flex: none; }
+.aujourdhui .tuile strong, .aujourdhui .tuile small {
+  min-width: 0; max-width: 100%; white-space: normal;
+  overflow-wrap: anywhere; text-overflow: clip; overflow: visible;
+}
+.aujourdhui .tuile small { line-height: 1.45; font-size: .8125rem; }
+@media (max-width: 360px) { .aujourdhui { grid-template-columns: minmax(0,1fr); } }
+:root[data-texte-grand] .aujourdhui { grid-template-columns: minmax(0,1fr); }
