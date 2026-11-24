@@ -3847,7 +3847,7 @@ h1, .hero h1 {
             h('b', null, heureFr(c.debut)), h('span', null, c.cours.join(', ')), h('small', { className: 'pr-cren-etat ' + (et === 'En cours' ? 'encours' : et === 'Passé' ? 'passe' : 'avenir') }, et));
         })) : null,
         h('div', { className: 'pr-resume' },
-          h('span', { className: 'pr-resume-txt' }, h('b', null, dateCourte(date) + (cActif ? ' · ' + heureFr(cActif.debut) : '')), ' · ' + coursAppel.join(', ') + ' (' + inscrits.length + ')'),
+          h('span', { className: 'pr-resume-txt' }, h('b', null, dateCourte(date) + (cActif ? ' · ' + heureFr(cActif.debut) : '')), h('strong', { className: 'pr-groupe-titre' }, coursAppel.join(', ')), h('small', { className: 'pr-groupe-effectif' }, pluriel(inscrits.length, 'licencié'))),
           h('button', { type: 'button', className: 'cs-btn mini pr-resume-btn', 'aria-expanded': ouvrirReglage, 'aria-controls': 'pr-reglage', onClick: function () { setReglage(!reglage); } }, ouvrirReglage ? 'Fermer' : 'Changer')),
         (function () {
           // Séance préparée pour ce cours (enregistrée depuis « Ma séance »)
@@ -3870,8 +3870,8 @@ h1, .hero h1 {
           h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Rechercher un nom', 'aria-label': 'Rechercher un licencié dans l\'appel', value: recherche, onChange: function (ev) { setRecherche(ev.target.value); } }),
           h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter', h('small', null, aNoter.length))) : null,
         h('div', { className: 'pr-compteur' },
-          h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés · ' + pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent')),
-          appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
+          h('div', { className: 'pr-indicateurs', 'aria-live': 'polite' }, [['Présents', compte.P], ['Absents', compte.A], ['À noter', aNoter.length]].map(function (item) { return h('span', { key: item[0], className: 'pr-indicateur' }, h('b', null, item[1]), h('small', null, item[0])); })), h('progress', { className: 'pr-progression', max: Math.max(1, inscrits.length), value: nbNotes, 'aria-label': 'Progression de l’appel' }),
+          appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Noter les autres présents')),
         !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Choisissez ✓ pour présent ou ✕ pour absent ; retouchez le statut pour remettre à noter.') : null,
         h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
           var j = it.j, st = statutDe(j, it.c), verrou = coursVerrouille(it.c);
@@ -3879,7 +3879,7 @@ h1, .hero h1 {
             h('div', { className: 'pr-appel-btn' },
               h(Avatar, { j: j }),
               h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()),
-                h('span', { className: 'pr-cat' }, coursAppel.length > 1 ? it.c : catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null),
+                coursAppel.length > 1 || catDe(j) !== it.c ? h('span', { className: 'pr-cat' }, coursAppel.length > 1 ? it.c : catDe(j)) : null, j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null),
               h('div', { className: 'pr-statut-actions', role: 'group', 'aria-label': 'Présence de ' + nomComplet(j) + ' · ' + it.c },
                 [['P', 'Présent'], ['A', 'Absent']].map(function (o) {
                   return h('button', { key: o[0], type: 'button', className: 'pr-choix-st' + (st === o[0] ? ' actif' : '') + (o[0] === 'P' ? ' present' : ' absent'),
