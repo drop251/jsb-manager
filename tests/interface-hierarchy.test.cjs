@@ -6,9 +6,10 @@ const path=require('node:path');
 const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 test('Interface : feuille de style locale chargée après les styles historiques et précachée',()=>{
  const html=read('index.html'), css=read('ui/interface.css'), sw=read('sw.js');
- const link='<link rel="stylesheet" href="./ui/interface.css">';
- assert.equal(html.indexOf(link),html.lastIndexOf(link));
- assert.ok(html.indexOf(link)>html.lastIndexOf('</style>'));
+ const links=[...html.matchAll(/<link rel="stylesheet" href="\.\/ui\/interface\.css\?v=([a-z0-9-]+)">/g)];
+ assert.equal(links.length,1,'Une feuille CSS locale versionnée attendue');
+ assert.ok(links[0].index>html.lastIndexOf('</style>'));
+ assert.ok(sw.includes("ui-presences-"+links[0][1].split('-').pop()),'Version CSS cohérente avec le cache');
  assert.ok(sw.includes("'./ui/interface.css'"));
  assert.match(css,/prefers-reduced-motion: reduce/);
  assert.match(css,/data-texte-grand/);
