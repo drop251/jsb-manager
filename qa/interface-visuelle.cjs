@@ -223,11 +223,16 @@ fs.mkdirSync('qa-captures',{recursive:true});
       await page.goto(base,{waitUntil:'domcontentloaded'});
       await nav.getByRole('button',{name:'Présences',exact:true}).click();
       await page.locator('.pr-appel-ligne').first().waitFor({timeout:45000});
+      // Measure the painted layout after the new document's CSS and navigation commit.
+      await page.waitForFunction(()=>Array.from(document.styleSheets).some(s=>s.href&&new URL(s.href).pathname.endsWith('/ui/interface.css')&&new URL(s.href).searchParams.has('v')));
+      await page.evaluate(()=>document.fonts.ready);
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.ok(await nav.evaluate(el=>el.classList.contains('onglets-presences')),'Classe de navigation Présences absente');
       assert.equal(await page.locator('.pr-appel-ligne').count(),27);
       const geometry=()=>page.evaluate(()=>{
         const rect=s=>{const n=document.querySelector(s),r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
         const sc=document.querySelector('.pr-scroll'), list=document.querySelector('.pr-appel-defile');
-        return {bar:rect('.appbar'),tabs:rect('.pr-barre'),scroll:rect('.pr-scroll'),footer:rect('.pr > .pr-valider'),nav:rect('.onglets'),scrollMode:getComputedStyle(sc).overflowY,listMode:getComputedStyle(list).overflowY,scrollTop:sc.scrollTop,scrollHeight:sc.scrollHeight,clientHeight:sc.clientHeight};
+        return {bar:rect('.appbar'),tabs:rect('.pr-barre'),scroll:rect('.pr-scroll'),footer:rect('.pr > .pr-valider'),nav:rect('.onglets'),navClass:document.querySelector('.onglets').className,navBottom:getComputedStyle(document.querySelector('.onglets')).bottom,scrollMode:getComputedStyle(sc).overflowY,listMode:getComputedStyle(list).overflowY,scrollTop:sc.scrollTop,scrollHeight:sc.scrollHeight,clientHeight:sc.clientHeight};
       });
       const before=await geometry();
       assert.equal(before.scrollMode,'auto');
