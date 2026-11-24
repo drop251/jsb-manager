@@ -27,3 +27,10 @@
 - Correctif : runner explicitement fixé à Ubuntu 24.04. Nouvelle exécution à vérifier ; aucun succès anticipé.
 
 La recette manuelle couvre uniquement les scénarios ci-dessus ; elle ne certifie pas tous les cas limites du stockage, de l'import ou de l'accessibilité. Aucun contenu métier ni donnée utilisateur modifié.
+
+### Exécution suivante — 45416905011
+
+- Chromium, site public : démarrage, navigation, Excel/PDF, service worker et réouverture hors ligne réussis.
+- Chromium, serveur local : démarrage et navigation réussis ; service worker non activé car le script de production accepte HTTP uniquement avec le nom localhost, alors que la recette utilisait 127.0.0.1. Correction de l'URL du test.
+- WebKit, site public : démarrage, navigation, Excel/PDF, service worker et pré-cache contrôlés ; réouverture après setOffline(true) en erreur interne WebKit. Le ticket officiel https://github.com/microsoft/playwright/issues/42775 documente ce défaut d'émulation et le contournement par arrêt du serveur d'origine.
+- Nouvelle stratégie : site public WebKit en ligne + pré-cache (hors ligne public explicitement non testé par automatisation) ; Chromium public hors ligne maintenu ; sur la branche locale, arrêt réel du serveur et vérification de son indisponibilité avant réouverture hors ligne pour les deux moteurs. Aucune exemption du test local. La recette utilisateur Safari hors ligne reste distincte.

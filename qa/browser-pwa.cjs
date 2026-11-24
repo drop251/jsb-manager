@@ -50,8 +50,31 @@ if (!url || !['webkit','chromium'].includes(engine)) throw Error('JSB_URL et JSB
       return {active:!!reg.active,files:await Promise.all(files.map(async f=>!!(await caches.match(new URL(f,location.href)))))};
     });
     assert.equal(cache.active,true); assert.ok(cache.files.every(Boolean),'Ressource de pré-cache absente');
+    console.log('PASS service worker actif et pré-cache complet');
+    const serverPid=Number(process.env.JSB_SERVER_PID || 0);
+    // WebKit offline emulation blocks even service-worker responses:
+    // https://github.com/microsoft/playwright/issues/42775
+    // Public WebKit: online + cache checks only. Local both engines: stop the actual origin.
+    if (engine === 'webkit' && !serverPid) {
+      console.log('NON TESTÉ : réouverture hors ligne du site public WebKit (limite Playwright #42775). Contrôle équivalent sur serveur local arrêté.');
+      assert.deepEqual(errors,[],'Exceptions JavaScript navigateur');
+      return;
+    }
     await p.close();
-    await context.setOffline(true);
+    if (serverPid) {
+      assert.ok(Number.isSafeInteger(serverPid) && serverPid > 1 && new URL(url).hostname === 'localhost','PID / origine locale invalides');
+      process.kill(serverPid,'SIGTERM');
+      let unavailable=false;
+      for (let i=0;i<50;i++) {
+        try { await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(1000)}); }
+        catch (_) { unavailable=true; break; }
+        await new Promise(resolve=>setTimeout(resolve,100));
+      }
+      assert.ok(unavailable,'Le serveur doit réellement être inaccessible avant le test hors ligne');
+      console.log('PASS origine locale arrêtée et connexion directe impossible');
+    } else {
+      await context.setOffline(true);
+    }
     p=await newPage();
     await p.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
     await ready(p); await navigate(p);

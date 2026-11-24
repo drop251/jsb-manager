@@ -43,7 +43,8 @@ jobs:
           server=$!
           trap 'kill "$server" 2>/dev/null || true' EXIT
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8765/ >/dev/null; then break; fi
+            if curl -fsS http://localhost:8765/ >/dev/null; then break; fi
             sleep 1
           done
-          JSB_URL=http://127.0.0.1:8765/ node qa/browser-pwa.cjs
+          curl -fsS http://localhost:8765/ >/dev/null
+          JSB_URL=http://localhost:8765/ JSB_SERVER_PID="$server" node qa/browser-pwa.cjs
