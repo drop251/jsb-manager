@@ -574,3 +574,13 @@
 @media (max-width:959px) {
   :root[data-theme="dark"] body:has(.page-presences .pr) .onglets { background:#191d23; border-color:#303741; }
 }
+
+
+/* La validation reste hors du défilement de la liste ; le reste de la page
+   peut défiler sur les petits écrans ou si le réglage du groupe est ouvert. */
+@media (max-width:959px) and (min-height:620px) {
+  .page-presences .pr:has(.pr-appel):not(:has(.pr-reglage)):not(:has(.pr-valider-conf)):not(:has(.pr-valide)) .pr-appel-defile {
+    max-height:clamp(120px,calc(100dvh - 480px),640px); overflow-y:auto; overscroll-behavior-y:contain;
+  }
+  .page-presences .pr .pr-valider:not(.pr-valider-conf):not(.pr-valide) { position:static; }
+}
