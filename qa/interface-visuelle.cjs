@@ -31,11 +31,54 @@ fs.mkdirSync('qa-captures',{recursive:true});
     }));
     assert.equal(metrics.length,5);
     for(const m of metrics){assert.ok(m.height>=44&&m.width>=44&&m.visible,JSON.stringify(m));assert.equal(m.font,'12px');}
+    await page.getByRole('region',{name:'Tableau de bord'}).waitFor();
+    assert.equal(await page.locator('.aujourdhui .tuile').count(),6);
+    await page.getByRole('heading',{name:'Activité récente',exact:true}).waitFor();
+    const palette=await page.evaluate(()=>{
+      const s=getComputedStyle(document.documentElement);
+      const read=k=>s.getPropertyValue(k).trim();
+      return {bg:read('--bg'),surface:read('--surface'),navy:read('--jsb-brand-navy'),gold:read('--jsb-brand-gold'),accent:read('--jsb-accent'),accentInk:read('--jsb-accent-ink')};
+    });
+    assert.equal(palette.navy,'#1f2839');
+    assert.equal(palette.gold,'#dab174');
+    assert.equal(palette.bg,theme==='light'?'#f4f5ef':'#151c29');
+    assert.equal(palette.surface,theme==='light'?'#ffffff':'#1f2839');
+    assert.equal(palette.accent,theme==='light'?'#1f2839':'#dab174');
+    assert.equal(palette.accentInk,theme==='light'?'#76511f':'#dab174');
+    // Vérifier les couleurs effectivement peintes, et leur contraste.
+    const painted=await page.locator('.accueil-preparer > summary').evaluate(n=>{
+      const s=getComputedStyle(n);return {fg:s.color,bg:s.backgroundColor,border:s.borderTopColor};
+    });
+    assert.equal(painted.fg,theme==='light'?'rgb(255, 255, 255)':'rgb(244, 245, 239)');
+    assert.equal(painted.border,theme==='light'?'rgb(31, 40, 57)':'rgb(218, 177, 116)');
+    const checkActiveNav=async()=>{
+      const active=await nav.locator('button[aria-current="page"]').evaluate(n=>{
+        const color=el=>getComputedStyle(el).color;
+        const bar=n.closest('.onglets');
+        return {button:color(n),label:color(n.querySelector('.onglet-txt')),icon:color(n.querySelector('svg')),
+          background:innerWidth<960?getComputedStyle(bar,'::after').backgroundColor:getComputedStyle(n).backgroundColor,
+          buttonBg:getComputedStyle(n).backgroundColor,mobile:innerWidth<960};
+      });
+      const fg=theme==='light'?'rgb(118, 81, 31)':'rgb(218, 177, 116)';
+      assert.equal(active.button,fg,JSON.stringify(active));
+      assert.equal(active.label,fg,JSON.stringify(active));
+      assert.equal(active.icon,fg,JSON.stringify(active));
+      assert.equal(active.background,theme==='light'?'rgb(247, 236, 217)':'rgb(58, 52, 45)');
+      if(active.mobile)assert.equal(active.buttonBg,'rgba(0, 0, 0, 0)');
+    };
+    await checkActiveNav();
     await snapshot('01-accueil');
+    await page.locator('.accueil-preparer > summary').click();
+    await page.locator('.accueil-disciplines').getByRole('button',{name:'Taïso',exact:true}).click();
+    await page.locator('.gn[role="dialog"]').waitFor({state:'visible',timeout:45000});
+    await snapshot('09-action-principale');
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
     for(const [n,label] of ['Judo','Taïso','Séances','Présences'].entries()){
      await nav.getByRole('button',{name:label,exact:true}).click();
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
+     await checkActiveNav();
      if(label==='Présences'){
       await page.getByRole('tablist',{name:'Présences',exact:true}).waitFor({state:'visible',timeout:45000});
       assert.equal(await page.getByText('Chargement des présences…',{exact:true}).count(),0);
@@ -98,6 +141,45 @@ fs.mkdirSync('qa-captures',{recursive:true});
       await snapshot('08-'+size.width+'x'+size.height);
       console.log('PASS responsive',engine,theme,JSON.stringify({size,layout}));
     }
+    // Contrôle des interactions normales puis réduites : aucun geste métier modifié.
+    await page.setViewportSize(engine==='webkit'?{width:390,height:844}:{width:1440,height:900});
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await nav.getByRole('button',{name:'Accueil',exact:true}).click();
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    const motion=async()=>page.evaluate(()=>{
+      const content=document.querySelector('.page > .wrap > :not(.appbar)');
+      const bar=document.querySelector('.appbar');
+      const style=getComputedStyle(content);
+      return {name:style.animationName,duration:parseFloat(style.animationDuration),header:getComputedStyle(bar).animationName};
+    });
+    const forward=await motion();
+    assert.equal(forward.name,'jsb-ui-avant');
+    assert.ok(Math.abs(forward.duration-.24)<.001,JSON.stringify(forward));
+    assert.equal(forward.header,'none');
+    await page.getByRole('button',{name:"Retour à l'accueil",exact:true}).click();
+    await page.locator('.page.va-arriere').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'jsb-ui-retour');
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'none');
+    // Tester également le réglage interne, distinct de celui du système.
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await page.evaluate(()=>{const key='jsb-affichage',old=JSON.parse(localStorage.getItem(key)||'{}');localStorage.setItem(key,JSON.stringify({...old,v:2,animations:true}));});
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
+    await page.waitForFunction(()=>document.documentElement.getAttribute('data-anim')==='reduit');
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'none');
+    await page.keyboard.press('Tab');
+    const focus=await page.evaluate(()=>{
+      const el=document.activeElement,style=getComputedStyle(el);
+      return {tag:el.tagName,outline:style.outlineStyle,width:parseFloat(style.outlineWidth)};
+    });
+    assert.ok(focus.tag!=='BODY' && focus.outline!=='none' && focus.width>=2,JSON.stringify(focus));
+    console.log('PASS interactions',engine,theme,JSON.stringify({forward,focus}));
     assert.deepEqual(errors,[],'Exceptions JavaScript');
     console.log('PASS',engine,theme,JSON.stringify(metrics));
    } finally{await context.close();}

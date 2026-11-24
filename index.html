@@ -1928,7 +1928,7 @@ h1, .hero h1 {
   function Aujourdhui(p) {
     var s = React.useState(null), appel = s[0], setAppel = s[1];
     var sc = React.useState(null), cren = sc[0], setCren = sc[1];
-    var sv = React.useState({ n: 0, inscrits: 0, liste: [] }), suivi = sv[0], setSuivi = sv[1];
+    var sv = React.useState({ n: null, inscrits: 0, liste: [], actifs: null }), suivi = sv[0], setSuivi = sv[1];
     var sd = React.useState(null), direct = sd[0], setDirect = sd[1];
     React.useEffect(function () {
       var actif = true;
@@ -1938,15 +1938,15 @@ h1, .hero h1 {
         if (actif) {
           var c = creneauActuel(d.planning); setCren(c);
           var act = d.judokas.filter(function (j) { return !j.archive; }), surv = aSurveiller(d);
-          setSuivi({ n: surv.length, liste: surv.slice(0, 3).map(function (x) { return (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase(); }),
+          setSuivi({ n: surv.length, actifs: act.length, liste: surv.slice(0, 3).map(function (x) { return (x.j.prenom || '') + ' ' + (x.j.nom || '').toUpperCase(); }),
             inscrits: c ? act.filter(function (j) { return coursListe(j).some(function (x) { return c.cours.indexOf(x) >= 0; }); }).length : 0 });
         }
       }, function () { if (actif) setAppel(false); });
       return function () { actif = false; };
     }, []);
     var t = lireSel(), nj = (t.judo || []).length, nt = (t.taiso || []).length;
-    function tuile(cle, ico, titre, valeur, detail, coul) {
-      return h('button', { type: 'button', className: 'tuile', style: teinte(coul), onClick: function () { p.aller(cle); } },
+    function tuile(cle, ico, titre, valeur, detail, coul, action) {
+      return h('button', { type: 'button', className: 'tuile', style: teinte(coul), onClick: action || function () { p.aller(cle); } },
         h('span', { className: 'tuile-tete' }, h(Icone, { nom: ico, taille: 18 }), titre), h('strong', null, valeur), h('small', null, detail));
     }
     // Carte « Cours » : à l'heure du cours, l'appel et la séance prévue en un seul endroit
@@ -1964,12 +1964,25 @@ h1, .hero h1 {
         prevue ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setDirect(prevue); } }, 'Lancer la séance') : h('button', { type: 'button', className: 'cs-btn', onClick: function () { var c0 = prochainsCreneaux([cren], 1)[0]; if (c0) poserIntention({ type: 'preparer', cle: c0.cle }); p.aller(espaceDuCours(cren.cours)); } }, 'Préparer la séance'))) : null;
     var alerte = suivi.n ? h('button', { type: 'button', className: 'alerte-suivi', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'bilan'); } catch (e) {} p.aller('presences'); } },
       h('b', null, suivi.n + (suivi.n > 1 ? ' licenciés à surveiller' : ' licencié à surveiller')), h('span', null, '3 absences de suite ou plus : ' + suivi.liste.join(', ') + (suivi.n > 3 ? '…' : ''))) : null;
-    return h('section', { className: 'aujourdhui', 'aria-label': "Aujourd'hui" }, carteCours, alerte,
+    var historiqueAccueil = useHisto();
+    return h('section', { className: 'aujourdhui', 'aria-label': "Tableau de bord" },
+      h('div', { className: 'accueil-section-titre' }, h('span', null, 'Vue d’ensemble'), h('h2', null, 'Tableau de bord')),
+      carteCours, alerte,
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null,
+      tuile('presences', 'presences', 'Licenciés', suivi.actifs == null ? '—' : suivi.actifs, 'Licenciés actifs', 'pres'),
+      tuile('presences', 'suivi', 'Attention', suivi.n == null ? '—' : suivi.n, 'Licenciés à surveiller', 'suivi', function () { try { sessionStorage.setItem('jsb-pr-vue', 'bilan'); } catch (e) {} p.aller('presences'); }),
+      tuile('seance', 'seance', 'Aujourd’hui', historiqueAccueil.filter(function (x) { return x.date === auj; }).length, 'Séances datées du jour', 'seance'),
+      tuile('seance', 'seance', 'Historique', historiqueAccueil.length, 'Séances enregistrées', 'seance'),
       tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Ma séance', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
         nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance'),
       tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
-        appel ? dateFr(appel.date) + ' · ' + appel.groupe : 'Faites l\'appel depuis Présences', 'pres'));
+        appel ? dateFr(appel.date) + ' · ' + appel.groupe : 'Faites l\'appel depuis Présences', 'pres'),
+      h('div', { className: 'accueil-activite' }, h('div', { className: 'accueil-activite-tete' }, h('h2', null, 'Activité récente'), h('button', { type: 'button', className: 'btn lien', onClick: function () { p.aller('seance'); } }, 'Tout voir')),
+        historiqueAccueil.length ? historiqueAccueil.slice(0, 3).map(function (x, i) {
+          return h('button', { key: x.id || i, type: 'button', className: 'accueil-activite-ligne', onClick: function () { p.aller('seance'); } },
+            h(Icone, { nom: x.espace === 'Judo' ? 'judo' : x.espace === 'Taïso' ? 'taiso' : 'seance', taille: 20 }),
+            h('span', null, h('b', null, x.titre || 'Séance enregistrée'), h('small', null, x.espace || 'Séance')), h('time', { dateTime: x.date }, dateFr(x.date)));
+        }) : h('p', null, 'Aucune séance enregistrée pour le moment.')));
   }
 
   // ===== Accessibilité et retours (15/10/2026) : taille du texte, contraste, animations, vibrations, annonces =====
@@ -7043,7 +7056,15 @@ h1, .hero h1 {
 
     if (!cle) {
       return cadre(h('main', glisse, h('div', { className: 'wrap' }, entete(null), bandeau,
-        h('div', { className: 'hero' }, h('h1', null, 'Préparer une séance')),
+        h('div', { className: 'hero accueil-intro' },
+          h('p', { className: 'accueil-date' }, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })),
+          h('h1', { className: 'sr-seul' }, 'Préparer une séance'),
+          h('h2', null, (new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir') + (PROFIL && PROFIL.prenom ? ', ' + PROFIL.prenom : '') + '.'),
+          h('p', { className: 'accueil-sous' }, (PROFIL && PROFIL.club) || 'Votre espace de coaching'),
+          h('details', { className: 'accueil-preparer' }, h('summary', null, 'Préparer une séance'),
+            h('div', { className: 'accueil-disciplines' }, ['Judo', 'Taïso'].map(function (label) {
+              return h('button', { key: label, type: 'button', className: 'cs-btn', onClick: function () { poserIntention({ type: 'generer' }); aller(label === 'Judo' ? 'judo' : 'taiso'); } }, label);
+            })))),
         BASE_LOCALE && BASE.length === 0 ? h(ImportBase, { texte: 'Choisir le fichier exercices.json' }) : null,
         h(Aujourdhui, { aller: aller }),
         h('div', { className: 'blocs raccourcis' }, ESPACES.map(function (esp, i) {

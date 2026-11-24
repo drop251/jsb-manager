@@ -44,3 +44,38 @@ test('Interface : descriptions de l’accueil non tronquées et grille adaptée'
  assert.match(css,/\.aujourdhui \.tuile strong,\s*\.aujourdhui \.tuile small\s*\{[^}]*white-space:\s*normal;[^}]*text-overflow:\s*clip/s);
  assert.match(css,/max-width:\s*360px\)\s*\{\s*\.aujourdhui\s*\{\s*grid-template-columns:\s*minmax\(0,1fr\)/);
 });
+
+test('Interface : navigation animée courte et respect de la réduction des mouvements',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/--jsb-ui-motion:\s*240ms/);
+ assert.match(css,/\.page\.va-avant > \.wrap > :not\(\.appbar\)\s*\{\s*animation: jsb-ui-avant/);
+ assert.match(css,/\.page\.va-arriere > \.wrap > :not\(\.appbar\)\s*\{\s*animation: jsb-ui-retour/);
+ assert.match(css,/:root\[data-anim="reduit"\] \.page\.va-arriere > \.wrap > \*\s*\{\s*animation: none !important/);
+ assert.match(css,/:focus-visible\s*\{\s*outline:\s*3px solid var\(--focus\)/);
+});
+
+test('Interface : tableau de bord et commande principale reliés aux données et actions locales',()=>{
+ const html=read('index.html'), css=read('ui/interface.css');
+ assert.ok(html.includes("className: 'accueil-preparer'"));
+ assert.ok(html.includes("poserIntention({ type: 'generer' }); aller(label === 'Judo' ? 'judo' : 'taiso')"));
+ assert.ok(html.includes("suivi.actifs == null ? '—' : suivi.actifs"));
+ assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.date === auj; }).length"));
+ assert.ok(html.includes("historiqueAccueil.slice(0, 3)"));
+ assert.match(css,/--jsb-brand-ivory:\s*#f4f5ef/);
+ assert.match(css,/--bg:\s*#151c29/);
+ assert.match(css,/--jsb-brand-gold:\s*#dab174/);
+});
+
+test('Palette JSB : contraste des associations de texte choisies',()=>{
+ const lum=hex=>{const rgb=hex.match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];};
+ const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ for(const [a,b] of [['1f2839','ffffff'],['1f2839','f4f5ef'],['76511f','ffffff'],['76511f','f7ecd9'],['dab174','1f2839'],['dab174','3a342d'],['f4f5ef','151c29'],['5c6370','ffffff'],['bfc5cf','1f2839']]){
+  assert.ok(contrast(a,b)>=4.5,a+' / '+b+' : '+contrast(a,b));
+ }
+});
+
+test('Palette JSB : le libellé actif mobile ne dépend pas de la couleur héritée',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\] \.onglet-txt,\s*\.onglets \.onglet-nav\[aria-current="page"\] svg\s*\{\s*color:var\(--jsb-accent-ink\)/);
+ assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\]:nth-child\(n\)\s*\{\s*background:transparent;\s*color:var\(--jsb-accent-ink\)/);
+});
