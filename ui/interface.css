@@ -535,3 +535,42 @@
   .pr .pr-tableau .pr-jauge { width:28px; }
 }
 :root[data-texte-grand] .pr .pr-actions { grid-template-columns:1fr; }
+
+
+/* V9 — correctifs issus de la recette iPhone, sans toucher aux données. */
+.pr .pr-reglage { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:12px; padding:12px; }
+.pr .pr-reglage > .cs-champ { flex:none; min-width:0; width:100%; height:auto; }
+.pr .pr-reglage .pr-puces { margin:0; padding:2px; max-width:100%; flex-wrap:wrap; overflow:visible; }
+.pr .pr-reglage .pr-puce { max-width:100%; white-space:normal; min-height:44px; }
+.pr .pr-reglage input[type=date] { box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-height:44px; font-size:max(16px,1rem); }
+.pr .pr-reglage input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }
+.pr .pr-consigne { font-size:.75rem; line-height:1.3; }
+.pr .pr-appel-defile { min-width:0; }
+.pr .pr-valider-btn { min-height:48px; }
+@media (max-width:959px) {
+  /* Une seule zone défilante entre l'en-tête et la navigation réservée. */
+  .page.page-presences { height:100vh; height:100dvh; box-sizing:border-box; padding:0 0 calc(64px + env(safe-area-inset-bottom,0px)); overflow:hidden; }
+  .page-presences > .wrap:has(> .pr) { height:100%; min-height:0; display:flex; flex-direction:column; gap:8px; padding-bottom:0; }
+  .page-presences > .wrap > .appbar { position:relative; top:auto; flex:none; background:var(--bg); min-height:52px; padding-top:calc(4px + env(safe-area-inset-top,0px)); padding-bottom:4px; }
+  .page-presences .appbar-titre strong { font-size:1.0625rem; }
+  .page-presences .appbar-titre small { font-size:.75rem; }
+  .page-presences .pr { flex:1 1 0; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; padding-bottom:8px; gap:8px; }
+  .page-presences .pr > * { flex:none; }
+  .page-presences .pr > .pr-barre { position:sticky; top:0; z-index:4; background:var(--bg); }
+  .page-presences .pr:has(.pr-appel) > .pr-appel { flex:0 0 auto; }
+  .page-presences .pr .pr-valider:not(.pr-valider-conf):not(.pr-valide) { position:sticky; bottom:0; z-index:3; background:var(--bg); padding:6px 0; }
+  .page-presences .pr .pr-appel { padding-bottom:0; }
+  .page-presences .pr .pr-resume { padding:10px 12px; }
+  .page-presences .pr .pr-groupe-titre { font-size:1.3rem; }
+  .page-presences .pr .pr-compteur { gap:5px; }
+  .page-presences .pr .pr-compteur .cs-btn.mini { min-height:44px; }
+  .page-presences .pr .pr-indicateur b { font-size:1.4rem; }
+  body:has(.page-presences .pr) .onglets { left:0; right:0; bottom:0; padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)); border-radius:0; border:0; border-top:1px solid var(--line); box-shadow:none; }
+  body:has(.page-presences .pr) .onglets::after { top:4px; bottom:calc(4px + env(safe-area-inset-bottom,0px)); }
+}
+@media (max-width:959px) and (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) body:has(.page-presences .pr) .onglets { background:#191d23; border-color:#303741; }
+}
+@media (max-width:959px) {
+  :root[data-theme="dark"] body:has(.page-presences .pr) .onglets { background:#191d23; border-color:#303741; }
+}
