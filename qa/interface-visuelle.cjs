@@ -135,6 +135,30 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.locator('.cx-avatar.petit').click();
     await page.getByRole('menuitem',{name:'Affichage et accessibilité'}).click();
     await page.getByRole('dialog',{name:'Affichage et accessibilité'}).waitFor();
+    const settings=page.getByRole('dialog',{name:'Affichage et accessibilité'});
+    const themes=settings.getByRole('group',{name:'Thème',exact:true});
+    const themeRadio=label=>themes.getByRole('radio',{name:label,exact:true});
+    assert.ok(await themeRadio('Système').isChecked());
+    const readTheme=()=>page.evaluate(()=>({mode:document.documentElement.getAttribute('data-theme'),bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),scheme:getComputedStyle(document.documentElement).colorScheme}));
+    for(const [label,mode,bg] of [['Clair','light','#f4f5ef'],['Sombre','dark','#151c29']]){
+      await themeRadio(label).check();
+      assert.deepEqual(await readTheme(),{mode,bg,scheme:mode});
+      assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jsb-affichage')).theme),mode);
+      await snapshot('15-theme-'+mode);
+    }
+    // Explicit preference survives reload, even against OS color scheme.
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
+    await page.waitForFunction(()=>Array.from(document.styleSheets).some(s=>s.href&&new URL(s.href).pathname.endsWith('/ui/interface.css')&&new URL(s.href).searchParams.has('v')));
+    assert.deepEqual(await readTheme(),{mode:'dark',bg:'#151c29',scheme:'dark'});
+    await page.locator('.cx-avatar.petit').click();
+    await page.getByRole('menuitem',{name:'Affichage et accessibilité'}).click();
+    assert.ok(await themeRadio('Sombre').isChecked());
+    await themeRadio('Système').check();
+    const auto=await readTheme();
+    assert.equal(auto.mode,null);
+    assert.equal(auto.bg,theme==='light'?'#f4f5ef':'#151c29');
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jsb-affichage')).theme),'system');
     await snapshot('07-reglages');
     // Revenir à une page propre avant de changer la géométrie.
     await page.goto(base,{waitUntil:'domcontentloaded'});
