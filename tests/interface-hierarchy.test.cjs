@@ -21,3 +21,11 @@ test('Interface : cinq destinations et titre sémantique conservés',()=>{
  assert.ok(html.includes("h('h1', null, f.sous || esp.label)"));
  assert.ok(html.includes("h('h1', null, esp.label)"));
 });
+
+test('Interface : surfaces et commandes adaptées aux deux thèmes sans masquer les actions',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.appbar\s*\{[^}]*background:\s*var\(--surface\)/s);
+ assert.match(css,/\.gn-option,\s*\.cs-btn,\s*\.rg-taille\s*\{[^}]*min-height:\s*44px/s);
+ assert.match(css,/font-size:\s*max\(16px, 1rem\)/);
+ assert.match(css,/\.cs-phase li \.cs-reglages\s*\{\s*flex-wrap:\s*wrap/);
+});

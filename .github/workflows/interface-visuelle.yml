@@ -1,0 +1,47 @@
+name: JSB Manager - recette visuelle UI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ui/**'
+      - 'index.html'
+      - 'qa/interface-visuelle.cjs'
+      - '.github/workflows/interface-visuelle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  interface:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [webkit, chromium]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
+      - name: Capturer et contrôler le rendu
+        env:
+          JSB_ENGINE: ${{ matrix.engine }}
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/jsb-ui-http.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8765/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8765/ >/dev/null
+          node qa/interface-visuelle.cjs
+      - name: Conserver les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-${{ matrix.engine }}
+          path: qa-captures/
+          if-no-files-found: warn
