@@ -3784,7 +3784,7 @@ h1, .hero h1 {
       h('span', null, aConfirmer.texte),
       h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { aConfirmer.action(); setAConfirmer(null); } }, 'Confirmer'),
       h('button', { type: 'button', className: 'cs-btn', onClick: function () { setAConfirmer(null); } }, 'Annuler')) : null;
-    // Fichiers : ouverts sur « Licenciés » et quand la liste est vide, repliés ailleurs ; sous la liste dans l'onglet Appel
+    // Fichiers : centralisés dans « Licenciés » ; raccourci d'import conservé pour un espace vide.
     var fichiers = h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: vue === 'judokas' || !donnees.judokas.length },
         h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
         h('div', { className: 'pr-actions' }, importBtn,
@@ -3794,7 +3794,7 @@ h1, .hero h1 {
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      vue === 'appel' && donnees.judokas.length ? null : fichiers,
+      vue === 'judokas' ? fichiers : null,
       etatEcriture ? h('span', { className: 'pr-mini', role: 'status', 'aria-live': 'polite' }, etatEcriture) : null);
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
@@ -3830,7 +3830,7 @@ h1, .hero h1 {
       return h('section', { className: 'pr' }, entetePr, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport,
         h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun judoka pour l\'instant'),
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
-          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), aide);
+          h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), vue === 'judokas' ? aide : null);
     }
     var corps, validationAppel = null;
     if (vue === 'appel') {
@@ -4017,7 +4017,7 @@ h1, .hero h1 {
     var enBas = vue === 'appel';
     return h('section', { className: 'pr' }, entetePr,
       h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps,
-        confValider || appelValide ? validationAppel : null, blocArchives, enBas ? rappel : null, enBas ? fichiers : null, aide),
+        confValider || appelValide ? validationAppel : null, blocArchives, enBas ? rappel : null, vue === 'judokas' ? aide : null),
       !confValider && !appelValide ? validationAppel : null);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
@@ -7269,7 +7269,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261124-v10');
+  document.documentElement.setAttribute('data-jsb-version', '20261124-v10a');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7305,6 +7305,6 @@ h1, .hero h1 {
 </style>
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261124-v10">
+<link rel="stylesheet" href="./ui/interface.css?v=20261124-v10a">
 </body>
 </html>
