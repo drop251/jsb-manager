@@ -11,34 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="JSB Manager">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<style>
-.catalogue-familles { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
-.catalogue-familles h2 { font-size: 1rem; margin: 0 0 12px; }
-.catalogue-familles .champ { margin-top: 12px; }
-.catalogue-groupe { grid-column: 1 / -1; font-size: 1.125rem; margin: 20px 0 4px; }
-.catalogue-groupe-nombre { color: var(--muted); font-size: .875em; font-weight: 500; }
-.mode-liste .catalogue-groupe { padding: 8px 16px; margin: 0; background: var(--chip); }
-.fiche-outils { border-top: 1px solid var(--line); padding: 16px 0; }
-.fiche-outils summary, .filtres-panneau summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
-</style>
-<style>
-.cs-essentiels h3 { margin: 16px 0 8px; }
-.cs-essentiels { padding-bottom: 16px; }
-.cs-etat { padding: 12px 16px; margin: 12px 0; border-radius: 12px; background: var(--chip); }
-.cs-principales { margin: 8px 0 16px; }
-.cs-principales .cs-btn { flex: 1 1 180px; min-height: 48px; }
-.cs-outils summary, .cs-phase-options summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
-.cs-outils[open] { display: grid; gap: 8px; }
-.cs-phase-options { margin-bottom: 8px; }
-</style>
-<style>body:has([role="dialog"][aria-modal="true"]), body:has([role="alertdialog"][aria-modal="true"]) { overflow: hidden; }</style>
-<style>.media-a-revoir { display:flex; align-items:center; justify-content:center; min-height:120px; padding:16px; box-sizing:border-box; background:var(--chip); color:var(--muted); font:inherit; text-align:center; } .sd .media-a-revoir { background:#283345; color:#fff; }</style>
-<style>/* Catalogue temporairement sans illustrations. */
-.et-visuel,.sd-illus { display:none; }
-.et-corps,.mode-liste .carte { grid-template-columns:minmax(0,1fr); }
-.mode-liste .carte > :not(.illus) { grid-column:1; }
-</style>
+<link rel="stylesheet" href="./ui/bootstrap-v12.css">
 </head>
 <body>
 <script>window.JSB_BASE_LOCALE = true;</script>
@@ -1576,48 +1549,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 .gn-option.gn-modele { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .gn-modele small { color: var(--muted); font-weight: 400; font-size: .8125rem; }
 </style>
-<style id="interface-epuree-20261118">
-/* Interface épurée : une famille de caractères et une échelle plus régulière. */
-:root {
-  --display: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
-  --body: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
-  --t-xs: 0.8125rem;
-  --t-s: 0.9375rem;
-  --h-mini: 40px;
-  --r-ctrl: 10px;
-}
-*, *::before, *::after { font-stretch: normal !important; }
-body, button, input, select, textarea,
-h1, h2, h3, .bloc-nom, .carte-nom, .sous b, .tuile strong,
-.appbar-titre strong, .onglets-marque, .onglet-txt,
-.pr-groupe h3, .gestion h2, .gn h2, .sheet h2 {
-  font-family: var(--body);
-  font-stretch: normal;
-  font-variation-settings: "wdth" 100;
-}
-.onglets-marque { letter-spacing: 0; }
-.onglet-txt { letter-spacing: 0; font-size: 0.75rem; line-height: 1.2; }
-h1, .hero h1, h2, h3, .sheet h2, .gn h2, .cs-haut h2 {
-  font-stretch: normal;
-  letter-spacing: -0.015em;
-}
-h1, .hero h1 {
-  font-size: clamp(1.75rem, calc(1.25rem + 2vw), 2.5rem);
-  line-height: 1.12;
-}
-.catalogue-groupe {
-  padding-left: 10px;
-  border-left: 3px solid var(--c, var(--line));
-}
-.hero { padding: 20px 22px; }
-@media (max-width: 599px) { .hero { padding: 16px; } }
-/* Évite les libellés de 11–12 px dans les repères et états de l’application. */
-.mode-liste .carte-cat, .pr-cren-etat, .pr-tableau thead th,
-.et-vigil span, .et-sous, .sd-m-etiq, .sd-m-note, .ch-titre small {
-  font-size: var(--t-xs);
-  line-height: 1.3;
-}
-</style>
+<link rel="stylesheet" href="./ui/typographie-v12.css">
 <div id="app"></div>
 <script src="./vendor/react.js"></script>
 <script src="./vendor/react-dom.js"></script>
@@ -3611,6 +3543,8 @@ h1, .hero h1 {
     var s15 = React.useState(''), recherche = s15[0], setRecherche = s15[1];
     var s16 = React.useState(false), filtreANoter = s16[0], setFiltreANoter = s16[1];
     var s17 = React.useState(null), selCren = s17[0], setSelCren = s17[1];
+    var sLic = React.useState(''), rechercheLic = sLic[0], setRechercheLic = sLic[1];
+    var sFiltreLic = React.useState(''), filtreLic = sFiltreLic[0], setFiltreLic = sFiltreLic[1];
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'sr-seul', role: 'status' }, 'Chargement des présences…'), h(Squelette, { n: 6 }));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
@@ -3794,7 +3728,7 @@ h1, .hero h1 {
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      vue === 'judokas' ? fichiers : null,
+      vue === 'judokas' && !donnees.judokas.length ? fichiers : null,
       etatEcriture ? h('span', { className: 'pr-mini', role: 'status', 'aria-live': 'polite' }, etatEcriture) : null);
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
@@ -3967,13 +3901,26 @@ h1, .hero h1 {
         !planning.length && !editCreneau ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun créneau'), h('span', null, 'Ajoutez par exemple « Mercredi 14 h – 15 h · Poussins ».')) : null,
         editCreneau ? null : h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { setEditCreneau({ id: nouvelId(), jour: new Date().getDay(), debut: '18:00', fin: '19:00', cours: groupes.slice(0, 1), nouveau: true }); } }, '+ Ajouter un créneau'));
     } else {
-      corps = h('div', { className: 'pr-bloc' }, groupes.map(function (x) {
-        var js = parCat[x].slice().sort(triJudokas);
+      var termeLic = cleTexte(rechercheLic);
+      var correspondLic = function (j) { return !termeLic || cleTexte(nomComplet(j) + ' ' + (j.nom || '') + ' ' + (j.prenom || '') + ' ' + (j.licence || '')).indexOf(termeLic) >= 0; };
+      var coursLic = groupes.filter(function (x) { return !filtreLic || x === filtreLic; });
+      var nbLic = actifs.filter(function (j) { return correspondLic(j) && (!filtreLic || coursListe(j).indexOf(filtreLic) >= 0); }).length;
+      corps = h('div', { className: 'pr-bloc pr-licencies' },
+        h('div', { className: 'pr-lic-outils' },
+          h('h3', null, 'Licenciés actifs'),
+          h('p', { className: 'pr-mini', role: 'status' }, nbLic + ' / ' + actifs.length + ' licenciés'),
+          h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Nom, prénom ou licence', 'aria-label': 'Rechercher un licencié', value: rechercheLic, onChange: function (ev) { setRechercheLic(ev.target.value); } }),
+          h('label', { className: 'cs-champ' }, 'Filtrer par cours', h('select', { value: filtreLic, onChange: function (ev) { setFiltreLic(ev.target.value); } },
+            h('option', { value: '' }, 'Tous les cours'), groupes.map(function (x) { return h('option', { key: x, value: x }, x); })))),
+        !nbLic ? h('p', { className: 'pr-mini' }, 'Aucun licencié ne correspond à la recherche.') : null,
+        coursLic.map(function (x) {
+        var js = parCat[x].filter(correspondLic).sort(triJudokas);
+        if (!js.length) return null;
         return h('div', { key: x, className: 'pr-groupe' }, h('h3', null, x, h('small', null, js.length + (js.length > 1 ? ' judokas' : ' judoka') + (anneesCat(x) ? ' · ' + anneesCat(x) : ''))),
           h('ul', { className: 'pr-liste' }, js.map(function (j) {
-            return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
+            return h('li', { key: j.id, className: 'pr-ligne pr-lic-ligne' }, h('details', { className: 'pr-lic-fiche' }, h('summary', { className: 'pr-lic-resume' }, h(Avatar, { j: j }),
               h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null,
-                h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
+                h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))), h('span', { className: 'pr-lic-chevron', 'aria-hidden': 'true' }, '›')),
               h('div', { className: 'pr-ctrl' },
               h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(j), onClick: function () { setSuiviId(j.id); } }, 'Suivi'),
               peutTaiso(j) ? h('label', { className: 'pr-act' }, 'Activité', h('select', { value: j.activite || 'judo', 'aria-label': 'Activité de ' + nomComplet(j), onChange: function (ev) { activite(j, ev.target.value); } },
@@ -3981,9 +3928,9 @@ h1, .hero h1 {
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
               j.autorisationPhoto ? h('label', { className: 'cs-btn mini pr-fichier' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Photo de ' + nomComplet(j), onChange: function (ev) { photo(j, ev); } }), j.photo ? 'Changer la photo' : 'Ajouter une photo') : null,
               h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: 'Retirer ' + nomComplet(j) + ' de la liste ? Ses présences passées seront aussi effacées.', action: function () {
-                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer')));
+                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer'))));
           })));
-      }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer'));
+      }), h('details', { className: 'pr-lic-danger' }, h('summary', null, 'Gestion avancée'), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer')));
     }
     var panneauMaj = null, jSuivi = suiviId ? donnees.judokas.filter(function (x) { return x.id === suiviId; })[0] : null;
     if (jSuivi && !miseAJour) {
@@ -4028,7 +3975,7 @@ h1, .hero h1 {
       }))) : null;
     var enBas = vue === 'appel';
     return h('section', { className: 'pr' }, entetePr,
-      h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps,
+      h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, vue === 'judokas' ? fichiers : null, corps,
         confValider || appelValide ? validationAppel : null, blocArchives, enBas ? rappel : null, vue === 'judokas' ? aide : null),
       !confValider && !appelValide ? validationAppel : null);
   }
@@ -7281,7 +7228,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v11');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v12');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7301,22 +7248,9 @@ h1, .hero h1 {
 })();
 </script>
 
-<style id="catalogue-sans-images">
-/* Les actions restent dans le flux : aucun bouton ne recouvre le titre. */
-.grille:not(.mode-liste) .carte-w { display:grid; grid-template-rows:1fr auto; gap:0; border:1px solid var(--line); border-radius:var(--r-m); background:var(--surface); box-shadow:var(--ombre); }
-.grille:not(.mode-liste) .carte-w .carte { border:0; box-shadow:none; padding:16px; gap:8px; min-width:0; }
-.grille:not(.mode-liste) .carte > :not(.illus) { margin-left:0; margin-right:0; }
-.grille .carte-nom { display:block; overflow:visible; -webkit-line-clamp:unset; overflow-wrap:anywhere; }
-.grille:not(.mode-liste) .carte-w .cs-plus { position:static; justify-self:end; margin:0 16px 12px; min-height:44px; max-width:calc(100% - 32px); white-space:normal; box-shadow:none; }
-.grille.mode-liste .carte-w { display:grid; grid-template-columns:minmax(0,1fr) 64px; gap:0; }
-.grille.mode-liste .carte { grid-template-columns:minmax(0,1fr); padding:12px 16px; min-width:0; }
-.grille.mode-liste .carte > :not(.illus) { grid-column:1; }
-.grille.mode-liste .carte-pied { flex-wrap:wrap; overflow:visible; }
-.grille.mode-liste .carte-w .cs-plus { position:static; align-self:center; justify-self:center; margin:8px 0; }
-.et-corps { grid-template-columns:minmax(0,1fr); }
-</style>
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v11">
+
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v12">
 </body>
 </html>
