@@ -1,0 +1,41 @@
+
+/* Interface épurée : une famille de caractères et une échelle plus régulière. */
+:root {
+  --display: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --body: 'Archivo', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --t-xs: 0.8125rem;
+  --t-s: 0.9375rem;
+  --h-mini: 40px;
+  --r-ctrl: 10px;
+}
+*, *::before, *::after { font-stretch: normal !important; }
+body, button, input, select, textarea,
+h1, h2, h3, .bloc-nom, .carte-nom, .sous b, .tuile strong,
+.appbar-titre strong, .onglets-marque, .onglet-txt,
+.pr-groupe h3, .gestion h2, .gn h2, .sheet h2 {
+  font-family: var(--body);
+  font-stretch: normal;
+  font-variation-settings: "wdth" 100;
+}
+.onglets-marque { letter-spacing: 0; }
+.onglet-txt { letter-spacing: 0; font-size: 0.75rem; line-height: 1.2; }
+h1, .hero h1, h2, h3, .sheet h2, .gn h2, .cs-haut h2 {
+  font-stretch: normal;
+  letter-spacing: -0.015em;
+}
+h1, .hero h1 {
+  font-size: clamp(1.75rem, calc(1.25rem + 2vw), 2.5rem);
+  line-height: 1.12;
+}
+.catalogue-groupe {
+  padding-left: 10px;
+  border-left: 3px solid var(--c, var(--line));
+}
+.hero { padding: 20px 22px; }
+@media (max-width: 599px) { .hero { padding: 16px; } }
+/* Évite les libellés de 11–12 px dans les repères et états de l’application. */
+.mode-liste .carte-cat, .pr-cren-etat, .pr-tableau thead th,
+.et-vigil span, .et-sous, .sd-m-etiq, .sd-m-note, .ch-titre small {
+  font-size: var(--t-xs);
+  line-height: 1.3;
+}
