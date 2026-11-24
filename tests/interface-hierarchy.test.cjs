@@ -61,7 +61,15 @@ test('Interface : tableau de bord et commande principale reliés aux données et
  assert.ok(html.includes("suivi.actifs == null ? '—' : suivi.actifs"));
  assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.date === auj; }).length"));
  assert.ok(html.includes("historiqueAccueil.slice(0, 3)"));
- assert.match(css,/--bg:\s*#f4f5f9/);
- assert.match(css,/--bg:\s*#0d0f13/);
- assert.match(css,/--jsb-accent:\s*#3459d4/);
+ assert.match(css,/--jsb-brand-ivory:\s*#f4f5ef/);
+ assert.match(css,/--bg:\s*#151c29/);
+ assert.match(css,/--jsb-brand-gold:\s*#dab174/);
+});
+
+test('Palette JSB : contraste des associations de texte choisies',()=>{
+ const lum=hex=>{const rgb=hex.match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];};
+ const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ for(const [a,b] of [['1f2839','ffffff'],['1f2839','f4f5ef'],['76511f','ffffff'],['76511f','f7ecd9'],['dab174','1f2839'],['dab174','3a342d'],['f4f5ef','151c29'],['5c6370','ffffff'],['bfc5cf','1f2839']]){
+  assert.ok(contrast(a,b)>=4.5,a+' / '+b+' : '+contrast(a,b));
+ }
 });

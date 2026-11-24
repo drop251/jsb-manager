@@ -34,9 +34,23 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.getByRole('region',{name:'Tableau de bord'}).waitFor();
     assert.equal(await page.locator('.aujourdhui .tuile').count(),6);
     await page.getByRole('heading',{name:'Activité récente',exact:true}).waitFor();
-    const palette=await page.evaluate(()=>({bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),surface:getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()}));
-    assert.equal(palette.bg,theme==='light'?'#f4f5f9':'#0d0f13');
-    assert.equal(palette.surface,theme==='light'?'#fff':'#1a1d22');
+    const palette=await page.evaluate(()=>{
+      const s=getComputedStyle(document.documentElement);
+      const read=k=>s.getPropertyValue(k).trim();
+      return {bg:read('--bg'),surface:read('--surface'),navy:read('--jsb-brand-navy'),gold:read('--jsb-brand-gold'),accent:read('--jsb-accent'),accentInk:read('--jsb-accent-ink')};
+    });
+    assert.equal(palette.navy,'#1f2839');
+    assert.equal(palette.gold,'#dab174');
+    assert.equal(palette.bg,theme==='light'?'#f4f5ef':'#151c29');
+    assert.equal(palette.surface,theme==='light'?'#ffffff':'#1f2839');
+    assert.equal(palette.accent,theme==='light'?'#1f2839':'#dab174');
+    assert.equal(palette.accentInk,theme==='light'?'#76511f':'#dab174');
+    // Vérifier les couleurs effectivement peintes, et leur contraste.
+    const painted=await page.locator('.accueil-preparer > summary').evaluate(n=>{
+      const s=getComputedStyle(n);return {fg:s.color,bg:s.backgroundColor,border:s.borderTopColor};
+    });
+    assert.equal(painted.fg,theme==='light'?'rgb(255, 255, 255)':'rgb(244, 245, 239)');
+    assert.equal(painted.border,theme==='light'?'rgb(31, 40, 57)':'rgb(218, 177, 116)');
     await snapshot('01-accueil');
     await page.locator('.accueil-preparer > summary').click();
     await page.locator('.accueil-disciplines').getByRole('button',{name:'Taïso',exact:true}).click();
