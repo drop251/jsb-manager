@@ -433,3 +433,46 @@
   .wrap > .barre-recherche .filtres-btn { padding-inline:8px; }
   .wrap > .barre-compte .illus-raccourci { margin-left:0; }
 }
+
+
+/* V8 — Présences : surfaces continues, commandes tactiles et validation dans le flux.
+   Les couleurs de marque et les états métier restent inchangés. */
+.wrap:has(> .pr) { gap:12px; }
+.wrap:has(> .pr) > .appbar { background:transparent; border-bottom:0; box-shadow:none; }
+.pr { gap:12px; }
+.pr .pr-onglets[role=tablist] { background:transparent; padding:0; gap:4px; border-radius:0; border-bottom:1px solid var(--line); }
+.pr .pr-onglets[role=tablist] .pr-onglet { min-height:44px; font-size:.875rem; border-radius:0; border-bottom:2px solid transparent; box-shadow:none; }
+.pr .pr-onglets[role=tablist] .pr-onglet[aria-selected="true"] { background:transparent; color:var(--jsb-accent-ink); border-bottom-color:var(--jsb-accent-ink); box-shadow:none; }
+.pr .pr-resume { background:var(--jsb-intro); border:0; padding:12px 0; gap:12px; border-radius:0; }
+.pr .pr-resume-txt { font-size:1rem; line-height:1.45; }
+.pr .pr-resume-txt b { display:block; font-size:.8125rem; font-weight:500; color:var(--muted); }
+.pr .pr-resume-btn { min-height:44px; background:transparent; border:1px solid var(--line); }
+.pr .pr-outils { gap:8px; }
+.pr .pr-cherche { min-height:44px; font-size:max(16px,1rem); border-radius:10px; }
+.pr .pr-compteur { flex-wrap:wrap; font-size:.875rem; gap:8px; }
+.pr .pr-compteur .cs-btn.mini { min-height:44px; background:transparent; color:var(--jsb-accent-ink); border:0; }
+.pr .pr-consigne { font-size:.8125rem; line-height:1.4; }
+.pr .pr-liste { border:0; border-radius:16px; box-shadow:none; }
+.pr .pr-ligne + .pr-ligne { border-top:1px solid var(--line); }
+.pr .pr-appel-ligne.st-P,.pr .pr-appel-ligne.st-A { background:transparent; box-shadow:none; }
+.pr .pr-appel-btn { min-height:60px; padding:6px 10px; gap:8px; cursor:default; }
+.pr .pr-appel-btn .pr-photo { width:34px; height:34px; }
+.pr .pr-appel-btn .pr-nomf { font-size:1rem; font-weight:600; white-space:normal; overflow-wrap:anywhere; }
+.pr .pr-appel-btn .pr-cat { font-size:.75rem; padding:0; background:transparent; }
+.pr .pr-appel-btn .pr-essai { color:var(--jsb-accent-ink); }
+.pr .pr-choix-st { min-width:44px; min-height:44px; border-radius:50%; border-color:transparent; background:var(--chip); color:var(--ink); }
+.pr .pr-choix-st.present.actif { background:#15803d; color:#fff; }
+.pr .pr-choix-st.absent.actif { background:#b91c1c; color:#fff; }
+.pr .pr-valider { position:static; margin:8px 0 0; padding:0; border:0; background:transparent; box-shadow:none; }
+.pr .pr-valider-conf,.pr .pr-valide { padding:12px; background:var(--surface); border-radius:12px; }
+.pr .pr-valider-btn { min-height:52px; flex-wrap:wrap; justify-content:center; gap:4px 12px; background:transparent; color:var(--jsb-accent-ink); border:1px solid var(--jsb-accent-ink); border-radius:12px; }
+.pr .pr-valider-btn small { font-size:.8125rem; }
+:root[data-theme="dark"] .wrap:has(> .pr) { --bg:#0e1014; --surface:#191d23; --chip:#262c34; --line:#303741; --jsb-intro:linear-gradient(145deg,#243345,transparent); }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) .wrap:has(> .pr) { --bg:#0e1014; --surface:#191d23; --chip:#262c34; --line:#303741; --jsb-intro:linear-gradient(145deg,#243345,transparent); } }
+@media (max-width:959px) {
+  .wrap:has(> .pr) { padding-bottom:calc(var(--nav-h,76px) + 24px + env(safe-area-inset-bottom,0px)); }
+  body:has(.pr) .pr-valider { margin-right:0; }
+  .pr .pr-appel-btn { gap:6px; }
+}
+:root[data-texte-grand] .pr .pr-onglets[role=tablist] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+:root[data-texte-grand] .pr .pr-appel-btn { flex-wrap:wrap; }
