@@ -88,3 +88,13 @@ test('Interface V7 : catalogue compact sur iPhone, cibles tactiles et texte agra
  assert.match(css,/\.wrap > \.barre-recherche \.cherche\s*\{[^}]*font-size:max\(16px,1rem\)/);
  assert.match(css,/:root\[data-texte-grand\] \.wrap > \.catalogue-types\s*\{\s*grid-template-columns:1fr/);
 });
+
+test('Interface V8 : progression de l’appel et gestion repliable des licenciés',()=>{
+ const css=read('ui/interface.css'),html=read('index.html');
+ assert.ok(html.includes("h('progress', { value: nbNotes, max: inscrits.length"));
+ assert.ok(html.includes("['Présents', compte.P, 'ok']"));
+ assert.ok(html.includes("['Absents', compte.A, 'ko']"));
+ assert.ok(html.includes("className: 'pr-gestion-licencie'"));
+ assert.match(css,/\.pr \.pr-choix-st\s*\{\s*min-height:44px;\s*min-width:44px/);
+ assert.match(css,/\.pr \.pr-nomf,\.pr-appel-btn \.pr-nomf\s*\{\s*white-space:normal/);
+});

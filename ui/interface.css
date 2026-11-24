@@ -433,3 +433,73 @@
   .wrap > .barre-recherche .filtres-btn { padding-inline:8px; }
   .wrap > .barre-compte .illus-raccourci { margin-left:0; }
 }
+
+/* V8 — espace Présences : synthèse, appel rapide, gestion repliable.
+   Les couleurs vert/rouge gardent leur signification fonctionnelle. */
+.pr { gap:12px; min-width:0; }
+.pr-onglets[role=tablist] { grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; padding:4px; border:1px solid var(--line); }
+.pr-onglets[role=tablist] .pr-onglet { min-width:0; min-height:44px; line-height:1.2; padding:5px 3px; white-space:normal; overflow-wrap:anywhere; }
+.pr-onglets[role=tablist] .pr-onglet[aria-selected="true"] { background:var(--jsb-accent-soft); color:var(--jsb-accent-ink); box-shadow:none; border:1px solid var(--sel-bord); }
+.pr-resume { padding:8px 10px; border-radius:14px; }
+.pr-resume-txt { overflow-wrap:anywhere; }
+.pr-resume-btn { min-height:44px; flex:none; }
+.pr-compteur { display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+.pr-progression { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pr-progression span { flex:0 0 auto; font-size:.875rem; }
+.pr-progression progress { flex:1 1 120px; min-width:0; width:100%; height:8px; appearance:none; border:0; border-radius:8px; overflow:hidden; background:var(--chip); accent-color:var(--jsb-accent); }
+.pr-progression progress::-webkit-progress-bar { background:var(--chip); }
+.pr-progression progress::-webkit-progress-value { background:var(--jsb-accent); border-radius:8px; }
+.pr-progression progress::-moz-progress-bar { background:var(--jsb-accent); border-radius:8px; }
+.pr-indicateurs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.pr-indicateurs .pr-stat { min-width:0; padding:8px; gap:3px; background:var(--bg); line-height:1.3; overflow-wrap:anywhere; }
+.pr-indicateurs .pr-stat b { font-size:1.375rem; }
+.pr-indicateurs .pr-stat.attente b { color:var(--jsb-accent-ink); }
+.pr-compteur .cs-btn.mini { align-self:stretch; min-height:44px; white-space:normal; }
+.pr-appel .pr-liste { border-radius:16px; }
+.pr-appel-btn { min-height:64px; gap:10px; padding:8px 10px; }
+.pr .pr-nomf,.pr-appel-btn .pr-nomf { white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; line-height:1.3; }
+.pr .pr-cat { white-space:normal; overflow-wrap:anywhere; color:var(--jsb-accent-ink); background:var(--jsb-accent-soft); }
+.pr .pr-photo.sans { color:var(--jsb-accent-ink); background:var(--jsb-accent-soft); }
+.pr .pr-choix-st { min-height:44px; min-width:44px; }
+.pr-choix-st:not(.actif).present { color:var(--ok-t); }
+.pr-choix-st:not(.actif).absent { color:var(--ko-t); }
+.pr .pr-valider { box-shadow:0 4px 16px rgba(15,20,30,.15); border-radius:14px; }
+.pr .pr-valider-btn { background:var(--jsb-accent); color:var(--jsb-accent-on); min-height:48px; }
+.pr .pr-valider-btn small { color:inherit; white-space:normal; }
+.pr .pr-fichiers,.pr .pr-aide { border:1px solid var(--line); border-radius:12px; padding:0 12px; background:var(--surface); }
+.pr .pr-fichiers > summary,.pr .pr-aide > summary { min-height:44px; line-height:1.3; }
+.pr .pr-fichiers[open],.pr .pr-aide[open] { padding-bottom:10px; }
+.pr .pr-action,.pr .pr-puce,.pr .pr-rappel-btn,.pr .pr-act select { min-height:44px; }
+.pr .pr-gestion-licencie { flex:1 1 100%; min-width:0; }
+.pr .pr-gestion-licencie > summary { min-height:44px; display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border:1px solid var(--line); border-radius:10px; color:var(--muted); font-size:.875rem; cursor:pointer; list-style:none; }
+.pr .pr-gestion-licencie > summary::-webkit-details-marker { display:none; }
+.pr .pr-gestion-licencie > summary::after { content:'+'; color:var(--jsb-accent-ink); font-size:1.1rem; }
+.pr .pr-gestion-licencie[open] > summary::after { content:'−'; }
+.pr .pr-gestion-licencie .pr-ctrl { padding:10px 0 0; }
+.pr .pr-ctrl .cs-btn.mini,.pr .pr-ctrl .pr-fichier { min-height:44px; }
+.pr .pr-groupe h3,.pr .pr-jour h3,.pr .pr-seances h3 { font-size:1.125rem; letter-spacing:-.01em; }
+.pr .pr-tableau { border-radius:14px; }
+.pr .pr-tableau thead th { background:var(--chip); }
+.pr .pr-tableau tbody th { overflow-wrap:anywhere; }
+.pr .pr-mois { border-radius:14px; }
+.pr .pr-cren-btn span { white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; }
+.pr .pr-cren-btn { min-height:56px; }
+@media (max-width:599px) {
+  .wrap:has(> .pr) { gap:10px; }
+  .pr { gap:10px; }
+  .pr .pr-cherche { min-height:44px; font-size:max(16px,1rem); }
+  .pr .pr-choix input,.pr .pr-choix select,.pr .pr-mois select { min-height:44px; font-size:max(16px,1rem); }
+  .pr .pr-cren-grille { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .pr .pr-tableau th,.pr .pr-tableau td { padding:8px 6px; font-size:.8125rem; }
+  .pr .pr-jauge { display:none; }
+  .pr .pr-valider-btn { flex-wrap:wrap; justify-content:center; text-align:center; padding:8px 10px; }
+  .pr .pr-mois .cs-btn { min-height:44px; flex:1 1 auto; }
+  .pr .pr-cren-ligne .pr-ctrl { flex:1 1 100%; }
+}
+@media (max-width:359px) {
+  .pr .pr-onglet { font-size:.75rem; }
+  .pr-appel-btn { gap:6px; padding-inline:8px; }
+}
+:root[data-texte-grand] .pr-onglets[role=tablist] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+:root[data-texte-grand] .pr-indicateurs { grid-template-columns:1fr; }
+:root[data-texte-grand] .pr-appel-btn { flex-wrap:wrap; }
