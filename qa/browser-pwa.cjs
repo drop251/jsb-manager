@@ -10,7 +10,14 @@ if (!url || !['webkit','chromium'].includes(engine)) throw Error('JSB_URL et JSB
   const errors = [];
   async function newPage() {
     const p = await context.newPage();
-    p.on('pageerror', e => errors.push(String(e)));
+    p.on('pageerror', e => {
+      errors.push(String(e));
+      console.error('PAGEERROR', p.url(), e.stack || String(e));
+    });
+    p.on('requestfailed', req => console.log('REQUESTFAILED',req.resourceType(),req.url(),req.failure()?.errorText));
+    p.on('console', msg => {
+      if (msg.type() === 'error') console.log('CONSOLE ERROR',msg.text(),JSON.stringify(msg.location()));
+    });
     return p;
   }
   async function ready(p) {
