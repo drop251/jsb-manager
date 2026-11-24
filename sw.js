@@ -1,6 +1,6 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-20261121-ui-v26-taiso-v46-recette-v1';
+var CACHE = 'jsb-manager-20261124-pwa-navigation-cache-v1';
 var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
@@ -57,7 +57,7 @@ self.addEventListener('fetch', function (ev) {
     // Réseau d'abord pour recevoir les mises à jour, mais copie locale au bout de 3 s (réseau faible au dojo)
     ev.respondWith(new Promise(function (ok) {
       var fini = false;
-      function locale() { return caches.match('./index.html', { ignoreSearch: true }); }
+      function locale() { return Promise.resolve().then(function () { return caches.match('./index.html', { ignoreSearch: true }); }).catch(function () { return null; }); }
       var minuteur = setTimeout(function () { locale().then(function (r) { if (r && !fini) { fini = true; ok(r); } }); }, 3000);
       fetch(req, { cache: 'no-cache' }).then(function (rep) {
         if (rep.ok) {
