@@ -17,7 +17,7 @@ function navigation({ network, offline = null }) {
     clients: { claim() { return Promise.resolve(); } }
   };
   const caches = {
-    match() { return Promise.resolve(offline); },
+    match() { return offline instanceof Error ? Promise.reject(offline) : Promise.resolve(offline); },
     open() {
       return Promise.resolve({
         put(url, response) { writes.push({ url, response }); return Promise.resolve(); }
@@ -68,4 +68,16 @@ test('PWA : une navigation 200 reste prioritaire et actualise le cache', async (
 test('PWA : perte de connexion avec copie disponible conserve la navigation', async () => {
   const cached = { tag: 'offline-after-network-failure' };
   assert.equal(await navigation({ network: new Error('hors ligne'), offline: cached }).response, cached);
+});
+
+test('PWA : échec simultané du réseau et du cache ne laisse pas la navigation suspendue', {timeout:1000}, async () => {
+  const result = navigation({ network: new Error('hors ligne'), offline: new Error('cache indisponible') });
+  assert.equal((await result.response).tag, 'response-error');
+  assert.equal(result.writes.length, 0);
+});
+
+test('PWA : erreur HTTP et cache indisponible conservent la vraie réponse HTTP', {timeout:1000}, async () => {
+  const serverError = { ok: false, status: 503 };
+  const result = navigation({ network: serverError, offline: new Error('cache indisponible') });
+  assert.equal(await result.response, serverError);
 });
