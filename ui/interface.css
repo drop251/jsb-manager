@@ -220,3 +220,69 @@
 .aujourdhui .tuile small { line-height: 1.45; font-size: .8125rem; }
 @media (max-width: 360px) { .aujourdhui { grid-template-columns: minmax(0,1fr); } }
 :root[data-texte-grand] .aujourdhui { grid-template-columns: minmax(0,1fr); }
+
+/* V5 — micro-interactions sobres : pas de modification des destinations
+   ni des gestionnaires de gestes. L'en-tête reste immobile. */
+:root {
+  --jsb-ui-motion: 240ms;
+  --jsb-ui-feedback: 120ms;
+  --jsb-ui-ease: cubic-bezier(.22,1,.36,1);
+}
+@keyframes jsb-ui-avant {
+  from { transform: translateX(18px); opacity: .55; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes jsb-ui-retour {
+  from { transform: translateX(-18px); opacity: .55; }
+  to { transform: none; opacity: 1; }
+}
+.page.va-avant > .wrap > :not(.appbar) {
+  animation: jsb-ui-avant var(--jsb-ui-motion) var(--jsb-ui-ease) backwards;
+}
+.page.va-arriere > .wrap > :not(.appbar) {
+  animation: jsb-ui-retour var(--jsb-ui-motion) var(--jsb-ui-ease) backwards;
+}
+.btn, .cs-btn, .gn-option, .gn-ouvrir, .cs-ouvrir, .sous,
+.pr-action, .pr-puce, .tuile, .bloc, .onglet-nav {
+  transition: background-color var(--jsb-ui-feedback), border-color var(--jsb-ui-feedback),
+    color var(--jsb-ui-feedback), opacity var(--jsb-ui-feedback), transform var(--jsb-ui-feedback);
+}
+:is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.sous,.pr-action,.pr-puce,.tuile,.bloc):not(:disabled):not([aria-disabled="true"]):active {
+  transform: scale(.985);
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn,.cs-btn,.gn-option,.sous,.pr-action,.pr-puce,.tuile,.bloc):not(:disabled):not([aria-disabled="true"]):not(.plein):not([aria-pressed="true"]):not([aria-expanded="true"]):hover {
+    border-color: var(--bord-ctrl);
+  }
+  .onglet-nav:not([aria-current="page"]):hover { opacity: .85; }
+}
+:is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.sous,.pr-action,.pr-puce,.tuile,.bloc):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+:is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.pr-action):disabled {
+  cursor: default;
+}
+.ile {
+  max-width: calc(100vw - 24px);
+  min-height: 37px;
+  height: auto;
+  padding-block: 6px;
+}
+.ile-ico { flex: none; }
+.ile-txt { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+@media (max-width: 959px) {
+  .onglets::after { transition-duration: var(--jsb-ui-motion); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page.va-avant > .wrap > *, .page.va-arriere > .wrap > * { animation: none !important; }
+  :is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.sous,.pr-action,.pr-puce,.tuile,.bloc,.onglet-nav), .onglets::after {
+    transition: none !important;
+  }
+  :is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.sous,.pr-action,.pr-puce,.tuile,.bloc,.onglet-nav):active { transform: none !important; }
+}
+:root[data-anim="reduit"] .page.va-avant > .wrap > *,
+:root[data-anim="reduit"] .page.va-arriere > .wrap > * { animation: none !important; }
+:root[data-anim="reduit"] :is(.btn,.cs-btn,.gn-option,.gn-ouvrir,.cs-ouvrir,.sous,.pr-action,.pr-puce,.tuile,.bloc,.onglet-nav):active {
+  transform: none !important;
+}

@@ -25,3 +25,7 @@ V3 : espace de travail desktop étendu jusqu'à 1360 px, préparation jusqu'à 1
 V3 publiée via PR #68, main a1dd7fd65151d613694a7c0de22194d890113b61 ; CI 45491454436 et Pages 45491452423 réussies. Recette V3 : 222 tests de fiabilité et 40 captures, deux moteurs en clair/sombre. Deux détails relevés : sous-textes d'accueil tronqués à petite largeur ; capture Présences prise avant la fin du chargement.
 
 V4 : retour à la ligne des descriptions, grille en une colonne à 360 px et en texte agrandi, aucune modification des libellés ni des actions. Recette étendue aux descriptions visibles et à la présence des onglets réels de la section Présences avant capture. Publication uniquement après CI et contrôle visuel. Aucun changement de données ni de logique métier.
+
+## V5 — interactions et transitions
+
+V4 fusionnée via PR #69 (main 02af9ae9e7864c623c6c7f5ad5a061484b8ec7d7), 223 tests réussis, WebKit et Chromium validés. V5 : transitions de navigation réduites de 460 à 240 ms, déplacement limité à 18 px, en-tête immobile, sens du retour conservé, retours à l'appui et survol modérés, focus visible, limitation de largeur de l'îlot et respect de la réduction des mouvements système/application. Aucun changement React, données ou gestes. Recette navigateur étendue aux transitions avant/retour, aux deux modes de réduction des animations et au focus clavier. Tests V5 et vérification visuelle requis avant fusion.

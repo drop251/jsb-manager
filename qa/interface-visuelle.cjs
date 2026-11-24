@@ -98,6 +98,45 @@ fs.mkdirSync('qa-captures',{recursive:true});
       await snapshot('08-'+size.width+'x'+size.height);
       console.log('PASS responsive',engine,theme,JSON.stringify({size,layout}));
     }
+    // Contrôle des interactions normales puis réduites : aucun geste métier modifié.
+    await page.setViewportSize(engine==='webkit'?{width:390,height:844}:{width:1440,height:900});
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await nav.getByRole('button',{name:'Accueil',exact:true}).click();
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    const motion=async()=>page.evaluate(()=>{
+      const content=document.querySelector('.page > .wrap > :not(.appbar)');
+      const bar=document.querySelector('.appbar');
+      const style=getComputedStyle(content);
+      return {name:style.animationName,duration:parseFloat(style.animationDuration),header:getComputedStyle(bar).animationName};
+    });
+    const forward=await motion();
+    assert.equal(forward.name,'jsb-ui-avant');
+    assert.ok(Math.abs(forward.duration-.24)<.001,JSON.stringify(forward));
+    assert.equal(forward.header,'none');
+    await page.getByRole('button',{name:"Retour à l'accueil",exact:true}).click();
+    await page.locator('.page.va-arriere').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'jsb-ui-retour');
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'none');
+    // Tester également le réglage interne, distinct de celui du système.
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await page.evaluate(()=>{const key='jsb-affichage',old=JSON.parse(localStorage.getItem(key)||'{}');localStorage.setItem(key,JSON.stringify({...old,v:2,animations:true}));});
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
+    await page.waitForFunction(()=>document.documentElement.getAttribute('data-anim')==='reduit');
+    await nav.getByRole('button',{name:'Judo',exact:true}).click();
+    await page.locator('.page.va-avant').waitFor({state:'visible'});
+    assert.equal((await motion()).name,'none');
+    await page.keyboard.press('Tab');
+    const focus=await page.evaluate(()=>{
+      const el=document.activeElement,style=getComputedStyle(el);
+      return {tag:el.tagName,outline:style.outlineStyle,width:parseFloat(style.outlineWidth)};
+    });
+    assert.ok(focus.tag!=='BODY' && focus.outline!=='none' && focus.width>=2,JSON.stringify(focus));
+    console.log('PASS interactions',engine,theme,JSON.stringify({forward,focus}));
     assert.deepEqual(errors,[],'Exceptions JavaScript');
     console.log('PASS',engine,theme,JSON.stringify(metrics));
    } finally{await context.close();}

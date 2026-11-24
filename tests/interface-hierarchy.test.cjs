@@ -44,3 +44,12 @@ test('Interface : descriptions de l’accueil non tronquées et grille adaptée'
  assert.match(css,/\.aujourdhui \.tuile strong,\s*\.aujourdhui \.tuile small\s*\{[^}]*white-space:\s*normal;[^}]*text-overflow:\s*clip/s);
  assert.match(css,/max-width:\s*360px\)\s*\{\s*\.aujourdhui\s*\{\s*grid-template-columns:\s*minmax\(0,1fr\)/);
 });
+
+test('Interface : navigation animée courte et respect de la réduction des mouvements',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/--jsb-ui-motion:\s*240ms/);
+ assert.match(css,/\.page\.va-avant > \.wrap > :not\(\.appbar\)\s*\{\s*animation: jsb-ui-avant/);
+ assert.match(css,/\.page\.va-arriere > \.wrap > :not\(\.appbar\)\s*\{\s*animation: jsb-ui-retour/);
+ assert.match(css,/:root\[data-anim="reduit"\] \.page\.va-arriere > \.wrap > \*\s*\{\s*animation: none !important/);
+ assert.match(css,/:focus-visible\s*\{\s*outline:\s*3px solid var\(--focus\)/);
+});
