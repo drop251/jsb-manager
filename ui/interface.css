@@ -433,3 +433,105 @@
   .wrap > .barre-recherche .filtres-btn { padding-inline:8px; }
   .wrap > .barre-compte .illus-raccourci { margin-left:0; }
 }
+
+
+/* V8 — Présences : surfaces continues, commandes tactiles et validation dans le flux.
+   Les couleurs de marque et les états métier restent inchangés. */
+.wrap:has(> .pr) { gap:12px; }
+.wrap:has(> .pr) > .appbar { background:transparent; border-bottom:0; box-shadow:none; }
+.pr { gap:12px; }
+.pr .pr-onglets[role=tablist] { background:transparent; padding:0; gap:4px; border-radius:0; border-bottom:1px solid var(--line); }
+.pr .pr-onglets[role=tablist] .pr-onglet { min-height:44px; font-size:.875rem; border-radius:0; border-bottom:2px solid transparent; box-shadow:none; }
+.pr .pr-onglets[role=tablist] .pr-onglet[aria-selected="true"] { background:transparent; color:var(--jsb-accent-ink); border-bottom-color:var(--jsb-accent-ink); box-shadow:none; }
+.pr .pr-resume { background:var(--jsb-intro); border:0; padding:12px 0; gap:12px; border-radius:0; }
+.pr .pr-resume-txt { font-size:1rem; line-height:1.45; }
+.pr .pr-resume-txt b { display:block; font-size:.8125rem; font-weight:500; color:var(--muted); }
+.pr .pr-resume-btn { min-height:44px; background:transparent; border:1px solid var(--line); }
+.pr .pr-outils { gap:8px; }
+.pr .pr-cherche { min-height:44px; font-size:max(16px,1rem); border-radius:10px; }
+.pr .pr-compteur { flex-wrap:wrap; font-size:.875rem; gap:8px; }
+.pr .pr-compteur .cs-btn.mini { min-height:44px; background:transparent; color:var(--jsb-accent-ink); border:0; }
+.pr .pr-consigne { font-size:.8125rem; line-height:1.4; }
+.pr .pr-liste { border:0; border-radius:16px; box-shadow:none; }
+.pr .pr-ligne + .pr-ligne { border-top:1px solid var(--line); }
+.pr .pr-appel-ligne.st-P,.pr .pr-appel-ligne.st-A { background:transparent; box-shadow:none; }
+.pr .pr-appel-btn { min-height:60px; padding:6px 10px; gap:8px; cursor:default; }
+.pr .pr-appel-btn .pr-photo { width:34px; height:34px; }
+.pr .pr-appel-btn .pr-nomf { font-size:1rem; font-weight:600; white-space:normal; overflow-wrap:anywhere; }
+.pr .pr-appel-btn .pr-cat { font-size:.75rem; padding:0; background:transparent; }
+.pr .pr-appel-btn .pr-essai { color:var(--jsb-accent-ink); }
+.pr .pr-choix-st { min-width:44px; min-height:44px; border-radius:50%; border-color:transparent; background:var(--chip); color:var(--ink); }
+.pr .pr-choix-st.present.actif { background:#15803d; color:#fff; }
+.pr .pr-choix-st.absent.actif { background:#b91c1c; color:#fff; }
+.pr .pr-valider { position:static; margin:8px 0 0; padding:0; border:0; background:transparent; box-shadow:none; }
+.pr .pr-valider-conf,.pr .pr-valide { padding:12px; background:var(--surface); border-radius:12px; }
+.pr .pr-valider-btn { min-height:52px; flex-wrap:wrap; justify-content:center; gap:4px 12px; background:transparent; color:var(--jsb-accent-ink); border:1px solid var(--jsb-accent-ink); border-radius:12px; }
+.pr .pr-valider-btn small { font-size:.8125rem; }
+:root[data-theme="dark"] .wrap:has(> .pr) { --bg:#0e1014; --surface:#191d23; --chip:#262c34; --line:#303741; --jsb-intro:linear-gradient(145deg,#243345,transparent); }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) .wrap:has(> .pr) { --bg:#0e1014; --surface:#191d23; --chip:#262c34; --line:#303741; --jsb-intro:linear-gradient(145deg,#243345,transparent); } }
+@media (max-width:959px) {
+  .wrap:has(> .pr) { padding-bottom:calc(var(--nav-h,76px) + 24px + env(safe-area-inset-bottom,0px)); }
+  body:has(.pr) .pr-valider { margin-right:0; }
+  .pr .pr-appel-btn { gap:6px; }
+}
+:root[data-texte-grand] .pr .pr-onglets[role=tablist] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+:root[data-texte-grand] .pr .pr-appel-btn { flex-wrap:wrap; }
+
+
+/* V8 — hiérarchie du groupe et indicateurs d'appel sans cartes redondantes. */
+.pr .pr-resume { padding:14px 12px; border-radius:16px; }
+.pr .pr-resume-txt { display:flex; flex-direction:column; gap:4px; }
+.pr .pr-groupe-titre { font-size:1.5rem; line-height:1.2; font-weight:700; overflow-wrap:anywhere; }
+.pr .pr-groupe-effectif { color:var(--muted); font-size:.875rem; }
+.pr .pr-compteur { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.pr .pr-indicateurs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.pr .pr-indicateur { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.pr .pr-indicateur b { font-size:1.65rem; line-height:1.15; font-variant-numeric:tabular-nums; }
+.pr .pr-indicateur small { font-size:.8125rem; color:var(--muted); overflow-wrap:anywhere; }
+.pr .pr-progression { width:100%; height:4px; border:0; border-radius:99px; overflow:hidden; appearance:none; background:var(--chip); accent-color:var(--jsb-accent-ink); }
+.pr .pr-progression::-webkit-progress-bar { background:var(--chip); }
+.pr .pr-progression::-webkit-progress-value { background:var(--jsb-accent-ink); border-radius:99px; }
+.pr .pr-progression::-moz-progress-bar { background:var(--jsb-accent-ink); border-radius:99px; }
+.pr .pr-compteur .cs-btn.mini { align-self:flex-end; white-space:normal; text-align:right; }
+:root[data-theme="dark"] body:has(.pr) { background:#0e1014; }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) body:has(.pr) { background:#0e1014; } }
+
+
+/* V8 — Bilan, Licenciés et Planning : même langage visuel que l'appel.
+   Toutes les actions existantes restent accessibles. */
+.pr .pr-bloc:not(.pr-appel) { gap:16px; }
+.pr .pr-groupe h3,.pr .pr-seances h3,.pr .pr-jour h3 { font-family:var(--body); font-size:1.125rem; line-height:1.35; font-weight:650; letter-spacing:0; text-transform:none; }
+.pr .pr-groupe h3 small { color:var(--muted); font-size:.8125rem; font-weight:500; }
+.pr .pr-groupe .pr-ligne { gap:8px 10px; padding:12px; }
+.pr .pr-groupe .pr-nomf,.pr .pr-cren-ligne .pr-nomf { font-weight:600; font-size:1rem; white-space:normal; overflow-wrap:anywhere; }
+.pr .pr-groupe .pr-infos,.pr .pr-cren-ligne .pr-infos { line-height:1.4; overflow-wrap:anywhere; }
+.pr .pr-groupe .pr-photo { width:36px; height:36px; }
+.pr .pr-groupe .pr-cat:not(.pr-essai) { background:transparent; padding:0; }
+.pr .pr-ctrl { gap:6px 10px; }
+.pr .pr-ctrl .cs-btn.mini,.pr .pr-ctrl .pr-fichier,.pr .pr-ctrl select { min-height:44px; font-size:.875rem; }
+.pr .pr-ctrl .pr-autor { min-height:44px; }
+.pr .pr-ctrl .pr-autor input { width:20px; height:20px; }
+.pr .pr-mois,.pr .pr-tableau { border:0; border-radius:16px; box-shadow:none; background:var(--surface); }
+.pr .pr-tableau { max-width:100%; }
+.pr .pr-tableau thead th { font-weight:600; color:var(--muted); }
+.pr .pr-tableau tbody th { overflow-wrap:anywhere; }
+.pr .pr-jauge { height:4px; }
+.pr .pr-seances ul { background:var(--surface); border-radius:16px; gap:0; overflow:hidden; }
+.pr .pr-seances li { border:0; border-radius:0; padding:12px; }
+.pr .pr-seances li + li { border-top:1px solid var(--line); }
+.pr .pr-seances li .cs-btn.mini,.pr .pr-alerte .cs-btn.mini { min-height:44px; }
+.pr .pr-alerte { border:0; border-inline-start:3px solid var(--ko-bord); border-radius:12px; }
+.pr .pr-fichiers > summary,.pr .pr-aide > summary { min-height:44px; }
+.pr .pr-actions .pr-action { min-height:44px; white-space:normal; overflow-wrap:anywhere; }
+.pr .pr-planning .pr-cren-ligne { padding:12px; gap:8px; }
+.pr .pr-planning .cs-btn.plein { background:transparent; border:1px solid var(--jsb-accent-ink); color:var(--jsb-accent-ink); }
+@media (max-width:599px) {
+  .pr .pr-groupe .pr-ctrl { padding-left:0; }
+  .pr .pr-cren-ligne .pr-ctrl { flex:1 1 100%; flex-wrap:wrap; }
+  .pr .pr-cren-ligne .pr-ctrl > button { flex:1 1 90px; }
+  .pr .pr-mois .cs-btn { flex:1 1 100%; }
+  .pr .pr-mois select,.pr .pr-choix select,.pr .pr-ctrl select { font-size:max(16px,1rem); }
+  .pr .pr-tableau th,.pr .pr-tableau td { padding:9px 6px; }
+  .pr .pr-tableau .pr-jauge { width:28px; }
+}
+:root[data-texte-grand] .pr .pr-actions { grid-template-columns:1fr; }
