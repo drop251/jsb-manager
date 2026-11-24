@@ -3868,12 +3868,12 @@ h1, .hero h1 {
           !planning.length ? h('div', { className: 'pr-astuce' }, h('span', null, 'Astuce : avec votre planning de la semaine, le bon cours s\'ouvre tout seul à l\'heure du cours.'), h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setVue('planning'); } }, 'Renseigner mon planning')) : null) : null,
         inscrits.length > 8 || recherche || filtreANoter ? h('div', { className: 'pr-outils' },
           h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Rechercher un nom', 'aria-label': 'Rechercher un licencié dans l\'appel', value: recherche, onChange: function (ev) { setRecherche(ev.target.value); } }),
-          h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter', h('small', null, aNoter.length))) : null,
+          h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter')) : null,
         h('div', { className: 'pr-compteur' },
           h('div', { className: 'pr-indicateurs', 'aria-live': 'polite' }, [['Présents', compte.P], ['Absents', compte.A], ['À noter', aNoter.length]].map(function (item) { return h('span', { key: item[0], className: 'pr-indicateur' }, h('b', null, item[1]), h('small', null, item[0])); })), h('progress', { className: 'pr-progression', max: Math.max(1, inscrits.length), value: nbNotes, 'aria-label': 'Progression de l’appel' }),
           appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Noter les autres présents')),
-        !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Choisissez ✓ pour présent ou ✕ pour absent ; retouchez le statut pour remettre à noter.') : null,
-        h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
+        !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, '✓ Présent · ✕ Absent · Retoucher pour annuler.') : null,
+        h('div', { className: 'pr-appel-defile' }, h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
           var j = it.j, st = statutDe(j, it.c), verrou = coursVerrouille(it.c);
           return h('li', { key: j.id + '-' + it.c, className: 'pr-ligne pr-appel-ligne st-' + (st || '0') + (verrou ? ' verrou' : '') },
             h('div', { className: 'pr-appel-btn' },
@@ -3887,7 +3887,7 @@ h1, .hero h1 {
                     onClick: function () { noter([[j.id, it.c]], o[0]); } }, o[0] === 'P' ? '✓' : '✕');
                 }))));
         })),
-        cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null,
+        cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null),
         inscrits.length ? (appelValide
           ? h('div', { className: 'pr-valider pr-valide', role: 'status' },
               h('span', null, h('b', null, '✓ Appel validé le ' + quandValide(seancesAppel[0].validee)), ' · ' + pluriel(compte.P, 'présent') + ', ' + pluriel(compte.A, 'absent')),
@@ -6947,7 +6947,7 @@ h1, .hero h1 {
     var profondeur = !cle ? 0 : f.sous ? 2 : 1, ecran = (cle || 'accueil') + '|' + (f.sous || '');
     var memo = React.useRef({ ecran: ecran, prof: profondeur, sens: '' });
     if (memo.current.ecran !== ecran) { memo.current.sens = memo.current.force || (profondeur >= memo.current.prof ? 'va-avant' : 'va-arriere'); memo.current.force = ''; memo.current.ecran = ecran; memo.current.prof = profondeur; }
-    var glisse = { key: ecran, className: 'page ' + memo.current.sens };
+    var glisse = { key: ecran, className: 'page ' + memo.current.sens + (cle === 'presences' ? ' page-presences' : '') };
     // Retour depuis le bord gauche ; les contrôles et fenêtres restent indépendants.
     var retourRef = React.useRef(null);
     retourRef.current = ouverte ? function () { setOuverte(null); }
