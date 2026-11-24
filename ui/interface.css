@@ -1,3 +1,17 @@
+
+/* Les actions restent dans le flux : aucun bouton ne recouvre le titre. */
+.grille:not(.mode-liste) .carte-w { display:grid; grid-template-rows:1fr auto; gap:0; border:1px solid var(--line); border-radius:var(--r-m); background:var(--surface); box-shadow:var(--ombre); }
+.grille:not(.mode-liste) .carte-w .carte { border:0; box-shadow:none; padding:16px; gap:8px; min-width:0; }
+.grille:not(.mode-liste) .carte > :not(.illus) { margin-left:0; margin-right:0; }
+.grille .carte-nom { display:block; overflow:visible; -webkit-line-clamp:unset; overflow-wrap:anywhere; }
+.grille:not(.mode-liste) .carte-w .cs-plus { position:static; justify-self:end; margin:0 16px 12px; min-height:44px; max-width:calc(100% - 32px); white-space:normal; box-shadow:none; }
+.grille.mode-liste .carte-w { display:grid; grid-template-columns:minmax(0,1fr) 64px; gap:0; }
+.grille.mode-liste .carte { grid-template-columns:minmax(0,1fr); padding:12px 16px; min-width:0; }
+.grille.mode-liste .carte > :not(.illus) { grid-column:1; }
+.grille.mode-liste .carte-pied { flex-wrap:wrap; overflow:visible; }
+.grille.mode-liste .carte-w .cs-plus { position:static; align-self:center; justify-self:center; margin:8px 0; }
+.et-corps { grid-template-columns:minmax(0,1fr); }
+
 /* JSB Manager — interface V1, couche visuelle indépendante.
    Préserve les composants, les interactions, les thèmes et le geste de retour. */
 :root {
