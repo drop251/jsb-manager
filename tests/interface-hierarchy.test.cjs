@@ -38,3 +38,9 @@ test('Interface : espace de travail adaptatif et largeur minimale des contrôles
  assert.match(css,/orientation:\s*landscape/);
  assert.match(css,/max-width:\s*360px/);
 });
+
+test('Interface : descriptions de l’accueil non tronquées et grille adaptée',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.aujourdhui \.tuile strong,\s*\.aujourdhui \.tuile small\s*\{[^}]*white-space:\s*normal;[^}]*text-overflow:\s*clip/s);
+ assert.match(css,/max-width:\s*360px\)\s*\{\s*\.aujourdhui\s*\{\s*grid-template-columns:\s*minmax\(0,1fr\)/);
+});
