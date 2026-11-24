@@ -216,7 +216,9 @@ fs.mkdirSync('qa-captures',{recursive:true});
         const d=new Date(), an=d.getMonth()>=8?d.getFullYear():d.getFullYear()-1;
         const judokas=Array.from({length:27},(_,i)=>({id:'qa-'+i,nom:'TEST '+String(i+1).padStart(2,'0'),prenom:'Licencié',licence:'QA-'+i,naissance:(an-4)+'-01-01'}));
         judokas.push({id:'qa-autre',nom:'AUTRE',prenom:'Test',licence:'QA-A',naissance:(an-5)+'-01-01'});
-        localStorage.setItem('jsb-presences',JSON.stringify({judokas,seances:[],planning:[],sauvegardeLe:Date.now()}));
+        const dates=[7,14].map(n=>new Date(d.getTime()-n*86400000).toISOString().slice(0,10));
+        const seances=[{id:'qa-s1',date:dates[0],groupe:'Éveils 4 ans',statuts:{'qa-0':'P','qa-1':'P'}},{id:'qa-s2',date:dates[1],groupe:'Éveils 4 ans',statuts:{'qa-0':'A'}}];
+        localStorage.setItem('jsb-presences',JSON.stringify({judokas,seances,planning:[],sauvegardeLe:Date.now()}));
       });
       await page.goto(base,{waitUntil:'domcontentloaded'});
       await nav.getByRole('button',{name:'Présences',exact:true}).click();
@@ -260,6 +262,20 @@ fs.mkdirSync('qa-captures',{recursive:true});
         await page.getByRole('tab',{name:label,exact:true}).click();
         assert.equal(await files.count(),0,label);
         assert.equal(await season.count(),0,label);
+        if(label==='Bilan'){
+          const summary=page.getByRole('group',{name:'Synthèse du cours'});
+          await summary.waitFor({state:'visible'});
+          assert.deepEqual(await summary.locator('strong').allTextContents(),['2','27','67 %']);
+          const cards=page.locator('.pr-bilan-carte');
+          assert.equal(await cards.count(),27);
+          assert.ok(await cards.first().isVisible());
+          assert.equal(await page.locator('.pr-bilan .pr-tableau').isVisible(),false);
+          assert.equal(await cards.first().locator('.pr-bilan-taux').textContent(),'50 %');
+          assert.ok(await page.getByRole('button',{name:'Exporter le mois',exact:true}).count());
+          const bounds=await cards.first().evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth};});
+          assert.ok(bounds.left>=0&&bounds.right<=bounds.width+1,JSON.stringify(bounds));
+          await snapshot('12-bilan-mobile');
+        }
       }
       console.log('PASS appel mobile peuplé',theme,JSON.stringify({before,after,panel}));
     }
