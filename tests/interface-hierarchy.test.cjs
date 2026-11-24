@@ -73,3 +73,9 @@ test('Palette JSB : contraste des associations de texte choisies',()=>{
   assert.ok(contrast(a,b)>=4.5,a+' / '+b+' : '+contrast(a,b));
  }
 });
+
+test('Palette JSB : le libellé actif mobile ne dépend pas de la couleur héritée',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\] \.onglet-txt,\s*\.onglets \.onglet-nav\[aria-current="page"\] svg\s*\{\s*color:var\(--jsb-accent-ink\)/);
+ assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\]:nth-child\(n\)\s*\{\s*background:transparent;\s*color:var\(--jsb-accent-ink\)/);
+});

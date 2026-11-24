@@ -355,3 +355,15 @@
 .appbar .cx-avatar.petit { border-color:var(--jsb-brand-gold); }
 .ile-ico { background:var(--jsb-brand-gold); color:var(--jsb-brand-navy); box-shadow:none; }
 .blocs.raccourcis .bloc-ico { background:var(--jsb-accent-soft); color:var(--jsb-accent-ink); }
+
+/* V6.2 — le libellé actif et son icône doivent partager la même couleur.
+   La capsule mobile reste seule responsable du fond sélectionné. */
+.onglets .onglet-nav[aria-current="page"] .onglet-txt,
+.onglets .onglet-nav[aria-current="page"] svg {
+  color:var(--jsb-accent-ink); opacity:1;
+}
+@media (max-width:959px) {
+  .onglets .onglet-nav[aria-current="page"]:nth-child(n) {
+    background:transparent; color:var(--jsb-accent-ink);
+  }
+}

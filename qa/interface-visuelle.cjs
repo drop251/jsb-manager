@@ -51,6 +51,22 @@ fs.mkdirSync('qa-captures',{recursive:true});
     });
     assert.equal(painted.fg,theme==='light'?'rgb(255, 255, 255)':'rgb(244, 245, 239)');
     assert.equal(painted.border,theme==='light'?'rgb(31, 40, 57)':'rgb(218, 177, 116)');
+    const checkActiveNav=async()=>{
+      const active=await nav.locator('button[aria-current="page"]').evaluate(n=>{
+        const color=el=>getComputedStyle(el).color;
+        const bar=n.closest('.onglets');
+        return {button:color(n),label:color(n.querySelector('.onglet-txt')),icon:color(n.querySelector('svg')),
+          background:innerWidth<960?getComputedStyle(bar,'::after').backgroundColor:getComputedStyle(n).backgroundColor,
+          buttonBg:getComputedStyle(n).backgroundColor,mobile:innerWidth<960};
+      });
+      const fg=theme==='light'?'rgb(118, 81, 31)':'rgb(218, 177, 116)';
+      assert.equal(active.button,fg,JSON.stringify(active));
+      assert.equal(active.label,fg,JSON.stringify(active));
+      assert.equal(active.icon,fg,JSON.stringify(active));
+      assert.equal(active.background,theme==='light'?'rgb(247, 236, 217)':'rgb(58, 52, 45)');
+      if(active.mobile)assert.equal(active.buttonBg,'rgba(0, 0, 0, 0)');
+    };
+    await checkActiveNav();
     await snapshot('01-accueil');
     await page.locator('.accueil-preparer > summary').click();
     await page.locator('.accueil-disciplines').getByRole('button',{name:'Taïso',exact:true}).click();
@@ -62,6 +78,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
      await nav.getByRole('button',{name:label,exact:true}).click();
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
+     await checkActiveNav();
      if(label==='Présences'){
       await page.getByRole('tablist',{name:'Présences',exact:true}).waitFor({state:'visible',timeout:45000});
       assert.equal(await page.getByText('Chargement des présences…',{exact:true}).count(),0);
