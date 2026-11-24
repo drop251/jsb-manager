@@ -31,7 +31,19 @@ fs.mkdirSync('qa-captures',{recursive:true});
     }));
     assert.equal(metrics.length,5);
     for(const m of metrics){assert.ok(m.height>=44&&m.width>=44&&m.visible,JSON.stringify(m));assert.equal(m.font,'12px');}
+    await page.getByRole('region',{name:'Tableau de bord'}).waitFor();
+    assert.equal(await page.locator('.aujourdhui .tuile').count(),6);
+    await page.getByRole('heading',{name:'Activité récente',exact:true}).waitFor();
+    const palette=await page.evaluate(()=>({bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),surface:getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()}));
+    assert.equal(palette.bg,theme==='light'?'#f4f5f9':'#0d0f13');
+    assert.equal(palette.surface,theme==='light'?'#fff':'#1a1d22');
     await snapshot('01-accueil');
+    await page.locator('.accueil-preparer > summary').click();
+    await page.locator('.accueil-disciplines').getByRole('button',{name:'Taïso',exact:true}).click();
+    await page.locator('.gn[role="dialog"]').waitFor({state:'visible',timeout:45000});
+    await snapshot('09-action-principale');
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
     for(const [n,label] of ['Judo','Taïso','Séances','Présences'].entries()){
      await nav.getByRole('button',{name:label,exact:true}).click();
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});

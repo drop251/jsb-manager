@@ -53,3 +53,15 @@ test('Interface : navigation animée courte et respect de la réduction des mouv
  assert.match(css,/:root\[data-anim="reduit"\] \.page\.va-arriere > \.wrap > \*\s*\{\s*animation: none !important/);
  assert.match(css,/:focus-visible\s*\{\s*outline:\s*3px solid var\(--focus\)/);
 });
+
+test('Interface : tableau de bord et commande principale reliés aux données et actions locales',()=>{
+ const html=read('index.html'), css=read('ui/interface.css');
+ assert.ok(html.includes("className: 'accueil-preparer'"));
+ assert.ok(html.includes("poserIntention({ type: 'generer' }); aller(label === 'Judo' ? 'judo' : 'taiso')"));
+ assert.ok(html.includes("suivi.actifs == null ? '—' : suivi.actifs"));
+ assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.date === auj; }).length"));
+ assert.ok(html.includes("historiqueAccueil.slice(0, 3)"));
+ assert.match(css,/--bg:\s*#f4f5f9/);
+ assert.match(css,/--bg:\s*#0d0f13/);
+ assert.match(css,/--jsb-accent:\s*#3459d4/);
+});

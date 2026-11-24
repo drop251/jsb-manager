@@ -29,3 +29,6 @@ V4 : retour à la ligne des descriptions, grille en une colonne à 360 px et en 
 ## V5 — interactions et transitions
 
 V4 fusionnée via PR #69 (main 02af9ae9e7864c623c6c7f5ad5a061484b8ec7d7), 223 tests réussis, WebKit et Chromium validés. V5 : transitions de navigation réduites de 460 à 240 ms, déplacement limité à 18 px, en-tête immobile, sens du retour conservé, retours à l'appui et survol modérés, focus visible, limitation de largeur de l'îlot et respect de la réduction des mouvements système/application. Aucun changement React, données ou gestes. Recette navigateur étendue aux transitions avant/retour, aux deux modes de réduction des animations et au focus clavier. Tests V5 et vérification visuelle requis avant fusion.
+
+## V6 — références graphiques utilisateur
+V5 CI et recette navigateur réussies (45492620237, 45492620104). V6 : accueil inspiré des deux captures fournies, gris froid/cartes blanches/bleu en clair, graphite et dégradé bleu en sombre, date et salutation réelles, action principale ouvrant le générateur existant, six indicateurs issus des données locales, activité récente issue de l'historique. Aucune donnée fictive ; tiret en cas de données non chargées. Navigation et stockage préservés. Nouveaux tests palette, six cartes et CTA. Rendu et CI V6 à valider avant publication.
