@@ -27,3 +27,16 @@ test('Tora exige une fiche explicitement Judo Éveil 4–5 ans et sans oppositio
  invalides.forEach(x=>assert.equal(Tora.fichePedagogique(fiche(x)),null,JSON.stringify(x)));
  assert.equal(Tora.fichePedagogique(null),null);
 });
+
+test('Les champs pédagogiques explicites sont obligatoires pour le récit et le diagnostic',()=>{
+ const invalides=[{typeFiche:undefined},{typeFiche:'Autre'},{niveauOpposition:undefined},
+  {niveauOpposition:''},{sousGroupes:['Éveils']},{sousGroupes:['Éveils 4 ans']}];
+ invalides.forEach(x=>{
+  const e=fiche(x);
+  assert.equal(Tora.fichePedagogique(e),null,JSON.stringify(x));
+  const audit=Tora.auditerCatalogue([e]);
+  assert.equal(audit.pretes,0);
+  assert.equal(audit.incompatibles,1);
+ });
+ assert.equal(Tora.auditerCatalogue([fiche()]).pretes,1);
+});

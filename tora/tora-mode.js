@@ -81,11 +81,20 @@
   }
   // Récit attaché uniquement à une fiche d'exercice explicitement Judo Éveil 4–5 ans.
   // Aucun exercice n'est créé ou modifié par cette présentation.
-  function fichePedagogique(exercice) {
-    const e=exercice || {};
+  function eligibiliteFiche(e) {
+    if (!e || norm(e.typeFiche)!=='exercice') return false;
     const publics=Array.isArray(e.public) ? e.public : (e.public ? [e.public] : []);
     const groupes=Array.isArray(e.sousGroupes) ? e.sousGroupes : (e.sousGroupes ? [e.sousGroupes] : []);
-    if (!publics.some(function (v) { return norm(v)==='judo'; }) || !groupes.some(estEveil)) return null;
+    const opposition=norm(e.niveauOpposition);
+    return publics.some(function (v) { return norm(v)==='judo'; }) &&
+      groupes.some(function (g) {
+        const ages=norm(g).match(/\b\d+\b/g) || [];
+        return estEveil(g) && ages.includes('4') && ages.includes('5');
+      }) && ['sans opposition','cooperation','cooperation sans resistance','aucune'].includes(opposition);
+  }
+  function fichePedagogique(exercice) {
+    const e=exercice || {};
+    if (!eligibiliteFiche(e)) return null;
     const s=trouver(e);
     return s ? {id:s.id, nomTechnique:s.nomTechnique, titre:s.titre,
       histoire:s.histoire, consigne:s.consigne} : null;
@@ -109,11 +118,7 @@
       const eligibles=possibles.filter(function (e) {
         // Une fiche sans discipline ou tranche d'âge explicite doit être vérifiée,
         // pas présentée comme une correspondance prête pour l'Éveil.
-        const disciplines=Array.isArray(e.public) ? e.public : (e.public ? [e.public] : []);
-        const groupes=Array.isArray(e.sousGroupes) ? e.sousGroupes : (e.sousGroupes ? [e.sousGroupes] : []);
-        if (!disciplines.some(function (v) { return norm(v)==='judo'; }) ||
-            !groupes.some(estEveil)) return false;
-        const correspondance=trouver(e);
+        const correspondance=fichePedagogique(e);
         return correspondance && correspondance.id===id;
       });
       const statut=eligibles.length>1 ? 'doublon' : eligibles.length===1 ? 'prete'
