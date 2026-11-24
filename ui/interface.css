@@ -674,3 +674,12 @@
  .pr .pr-edit-cren .pr-cren-champs > :first-child { grid-column:1/-1; }
  .pr .pr-edit-cren .pr-cren-champs > * { min-width:0; }
 }
+
+
+/* V14: explicit theme preference also controls native form widgets. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="dark"] .ch-envoi, :root[data-theme="dark"] .ch-msg.moi .ch-texte { background:var(--creme,#F4F5EF); color:var(--nuit,#1F2839); }
+.rg .rg-themes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.rg .rg-themes .rg-taille { min-height:44px; min-width:0; justify-content:center; flex-wrap:wrap; }
+@media (max-width:359px) { .rg .rg-themes { grid-template-columns:1fr; } }
