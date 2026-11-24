@@ -1996,9 +1996,9 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     }
     return h('div', { className: 'rg' },
       h('h2', { tabIndex: -1, ref: function (n) { if (n) n.focus(); } }, 'Affichage et accessibilité'),
-      h('fieldset', null, h('legend', null, 'Thème'),
+      h('fieldset', { 'aria-label': 'Thème' }, h('legend', null, 'Thème'),
         h('div', { className: 'rg-tailles rg-themes' }, [['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']].map(function (t) {
-          return h('label', { key: t[0], className: 'rg-taille' }, h('input', { type: 'radio', name: 'rg-theme', checked: a.theme === t[0], onChange: function () { maj({ theme: t[0] }); annoncer('Thème : ' + t[1]); } }), t[1]);
+          return h('label', { key: t[0], className: 'rg-taille' }, h('input', { type: 'radio', name: 'rg-theme', 'aria-label': t[1], checked: a.theme === t[0], onChange: function () { maj({ theme: t[0] }); annoncer('Thème : ' + t[1]); } }), t[1]);
         })),
         h('p', { className: 'rg-note' }, 'Système suit automatiquement le thème de votre appareil.')),
       h('fieldset', null, h('legend', null, 'Taille du texte'),
