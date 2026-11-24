@@ -7267,6 +7267,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
+  document.documentElement.setAttribute('data-jsb-version', '20261124-v9c');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7279,6 +7280,8 @@ h1, .hero h1 {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
       reg.update().catch(function () {});
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () {}); });
+      window.addEventListener('pageshow', function (ev) { if (ev.persisted) reg.update().catch(function () {}); });
+      window.addEventListener('online', function () { reg.update().catch(function () {}); });
     }).catch(function () {});
   });
 })();
@@ -7300,6 +7303,6 @@ h1, .hero h1 {
 </style>
 
 
-<link rel="stylesheet" href="./ui/interface.css">
+<link rel="stylesheet" href="./ui/interface.css?v=20261124-v9c">
 </body>
 </html>

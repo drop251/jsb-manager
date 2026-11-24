@@ -1,6 +1,6 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-20261124-ui-presences-v9';
+var CACHE = 'jsb-manager-20261124-ui-presences-v9c';
 var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
@@ -75,6 +75,19 @@ self.addEventListener('fetch', function (ev) {
       }).catch(function () {
         locale().then(function (r) { if (!fini) { fini = true; clearTimeout(minuteur); ok(r || Response.error()); } });
       });
+    }));
+    return;
+  }
+  // A versioned stylesheet must never resolve to an older precached revision.
+  if (/\/ui\/interface\.css$/.test(url.pathname) && url.searchParams.has('v')) {
+    ev.respondWith(caches.open(CACHE).then(async function (c) {
+      var local = await c.match(req);
+      if (local) return local;
+      try {
+        var rep = await fetch(req, { cache: 'reload' });
+        if (rep.ok) { await c.put(req, rep.clone()); return rep; }
+        return (await c.match('./ui/interface.css')) || rep;
+      } catch (e) { return (await c.match('./ui/interface.css')) || Response.error(); }
     }));
     return;
   }

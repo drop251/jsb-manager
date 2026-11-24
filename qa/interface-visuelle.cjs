@@ -19,7 +19,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.goto(base,{waitUntil:'domcontentloaded'});
     const nav=page.getByRole('navigation',{name:'Navigation principale'});
     await nav.waitFor({timeout:45000});
-    await page.waitForFunction(()=>Array.from(document.styleSheets).some(s=>s.href&&s.href.endsWith('/ui/interface.css')));
+    await page.waitForFunction(()=>Array.from(document.styleSheets).some(s=>s.href&&new URL(s.href).pathname.endsWith('/ui/interface.css')&&new URL(s.href).searchParams.has('v')));
     await page.evaluate(()=>document.fonts.ready);
     const snapshot=async name=>{
      await page.screenshot({path:'qa-captures/'+engine+'-'+theme+'-'+name+'.png',animations:'disabled'});
