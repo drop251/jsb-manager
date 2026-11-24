@@ -29,3 +29,12 @@ test('Interface : surfaces et commandes adaptées aux deux thèmes sans masquer 
  assert.match(css,/font-size:\s*max\(16px, 1rem\)/);
  assert.match(css,/\.cs-phase li \.cs-reglages\s*\{\s*flex-wrap:\s*wrap/);
 });
+
+test('Interface : espace de travail adaptatif et largeur minimale des contrôles',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.wrap\s*\{\s*max-width:\s*1360px/);
+ assert.match(css,/\.gn:not\(\.cx-gestion\)\s*\{\s*width:\s*min\(740px,100%\)/);
+ assert.match(css,/repeat\(5,minmax\(0,1fr\)\)/);
+ assert.match(css,/orientation:\s*landscape/);
+ assert.match(css,/max-width:\s*360px/);
+});

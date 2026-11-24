@@ -13,3 +13,9 @@ Recette requise avant publication : captures comparatives accueil et sections, i
 - CSS uniquement, pas de modification des composants React ni des données. Cibles tactiles de 44 px minimum sur les contrôles visés ; champs à 16 px minimum ; retour tactile et préférence de texte agrandi conservés.
 - Nouveau workflow indépendant de la recette PWA : WebKit iPhone émulé et Chromium desktop, captures PNG dans les deux thèmes, navigation, générateur et réglages, vérifications géométriques des onglets et de la lisibilité du thème. Aucun stockage utilisateur réel. Le service worker est bloqué pour isoler la recette visuelle ; la recette hors ligne reste distincte.
 - Les captures et résultats doivent être examinés avant fusion. Aucune prétention de conformité WCAG ou de validation physique Safari.
+
+## V3 — adaptation aux dimensions réelles
+
+V2 : run de fiabilité 45420816119 réussi ; run visuel 45420816425 réussi (WebKit et Chromium, clair/sombre). Captures générées, consultation visuelle humaine non encore effectuée. Onglets de 48 px de hauteur et texte 12 px vérifiés par les deux moteurs.
+
+V3 : espace de travail desktop étendu jusqu'à 1360 px, préparation jusqu'à 1240 px, générateur centré jusqu'à 740 px, fenêtres bornées à la hauteur utile. Adaptation de la navigation aux petits écrans et au paysage. Le code React est inchangé ; seuls CSS, cache, tests et documentation sont modifiés. La recette vérifie désormais géométrie, absence de défilement horizontal et libellés non tronqués à 320 px, tablette, paysage iPhone et grand écran (six configurations moteur/viewport, dans les deux thèmes). Résultats V3 à vérifier avant fusion.

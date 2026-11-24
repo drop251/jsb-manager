@@ -59,6 +59,34 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.getByRole('menuitem',{name:'Affichage et accessibilité'}).click();
     await page.getByRole('dialog',{name:'Affichage et accessibilité'}).waitFor();
     await snapshot('07-reglages');
+    // Revenir à une page propre avant de changer la géométrie.
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
+    const viewports=engine==='webkit'
+      ? [{width:320,height:568},{width:844,height:390},{width:768,height:1024}]
+      : [{width:320,height:568},{width:1024,height:768},{width:1920,height:1080}];
+    for(const size of viewports){
+      await page.setViewportSize(size);
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const layout=await page.evaluate(()=>{
+        const b=[...document.querySelectorAll('.onglet-nav')];
+        return {
+          viewport:innerWidth, scroll:document.documentElement.scrollWidth,
+          buttons:b.map(el=>{
+            const r=el.getBoundingClientRect(),t=el.querySelector('.onglet-txt');
+            return {name:t.textContent,w:r.width,h:r.height,x:r.left,right:r.right,top:r.top,bottom:r.bottom,
+              labelFits:t.scrollWidth<=t.clientWidth+2};
+          })
+        };
+      });
+      assert.equal(layout.buttons.length,5);
+      assert.ok(layout.scroll<=layout.viewport+2,JSON.stringify(layout));
+      for(const b of layout.buttons){
+        assert.ok(b.w>=44 && b.h>=44 && b.x>=-1 && b.right<=layout.viewport+1 && b.top>=-1 && b.bottom<=size.height+1 && b.labelFits,JSON.stringify({size,b}));
+      }
+      await snapshot('08-'+size.width+'x'+size.height);
+      console.log('PASS responsive',engine,theme,JSON.stringify({size,layout}));
+    }
     assert.deepEqual(errors,[],'Exceptions JavaScript');
     console.log('PASS',engine,theme,JSON.stringify(metrics));
    } finally{await context.close();}
