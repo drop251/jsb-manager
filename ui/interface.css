@@ -367,3 +367,69 @@
     background:transparent; color:var(--jsb-accent-ink);
   }
 }
+
+/* V7 — bibliothèque mobile : densité utile, sans réduction des cibles tactiles.
+   Aucun filtre ni bouton retiré ; les sous-groupes restent défilables. */
+@media (max-width:599px) {
+  .wrap:has(> .catalogue-types) { gap:10px; }
+  .wrap:has(> .catalogue-types) > .appbar {
+    min-height:52px;
+    padding-top:calc(4px + env(safe-area-inset-top,0px));
+    padding-bottom:4px;
+  }
+  .wrap:has(> .catalogue-types) .appbar-titre strong { font-size:1.0625rem; line-height:1.2; }
+  .wrap:has(> .catalogue-types) .appbar-titre small { font-size:.75rem; line-height:1.25; }
+  .wrap > .sousgrille { gap:6px; padding-block:0 2px; }
+  .wrap > .sousgrille .sous { min-height:44px; padding:6px 10px; gap:5px; }
+  .wrap > .sousgrille .sous b { font-size:.875rem; }
+  .wrap > .sousgrille .sous small { font-size:.75rem; background:transparent; }
+  .wrap > .sousgrille .sous[aria-pressed="true"]::before { margin-right:2px; }
+  .wrap > .catalogue-types {
+    display:grid; grid-template-columns:minmax(0,.7fr) minmax(0,1fr) minmax(0,1.55fr);
+    gap:3px; padding:3px; border:1px solid var(--line); border-radius:12px; background:var(--chip);
+  }
+  .wrap > .catalogue-types > .btn {
+    min-width:0; min-height:44px; padding:5px 4px; font-size:.8125rem;
+    line-height:1.2; white-space:normal; overflow-wrap:anywhere;
+    border:1px solid transparent; border-radius:9px; background:transparent; color:var(--muted);
+  }
+  .wrap > .catalogue-types > .btn[aria-pressed="true"] {
+    background:var(--surface); color:var(--jsb-accent-ink); border-color:var(--sel-bord); box-shadow:none;
+  }
+  .wrap > .catalogue-familles {
+    margin:0; padding:10px 12px; border-radius:12px;
+  }
+  .wrap > .catalogue-familles h2 { margin:0 0 6px; font-size:.9375rem; line-height:1.3; }
+  .wrap > .catalogue-familles .champ { margin-top:6px; gap:4px; }
+  .wrap > .catalogue-familles .champ label { font-size:.75rem; letter-spacing:0; text-transform:none; }
+  .wrap > .catalogue-familles .champ select { min-height:44px; font-size:max(16px,1rem); }
+  /* Le libellé Famille identifie déjà le sélecteur. Garder le titre sémantique. */
+  .wrap > .catalogue-familles:has(> .champ) > h2 {
+    position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+    overflow:hidden; clip:rect(0,0,0,0); clip-path:inset(50%); white-space:nowrap;
+  }
+  .wrap > .catalogue-familles > .champ:first-of-type { margin-top:0; }
+  .wrap > .catalogue-familles > .puces { gap:5px; }
+  .wrap > .catalogue-familles > .puces .btn { min-height:44px; padding:5px 9px; font-size:.8125rem; white-space:normal; }
+  .wrap > .barre-recherche,.wrap > .barre-seance { gap:8px; }
+  .wrap > .barre-recherche .cherche { min-height:44px; font-size:max(16px,1rem); padding-inline:10px; }
+  .wrap > .barre-recherche .filtres-btn { min-height:44px; padding-inline:10px; font-size:.875rem; }
+  .wrap > .barre-seance > button { min-height:46px; padding:6px 8px; font-size:.875rem; line-height:1.25; white-space:normal; overflow-wrap:anywhere; }
+  .wrap > .barre-seance .gn-ouvrir { background:var(--jsb-accent); color:var(--jsb-accent-on); border-color:var(--jsb-accent); }
+  .wrap > .barre-seance .cs-ouvrir { background:var(--surface); color:var(--ink); border:1px solid var(--line); }
+  .wrap > .barre-seance .cs-ouvrir small { margin-left:4px; background:var(--jsb-accent-soft); color:var(--jsb-accent-ink); }
+  .wrap > .barre-compte { gap:6px; align-items:center; }
+  .wrap > .barre-compte .compte { font-size:.8125rem; }
+  .wrap > .barre-compte .illus-raccourci { min-height:44px; font-size:.75rem; padding-inline:9px; }
+  .wrap > .barre-compte .vue-choix { padding:2px; }
+  .wrap > .barre-compte .vue-btn { min-height:44px; min-width:44px; padding-inline:8px; font-size:.8125rem; }
+  .wrap > .grille.mode-liste .catalogue-groupe { margin:0; padding-block:8px; font-size:1rem; }
+  .wrap > .actifs { gap:5px; }
+  :root[data-texte-grand] .wrap > .catalogue-types { grid-template-columns:1fr; }
+  :root[data-texte-grand] .wrap > .barre-seance { flex-wrap:wrap; }
+  :root[data-texte-grand] .wrap > .barre-seance > * { flex-basis:100%; }
+}
+@media (max-width:359px) {
+  .wrap > .barre-recherche .filtres-btn { padding-inline:8px; }
+  .wrap > .barre-compte .illus-raccourci { margin-left:0; }
+}

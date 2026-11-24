@@ -79,3 +79,12 @@ test('Palette JSB : le libellé actif mobile ne dépend pas de la couleur hérit
  assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\] \.onglet-txt,\s*\.onglets \.onglet-nav\[aria-current="page"\] svg\s*\{\s*color:var\(--jsb-accent-ink\)/);
  assert.match(css,/\.onglets \.onglet-nav\[aria-current="page"\]:nth-child\(n\)\s*\{\s*background:transparent;\s*color:var\(--jsb-accent-ink\)/);
 });
+
+test('Interface V7 : catalogue compact sur iPhone, cibles tactiles et texte agrandi',()=>{
+ const css=read('ui/interface.css');
+ assert.match(css,/\.wrap:has\(> \.catalogue-types\)\s*\{\s*gap:10px/);
+ assert.match(css,/\.wrap > \.catalogue-types > \.btn\s*\{[^}]*min-height:44px/s);
+ assert.match(css,/\.wrap > \.catalogue-familles\s*\{\s*margin:0/);
+ assert.match(css,/\.wrap > \.barre-recherche \.cherche\s*\{[^}]*font-size:max\(16px,1rem\)/);
+ assert.match(css,/:root\[data-texte-grand\] \.wrap > \.catalogue-types\s*\{\s*grid-template-columns:1fr/);
+});
