@@ -3909,7 +3909,14 @@ h1, .hero h1 {
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
       var seancesG = donnees.seances.filter(function (s) { return s.groupe === g; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
       var surveiller = aSurveiller(donnees);
-      corps = h('div', { className: 'pr-bloc' },
+      var totalB = lignes.reduce(function (t, b) { t.P += b.P; t.A += b.A; return t; }, { P: 0, A: 0 });
+      var tauxB = totalB.P + totalB.A ? Math.round(totalB.P * 100 / (totalB.P + totalB.A)) : null;
+      corps = h('div', { className: 'pr-bloc pr-bilan' },
+        h('div', { className: 'pr-bilan-entete' }, choixCat('pr-groupe-b'),
+          h('div', { className: 'pr-bilan-chiffres', role: 'group', 'aria-label': 'Synthèse du cours' },
+            [[nbS, 'Appels enregistrés'], [lignes.length, 'Licenciés'], [tauxB == null ? '—' : tauxB + ' %', 'Présence']].map(function (o) { return h('div', { key: o[1] }, h('strong', null, o[0]), h('span', null, o[1])); })),
+          h('p', { className: 'pr-mini' }, 'Historique du cours · ' + totalB.P + ' présences · ' + totalB.A + ' absences')),
+
         surveiller.length ? h('div', { className: 'pr-alerte', role: 'region', 'aria-label': 'Licenciés à surveiller' },
           h('strong', null, 'À surveiller : ' + surveiller.length + (surveiller.length > 1 ? ' licenciés absents' : ' licencié absent') + ' 3 fois de suite ou plus'),
           (function () {
@@ -3918,12 +3925,13 @@ h1, .hero h1 {
             return [h('ul', { key: 'a' }, surveiller.slice(0, 5).map(ligne)),
               surveiller.length > 5 ? h('details', { key: 'b' }, h('summary', null, 'Voir les ' + (surveiller.length - 5) + ' autres'), h('ul', null, surveiller.slice(5).map(ligne))) : null];
           })()) : null,
-        h('div', { className: 'pr-choix' }, choixCat('pr-groupe-b'),
-          h('div', { className: 'pr-compte' }, nbS + (nbS > 1 ? ' séances enregistrées' : ' séance enregistrée'))),
-        h('div', { className: 'pr-mois' },
-          h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mois' }, 'Bilan du mois en Excel'),
-            h('select', { id: 'pr-mois', value: moisSel, onChange: function (ev) { setMoisSel(ev.target.value); } }, moisDispo.map(function (m) { return h('option', { key: m, value: m }, moisTexte(m) + ' (' + donnees.seances.filter(function (x) { return x.date.slice(0, 7) === m; }).length + ' appels)'); }))),
-          h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterExcel(donnees, setMsg, moisSel); } }, 'Exporter le mois')),
+        h('h3', { className: 'pr-bilan-titre' }, 'Assiduité individuelle'),
+        h('ul', { className: 'pr-bilan-cartes', 'aria-label': 'Assiduité individuelle' }, lignes.map(function (b) {
+          return h('li', { key: b.j.id, className: 'pr-bilan-carte' },
+            h('div', { className: 'pr-bilan-ident' }, h(Avatar, { j: b.j }), h('span', { className: 'pr-ident' }, h('strong', null, nomComplet(b.j)), h('small', null, b.nb ? pluriel(b.nb, 'appel') : 'Aucun appel noté')), h('strong', { className: 'pr-bilan-taux' }, b.taux == null ? '—' : b.taux + ' %')),
+            h('div', { className: 'pr-bilan-detail' }, h('span', null, b.P + ' présent(s)'), h('span', null, b.A + ' absent(s)'), h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(b.j), onClick: function () { setSuiviId(b.j.id); } }, 'Suivi')),
+            b.taux == null ? null : h('progress', { className: 'pr-progression', max: 100, value: b.taux, 'aria-label': 'Taux de présence de ' + nomComplet(b.j) }));
+        })),
         h('div', { className: 'pr-tableau' }, h('table', null,
           h('thead', null, h('tr', null, [['Judoka', ''], ['Catégorie', 'pr-col-cat'], ['N° de licence', 'pr-col-lic'], ['Séances', 'num'], ['Présent', 'num'], ['Absent', 'num'], ['Taux', '']].map(function (t) { return h('th', { key: t[0], scope: 'col', className: t[1] }, t[0]); }))),
           h('tbody', null, lignes.map(function (b) {
@@ -3936,7 +3944,11 @@ h1, .hero h1 {
             h('span', { className: 'pr-etat ' + (s.validee ? 'ok' : 'encours') }, s.validee ? '✓ Validé' : 'Non validé'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setDate(s.date); setGroupe(s.groupe); setSelCours([s.groupe]); setVue('appel'); } }, 'Modifier'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: "Supprimer l'appel du " + dateFr(s.date) + ' (' + s.groupe + ') ?', action: function () { maj(Object.assign({}, donnees, { seances: donnees.seances.filter(function (x) { return x.id !== s.id; }) }), 'Appel supprimé.'); } }); } }, 'Supprimer'));
-        }))) : null);
+        }))) : null,
+        h('div', { className: 'pr-mois' },
+          h('div', { className: 'cs-champ' }, h('label', { htmlFor: 'pr-mois' }, 'Bilan du mois en Excel'),
+            h('select', { id: 'pr-mois', value: moisSel, onChange: function (ev) { setMoisSel(ev.target.value); } }, moisDispo.map(function (m) { return h('option', { key: m, value: m }, moisTexte(m) + ' (' + donnees.seances.filter(function (x) { return x.date.slice(0, 7) === m; }).length + ' appels)'); }))),
+          h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterExcel(donnees, setMsg, moisSel); } }, 'Exporter le mois')));
     } else if (vue === 'planning') {
       var parJour = {}; planning.slice().sort(triCreneaux).forEach(function (c) { (parJour[c.jour] = parJour[c.jour] || []).push(c); });
       corps = h('div', { className: 'pr-bloc pr-planning' },
@@ -7042,7 +7054,7 @@ h1, .hero h1 {
     // Passage d'une section à l'autre par les onglets : glissement latéral dans le sens de la barre (Judo → Taïso vers la droite…)
     function rangNav(k) { var i = NAV.map(function (o) { return o[0]; }).indexOf(k || ''); return i < 0 ? 2.5 : i; }
     var iNav = NAV.map(function (o) { return o[0]; }).indexOf(cle || '');
-    var onglets = h('nav', { className: 'onglets' + (iNav < 0 ? ' sans-actif' : ''), 'aria-label': 'Navigation principale', style: { '--i': Math.max(iNav, 0) } }, h('div', { className: 'onglets-marque', 'aria-hidden': 'true' }, h(Logo, { taille: 44 }), h('span', null, 'JSB Manager')), NAV.map(function (o) {
+    var onglets = h('nav', { className: 'onglets' + (iNav < 0 ? ' sans-actif' : '') + (cle === 'presences' ? ' onglets-presences' : ''), 'aria-label': 'Navigation principale', style: { '--i': Math.max(iNav, 0) } }, h('div', { className: 'onglets-marque', 'aria-hidden': 'true' }, h(Logo, { taille: 44 }), h('span', null, 'JSB Manager')), NAV.map(function (o) {
       var actif = (cle || '') === o[0], esp0 = ESPACES.filter(function (x) { return x.key === o[0]; })[0];
       return h('button', { key: o[2], type: 'button', className: 'onglet-nav', 'aria-current': actif ? 'page' : undefined, style: esp0 ? { '--c-nav': 'var(--' + esp0.couleur + ')' } : null,
         onClick: function () { if (!actif || f.sous) { if (!actif) memo.current.force = rangNav(o[0]) > rangNav(cle) ? 'va-avant' : 'va-arriere'; aller(o[0] || null); } } },
@@ -7269,7 +7281,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261124-v10a');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v11');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7305,6 +7317,6 @@ h1, .hero h1 {
 </style>
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261124-v10a">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v11">
 </body>
 </html>
