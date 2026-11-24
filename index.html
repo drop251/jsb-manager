@@ -7054,7 +7054,7 @@ h1, .hero h1 {
     // Passage d'une section à l'autre par les onglets : glissement latéral dans le sens de la barre (Judo → Taïso vers la droite…)
     function rangNav(k) { var i = NAV.map(function (o) { return o[0]; }).indexOf(k || ''); return i < 0 ? 2.5 : i; }
     var iNav = NAV.map(function (o) { return o[0]; }).indexOf(cle || '');
-    var onglets = h('nav', { className: 'onglets' + (iNav < 0 ? ' sans-actif' : ''), 'aria-label': 'Navigation principale', style: { '--i': Math.max(iNav, 0) } }, h('div', { className: 'onglets-marque', 'aria-hidden': 'true' }, h(Logo, { taille: 44 }), h('span', null, 'JSB Manager')), NAV.map(function (o) {
+    var onglets = h('nav', { className: 'onglets' + (iNav < 0 ? ' sans-actif' : '') + (cle === 'presences' ? ' onglets-presences' : ''), 'aria-label': 'Navigation principale', style: { '--i': Math.max(iNav, 0) } }, h('div', { className: 'onglets-marque', 'aria-hidden': 'true' }, h(Logo, { taille: 44 }), h('span', null, 'JSB Manager')), NAV.map(function (o) {
       var actif = (cle || '') === o[0], esp0 = ESPACES.filter(function (x) { return x.key === o[0]; })[0];
       return h('button', { key: o[2], type: 'button', className: 'onglet-nav', 'aria-current': actif ? 'page' : undefined, style: esp0 ? { '--c-nav': 'var(--' + esp0.couleur + ')' } : null,
         onClick: function () { if (!actif || f.sous) { if (!actif) memo.current.force = rangNav(o[0]) > rangNav(cle) ? 'va-avant' : 'va-arriere'; aller(o[0] || null); } } },
