@@ -3885,21 +3885,26 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
           h('button', { type: 'button', className: 'cs-btn', onClick: function () { exporterExcel(donnees, setMsg, moisSel); } }, 'Exporter le mois')));
     } else if (vue === 'planning') {
       var parJour = {}; planning.slice().sort(triCreneaux).forEach(function (c) { (parJour[c.jour] = parJour[c.jour] || []).push(c); });
+      var maintenant = new Date(), prochain = prochainsCreneaux(planning, 8).filter(function (c) { return new Date(c.date + 'T' + c.heure + ':00') > maintenant; })[0];
       corps = h('div', { className: 'pr-bloc pr-planning' },
-        h('p', { className: 'pr-mini' }, 'Indiquez vos créneaux de la semaine : à l\'heure du cours, l\'appel s\'ouvre directement sur les bons groupes, et l\'accueil affiche le prochain cours.'),
-        editCreneau ? h(EditionCreneau, { c: editCreneau, groupes: groupes, onEnregistrer: enregistrerCreneau, onAnnuler: function () { setEditCreneau(null); } }) : null,
+        h('div', { className: 'pr-planning-entete' }, h('h3', null, 'Semaine type'), h('p', { className: 'pr-mini' }, planning.length + ' créneau(x) · ' + Object.keys(parJour).length + ' jour(s) de cours'),
+          prochain ? h('div', { className: 'pr-prochain', role: 'group', 'aria-label': 'Prochain cours' }, h('small', null, 'Prochain cours'), h('strong', null, prochain.texte)) : null,
+          !editCreneau ? h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { setEditCreneau({ id: nouvelId(), jour: maintenant.getDay(), debut: '18:00', fin: '19:00', cours: groupes.slice(0, 1), nouveau: true }); } }, '+ Ajouter un créneau') : null),
+        editCreneau ? h(EditionCreneau, { key: editCreneau.id, c: editCreneau, groupes: groupes, onEnregistrer: enregistrerCreneau, onAnnuler: function () { setEditCreneau(null); } }) : null,
         ORDRE_JOURS.filter(function (j) { return parJour[j]; }).map(function (j) {
-          return h('div', { key: j, className: 'pr-jour' }, h('h3', null, JOURS[j]),
+          return h('div', { key: j, className: 'pr-jour' }, h('h3', null, JOURS[j], h('small', null, parJour[j].length + ' créneau(x)')),
             h('ul', { className: 'pr-liste' }, parJour[j].map(function (c) {
               return h('li', { key: c.id, className: 'pr-ligne pr-cren-ligne' },
-                h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, heureFr(c.debut) + (c.fin ? ' – ' + heureFr(c.fin) : '')), h('span', { className: 'pr-infos' }, c.cours.join(', '))),
-                h('div', { className: 'pr-ctrl' },
-                  h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Modifier le créneau ' + texteCreneau(c), onClick: function () { setEditCreneau(c); } }, 'Modifier'),
-                  h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer le créneau ' + texteCreneau(c), onClick: function () { setAConfirmer({ texte: 'Supprimer le créneau ' + texteCreneau(c) + ' ?', action: function () { supprimerCreneau(c); } }); } }, 'Supprimer')));
+                h('details', { className: 'pr-cren-fiche' }, h('summary', null,
+                  h('span', { className: 'pr-cren-heure' }, heureFr(c.debut), h('small', null, c.fin ? heureFr(c.fin) : 'Fin libre')),
+                  h('span', { className: 'pr-ident' }, h('strong', { className: 'pr-nomf' }, c.cours.join(', '))), h('span', { 'aria-hidden': 'true', className: 'pr-lic-chevron' }, '›')),
+                  h('div', { className: 'pr-ctrl' },
+                    h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Modifier le créneau ' + texteCreneau(c), onClick: function () { setEditCreneau(c); } }, 'Modifier'),
+                    h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Supprimer le créneau ' + texteCreneau(c), onClick: function () { setAConfirmer({ texte: 'Supprimer le créneau ' + texteCreneau(c) + ' ?', action: function () { supprimerCreneau(c); } }); } }, 'Supprimer'))));
             })));
         }),
-        !planning.length && !editCreneau ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun créneau'), h('span', null, 'Ajoutez par exemple « Mercredi 14 h – 15 h · Poussins ».')) : null,
-        editCreneau ? null : h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { setEditCreneau({ id: nouvelId(), jour: new Date().getDay(), debut: '18:00', fin: '19:00', cours: groupes.slice(0, 1), nouveau: true }); } }, '+ Ajouter un créneau'));
+        !planning.length && !editCreneau ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun créneau'), h('span', null, 'Ajoutez vos horaires de cours.')) : null,
+        h('p', { className: 'pr-mini' }, 'Le planning alimente automatiquement l’appel et le prochain cours de l’accueil.'));
     } else {
       var termeLic = cleTexte(rechercheLic);
       var correspondLic = function (j) { return !termeLic || cleTexte(nomComplet(j) + ' ' + (j.nom || '') + ' ' + (j.prenom || '') + ' ' + (j.licence || '')).indexOf(termeLic) >= 0; };
@@ -7228,7 +7233,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v12');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v13');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7251,6 +7256,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v12">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v13">
 </body>
 </html>
