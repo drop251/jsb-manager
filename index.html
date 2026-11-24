@@ -3785,7 +3785,7 @@ h1, .hero h1 {
       h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { aConfirmer.action(); setAConfirmer(null); } }, 'Confirmer'),
       h('button', { type: 'button', className: 'cs-btn', onClick: function () { setAConfirmer(null); } }, 'Annuler')) : null;
     // Fichiers : ouverts sur « Licenciés » et quand la liste est vide, repliés ailleurs ; sous la liste dans l'onglet Appel
-    var fichiers = h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: vue === 'judokas' || !donnees.judokas.length },
+    var fichiers = h('details', { key: 'fichiers-' + vue + (donnees.judokas.length ? '' : '-vide'), className: 'pr-fichiers', open: !donnees.judokas.length },
         h('summary', null, 'Fichiers : importer, exporter, sauvegarder'),
         h('div', { className: 'pr-actions' }, importBtn,
           h('button', { type: 'button', className: 'pr-action', disabled: !donnees.judokas.length, onClick: function () { exporterExcel(donnees, setMsg); } }, 'Exporter en Excel'),
@@ -3870,7 +3870,12 @@ h1, .hero h1 {
           h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Rechercher un nom', 'aria-label': 'Rechercher un licencié dans l\'appel', value: recherche, onChange: function (ev) { setRecherche(ev.target.value); } }),
           h('button', { type: 'button', className: 'pr-puce', 'aria-pressed': filtreANoter, onClick: function () { setFiltreANoter(!filtreANoter); } }, 'À noter', h('small', null, aNoter.length))) : null,
         h('div', { className: 'pr-compteur' },
-          h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés · ' + pluriel(compte.P, 'présent') + ' · ' + pluriel(compte.A, 'absent')),
+          h('div', { className: 'pr-progression' },
+            h('span', { 'aria-live': 'polite' }, h('b', null, nbNotes + ' / ' + inscrits.length), ' notés'),
+            inscrits.length ? h('progress', { value: nbNotes, max: inscrits.length, 'aria-label': 'Avancement de l’appel' }) : null),
+          h('div', { className: 'pr-indicateurs' }, [['Présents', compte.P, 'ok'], ['Absents', compte.A, 'ko'], ['À noter', aNoter.length, 'attente']].map(function (x) {
+            return h('span', { key: x[0], className: 'pr-stat ' + x[2] }, h('b', null, x[1]), x[0]);
+          })),
           appelValide || !aNoter.some(function (it) { return !coursVerrouille(it.c); }) ? null : h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { noter(aNoter.filter(function (it) { return !coursVerrouille(it.c); }).map(function (it) { return [it.j.id, it.c]; }), 'P'); } }, 'Autres présents')),
         !appelValide && inscrits.length && !nbNotes ? h('p', { className: 'pr-consigne' }, 'Choisissez ✓ pour présent ou ✕ pour absent ; retouchez le statut pour remettre à noter.') : null,
         h('ul', { className: 'pr-liste' }, visibles.map(function (it) {
@@ -3962,6 +3967,8 @@ h1, .hero h1 {
             return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
               h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null,
                 h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
+              h('details', { className: 'pr-gestion-licencie' },
+              h('summary', null, 'Gérer le licencié'),
               h('div', { className: 'pr-ctrl' },
               h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(j), onClick: function () { setSuiviId(j.id); } }, 'Suivi'),
               peutTaiso(j) ? h('label', { className: 'pr-act' }, 'Activité', h('select', { value: j.activite || 'judo', 'aria-label': 'Activité de ' + nomComplet(j), onChange: function (ev) { activite(j, ev.target.value); } },
@@ -3969,7 +3976,7 @@ h1, .hero h1 {
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
               j.autorisationPhoto ? h('label', { className: 'cs-btn mini pr-fichier' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Photo de ' + nomComplet(j), onChange: function (ev) { photo(j, ev); } }), j.photo ? 'Changer la photo' : 'Ajouter une photo') : null,
               h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: 'Retirer ' + nomComplet(j) + ' de la liste ? Ses présences passées seront aussi effacées.', action: function () {
-                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer')));
+                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer'))));
           })));
       }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer'));
     }
