@@ -3832,7 +3832,7 @@ h1, .hero h1 {
           h('span', null, 'Importez votre classeur Excel ou .csv : une ligne par licencié, avec Nom, Prénom, N° de licence et Date de naissance. Chacun est rangé automatiquement dans son cours.'),
           h('details', { className: 'pr-aide' }, h('summary', null, 'Colonnes et Taïso'), h('p', null, 'Cours : Éveils 4 ans, Éveils 5 ans, Pré-poussins, Poussins, Benjamins, Adultes à partir de minimes. Pour le Taïso (13 ans et +), ajoutez une colonne Activité contenant « Taïso » ou « Judo + Taïso ». Feuille de présences : une ligne par personne et une colonne par date (« 14/10/2026 » ou « 14/10 »), cases P/A, X, 1/0 ou présent/absent ; seuls les licenciés de la liste ayant un N° de licence sont gardés.')), importBtn), aide);
     }
-    var corps;
+    var corps, validationAppel = null;
     if (vue === 'appel') {
       // Appel : résumé en une ligne (réglages repliés), outils de recherche, puis la liste — une touche par licencié
       var correspond = function (c) { return c && coursAppel.join() === c.cours.filter(function (x) { return groupes.indexOf(x) >= 0; }).join(); };
@@ -3887,8 +3887,8 @@ h1, .hero h1 {
                     onClick: function () { noter([[j.id, it.c]], o[0]); } }, o[0] === 'P' ? '✓' : '✕');
                 }))));
         })),
-        cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null),
-        inscrits.length ? (appelValide
+        cle && !visibles.length ? h('p', { className: 'pr-mini' }, 'Personne ne correspond à « ' + recherche + ' ».') : null));
+      validationAppel = inscrits.length ? (appelValide
           ? h('div', { className: 'pr-valider pr-valide', role: 'status' },
               h('span', null, h('b', null, '✓ Appel validé le ' + quandValide(seancesAppel[0].validee)), ' · ' + pluriel(compte.P, 'présent') + ', ' + pluriel(compte.A, 'absent')),
               h('div', { className: 'gestion-actions' },
@@ -3903,7 +3903,7 @@ h1, .hero h1 {
                   h('button', { type: 'button', className: 'cs-btn', onClick: function () { setConfValider(false); } }, 'Annuler')))
             : h('div', { className: 'pr-valider' },
                 h('button', { type: 'button', className: 'pr-valider-btn', onClick: function () { setConfValider(true); } },
-                  h('span', null, "Valider l'appel"), h('small', null, compte.P + ' P · ' + compte.A + ' A' + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null);
+                  h('span', null, "Valider l'appel"), h('small', null, compte.P + ' P · ' + compte.A + ' A' + (aNoter.length ? ' · ' + aNoter.length + ' à noter' : ''))))) : null;
     } else if (vue === 'bilan') {
       var moisDispo = donnees.seances.map(function (x) { return x.date.slice(0, 7); }).concat([aujourdhui().slice(0, 7)]).filter(function (m, i, t) { return t.indexOf(m) === i; }).sort().reverse();
       var lignes = bilanDe(donnees, g), nbS = donnees.seances.filter(function (s) { return s.groupe === g; }).length;
@@ -4015,8 +4015,10 @@ h1, .hero h1 {
           h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { restaurerArchive(j); } }, 'Remettre'));
       }))) : null;
     var enBas = vue === 'appel';
-    return h('section', { className: 'pr' }, entetePr, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps, blocArchives,
-      enBas ? rappel : null, enBas ? fichiers : null, aide);
+    return h('section', { className: 'pr' }, entetePr,
+      h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps,
+        confValider || appelValide ? validationAppel : null, blocArchives, enBas ? rappel : null, enBas ? fichiers : null, aide),
+      !confValider && !appelValide ? validationAppel : null);
   }
   // ---- Ajout d'exercices depuis l'app : lecture d'un fichier (JSON, Excel, CSV), classement automatique
   // (public, catégorie d'âge, moment, catégorie, grade/niveau, famille de technique) et formes enfants.
@@ -7267,7 +7269,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261124-v9c');
+  document.documentElement.setAttribute('data-jsb-version', '20261124-v10');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7303,6 +7305,6 @@ h1, .hero h1 {
 </style>
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261124-v9c">
+<link rel="stylesheet" href="./ui/interface.css?v=20261124-v10">
 </body>
 </html>

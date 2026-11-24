@@ -547,25 +547,32 @@
 .pr .pr-consigne { font-size:.75rem; line-height:1.3; }
 .pr .pr-appel-defile { min-width:0; }
 .pr .pr-valider-btn { min-height:48px; }
+/* V10 — one bounded content scroller, tabs and validation outside it.
+   Controls and group selection scroll with the content on constrained screens. */
+.pr .pr-scroll { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.pr .pr-appel-defile { max-height:none; overflow:visible; }
+.pr > .pr-valider { margin:0; }
 @media (max-width:959px) {
-  /* Une seule zone défilante entre l'en-tête et la navigation réservée. */
-  .page.page-presences { height:100vh; height:100dvh; box-sizing:border-box; padding:0 0 calc(64px + env(safe-area-inset-bottom,0px)); overflow:hidden; }
-  .page-presences > .wrap:has(> .pr) { height:100%; min-height:0; display:flex; flex-direction:column; gap:8px; padding-bottom:0; }
-  .page-presences > .wrap > .appbar { position:relative; top:auto; flex:none; background:var(--bg); min-height:52px; padding-top:calc(4px + env(safe-area-inset-top,0px)); padding-bottom:4px; }
+  .page.page-presences { height:100vh; height:100dvh; box-sizing:border-box; padding:0 0 calc(58px + env(safe-area-inset-bottom,0px)); overflow:hidden; }
+  .page-presences > .wrap:has(> .pr) { height:100%; min-height:0; display:flex; flex-direction:column; gap:4px; padding-bottom:0; }
+  .page-presences > .wrap > .appbar { position:relative; top:auto; flex:none; background:var(--bg); min-height:48px; padding-top:calc(4px + env(safe-area-inset-top,0px)); padding-bottom:4px; }
   .page-presences .appbar-titre strong { font-size:1.0625rem; }
   .page-presences .appbar-titre small { font-size:.75rem; }
-  .page-presences .pr { flex:1 1 0; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; padding-bottom:8px; gap:8px; }
-  .page-presences .pr > * { flex:none; }
-  .page-presences .pr > .pr-barre { position:sticky; top:0; z-index:4; background:var(--bg); }
-  .page-presences .pr:has(.pr-appel) > .pr-appel { flex:0 0 auto; }
-  .page-presences .pr .pr-valider:not(.pr-valider-conf):not(.pr-valide) { position:sticky; bottom:0; z-index:3; background:var(--bg); padding:6px 0; }
-  .page-presences .pr .pr-appel { padding-bottom:0; }
-  .page-presences .pr .pr-resume { padding:10px 12px; }
-  .page-presences .pr .pr-groupe-titre { font-size:1.3rem; }
-  .page-presences .pr .pr-compteur { gap:5px; }
-  .page-presences .pr .pr-compteur .cs-btn.mini { min-height:44px; }
-  .page-presences .pr .pr-indicateur b { font-size:1.4rem; }
-  body:has(.page-presences .pr) .onglets { left:0; right:0; bottom:0; padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)); border-radius:0; border:0; border-top:1px solid var(--line); box-shadow:none; }
+  .page-presences .pr { flex:1 1 0; min-height:0; overflow:hidden; gap:4px; padding:0; }
+  .page-presences .pr:not(:has(> .pr-scroll)) { overflow-y:auto; }
+  .page-presences .pr > .pr-barre { position:static; flex:none; background:var(--bg); }
+  .page-presences .pr > .pr-scroll { flex:1 1 0; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; padding:4px 0 8px; gap:8px; }
+  .page-presences .pr-scroll > * { flex:none; }
+  .page-presences .pr .pr-appel-defile { max-height:none; overflow:visible; }
+  .page-presences .pr > .pr-valider { position:static; flex:none; z-index:auto; background:var(--bg); padding:4px 0; border:0; margin:0; }
+  .page-presences .pr .pr-valider-btn { background:var(--jsb-accent); color:var(--jsb-accent-on); border:0; min-height:44px; gap:2px 8px; padding:4px 8px; }
+  .page-presences .pr .pr-resume { padding:8px 12px; }
+  .page-presences .pr .pr-resume-txt { gap:2px; }
+  .page-presences .pr .pr-groupe-titre { font-size:1.25rem; }
+  .page-presences .pr .pr-compteur { gap:4px; }
+  .page-presences .pr .pr-indicateur b { font-size:1.35rem; }
+  body:has(.page-presences .pr) .onglets { box-sizing:border-box; height:calc(58px + env(safe-area-inset-bottom,0px)); left:0; right:0; bottom:0; padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)); border-radius:0; border:0; border-top:1px solid var(--line); box-shadow:none; }
+  body:has(.page-presences .pr) .onglets .onglet-nav { min-height:44px; padding:2px 0; gap:2px; }
   body:has(.page-presences .pr) .onglets::after { top:4px; bottom:calc(4px + env(safe-area-inset-bottom,0px)); }
 }
 @media (max-width:959px) and (prefers-color-scheme:dark) {
@@ -573,14 +580,4 @@
 }
 @media (max-width:959px) {
   :root[data-theme="dark"] body:has(.page-presences .pr) .onglets { background:#191d23; border-color:#303741; }
-}
-
-
-/* La validation reste hors du défilement de la liste ; le reste de la page
-   peut défiler sur les petits écrans ou si le réglage du groupe est ouvert. */
-@media (max-width:959px) and (min-height:620px) {
-  .page-presences .pr:has(.pr-appel):not(:has(.pr-reglage)):not(:has(.pr-valider-conf)):not(:has(.pr-valide)) .pr-appel-defile {
-    max-height:clamp(120px,calc(100dvh - 480px),640px); overflow-y:auto; overscroll-behavior-y:contain;
-  }
-  .page-presences .pr .pr-valider:not(.pr-valider-conf):not(.pr-valide) { position:static; }
 }

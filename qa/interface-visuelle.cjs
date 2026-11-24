@@ -210,6 +210,45 @@ fs.mkdirSync('qa-captures',{recursive:true});
     });
     assert.ok(focus.tag!=='BODY' && focus.outline!=='none' && focus.width>=2,JSON.stringify(focus));
     console.log('PASS interactions',engine,theme,JSON.stringify({forward,focus}));
+    // Recette d'appel peuplé : données fictives dans ce contexte navigateur isolé.
+    if(engine==='webkit'){
+      await page.evaluate(()=>{
+        const d=new Date(), an=d.getMonth()>=8?d.getFullYear():d.getFullYear()-1;
+        const judokas=Array.from({length:27},(_,i)=>({id:'qa-'+i,nom:'TEST '+String(i+1).padStart(2,'0'),prenom:'Licencié',licence:'QA-'+i,naissance:(an-4)+'-01-01'}));
+        judokas.push({id:'qa-autre',nom:'AUTRE',prenom:'Test',licence:'QA-A',naissance:(an-5)+'-01-01'});
+        localStorage.setItem('jsb-presences',JSON.stringify({judokas,seances:[],planning:[],sauvegardeLe:Date.now()}));
+      });
+      await page.goto(base,{waitUntil:'domcontentloaded'});
+      await nav.getByRole('button',{name:'Présences',exact:true}).click();
+      await page.locator('.pr-appel-ligne').first().waitFor({timeout:45000});
+      assert.equal(await page.locator('.pr-appel-ligne').count(),27);
+      const geometry=()=>page.evaluate(()=>{
+        const rect=s=>{const n=document.querySelector(s),r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
+        const sc=document.querySelector('.pr-scroll'), list=document.querySelector('.pr-appel-defile');
+        return {bar:rect('.appbar'),tabs:rect('.pr-barre'),scroll:rect('.pr-scroll'),footer:rect('.pr > .pr-valider'),nav:rect('.onglets'),scrollMode:getComputedStyle(sc).overflowY,listMode:getComputedStyle(list).overflowY,scrollTop:sc.scrollTop,scrollHeight:sc.scrollHeight,clientHeight:sc.clientHeight};
+      });
+      const before=await geometry();
+      assert.equal(before.scrollMode,'auto');
+      assert.equal(before.listMode,'visible');
+      assert.ok(before.bar.bottom<=before.tabs.top+1&&before.tabs.bottom<=before.scroll.top+1&&before.scroll.bottom<=before.footer.top+1&&before.footer.bottom<=before.nav.top+1,JSON.stringify(before));
+      assert.ok(before.scrollHeight>before.clientHeight,JSON.stringify(before));
+      await page.locator('.pr-scroll').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+      const after=await geometry();
+      assert.ok(after.scrollTop>0);
+      assert.equal(after.footer.top,before.footer.top);
+      assert.equal(after.tabs.top,before.tabs.top);
+      await page.locator('.pr-scroll').evaluate(el=>{el.scrollTop=0;});
+      await page.getByRole('button',{name:'Changer',exact:true}).click();
+      const panel=await page.locator('#pr-reglage').evaluate(el=>{
+        const r=el.getBoundingClientRect(),d=el.querySelector('input[type=date]').getBoundingClientRect();
+        return {height:r.height,inside:d.left>=r.left&&d.right<=r.right};
+      });
+      assert.ok(panel.height<300&&panel.inside,JSON.stringify(panel));
+      await snapshot('10-presences-reglages');
+      await page.getByRole('button',{name:'Fermer',exact:true}).click();
+      await snapshot('11-presences-appel');
+      console.log('PASS appel mobile peuplé',theme,JSON.stringify({before,after,panel}));
+    }
     assert.deepEqual(errors,[],'Exceptions JavaScript');
     console.log('PASS',engine,theme,JSON.stringify(metrics));
    } finally{await context.close();}
