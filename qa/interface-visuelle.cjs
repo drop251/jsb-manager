@@ -247,6 +247,20 @@ fs.mkdirSync('qa-captures',{recursive:true});
       await snapshot('10-presences-reglages');
       await page.getByRole('button',{name:'Fermer',exact:true}).click();
       await snapshot('11-presences-appel');
+      // File operations and season help belong to Licenciés, not Appel.
+      const files=page.locator('.pr-fichiers');
+      const season=page.locator('.pr-aide > summary').filter({hasText:'à propos du classement et de la sauvegarde'});
+      assert.equal(await files.count(),0);
+      assert.equal(await season.count(),0);
+      await page.getByRole('tab',{name:'Licenciés',exact:true}).click();
+      await files.waitFor({state:'visible'});
+      assert.equal(await files.count(),1);
+      assert.equal(await season.count(),1);
+      for(const label of ['Bilan','Planning','Appel']){
+        await page.getByRole('tab',{name:label,exact:true}).click();
+        assert.equal(await files.count(),0,label);
+        assert.equal(await season.count(),0,label);
+      }
       console.log('PASS appel mobile peuplé',theme,JSON.stringify({before,after,panel}));
     }
     assert.deepEqual(errors,[],'Exceptions JavaScript');
