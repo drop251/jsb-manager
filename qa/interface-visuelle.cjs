@@ -79,6 +79,36 @@ fs.mkdirSync('qa-captures',{recursive:true});
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
      await checkActiveNav();
+     if((label==='Taïso'||label==='Judo') && engine==='webkit'){
+      const layout=await page.evaluate(()=>{
+       const wrap=document.querySelector('.wrap:has(> .catalogue-types)');
+       if(!wrap)return null;
+       const rect=n=>{const r=n.getBoundingClientRect();return {x:r.left,right:r.right,y:r.top,w:r.width,h:r.height};};
+       const types=[...wrap.querySelectorAll('.catalogue-types > button')].map(rect);
+       const search=wrap.querySelector('.barre-recherche .cherche');
+       const filters=wrap.querySelector('.barre-recherche .filtres-btn');
+       const gen=wrap.querySelector('.barre-seance .gn-ouvrir');
+       const family=wrap.querySelector('.catalogue-familles');
+       const familyStyle=family&&getComputedStyle(family);
+       return {width:innerWidth,height:innerHeight,gap:getComputedStyle(wrap).gap,types,
+         search:rect(search),filters:rect(filters),gen:rect(gen),
+         searchFont:getComputedStyle(search).fontSize,
+         family:family?{height:rect(family).h,marginTop:familyStyle.marginTop,marginBottom:familyStyle.marginBottom}:null};
+      });
+      assert.ok(layout,'Catalogue absent');
+      assert.equal(layout.types.length,3);
+      assert.equal(layout.gap,'10px');
+      assert.ok(layout.types.every(t=>t.h>=44&&t.x>=0&&t.right<=layout.width+1),JSON.stringify(layout));
+      assert.ok(layout.types.every(t=>Math.abs(t.y-layout.types[0].y)<2),'Types sur plusieurs rangées');
+      for(const r of [layout.search,layout.filters,layout.gen])assert.ok(r.h>=44&&r.x>=0&&r.right<=layout.width+1,JSON.stringify(layout));
+      assert.ok(parseFloat(layout.searchFont)>=16,'Champ de recherche inférieur à 16px');
+      if(layout.family){assert.equal(layout.family.marginTop,'0px');assert.equal(layout.family.marginBottom,'0px');}
+      await page.getByRole('button',{name:'Filtres',exact:true}).click();
+      await page.getByRole('dialog',{name:'Filtres',exact:true}).waitFor({state:'visible'});
+      await page.getByRole('button',{name:'Fermer les filtres',exact:true}).click();
+      await page.getByRole('dialog',{name:'Filtres',exact:true}).waitFor({state:'hidden'});
+      console.log('PASS catalogue mobile',theme,label,JSON.stringify(layout));
+     }
      if(label==='Présences'){
       await page.getByRole('tablist',{name:'Présences',exact:true}).waitFor({state:'visible',timeout:45000});
       assert.equal(await page.getByText('Chargement des présences…',{exact:true}).count(),0);
