@@ -1922,14 +1922,16 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   var CLE_AFFICHAGE = 'jsb-affichage';
   var TAILLES_TEXTE = [[0, 'Système'], [100, 'Standard'], [115, 'Grand'], [130, 'Très grand'], [160, 'Énorme'], [200, 'Maximal']];
   function lireAffichage() {
-    var d = { texte: 100, vibrations: true, contraste: false, animations: false };
+    var d = { texte: 100, vibrations: true, contraste: false, animations: false, theme: 'system' };
     try { var x = JSON.parse(localStorage.getItem(CLE_AFFICHAGE) || '{}'); for (var k in d) if (x && x[k] !== undefined) d[k] = x[k];
       if (x && x.v !== 2 && d.texte === 0) d.texte = 100;  // l'ancien réglage par défaut « Système » grossissait trop le texte sur iPhone
     } catch (e) {}
+    if (['system', 'light', 'dark'].indexOf(d.theme) < 0) d.theme = 'system';
     return d;
   }
   function appliquerAffichage(a) {
     var r = document.documentElement, ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (a.theme === 'light' || a.theme === 'dark') r.setAttribute('data-theme', a.theme); else r.removeAttribute('data-theme');
     // « Système » : suit la taille du texte du téléphone (Dynamic Type sur iOS, réglage du navigateur ailleurs)
     if (!a.texte) { r.style.fontSize = ''; if (ios && window.CSS && CSS.supports('font', '-apple-system-body')) r.style.font = '-apple-system-body'; else r.style.font = ''; }
     else { r.style.font = ''; r.style.fontSize = a.texte + '%'; }
@@ -1994,6 +1996,11 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     }
     return h('div', { className: 'rg' },
       h('h2', { tabIndex: -1, ref: function (n) { if (n) n.focus(); } }, 'Affichage et accessibilité'),
+      h('fieldset', null, h('legend', null, 'Thème'),
+        h('div', { className: 'rg-tailles rg-themes' }, [['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']].map(function (t) {
+          return h('label', { key: t[0], className: 'rg-taille' }, h('input', { type: 'radio', name: 'rg-theme', checked: a.theme === t[0], onChange: function () { maj({ theme: t[0] }); annoncer('Thème : ' + t[1]); } }), t[1]);
+        })),
+        h('p', { className: 'rg-note' }, 'Système suit automatiquement le thème de votre appareil.')),
       h('fieldset', null, h('legend', null, 'Taille du texte'),
         h('div', { className: 'rg-tailles' }, TAILLES_TEXTE.map(function (t) {
           return h('label', { key: t[0], className: 'rg-taille' },
@@ -2005,7 +2012,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('vibrations', 'Vibrations', 'Un retour discret quand vous notez une présence ou ajoutez un exercice.'),
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
-      h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil. Le mode sombre suit celui du téléphone.'));
+      h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
 
   // Squelette de liste pendant un chargement
@@ -7233,7 +7240,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v13');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v14');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7256,6 +7263,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v13">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v14">
 </body>
 </html>
