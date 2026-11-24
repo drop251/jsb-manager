@@ -476,3 +476,22 @@
 }
 :root[data-texte-grand] .pr .pr-onglets[role=tablist] { grid-template-columns:repeat(2,minmax(0,1fr)); }
 :root[data-texte-grand] .pr .pr-appel-btn { flex-wrap:wrap; }
+
+
+/* V8 — hiérarchie du groupe et indicateurs d'appel sans cartes redondantes. */
+.pr .pr-resume { padding:14px 12px; border-radius:16px; }
+.pr .pr-resume-txt { display:flex; flex-direction:column; gap:4px; }
+.pr .pr-groupe-titre { font-size:1.5rem; line-height:1.2; font-weight:700; overflow-wrap:anywhere; }
+.pr .pr-groupe-effectif { color:var(--muted); font-size:.875rem; }
+.pr .pr-compteur { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.pr .pr-indicateurs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.pr .pr-indicateur { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.pr .pr-indicateur b { font-size:1.65rem; line-height:1.15; font-variant-numeric:tabular-nums; }
+.pr .pr-indicateur small { font-size:.8125rem; color:var(--muted); overflow-wrap:anywhere; }
+.pr .pr-progression { width:100%; height:4px; border:0; border-radius:99px; overflow:hidden; appearance:none; background:var(--chip); accent-color:var(--jsb-accent-ink); }
+.pr .pr-progression::-webkit-progress-bar { background:var(--chip); }
+.pr .pr-progression::-webkit-progress-value { background:var(--jsb-accent-ink); border-radius:99px; }
+.pr .pr-progression::-moz-progress-bar { background:var(--jsb-accent-ink); border-radius:99px; }
+.pr .pr-compteur .cs-btn.mini { align-self:flex-end; white-space:normal; text-align:right; }
+:root[data-theme="dark"] body:has(.pr) { background:#0e1014; }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) body:has(.pr) { background:#0e1014; } }
