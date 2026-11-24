@@ -1,0 +1,27 @@
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+
+.catalogue-familles { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.catalogue-familles h2 { font-size: 1rem; margin: 0 0 12px; }
+.catalogue-familles .champ { margin-top: 12px; }
+.catalogue-groupe { grid-column: 1 / -1; font-size: 1.125rem; margin: 20px 0 4px; }
+.catalogue-groupe-nombre { color: var(--muted); font-size: .875em; font-weight: 500; }
+.mode-liste .catalogue-groupe { padding: 8px 16px; margin: 0; background: var(--chip); }
+.fiche-outils { border-top: 1px solid var(--line); padding: 16px 0; }
+.fiche-outils summary, .filtres-panneau summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
+
+
+.cs-essentiels h3 { margin: 16px 0 8px; }
+.cs-essentiels { padding-bottom: 16px; }
+.cs-etat { padding: 12px 16px; margin: 12px 0; border-radius: 12px; background: var(--chip); }
+.cs-principales { margin: 8px 0 16px; }
+.cs-principales .cs-btn { flex: 1 1 180px; min-height: 48px; }
+.cs-outils summary, .cs-phase-options summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.cs-outils[open] { display: grid; gap: 8px; }
+.cs-phase-options { margin-bottom: 8px; }
+
+body:has([role="dialog"][aria-modal="true"]), body:has([role="alertdialog"][aria-modal="true"]) { overflow: hidden; }
+.media-a-revoir { display:flex; align-items:center; justify-content:center; min-height:120px; padding:16px; box-sizing:border-box; background:var(--chip); color:var(--muted); font:inherit; text-align:center; } .sd .media-a-revoir { background:#283345; color:#fff; }
+/* Catalogue temporairement sans illustrations. */
+.et-visuel,.sd-illus { display:none; }
+.et-corps,.mode-liste .carte { grid-template-columns:minmax(0,1fr); }
+.mode-liste .carte > :not(.illus) { grid-column:1; }
