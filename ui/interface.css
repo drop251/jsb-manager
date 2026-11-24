@@ -683,3 +683,8 @@
 .rg .rg-themes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
 .rg .rg-themes .rg-taille { min-height:44px; min-width:0; justify-content:center; flex-wrap:wrap; }
 @media (max-width:359px) { .rg .rg-themes { grid-template-columns:1fr; } }
+
+/* Theme controls use visible native radio indicators, not generated labels. */
+.rg .rg-themes .rg-taille input { position:static; opacity:1; width:18px; height:18px; flex:none; accent-color:var(--jsb-accent-ink); margin:0; }
+.rg .rg-themes .rg-taille { gap:6px; }
+.rg .rg-themes .rg-taille:has(input:checked)::before { content:none; }
