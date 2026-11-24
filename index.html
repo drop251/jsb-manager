@@ -3611,6 +3611,8 @@ h1, .hero h1 {
     var s15 = React.useState(''), recherche = s15[0], setRecherche = s15[1];
     var s16 = React.useState(false), filtreANoter = s16[0], setFiltreANoter = s16[1];
     var s17 = React.useState(null), selCren = s17[0], setSelCren = s17[1];
+    var sLic = React.useState(''), rechercheLic = sLic[0], setRechercheLic = sLic[1];
+    var sFiltreLic = React.useState(''), filtreLic = sFiltreLic[0], setFiltreLic = sFiltreLic[1];
     if (!donnees) return h('section', { className: 'pr' }, h('p', { className: 'sr-seul', role: 'status' }, 'Chargement des présences…'), h(Squelette, { n: 6 }));
     var saison = debutSaison() + '-' + (debutSaison() + 1);
     var parCat = {};
@@ -3794,7 +3796,7 @@ h1, .hero h1 {
       h('div', { className: 'pr-onglets', role: 'tablist', 'aria-label': 'Présences' }, [['appel', 'Appel'], ['bilan', 'Bilan'], ['judokas', 'Licenciés'], ['planning', 'Planning']].map(function (o) {
         return h('button', { key: o[0], type: 'button', role: 'tab', 'aria-selected': vue === o[0], className: 'pr-onglet', onClick: function () { setVue(o[0]); setMsg(''); } }, o[1]);
       })),
-      vue === 'judokas' ? fichiers : null,
+      vue === 'judokas' && !donnees.judokas.length ? fichiers : null,
       etatEcriture ? h('span', { className: 'pr-mini', role: 'status', 'aria-live': 'polite' }, etatEcriture) : null);
     var aide = h('details', { className: 'pr-aide' }, h('summary', null, 'Saison ' + saison + ' · à propos du classement et de la sauvegarde'), h('p', null, 'Saison ' + saison + ' : cours et catégories sont calculés d\'après l\'année de naissance et changent automatiquement à chaque saison (début en septembre). Les présences sont enregistrées sur cet appareil uniquement' + (protege ? ', dans un stockage protégé contre l\'effacement automatique' : protege === false ? ' ; le navigateur n\'a pas accordé de stockage protégé, il peut les effacer après une longue période sans visite' : '') + '. La « Sauvegarde » (fichier chiffré par votre mot de passe, photos et planning compris) se range dans iCloud Drive ou Google Drive et se restaure avec « Restaurer une sauvegarde », sur cet appareil ou un autre ; l\'app garde aussi seule 7 versions automatiques ; l\'export Excel sert au bilan et se réimporte aussi, sans les photos.'));
     var panneauMdp = demandeMdp ? h(DemandeMdp, { erreur: demandeMdp.erreur, onOuvrir: function (m) { ouvrirChiffre(demandeMdp.c, m); }, onAnnuler: function () { setDemandeMdp(null); } }) : null;
@@ -3967,13 +3969,26 @@ h1, .hero h1 {
         !planning.length && !editCreneau ? h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun créneau'), h('span', null, 'Ajoutez par exemple « Mercredi 14 h – 15 h · Poussins ».')) : null,
         editCreneau ? null : h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { setEditCreneau({ id: nouvelId(), jour: new Date().getDay(), debut: '18:00', fin: '19:00', cours: groupes.slice(0, 1), nouveau: true }); } }, '+ Ajouter un créneau'));
     } else {
-      corps = h('div', { className: 'pr-bloc' }, groupes.map(function (x) {
-        var js = parCat[x].slice().sort(triJudokas);
+      var termeLic = cleTexte(rechercheLic);
+      var correspondLic = function (j) { return !termeLic || cleTexte(nomComplet(j) + ' ' + (j.nom || '') + ' ' + (j.prenom || '') + ' ' + (j.licence || '')).indexOf(termeLic) >= 0; };
+      var coursLic = groupes.filter(function (x) { return !filtreLic || x === filtreLic; });
+      var nbLic = actifs.filter(function (j) { return correspondLic(j) && (!filtreLic || coursListe(j).indexOf(filtreLic) >= 0); }).length;
+      corps = h('div', { className: 'pr-bloc pr-licencies' },
+        h('div', { className: 'pr-lic-outils' },
+          h('h3', null, 'Licenciés actifs'),
+          h('p', { className: 'pr-mini', role: 'status' }, nbLic + ' / ' + actifs.length + ' licenciés'),
+          h('input', { type: 'search', className: 'pr-cherche', placeholder: 'Nom, prénom ou licence', 'aria-label': 'Rechercher un licencié', value: rechercheLic, onChange: function (ev) { setRechercheLic(ev.target.value); } }),
+          h('label', { className: 'cs-champ' }, 'Filtrer par cours', h('select', { value: filtreLic, onChange: function (ev) { setFiltreLic(ev.target.value); } },
+            h('option', { value: '' }, 'Tous les cours'), groupes.map(function (x) { return h('option', { key: x, value: x }, x); })))),
+        !nbLic ? h('p', { className: 'pr-mini' }, 'Aucun licencié ne correspond à la recherche.') : null,
+        coursLic.map(function (x) {
+        var js = parCat[x].filter(correspondLic).sort(triJudokas);
+        if (!js.length) return null;
         return h('div', { key: x, className: 'pr-groupe' }, h('h3', null, x, h('small', null, js.length + (js.length > 1 ? ' judokas' : ' judoka') + (anneesCat(x) ? ' · ' + anneesCat(x) : ''))),
           h('ul', { className: 'pr-liste' }, js.map(function (j) {
-            return h('li', { key: j.id, className: 'pr-ligne' }, h(Avatar, { j: j }),
+            return h('li', { key: j.id, className: 'pr-ligne pr-lic-ligne' }, h('details', { className: 'pr-lic-fiche' }, h('summary', { className: 'pr-lic-resume' }, h(Avatar, { j: j }),
               h('span', { className: 'pr-ident' }, h('span', { className: 'pr-nomf' }, h('span', { className: 'pr-prenom' }, j.prenom), ' ', (j.nom || '').toUpperCase()), h('span', { className: 'pr-cat' }, catDe(j)), j.essai ? h('span', { className: 'pr-cat pr-essai' }, 'À l\'essai') : null,
-                h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))),
+                h('span', { className: 'pr-infos' }, 'Licence ' + (j.licence || 'non renseignée') + ' · ' + (j.naissance ? 'né(e) le ' + dateFr(j.naissance) : 'date de naissance non renseignée') + (j.photo && !j.autorisationPhoto ? ' · autorisation photo à confirmer' : ''))), h('span', { className: 'pr-lic-chevron', 'aria-hidden': 'true' }, '›')),
               h('div', { className: 'pr-ctrl' },
               h('button', { type: 'button', className: 'cs-btn mini', 'aria-label': 'Suivi de ' + nomComplet(j), onClick: function () { setSuiviId(j.id); } }, 'Suivi'),
               peutTaiso(j) ? h('label', { className: 'pr-act' }, 'Activité', h('select', { value: j.activite || 'judo', 'aria-label': 'Activité de ' + nomComplet(j), onChange: function (ev) { activite(j, ev.target.value); } },
@@ -3981,9 +3996,9 @@ h1, .hero h1 {
               h('label', { className: 'pr-act pr-autor' }, h('input', { type: 'checkbox', checked: !!j.autorisationPhoto, onChange: function (ev) { autorisation(j, ev.target.checked); } }), 'Autorisation photo'),
               j.autorisationPhoto ? h('label', { className: 'cs-btn mini pr-fichier' }, h('input', { type: 'file', accept: 'image/*', 'aria-label': 'Photo de ' + nomComplet(j), onChange: function (ev) { photo(j, ev); } }), j.photo ? 'Changer la photo' : 'Ajouter une photo') : null,
               h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setAConfirmer({ texte: 'Retirer ' + nomComplet(j) + ' de la liste ? Ses présences passées seront aussi effacées.', action: function () {
-                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer')));
+                maj({ sauvegardeLe: donnees.sauvegardeLe, judokas: donnees.judokas.filter(function (y) { return y.id !== j.id; }), seances: donnees.seances.map(function (s) { var st = Object.assign({}, s.statuts); delete st[j.id]; return Object.assign({}, s, { statuts: st }); }), planning: donnees.planning }, 'Judoka retiré.', 'Avant retrait d\'un judoka'); } }); } }, 'Retirer'))));
           })));
-      }), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer'));
+      }), h('details', { className: 'pr-lic-danger' }, h('summary', null, 'Gestion avancée'), h('button', { type: 'button', className: 'cs-btn pr-effacer', onClick: function () { setAConfirmer({ texte: 'Effacer toute la liste des judokas et toutes les présences de cet appareil ?', action: function () { maj({ judokas: [], seances: [], planning: donnees.planning || [] }, 'Tout a été effacé.', 'Avant effacement'); } }); } }, 'Tout effacer')));
     }
     var panneauMaj = null, jSuivi = suiviId ? donnees.judokas.filter(function (x) { return x.id === suiviId; })[0] : null;
     if (jSuivi && !miseAJour) {
@@ -4028,7 +4043,7 @@ h1, .hero h1 {
       }))) : null;
     var enBas = vue === 'appel';
     return h('section', { className: 'pr' }, entetePr,
-      h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, corps,
+      h('div', { className: 'pr-scroll', key: vue }, enBas ? null : rappel, h('div', { className: 'cs-msg', role: 'status' }, msg), confirmation, panneauMdp, panneauSauvegarde, panneauImport, panneauMaj, vue === 'judokas' ? fichiers : null, corps,
         confValider || appelValide ? validationAppel : null, blocArchives, enBas ? rappel : null, vue === 'judokas' ? aide : null),
       !confValider && !appelValide ? validationAppel : null);
   }
@@ -7281,7 +7296,7 @@ h1, .hero h1 {
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v11');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v12');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7317,6 +7332,6 @@ h1, .hero h1 {
 </style>
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v11">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v12">
 </body>
 </html>
