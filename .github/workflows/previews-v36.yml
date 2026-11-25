@@ -17,7 +17,7 @@ jobs:
       - name: Installer le navigateur de recette
         run: |
           npm install --prefix "$RUNNER_TEMP/jsb-preview-ci" --no-save --no-package-lock playwright@1.51.1
-          "$RUNNER_TEMP/jsb-preview-ci/node_modules/.bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/jsb-preview-ci/node_modules/.bin/playwright" install --with-deps chromium webkit
       - name: Recette des deux interfaces
         env:
           NODE_PATH: ${{ runner.temp }}/jsb-preview-ci/node_modules
