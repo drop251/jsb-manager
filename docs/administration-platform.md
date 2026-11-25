@@ -57,3 +57,30 @@ L'expérience utilisateur doit rester simple sans affaiblir la sécurité. Coach
 | Paiement éventuel | Prestataire de paiement, validation serveur des notifications, idempotence, aucun stockage des données carte | Conditionnel, à implémenter |
 
 Les tests de politique pure ne valent pas tests d'intégration, d'authentification, de stockage ou de sécurité réseau. La publication grand public est bloquée tant que les contrôles applicables ne sont pas implémentés et testés côté serveur et navigateur. Les contrôles commerciaux restent conditionnels à l'offre retenue. Aucune collecte nouvelle n'est activée par ce document.
+
+## Gestion multicomptes — JSB Manager grand public
+Depuis Réglages > Gestion des comptes, proposer : compte actif, comptes mémorisés sur cet appareil, Ajouter un compte existant, Créer un nouveau compte, Changer de compte, Retirer un compte de cet appareil, Se déconnecter et Se déconnecter de tous les comptes de cet appareil. La suppression définitive relève d'un parcours distinct, authentifié, explicite et soumis aux règles de conservation à définir.
+
+- Une seule identité active à la fois dans une instance de JSB Manager. Coach et Particulier sont deux comptes distincts, avec des adresses e-mail uniques selon le modèle actuel. Aucun changement de rôle local. Aucun compte Administrateur dans cette liste, dans l'inscription ou dans la connexion publique.
+- Première livraison : mémoriser uniquement des indications non secrètes de compte, avec accord explicite de l'utilisateur et option appareil partagé sans mémorisation. Réauthentification lors du changement de compte ; pas de mot de passe, jeton de session ou jeton de renouvellement conservé dans localStorage/IndexedDB. La session web active doit utiliser un cookie serveur HttpOnly, Secure et une protection CSRF adaptée. Pas de connexion silencieuse. Une optimisation biométrique native éventuelle exige une étude séparée.
+- Création d'un nouveau compte depuis les réglages : conserver l'identité active tant que le parcours d'inscription et de vérification n'est pas terminé ; ne pas confondre inscription et changement de compte. Le basculement exige une authentification réussie du compte cible et une confirmation explicite.
+- Avant le changement : terminer ou bloquer les écritures en cours, signaler les modifications non enregistrées et les synchronisations en attente, laisser choisir de rester sur le compte actuel. Aucun transfert automatique des données vers le compte cible.
+- Pendant le changement : bloquer la navigation privée, invalider les requêtes, abonnements et réponses tardives de l'ancien contexte, isoler les caches, brouillons, files hors ligne, exports, états UI et données par identifiant serveur et club autorisé. Ne charger l'espace cible qu'après confirmation de son identité par le serveur. En cas d'échec, conserver l'ancien contexte uniquement si sa session est encore valide, sinon revenir à un écran verrouillé.
+- Le changement de compte et la déconnexion révoquent la session de cet appareil, pas celles des autres appareils. La déconnexion de tous les appareils, si proposée, est une action distincte nécessitant une preuve récente. Retirer un compte de l'appareil ne supprime pas le compte distant ; supprimer ses métadonnées locales et purger les données locales associées selon un parcours avertissant des écritures non synchronisées.
+- Hors ligne : aucun changement d'identité ni authentification simulée ; l'accès hors ligne éventuel est limité au dernier espace autorisé selon une politique dédiée et doit rester verrouillé après déconnexion. Ne jamais exposer le cache d'un autre compte, même après fermeture, retour navigateur, rechargement ou changement d'onglet.
+- Déploiement : la PWA historique reste intacte ; aucune migration, suppression ou activation de comptes automatique. L'interface et l'API multicomptes sont à implémenter et à tester avant publication.
+
+### Recette multicomptes obligatoire
+| Scénario | Attendu |
+|---|---|
+| Ajouter ou créer un compte depuis les réglages | Sans relancer l'application |
+| Coach A vers Particulier B, puis retour A | Identité serveur vérifiée, données propres à chaque compte |
+| Mot de passe incorrect, session expirée ou compte suspendu | Aucun basculement non autorisé |
+| Tentative de connexion Administrateur via la version publique | Refus avant émission d'une session |
+| Requête ou synchronisation tardive du compte A après changement vers B | Ni affichage ni écriture dans B |
+| Changement avec brouillon ou file non synchronisée | Avertissement et choix explicite, aucune perte silencieuse |
+| Changement hors ligne ou entre plusieurs onglets | Refus hors ligne, verrouillage et resynchronisation des onglets |
+| Déconnexion, retour navigateur, rechargement et réouverture | Aucune fuite de données privées |
+| Retirer un compte de l'appareil | Métadonnées locales retirées, compte distant intact |
+| Déconnexion de cet appareil | Autres appareils non affectés |
+| Suppression définitive | Parcours séparé, confirmation et réauthentification ; pas d'activation avant politique de conservation |
