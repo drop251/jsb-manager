@@ -1,6 +1,45 @@
 /* JSB Manager V32 — moteur taiso, sans DOM ni stockage. Les services métier sont injectés. */
 (function (root) {
   'use strict';
+  // V34 : règles de sélection Taïso indépendantes du DOM.
+  function creerSelection(deps) {
+    var sansA = deps.sansA, NIVEAUX_TAISO = deps.NIVEAUX_TAISO;
+  function supervisionRequiseTaiso(e) {
+    if (!e) return false;
+    if (e.supervisionRequise === true || e.supervisionRequise === 1 || /^(oui|true|1)$/i.test(String(e.supervisionRequise || ''))) return true;
+    var tags = Array.isArray(e.tags) ? e.tags.join(', ') : String(e.tags || '');
+    return /supervision obligatoire|encadrement obligatoire|encadrant requis|supervision requise/.test(sansA(tags + ' ' + (e.vigilance || '') + ' ' + (e.accessibilite || '')));
+  }
+  function okTaiso(e, rep) {
+    if (supervisionRequiseTaiso(e) && (!rep || rep.supervision !== true)) return false;
+    if (evite(e, rep.contraintes)) return false;
+    var eq = (e.equipement || '').split(' + ').filter(Boolean), aDeux = e.format === 'Binôme' || eq.indexOf('Partenaire') >= 0;
+    if (aDeux && !rep.binome) return false;
+    if (rep.sansMateriel) return eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami'; });
+    return !(rep.materiel && rep.materiel.length) || eq.every(function (x) { return x === 'Poids du corps' || x === 'Tatami' || x === 'Partenaire' || rep.materiel.some(function (m) { return m === x || (/elastique|\bbande\b/.test(sansA(m)) && /elastique|\bbande\b/.test(sansA(x))); }); });
+  }
+  function estImpact(e) { return /^Pliom/.test(e.categorie || ''); }
+  function niveauOk(e, niveau) { var r = NIVEAUX_TAISO.indexOf(e.niveau), max = NIVEAUX_TAISO.indexOf(niveau || 'Confirmé'); return r >= 0 && max >= 0 && r <= max; }
+  function niveauEffectifTaiso(rep) {
+    if (!rep || rep.groupe === 'Gym douce') return 'Débutant';
+    return NIVEAUX_TAISO.indexOf(rep.niveau) >= 0 ? rep.niveau : niveauParDefaut(rep.groupe);
+  }
+  function niveauParDefaut(groupe) { return groupe === 'Gym douce' ? 'Débutant' : 'Intermédiaire'; }
+  function evite(e, liste) {
+    if (!liste || !liste.length) return false;
+    var vig = sansA((e.vigilance || '') + ' ' + (e.precaution || '')), nom = sansA(e.nom), tout = sansA(e.nom + ' ' + e.description);
+    return liste.some(function (c) {
+      if (c === 'Genoux') return /genou|rotul/.test(vig) || /fente|squat saute|pistol|accroupi|saut/.test(nom);
+      if (c === 'Dos') return /lombaire|dos rond|rachis|disque|vertebr/.test(vig) || /souleve de terre|good morning|superman|releve de buste|sit-up|roll up|enroule|teaser|bateau|navasana/.test(nom);
+      if (c === 'Épaules') return /epaule|acromial|coiffe/.test(vig) || /pompe|developpe|dips|burpee|planche|bear|ours/.test(nom);
+      if (c === 'Poignets') return /poignet/.test(vig) || /pompe|planche|quadrupedie|quatre pattes|burpee|ours|crabe|appui sur les mains/.test(tout);
+      if (c === 'Sauts') return estImpact(e) || /saut|sautill|jumping|bond|corde a sauter|burpee/.test(nom);
+      if (c === 'Passage au sol') return /allonge|au sol|sur le dos|sur le ventre|a plat ventre|quatre pattes|couche|tatami|genoux au sol|assis au sol|planche|pont|gainage dorsal|superman|crunch|bird|chat|cobra|enfant|savasana|supta|torsion couchee/.test(tout) && !/chaise|debout/.test(nom);
+      return false;
+    });
+  }
+    return { supervisionRequiseTaiso: supervisionRequiseTaiso, okTaiso: okTaiso, estImpact: estImpact, niveauOk: niveauOk, niveauEffectifTaiso: niveauEffectifTaiso, niveauParDefaut: niveauParDefaut, evite: evite };
+  }
   function creerMoteur(deps) {
     var hasard = deps.hasard,
         niveauEffectifTaiso = deps.niveauEffectifTaiso,
@@ -95,7 +134,7 @@
   }
     return { genererSeanceTaiso: genererSeanceTaiso };
   }
-  var api = { creerMoteur: creerMoteur };
+  var api = { creerMoteur: creerMoteur, creerSelection: creerSelection };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.JSBMoteurTaiso = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

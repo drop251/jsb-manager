@@ -165,12 +165,12 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
     construireBlocs:()=>[],zonesTravaillees:()=>({}),compatibleDosageJudo:()=>true
   };
   vm.createContext(ctx);
-  vm.runInContext(fonction('okTaiso'),ctx);
+  Object.assign(ctx, require('../modules/taiso.js').creerSelection({sansA:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),NIVEAUX_TAISO:['Débutant','Intermédiaire','Confirmé','Expert']}));
   vm.runInContext(fonction('repartirDurees'),ctx);
   ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
   ctx.genererSeanceJudo=require('../modules/judo.js').creerMoteur(ctx).genererSeanceJudo;
   vm.runInContext(fonction('genererSeance'),ctx);
-  const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
+  const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité',niveau:'Débutant'}];
   all.push({...all[0],id:99,typeFiche:'Technique'}, {...all[0],id:98,public:['Taïso']}, {...all[0],id:97,public:['Judo']});
   for(const duree of [45,60,75,90]){
     for(const judo of [true,false]){
@@ -218,7 +218,7 @@ test('Judo objectives are pedagogical and prioritize relevant exercises without 
 });
 
 test('Taiso material filter supports a truly equipment-free session',()=>{
-  const ctx={evite:()=>false,supervisionRequiseTaiso:()=>false};vm.createContext(ctx);vm.runInContext(fonction('okTaiso'),ctx);
+  const ctx={evite:()=>false,supervisionRequiseTaiso:()=>false};vm.createContext(ctx);Object.assign(ctx, require('../modules/taiso.js').creerSelection({sansA:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),NIVEAUX_TAISO:['Débutant','Intermédiaire','Confirmé','Expert']}));
   const rep={sansMateriel:true,binome:false,contraintes:[]};
   assert.equal(ctx.okTaiso({equipement:'Tatami',format:'Solo'},rep),true);
   assert.equal(ctx.okTaiso({equipement:'Kettlebell',format:'Solo'},rep),false);

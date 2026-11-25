@@ -23,6 +23,7 @@ const ctx={
  zonesTravaillees:()=>({}), cibleZones:()=>0
 };
 vm.createContext(ctx);vm.runInContext(source,ctx);
+Object.assign(ctx, require('../modules/taiso.js').creerSelection(ctx));
 ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
 const mk=(id,props={})=>({id,nom:'Test '+id,public:['Taïso'],sousGroupes:['Gym douce','Training'],niveau:'Débutant',categorie:'Renforcement',moments:['Corps de séance'],equipement:'Poids du corps',...props});
 const good=mk(1), judo=mk(2,{public:['Judo']}), supervision=mk(3,{supervisionRequise:true}),
