@@ -142,10 +142,8 @@ test('le stockage de secours rétablit les données après une indisponibilité 
   };
   c.window=c; c.window.indexedDB=null;
   vm.createContext(c);
-  const debut=html.indexOf('  var Stockage = (function () {');
-  const fin=html.indexOf('\n  })();',debut);
-  assert.ok(debut>=0 && fin>debut);
-  vm.runInContext(html.slice(debut,fin+8),c);
+  const {creerStockage}=require('../core/stockage-web.js');
+  c.Stockage=creerStockage(c);
   assert.equal(await c.Stockage.ecrire('presences-test',{numero:2}),true);
   assert.equal(JSON.parse(local.get('presences-test-secours')).numero,2);
   c.window.indexedDB=idb;

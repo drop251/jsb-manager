@@ -1558,6 +1558,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 <script src="./jsb-edge-swipe.js"></script>
 <script src="./ui/update.js"></script>
 <script src="./ui/session-pdf.js"></script>
+<script src="./core/stockage-web.js"></script>
 <script id="base" type="application/json">[]</script>
 <script id="exemples" type="application/json">[]</script>
 <script>
@@ -2015,7 +2016,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v30'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v31'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -2937,76 +2938,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var j = p.j, ini = ((j.prenom || '').charAt(0) + (j.nom || '').charAt(0)).toUpperCase();
     return j.photo ? h('img', { className: 'pr-photo', src: j.photo, alt: 'Photo de ' + (j.prenom || '') + ' ' + (j.nom || '') }) : h('span', { className: 'pr-photo sans', 'aria-hidden': 'true' }, ini || '?');
   }
-  var Stockage = (function () {
-    var BASE = 'jsb-manager', TABLE = 'donnees', ouverture = null, file = Promise.resolve(), persistance = null;
-    function ouvrir() {
-      if (!ouverture) {
-        ouverture = new Promise(function (ok, ko) {
-          if (!window.indexedDB) { ko(new Error('indisponible')); return; }
-          var r; try { r = indexedDB.open(BASE, 1); } catch (err) { ko(err); return; }
-          r.onupgradeneeded = function () { r.result.createObjectStore(TABLE); };
-          r.onsuccess = function () { ok(r.result); };
-          r.onerror = function () { ko(r.error); };
-          r.onblocked = function () { ko(new Error('bloque')); };
-        }).catch(function (err) { ouverture = null; throw err; });
-      }
-      return ouverture;
-    }
-    function requete(mode, action) {
-      return ouvrir().then(function (db) {
-        return new Promise(function (ok, ko) {
-          var tx = db.transaction(TABLE, mode), res; var rq = action(tx.objectStore(TABLE));
-          rq.onsuccess = function () { res = rq.result; };
-          tx.oncomplete = function () { ok(res); }; tx.onerror = tx.onabort = function () { ko(tx.error); };
-        });
-      });
-    }
-    function lireLocal(cle) { try { return JSON.parse(localStorage.getItem(cle)); } catch (err) { return null; } }
-    function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); return true; } catch (err) { return false; } }
-    function cleSecours(cle) { return cle + '-secours'; }
-    function retirerSecours(cle) { try { localStorage.removeItem(cleSecours(cle)); } catch (err) {} }
-    function relire(cle) {
-      var secours = lireLocal(cleSecours(cle));
-      if (secours !== null) {
-        return requete('readwrite', function (t) { return t.put(secours, cle); }).then(function () {
-          retirerSecours(cle); return secours;
-        }, function () { return secours; });
-      }
-      return requete('readonly', function (t) { return t.get(cle); }).catch(function () { return lireLocal(cle); });
-    }
-    return {
-      lire: function (cle) { return file.then(function () { return relire(cle); }); },
-      ecrire: function (cle, val) {
-        file = file.then(function () {
-          return requete('readwrite', function (t) { return t.put(val, cle); }).then(function () {
-            retirerSecours(cle); return true;
-          }, function () { return ecrireLocal(cleSecours(cle), val); });
-        });
-        return file;
-      },
-      ecrireLot: function (entrees) {
-        var travail = file.then(function () { return ouvrir().then(function (db) {
-          return new Promise(function (ok, ko) {
-            var tx = db.transaction(TABLE, 'readwrite'), t = tx.objectStore(TABLE);
-            tx.oncomplete = function () { ok(true); }; tx.onerror = tx.onabort = function () { ko(tx.error || new Error('stockage')); };
-            try { entrees.forEach(function (x) { t.put(x[1], x[0]); }); }
-            catch (err) { tx.abort(); ko(err); }
-          });
-        }); });
-        file = travail.catch(function () { return false; });
-        return travail.then(function (ok) { entrees.forEach(function (x) { retirerSecours(x[0]); }); return ok; });
-      },
-      fermer: function () { var o = ouverture; ouverture = null; return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve(); },
-      oublierAncien: function (cle) { try { localStorage.removeItem(cle); } catch (err) {} },
-      ancien: lireLocal,
-      proteger: function () {
-        if (persistance) return persistance;
-        var st = navigator.storage;
-        persistance = !st || !st.persist ? Promise.resolve(false) : (st.persisted ? st.persisted() : Promise.resolve(false)).then(function (deja) { return deja || st.persist(); }).catch(function () { return false; });
-        return persistance;
-      }
-    };
-  })();
+  var Stockage = window.JSBStockageWeb.creerStockage(window);
   function valides(d) { return d && Array.isArray(d.judokas) && Array.isArray(d.seances); }
   // Écarte les fiches abîmées (données anciennes ou fichier modifié à la main) au lieu de faire planter l'affichage.
   function nettoyer(d) {
@@ -7352,7 +7284,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v30');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v31');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7375,6 +7307,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v30">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v31">
 </body>
 </html>
