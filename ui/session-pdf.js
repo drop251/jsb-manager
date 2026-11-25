@@ -21,7 +21,7 @@ function layout(J,logo,discipline,blank,mode){
   if(!v)return;
   for(const line of lines(v,C,size,bold)){room(size+5);write(line,M,y+size,size,bold,color);y+=size+5;}y+=3;
  }
- function heading(v){room(35);write(v,M,y+14,13,true,navy);y+=23;}
+ function heading(v){const ls=lines(v,C,13,true);room(35+Math.max(0,ls.length-1)*16);font(13,true,navy);d.text(ls,M,y+14);y+=23+Math.max(0,ls.length-1)*16;}
  function cards(fields){
   const gap=8,w=(C-gap)/2;
   for(let i=0;i<fields.length;i+=2){
@@ -33,7 +33,7 @@ function layout(J,logo,discipline,blank,mode){
   }
  }
  function phase(name,n,mins){room(53);write(n?String(n).padStart(2,'0'):'',M,y+13,11,true,gold);const x=M+(n?27:0);const ls=lines(name,C-(n?27:0)-75,12,true);font(12,true,navy);d.text(ls,x,y+13);font(10,false,muted);d.text(mins==null?'Durée à préciser':mins+' min',W-M,y+13,{align:'right'});y+=Math.max(23,ls.length*15+7);d.setDrawColor(...gold);d.line(M,y,M+C,y);y+=7;}
- function notes(title,value){heading(title);if(value)paragraph(value);else{room(45);d.setDrawColor(190,195,201);d.roundedRect(M,y,C,42,4,4);y+=50;}}
+ function notes(title,value){room(76);heading(title);if(value)paragraph(value);else{room(45);d.setDrawColor(190,195,201);d.roundedRect(M,y,C,42,4,4);y+=50;}}
  function bar(groups){
   const total=groups.reduce((a,g)=>a+(g.minutes||0),0);heading('Répartition de la séance');
   if(!total){paragraph('Durées à préciser');return;}
@@ -49,7 +49,7 @@ function layout(J,logo,discipline,blank,mode){
   }
  }
  function finish(){const n=d.getNumberOfPages();for(let i=1;i<=n;i++){d.setPage(i);font(8,false,muted);d.text('JUDO SANS BARRIÈRE - Progresser à sa manière',M,H-24);d.text(i+' / '+n,W-M,H-24,{align:'right'});}return d.output('blob');}
- header();return {paragraph,heading,cards,phase,notes,bar,tableHeader,row,finish};
+ header();return {paragraph,heading,cards,phase,notes,bar,tableHeader,row,finish,room};
 }
 function minutes(items,durations,override){if(override!=null&&override!==''&&Number.isFinite(Number(override)))return Number(override);let values=items.map(e=>parseFloat(durations[e.id])).filter(Number.isFinite);return values.length?values.reduce((a,b)=>a+b,0):null;}
 function field(l,v){return v?l+' : '+v:'';}
@@ -69,7 +69,7 @@ function judo(J,logo,info,phases,items,durations,plan,blank,mode){
  L.cards([['Catégorie',info.groupe||info.public],['Durée',info.duree],['Compétence',competences.join(' ; ')],['Famille',info.thematique]]);
  L.heading('Objectif pédagogique');L.paragraph(info.objectif|| (blank?'________________________________':'Non renseigné'));
  phases.forEach((name,i)=>{const list=items[i]||[];L.phase(name,i+1,minutes(list,durations,info.tempsPhases&&info.tempsPhases[i]));if(info.reperesPhases)L.paragraph(info.reperesPhases[i]);if(!list.length)L.paragraph(blank?'Situation : __________________________________':'Aucun exercice enregistré');
- list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);L.paragraph([field('Dosage',p.dosage||e.dosage),field('Temps indicatif',durations[e.id]?durations[e.id]+' min':'')].filter(Boolean).join(' · '));details(L,e,p,true,mode);});});
+ list.forEach(e=>{const p=plan[e.id]||{};L.room(mode==='synthetique'?125:185);L.heading(e.nom);L.paragraph([field('Dosage',p.dosage||e.dosage),field('Temps indicatif',durations[e.id]?durations[e.id]+' min':'')].filter(Boolean).join(' · '));details(L,e,p,true,mode);});});
  if(info.vigilance)L.notes('Points de vigilance',info.vigilance);L.notes('Bilan pédagogique',info.note);return L.finish();
 }
 function taiso(J,logo,info,phases,items,durations,plan,blank,mode){
@@ -81,7 +81,9 @@ function taiso(J,logo,info,phases,items,durations,plan,blank,mode){
  if(info.intensite)L.paragraph(field('Intensité',info.intensite));
  phases.forEach((name,i)=>{const list=items[i]||[];L.phase(name,null,sums[i]);if(i===2&&info.format)L.paragraph(field('Format',info.format),{bold:true});if(!list.length){L.paragraph(blank?'Exercice : __________________________________':'Aucun exercice enregistré');return;}
  let bloc=null;list.forEach((e,index)=>{const p=plan[e.id]||{},next=p.bloc||'';if(next!==bloc||index===0){bloc=next;if(bloc)L.heading(bloc);L.tableHeader();}L.row(e.nom,p.dosage||e.dosage,p.recuperation||e.recuperation||'');});
- list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);details(L,e,p,false,mode);});});
+ if(mode==='synthetique'){
+  list.forEach(e=>{const p=plan[e.id]||{};L.room(55);L.paragraph(e.nom+' - '+[field('Point de sécurité',e.vigilance),field('Critère',e.critere),field('Adaptation',e.varianteFacile),field('Travail',p.travail),field('Tours',p.tours)].filter(Boolean).join(' · '),{size:9});});
+ }else list.forEach(e=>{const p=plan[e.id]||{};L.room(145);L.heading(e.nom);details(L,e,p,false,mode);});});
  L.notes('Sécurité et adaptations',[info.vigilance,info.adaptations].filter(Boolean).join('\n'));L.notes('Observations du coach',info.note);return L.finish();
 }
 root.JSBSessionPDF={judo,taiso};
