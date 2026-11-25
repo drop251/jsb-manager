@@ -203,7 +203,7 @@
   .gn:not(.cx-gestion) { width: min(740px,100%); }
 }
 @media (max-width: 959px) {
-  .onglets { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .onglets { grid-template-columns: repeat(4,minmax(0,1fr)); }
   .onglet-nav .onglet-txt { min-width: 0; max-width: 100%; }
 }
 @media (max-width: 360px) {
