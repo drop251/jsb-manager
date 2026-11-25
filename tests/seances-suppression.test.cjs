@@ -1,10 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
-function fixture(fail=false,liste=null){
+function fixture(fail=false,liste=null,espace=null){
  const states=[];let index=0,deleted=[],attempts=0;let histo=liste||[{id:'a',date:'2026-11-17',cours:['Adultes'],espace:'Judo',titre:'Appuis',exos:[]}];
  const c={React:{useState(v){const i=index++;if(!(i in states))states[i]=v;return [states[i],v=>states[i]=v];}},h:(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),usePlanning:()=>[],useHisto:()=>histo,lireSel:()=>({}),prochainsCreneaux:()=>[],dateFr:x=>x,heureFr:x=>x,progressable:()=>false,SeanceType:'type',SeanceDirecte:'direct',supprimerHisto:id=>{attempts++;if(fail===true||(fail==='once'&&attempts===1))return false;deleted.push(id);histo=histo.filter(x=>x.id!==id);return true;}};
  vm.createContext(c);const start=html.indexOf('  function MesSeances(');vm.runInContext(html.slice(start,html.indexOf('\n  }',start)+4),c);
- return {render(){index=0;return c.MesSeances({aller(){}});},deleted,get attempts(){return attempts;}};
+ return {render(){index=0;return c.MesSeances({aller(){},espace});},deleted,get attempts(){return attempts;}};
 }
 function nodes(n){return n&&typeof n==='object'?[n,...n.children.flatMap(nodes)]:[];}
 function text(n){return n&&typeof n==='object'?n.children.map(text).join(''):String(n??'');}
@@ -54,4 +54,17 @@ test('Après un premier échec de stockage, un nouvel essai supprime la séance 
  assert.equal(f.attempts,2);assert.deepEqual(f.deleted,['a']);
  assert.ok(!text(f.render()).includes('Appuis'));
  assert.ok(!nodes(f.render()).some(n=>n.props.role==='alert'));
+});
+
+test('Chaque discipline affiche uniquement son historique et sa fiche vierge',()=>{
+ for(const [espace,id] of [['Judo','j'],['Taïso','t']]){
+  const f=fixture(false,seancesRecherche,espace);
+  assert.equal(lignes(f).length,1);
+  assert.equal(lignes(f)[0].props.key,id);
+  assert.ok(text(f.render()).includes('Historique '+espace));
+  assert.equal(nodes(f.render()).filter(n=>n.type==='select').length,0);
+  assert.equal(nodes(f.render()).find(n=>n.type==='type').props.espace,espace);
+  click(f,'✕');click(f,'Supprimer');
+  assert.deepEqual(f.deleted,[id]);
+ }
 });
