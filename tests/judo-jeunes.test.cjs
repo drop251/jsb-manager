@@ -40,7 +40,8 @@ function baseContexte() {
   };
   vm.createContext(c);
   ['estEveilJudo','estJeuneJudo','phasesDe','phasesSeance','dureesGroupeJudo',
-    'objectifsGroupeJudo','estExerciceJeuneAdapte','convientPhaseJeune','scoreObjectifJeune'].forEach(n=>vm.runInContext(fonction(n),c));
+    'objectifsGroupeJudo'].forEach(n=>vm.runInContext(fonction(n),c));
+  Object.assign(c, require('../modules/judo.js').creerPedagogie(c));
   c.genererSeanceJeunes=require('../modules/judo.js').creerMoteur(c).genererSeanceJeunes;
   return c;
 }
