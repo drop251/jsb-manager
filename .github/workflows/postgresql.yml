@@ -56,3 +56,18 @@ jobs:
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.accounts')" = 0
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_legal.acceptances')" = 0
           echo "Recette PostgreSQL réussie; aucune donnée de compte ou acceptation conservée."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installer le pilote PostgreSQL de recette
+        run: npm install --no-save --no-package-lock --ignore-scripts --prefix "$RUNNER_TEMP/jsb-db-ci" pg@8.16.3
+      - name: Tester les sessions avec PostgreSQL réel
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          node --test backend/db/tests/auth.integration.cjs
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.accounts')" = 0
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.sessions')" = 0
