@@ -3,14 +3,14 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url');
 const path=require('node:path');
-const {chromium}=require('playwright');
+const {chromium,webkit}=require('playwright');
 const file=kind=>pathToFileURL(path.resolve(__dirname,'../apps',kind,'index.html')).href;
-test('Prévisualisations indépendantes : Coach, Particulier, Admin, mobile et desktop',async()=>{
- const browser=await chromium.launch({headless:true});
+for(const [engine,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Prévisualisations '+engine+' : Coach, Particulier, Admin, mobile et desktop',async()=>{
+ const browser=await launcher.launch({headless:true});
  try{
-  for(const viewport of [{width:390,height:844},{width:1440,height:900}]){
+  for(const viewport of [{width:320,height:568},{width:390,height:844},{width:844,height:390},{width:1440,height:900}]){
    for(const kind of ['public','admin']){
-    const context=await browser.newContext({viewport});
+    const context=await browser.newContext({viewport,reducedMotion:'reduce'});
     const page=await context.newPage(),errors=[],requests=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
@@ -65,6 +65,8 @@ test('Prévisualisations indépendantes : Coach, Particulier, Admin, mobile et d
      assert.equal(await page.locator('h1').textContent(),'Comptes plateforme');
     }
     assert.equal(await page.locator('form,input[type=password]').count(),0);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    assert.ok(await page.locator('nav button').evaluateAll(nodes=>nodes.every(n=>n.getBoundingClientRect().height>=44)));
     assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
     await context.close();
    }
