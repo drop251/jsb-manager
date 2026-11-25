@@ -1559,6 +1559,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 <script src="./jsb-edge-swipe.js"></script>
 <script src="./ui/update.js"></script>
 <script src="./ui/session-pdf.js"></script>
+<script src="./ui/taiso-engine.js"></script>
 <script id="base" type="application/json">[]</script>
 <script id="exemples" type="application/json">[]</script>
 <script>
@@ -2016,7 +2017,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v25'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v26'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -5503,7 +5504,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function generer(n, nouvelleGraine) {
       var r = n || rep;
       try {
-        var resultat = genererSeance(Object.assign({}, r, { eviter: eviter }), judo, p.donnees, p.tout, nouvelleGraine || graine);
+        var criteres = Object.assign({}, r, { eviter: eviter }), seed = nouvelleGraine || graine;
+        var resultat = judo ? genererSeance(criteres, true, p.donnees, p.tout, seed) : window.JSBTaisoEngine.generer(criteres, p.donnees, p.tout, seed, { hasard, sg, niveauOk, niveauEffectifTaiso, estImpact, okTaiso, illustre, melanger, momentsDe, formatsDe, formatParDefaut, construireBlocs, zonesTravaillees, cibleZones, estMobilite, MOTS_CALME, sa, repartirDurees });
         setPrecedentRes(null); setChoixRemplacement(null); setErreurGeneration(''); setRes(resultat);
       } catch (err) {
         setErreurGeneration('Impossible de générer cette séance avec les réglages actuels. Modifiez la durée ou les critères, puis réessayez.');
@@ -7204,7 +7206,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v25');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v26');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7227,6 +7229,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v25">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v26">
 </body>
 </html>
