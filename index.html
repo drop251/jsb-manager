@@ -1898,7 +1898,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       h('b', null, suivi.n + (suivi.n > 1 ? ' licenciés à surveiller' : ' licencié à surveiller')), h('span', null, '3 absences de suite ou plus : ' + suivi.liste.join(', ') + (suivi.n > 3 ? '…' : ''))) : null;
     var historiqueAccueil = useHisto();
     return h('section', { className: 'aujourdhui', 'aria-label': "Tableau de bord" },
-      h('div', { className: 'accueil-section-titre' }, h('span', null, 'Vue d’ensemble'), h('h2', null, 'Tableau de bord')),
+      h('div', { className: 'accueil-section-titre' }, h('h2', null, 'Tableau de bord')),
       carteCours, alerte,
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null,
       tuile('presences', 'presences', 'Licenciés', suivi.actifs == null ? '—' : suivi.actifs, 'Licenciés actifs', 'pres'),
@@ -7033,14 +7033,14 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
           h('p', { className: 'accueil-date' }, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })),
           h('h1', { className: 'sr-seul' }, 'Préparer une séance'),
           h('h2', null, (new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir') + (PROFIL && PROFIL.prenom ? ', ' + PROFIL.prenom : '') + '.'),
-          h('p', { className: 'accueil-sous' }, (PROFIL && PROFIL.club) || 'Votre espace de coaching'),
+          h('p', { className: 'accueil-sous' }, 'Espace administrateur'),
           h('details', { className: 'accueil-preparer' }, h('summary', null, 'Préparer une séance'),
             h('div', { className: 'accueil-disciplines' }, ['Judo', 'Taïso'].map(function (label) {
               return h('button', { key: label, type: 'button', className: 'cs-btn', onClick: function () { poserIntention({ type: 'generer' }); aller(label === 'Judo' ? 'judo' : 'taiso'); } }, label);
             })))),
         BASE_LOCALE && BASE.length === 0 ? h(ImportBase, { texte: 'Choisir le fichier exercices.json' }) : null,
         h(Aujourdhui, { aller: aller }),
-        h('div', { className: 'blocs raccourcis' }, ESPACES.map(function (esp, i) {
+        h('div', { className: 'accueil-catalogue' }, h('h2', null, 'Catalogue et espaces'), h('div', { className: 'blocs raccourcis' }, ESPACES.filter(function (esp) { return !esp.special; }).map(function (esp, i) {
           var n = de(esp).length;
           var bientot = !esp.special && n === 0;
           if (bientot && esp.key !== 'suivi' && !demo) return null;   // section encore vide (« Suivi et reprise ») : masquée tant qu'elle n'a pas d'exercices
@@ -7049,8 +7049,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
             h('span', { className: 'bloc-nom' }, esp.label),
             esp.key !== 'seance' ? h('span', { className: 'bloc-nb' + (bientot ? ' pastille-bientot' : '') }, esp.key === 'presences' ? h(NbPresences) : esp.special ? null : bientot ? (esp.key === 'suivi' ? 'En préparation' : 'Bientôt') : n + (n > 1 ? ' fiches' : ' fiche')) : null,
             h('span', { className: 'bloc-txt' }, esp.intro),
-            esp.sous.length ? h('span', { className: 'bloc-sous' }, esp.sous.map(function (x) { return h('span', { key: x }, x); })) : null);
-        })),
+            null);
+        }))),
         !BASE_LOCALE && !demo && BASE.length === 0 ? h('div', { className: 'vide anim', style: { '--i': 4 } }, h('strong', null, 'Aperçu de l’application'),
           h('span', null, 'Découvrez les rubriques à partir de quelques exemples.'),
           h('button', { type: 'button', className: 'btn', onClick: function () { setDemo(true); } }, 'Ouvrir la démo')) : null,
@@ -7240,7 +7240,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v14');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v15');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7263,6 +7263,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v14">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v15">
 </body>
 </html>

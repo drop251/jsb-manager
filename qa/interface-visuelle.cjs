@@ -32,6 +32,13 @@ fs.mkdirSync('qa-captures',{recursive:true});
     assert.equal(metrics.length,5);
     for(const m of metrics){assert.ok(m.height>=44&&m.width>=44&&m.visible,JSON.stringify(m));assert.equal(m.font,'12px');}
     await page.getByRole('region',{name:'Tableau de bord'}).waitFor();
+    await page.getByText('Espace administrateur',{exact:true}).waitFor();
+    await page.getByRole('heading',{name:'Catalogue et espaces',exact:true}).waitFor();
+    assert.equal(await page.locator('.accueil-catalogue .bloc').filter({hasText:/^(Mes séances|Présences)$/}).count(),0);
+    await page.locator('.cx-avatar.petit').click();
+    await page.getByRole('menuitem',{name:'Ajouter des exercices',exact:true}).waitFor();
+    await page.locator('.cx-avatar.petit').click();
+
     assert.equal(await page.locator('.aujourdhui .tuile').count(),6);
     await page.getByRole('heading',{name:'Activité récente',exact:true}).waitFor();
     const palette=await page.evaluate(()=>{
