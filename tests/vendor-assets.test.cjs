@@ -58,3 +58,19 @@ test('Le noyau de stockage modulaire est chargé avant l’application et préca
   assert.match(source,/BASE = 'jsb-manager', TABLE = 'donnees'/);
   assert.match(html,/var Stockage = window.JSBStockageWeb.creerStockage\(window\)/);
 });
+
+test('Les modules métier du Judo, du Taïso et du club sont locaux et précachés',()=>{
+  for(const name of ['judo','taiso','club']){
+    const file='modules/'+name+'.js',marker='<script src="./'+file+'"></script>';
+    assert.ok(html.includes(marker),file);
+    assert.equal(html.indexOf(marker),html.lastIndexOf(marker),file);
+    assert.ok(html.indexOf(marker)<html.indexOf('var h = React.createElement'),file);
+    assert.ok(sw.includes("'./"+file+"'"),file);
+    assert.doesNotThrow(()=>new vm.Script(fs.readFileSync(path.join(root,file),'utf8')));
+  }
+  const {creerService}=require('../modules/club.js');
+  const service=creerService({CATEGORIES:[],COURS_ADULTES:'Adultes',COURS_TAISO:'Taïso',Date,aujourdhui:()=> '2026-11-25'});
+  assert.equal(typeof service.bilanDe,'function');
+  assert.equal(typeof service.suiviDe,'function');
+  assert.deepEqual(service.bilanDe({judokas:[],seances:[]},''),[]);
+});
