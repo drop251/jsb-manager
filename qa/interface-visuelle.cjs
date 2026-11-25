@@ -381,6 +381,12 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await sheet.waitFor({state:'visible'});
     const essentials=sheet.locator('.fiche-essentiel');
     assert.ok(await essentials.isVisible());
+    // Check actual first-viewport geometry, not only DOM visibility.
+    await sheet.locator('h2').waitFor({state:'visible'});
+    const geometry=await sheet.evaluate(el=>{const r=el.getBoundingClientRect();const title=el.querySelector('h2');const block=el.querySelector('.fiche-essentiel');const safety=block.querySelector('.securite');const dose=[...block.querySelectorAll('dt')].find(n=>n.textContent==='Dosage de base');const d=dose?.parentElement.getBoundingClientRect();return {height:r.height,top:r.top,bottom:r.bottom,titleBottom:title.getBoundingClientRect().bottom,blockTop:block.getBoundingClientRect().top,safetyBottom:safety?.getBoundingClientRect().bottom,doseBottom:d?.bottom,scrollTop:el.scrollTop};});
+    assert.ok(geometry.blockTop-geometry.titleBottom<=24,JSON.stringify(geometry));
+    assert.ok(geometry.doseBottom<=geometry.bottom+1,JSON.stringify(geometry));
+    if(geometry.safetyBottom!=null)assert.ok(geometry.safetyBottom<=geometry.bottom+1,JSON.stringify(geometry));
     assert.equal(await sheet.getByText('Dosage de base',{exact:true}).count(),1);
     assert.ok(await essentials.evaluate(el=>Boolean(el.compareDocumentPosition(el.parentElement.querySelector('.fiche-rubrique'))&Node.DOCUMENT_POSITION_FOLLOWING)));
     const admin=sheet.locator('.fiche-admin');
