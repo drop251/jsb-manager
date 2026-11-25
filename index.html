@@ -2574,12 +2574,12 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     return t.join(', ');
   }
   // Fiche de séance JSB (PDF). Taïso
-  function construirePdf(infos, parPhase, durees, espace, vierge, plan) {
+  function construirePdf(infos, parPhase, durees, espace, vierge, plan, mode) {
     var J = window.jspdf && window.jspdf.jsPDF, renderer = window.JSBSessionPDF;
     if (!J || !renderer) return null;
     infos = infos || {};
     var phases = phasesDe(espace, infos.groupe, infos.intitulesPhases);
-    return renderer[espace === 'Taïso' ? 'taiso' : 'judo'](J, LOGO, infos, phases, parPhase, durees || {}, plan || {}, vierge);
+    return renderer[espace === 'Taïso' ? 'taiso' : 'judo'](J, LOGO, infos, phases, parPhase, durees || {}, plan || {}, vierge, mode);
   }
   function enregistrerFichier(nom, blob, setMsg) {
     setMsg('Préparation du fichier…');
@@ -2714,13 +2714,13 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
       return true;
     }
-    function telecharger() {
+    function telecharger(mode) {
       if (!verifierSelection()) return;
       var durees = {}; items.forEach(function (e) { durees[e.id] = dureeDe(e); });
-      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan);
+      var blob = construirePdf(Object.assign({}, infos, { groupe: val('groupe'), thematique: val('thematique'), public: val('public'), objectif: val('objectif'), intensite: val('intensite'), format: val('format'), duree: val('duree') || (total ? total + ' min' : ''), materiel: infos.materiel || materielSeance(items) }), parPhase, durees, p.espace, false, plan, mode);
       if (!blob) { setMsg("L'outil de création de PDF n'a pas pu se charger. Vérifiez votre connexion, ou utilisez le fichier JSB-Manager ouvert sur votre ordinateur."); return; }
       if (!enregistrerSeance(true)) return;
-      enregistrerFichier('fiche-seance-' + p.espace.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '-' + new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2) + '.pdf', blob, setMsg);
+      enregistrerFichier('fiche-seance-' + p.espace.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '-' + new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2) + '-' + mode + '.pdf', blob, setMsg);
     }
     function frequent(vals) { var c = {}, best = '', n = 0; vals.filter(Boolean).forEach(function (v) { c[v] = (c[v] || 0) + 1; if (c[v] > n) { n = c[v]; best = v; } }); return best; }
     var judoEsp = p.espace === 'Judo';
@@ -2771,7 +2771,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
             h('div', { className: 'cs-actions' },
               h('button', { type: 'button', className: 'cs-btn', onClick: function () { setOuvert(false); } }, 'Ajouter des exercices'),
               h('details', { className: 'cs-outils' }, h('summary', null, 'Plus d’actions'),
-                h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: telecharger }, 'Exporter la fiche PDF'),
+                h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: function () { telecharger('synthetique'); } }, 'PDF synthétique'),
+                h('button', { type: 'button', className: 'cs-btn', disabled: !items.length, onClick: function () { telecharger('detaille'); } }, 'PDF détaillé'),
                 (n || Object.keys(infos).length || Object.keys(plan).length) ? h('button', { type: 'button', className: 'cs-btn cs-annuler-prepa', onClick: abandonner }, 'Annuler la préparation') : null))),
           idsIntrouvables.length ? h('div', { className: 'cs-msg', role: 'alert' },
             h('p', null, idsIntrouvables.length + (idsIntrouvables.length > 1 ? ' exercices sélectionnés sont introuvables' : ' exercice sélectionné est introuvable') + ' dans le catalogue actuel. Réimportez les fiches manquantes ou retirez-les de cette préparation.'),
