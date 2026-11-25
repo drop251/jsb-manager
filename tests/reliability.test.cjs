@@ -165,7 +165,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
     construireBlocs:()=>[],zonesTravaillees:()=>({}),compatibleDosageJudo:()=>true
   };
   vm.createContext(ctx);
-  vm.runInContext(fonction('okTaiso'),ctx);
+  Object.assign(ctx, require('../modules/taiso.js').creerSelection({sansA:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),NIVEAUX_TAISO:['Débutant','Intermédiaire','Confirmé','Expert']}));
   vm.runInContext(fonction('repartirDurees'),ctx);
   ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
   ctx.genererSeanceJudo=require('../modules/judo.js').creerMoteur(ctx).genererSeanceJudo;
@@ -218,7 +218,7 @@ test('Judo objectives are pedagogical and prioritize relevant exercises without 
 });
 
 test('Taiso material filter supports a truly equipment-free session',()=>{
-  const ctx={evite:()=>false,supervisionRequiseTaiso:()=>false};vm.createContext(ctx);vm.runInContext(fonction('okTaiso'),ctx);
+  const ctx={evite:()=>false,supervisionRequiseTaiso:()=>false};vm.createContext(ctx);Object.assign(ctx, require('../modules/taiso.js').creerSelection({sansA:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),NIVEAUX_TAISO:['Débutant','Intermédiaire','Confirmé','Expert']}));
   const rep={sansMateriel:true,binome:false,contraintes:[]};
   assert.equal(ctx.okTaiso({equipement:'Tatami',format:'Solo'},rep),true);
   assert.equal(ctx.okTaiso({equipement:'Kettlebell',format:'Solo'},rep),false);
