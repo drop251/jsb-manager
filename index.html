@@ -2016,7 +2016,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v27'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v28'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -5458,6 +5458,43 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   function genererSeance(rep, judo, tous, tout, graine) {
     return judo ? genererSeanceJudo(rep, tous, tout, graine) : genererSeanceTaiso(rep, tous, tout, graine);
   }
+  // V28 : contrôle du temps planifié, sans inventer une cadence pour les répétitions.
+  function controleTempsGeneration(phases, duree) {
+    var alertes = [], cible = parseInt(duree, 10), total = 0;
+    function n(v) { return Number.isFinite(Number(v)) ? Number(v) : 0; }
+    function fmt(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+    (phases || []).forEach(function (ph) {
+      var budget = n(ph.minutes), occupe = 0, nom = ph.libelle || ph.nom;
+      total += budget;
+      if (Array.isArray(ph.blocs)) {
+        ph.blocs.forEach(function (b) {
+          var items = b.items || [];
+          if (!items.length) { alertes.push(nom + ' : bloc vide à compléter ou retirer.'); return; }
+          occupe += n(b.minutes);
+          var secondes = 0, estimatif = false, amrap = 0;
+          items.forEach(function (x) {
+            var t = x.travail || {}, tours = Math.max(1, n(b.tours) || n(x.tours) || 1), series = Math.max(1, n(t.series) || 1);
+            if (t.amrap) { amrap = Math.max(amrap, n(t.amrap)); return; }
+            if (t.emom) { secondes += 60 * tours; return; }
+            if (t.reps) { estimatif = true; return; }
+            if (n(t.sec) <= 0) { estimatif = true; return; }
+            var effort = n(t.sec) * (t.cote ? 2 : 1) + (t.cote ? 5 : 0);
+            secondes += tours * (series * effort + (series - 1) * n(t.recup) + series * n(t.recupApres));
+          });
+          secondes += amrap * 60;
+          if (secondes > n(b.minutes) * 60 + 1) alertes.push(b.nom + ' : au moins ' + fmt(secondes / 60) + ' min de travail et récupération pour ' + fmt(n(b.minutes)) + ' min prévues.');
+          else if (estimatif) alertes.push(b.nom + ' : durée indicative, vérifier le temps des répétitions et des rotations.');
+        });
+      } else {
+        (ph.exercices || []).forEach(function (x) { occupe += n(x.duree); });
+      }
+      var ecart = budget - occupe;
+      if (ecart < -0.11) alertes.push(nom + ' : dépassement de ' + fmt(-ecart) + ' min.');
+      else if (ecart > 0.11) alertes.push(nom + ' : ' + fmt(ecart) + ' min hors exercices, à organiser (pauses, transitions ou situations à compléter).');
+    });
+    if (Number.isFinite(cible) && Math.abs(total - cible) > 0.11) alertes.push('Durée totale : ' + fmt(total) + ' min planifiées pour ' + cible + ' min demandées.');
+    return alertes;
+  }
   function Generateur(p) {
     var judo = p.espace === 'Judo';
     function ficheAutorisee(e) { return e && e.typeFiche !== 'Technique' && Array.isArray(e.public) && e.public.indexOf(p.espace) >= 0; }
@@ -5792,6 +5829,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!judo) ecrireJSON(cleReponses, { groupe: rep.groupe, objectif: rep.objectif, materiel: rep.materiel, calme: rep.calme, format: rep.format, niveau: rep.niveau, duree: rep.duree, illustres: !!rep.illustres, participants: rep.participants || 0, intensite: rep.intensite || 0, contraintes: rep.contraintes || [], binome: !!rep.binome, sansMateriel: !!rep.sansMateriel });
     }
     var total = res ? res.phases.reduce(function (a, ph) { return a + ph.exercices.length; }, 0) : 0;
+    var alertesTemps = res ? controleTempsGeneration(res.phases, rep.duree) : [];
     var contenu;
     if (!res) {
       contenu = h('div', { className: 'gn-etape' },
@@ -5836,6 +5874,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
           return h('p', { className: 'gn-materiel' }, h('b', null, 'Matériel à installer : '), lignes.length ? lignes.join(' · ') + (rep.participants ? ' (pour ' + rep.participants + ' participants)' : ' (indiquez le nombre de participants pour les quantités)') : 'aucun, poids du corps uniquement');
         })(),
         res.manques.length ? h('p', { className: 'gn-aide', role: 'status' }, 'Points pédagogiques à compléter ou vérifier : ' + res.manques.join(' · ') + '. Contrôlez avant utilisation.') : null,
+        alertesTemps.length ? h('details', { className: 'gn-avances', open: true }, h('summary', null, 'Durées et dosages à vérifier (' + alertesTemps.length + ')'), h('ul', null, alertesTemps.map(function (a, k) { return h('li', { key: k }, a); }))) : null,
         precedentRes ? h('button', { type: 'button', className: 'cs-btn mini', onClick: annulerRetouche }, '↶ Annuler la dernière retouche') : null,
         h('ol', { className: 'gn-phases' }, res.phases.map(function (ph, i) {
           return h('li', { key: i }, h('div', { className: 'gn-ph-tete' }, h('strong', null, ph.libelle || ph.nom), h('small', null, ph.minutes + ' min' + (ph.transitions ? ' dont ' + ph.transitions + ' min de transitions et d\'hydratation' : ''))),
@@ -5938,7 +5977,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   }
   // Exercice d'un intervalle chronométré : un exercice « par côté » fait les deux côtés dans le même passage
   function intervalle(e, eff, rec, tours) {
-    var uni = estUnilateral(e), moitie = Math.max(15, Math.round((eff - 5) / 2));
+    var uni = estUnilateral(e), moitie = Math.max(1, Math.floor((eff - 5) / 2));
     return { e: e, travail: uni ? { sec: moitie, cote: true, recupApres: rec } : { sec: eff, recupApres: rec },
       dosage: (uni ? moitie + ' s par côté' : eff + ' s') + ' / ' + rec + ' s × ' + tours + (tours > 1 ? ' tours' : ' tour'), duree: Math.round(tours * (eff + rec) / 60 * 10) / 10 };
   }
@@ -5985,7 +6024,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var pool = poolBrut.filter(function (e) { return convient(e, format) && niveauOk(e, niveau); });
     if (doux) pool = pool.filter(function (e) { return !estImpact(e) && e.accessibilite !== 'Publics entraînés uniquement'; });
     // Pas de repli sur des niveaux ou des critères d'accessibilité incompatibles : annoncer un manque plutôt que proposer un exercice risqué.
-    var M = Math.max(8, minutes), blocs = [];
+    var M = Math.max(0, minutes), blocs = [];
+    if (M < 8) return blocs;
     // Sélection équilibrée (haut, bas, tronc, cardio à tour de rôle), au plus un exercice d'impact, placé en tête
     function equilibre(n, prefere) {
       var zones = doux ? ['bas', 'haut', 'tronc', 'global'] : ['haut', 'bas', 'tronc', 'cardio'], out = [], k = 0, essais = 0, impact = 0;
@@ -6010,7 +6050,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     }
     if (format === 'Tabata') {
       var nT = Math.max(1, Math.round(M / 5)), exT = equilibre(nT * 2);
-      for (var t = 0; t < nT && exT.length; t++) {
+      for (var t = 0; t < nT && exT.length >= 2; t++) {
         var paire = exT.splice(0, 2);
         bloc('Tabata', '8 intervalles en alternance · 20 s d\'effort / 10 s de récupération · 1 min de pause ensuite', 5,
           paire.map(function (e) { return { e: e, travail: { sec: 20, recupApres: 10 }, dosage: '20 s / 10 s, 4 passages (alterné)', duree: 2 }; }), { tours: 4 });
@@ -7249,7 +7289,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v27');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v28');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7272,6 +7312,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v27">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v28">
 </body>
 </html>
