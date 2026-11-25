@@ -168,17 +168,18 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   vm.runInContext(fonction('okTaiso'),ctx);
   vm.runInContext(fonction('repartirDurees'),ctx);
   vm.runInContext(fonction('genererSeanceTaiso'),ctx);
+  vm.runInContext(fonction('genererSeanceJudo'),ctx);
   vm.runInContext(fonction('genererSeance'),ctx);
   const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
-  all.push({...all[0],id:99,typeFiche:'Technique'});
+  all.push({...all[0],id:99,typeFiche:'Technique'}, {...all[0],id:98,public:['Taïso']}, {...all[0],id:97,public:['Judo']});
   for(const duree of [45,60,75,90]){
     for(const judo of [true,false]){
-      const rep={groupe:judo?'Poussins':'Training',duree:duree+' min',routine:[99,1],calme:'Les deux',materiel:[],binome:false};
+      const rep={groupe:judo?'Poussins':'Training',duree:duree+' min',routine:[99,1,98,97],calme:'Les deux',materiel:[],binome:false};
       const result=ctx.genererSeance(rep,judo,all,all,1122);
       assert.equal(result.phases.reduce((n,p)=>n+p.minutes,0),duree,rep.groupe+' '+duree);
       assert.ok(result.phases.every(p=>p.minutes>0));
-      assert.deepEqual(Array.from(result.phases[0].exercices,x=>x.e.id),[1]);
-      assert.ok(result.phases.every(p=>p.exercices.every(x=>x.e.id!==99)));
+      assert.deepEqual(Array.from(result.phases[0].exercices,x=>x.e.id),[1,judo?97:98]);
+      assert.ok(result.phases.every(p=>p.exercices.every(x=>x.e.id!==99 && x.e.id!==(judo?98:97))));
       result.phases.filter(p=>!p.blocs && p.exercices.length).forEach(p=>assert.equal(p.exercices.reduce((n,e)=>n+e.duree,0),p.minutes,p.nom));
     }
   }
@@ -187,8 +188,10 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
 
 test('Judo objectives are pedagogical and prioritize relevant exercises without changing Taiso',()=>{
   assert.match(html,/var objectifs = judo \? OBJECTIFS_JUDO :/);
-  assert.match(html,/if \(judo && obj\) s \+= scoreObjectifJudo\(e, obj\)/);
-  assert.match(html,/if \(!judo && obj && e\.categorie === obj\) s \+= 2\.5/);
+  assert.match(fonction('genererSeanceJudo'),/if \(obj\) s \+= scoreObjectifJudo\(e, obj\)/);
+  assert.match(fonction('genererSeanceTaiso'),/if \(obj && e\.categorie === obj\) s \+= 2\.5/);
+  assert.doesNotMatch(fonction('genererSeanceJudo'),/okTaiso|construireBlocs|niveauEffectifTaiso/);
+  assert.doesNotMatch(fonction('genererSeanceTaiso'),/scoreObjectifJudo|compatibleDosageJudo|roleCompatibleJudo/);
   assert.match(html,/aucun exercice ciblé dans ce groupe/);
   const ctx={
     sa:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')

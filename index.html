@@ -2016,7 +2016,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v26'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v27'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -5353,34 +5353,27 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     });
     return { phases: resultat, manques: manques };
   }
-  function genererSeance(rep, judo, tous, tout, graine) {
-    if (!judo) return genererSeanceTaiso(rep, tous, tout, graine);
-    tous = tous.filter(function (e) { return e.typeFiche !== 'Technique'; });
-    tout = tout.filter(function (e) { return e.typeFiche !== 'Technique'; });
-    if (judo && (rep.groupe === 'Éveils (4-5 ans)' || rep.groupe === 'Pré-poussins')) return genererSeanceJeunes(rep,tous,tout,graine);
+  // V27 : moteur Judo indépendant (catégorie d'âge, objectifs pédagogiques et opposition).
+  function genererSeanceJudo(rep, tous, tout, graine) {
+    function discipline(e) { return e && e.typeFiche !== 'Technique' && Array.isArray(e.public) && e.public.indexOf('Judo') >= 0; }
+    tous = tous.filter(discipline);
+    tout = tout.filter(discipline);
+    if (rep.groupe === 'Éveils (4-5 ans)' || rep.groupe === 'Pré-poussins') return genererSeanceJeunes(rep,tous,tout,graine);
     var r = hasard(graine), minutes = parseInt(rep.duree, 10) || 60, parId = {};
     tout.forEach(function (e) { parId[e.id] = e; });
-    var autorise = judo ? ['Tatami', 'Judogi', 'Partenaire', 'Poids du corps'].concat(MATERIEL_JUDO) : null;
+    var autorise = ['Tatami', 'Judogi', 'Partenaire', 'Poids du corps'].concat(MATERIEL_JUDO);
     var base = tous.filter(function (e) {
       if (sg(e).indexOf(rep.groupe) < 0) return false;
       var eq = (e.equipement || '').split(' + ').filter(Boolean);
-      if (judo) return eq.every(function (x) { return autorise.indexOf(x) >= 0; });
-      if (!niveauOk(e, niveauEffectifTaiso(rep))) return false;
-      if (rep.groupe === 'Gym douce' && (estImpact(e) || e.accessibilite === 'Publics entraînés uniquement')) return false;
-      return okTaiso(e, rep);
+      return eq.every(function (x) { return autorise.indexOf(x) >= 0; });
     });
     var routineIDs = rep.routine || [];
     var routine = routineIDs.map(function (id) { return parId[id]; }).filter(function (e) {
-      if (!e) return false;
-      if (judo) return (e.equipement || '').split(' + ').filter(Boolean).every(function (m) { return autorise.indexOf(m) >= 0; });
-      return niveauOk(e, niveauEffectifTaiso(rep)) && (rep.groupe !== 'Gym douce' || e.accessibilite !== 'Publics entraînés uniquement') && okTaiso(e, rep);
+      return !!e && estMobilite(e) && (e.equipement || '').split(' + ').filter(Boolean).every(function (m) { return autorise.indexOf(m) >= 0; });
     });
     var minRoutine = Math.max(5, Math.min(12, routine.length));
     var reste = Math.max(15, minutes - minRoutine);
-    var phases = judo ? [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .18), 5], ['Corps de séance', Math.round(reste * .47), 7], ['Randori', Math.round(reste * .23), 10], ['Étirement', 0, 4]]
-      // Taïso : trame JSB adaptée (Mobilité, Échauffement, Corps de séance, Retour au calme, Étirements)
-      : [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .14), 4], ['Corps de séance', Math.round(reste * .64), 6],
-        ['Retour au calme', Math.max(3, Math.round(reste * (rep.calme === 'Respiration et relaxation' ? .12 : rep.calme === 'Étirements' ? .05 : .08))), 4], ['Étirements', 0, 4]];
+    var phases = [['Mobilité', minRoutine], ['Échauffement', Math.round(reste * .18), 5], ['Corps de séance', Math.round(reste * .47), 7], ['Randori', Math.round(reste * .23), 10], ['Étirement', 0, 4]];
     phases[phases.length - 1][1] = Math.max(5, minutes - phases.slice(0, -1).reduce(function (a, p) { return a + p[1]; }, 0));
     // Les arrondis et la durée minimale de fin de séance ne doivent pas allonger le cours.
     var ecartMinutes = phases.reduce(function (a, p) { return a + p[1]; }, 0) - minutes;
@@ -5390,7 +5383,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     if (routine.length < routineIDs.length) manques.push('routine de mobilité : exercices manquants ou incompatibles');
     routine.forEach(function (e) { pris[e.id] = 1; });
     var obj = rep.objectif && rep.objectif.indexOf('Vari') !== 0 ? rep.objectif : '';
-    if (judo && obj && !base.some(function (e) { return momentsDe(e).indexOf('Corps de séance') >= 0 && scoreObjectifJudo(e, obj) > 0; })) manques.push('objectif « ' + obj + ' » : aucun exercice ciblé dans ce groupe');
+    if (obj && !base.some(function (e) { return momentsDe(e).indexOf('Corps de séance') >= 0 && scoreObjectifJudo(e, obj) > 0; })) manques.push('objectif « ' + obj + ' » : aucun exercice ciblé dans ce groupe');
     var eviter = rep.eviter || {};
     var phasePedagogique = '';
     function score(e) {
@@ -5399,20 +5392,19 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (rep.technique && sa(techniqueDe(e.nom)) === sa(rep.technique)) s += 6;
       else if (rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0) s += 4;
       if (rep.famille && rep.famille !== 'Variée' && e.technique === rep.famille) s += 3;
-      if (judo && obj) s += scoreObjectifJudo(e, obj);
-      if (judo && (e.rolePedagogique || e.competenceCiblee || e.dureeBlocMin)) s += bonusPedagogiqueJudo(e, rep, phasePedagogique);
-      if (judo && rep.modeTravailJudo && (e.modeDosageJudo || modeDosageJudoDe(e))===rep.modeTravailJudo) s += 9;
-      if (!judo && obj && e.categorie === obj) s += 2.5;
+      if (obj) s += scoreObjectifJudo(e, obj);
+      if ((e.rolePedagogique || e.competenceCiblee || e.dureeBlocMin)) s += bonusPedagogiqueJudo(e, rep, phasePedagogique);
+      if (rep.modeTravailJudo && (e.modeDosageJudo || modeDosageJudoDe(e))===rep.modeTravailJudo) s += 9;
       if (rep.illustres && illustre(e)) s += 2.5;
       if (rep.binome && e.format === 'Binôme') s += 2;   // travail à deux demandé : exercices en binôme d'abord   // exercices avec photo ou vidéo d'abord
       return s;
     }
     function choisir(pool, n, diversifier) {
-      var tri = melanger(pool.filter(function (e) { return !pris[e.id] && (!judo || (compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, phasePedagogique, rep)))); }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
+      var tri = melanger(pool.filter(function (e) { return !pris[e.id] && compatibleDosageJudo(e,rep) && (!e.rolePedagogique || roleCompatibleJudo(e, phasePedagogique, rep)); }), r).map(function (e) { return [score(e), e]; }).sort(function (a, b) { return b[0] - a[0]; }).map(function (x) { return x[1]; });
       var out = [], parCat = {};
       tri.forEach(function (e) {
         if (out.length >= n) return;
-        if (diversifier && (parCat[e.categorie] || 0) >= Math.ceil(n / 2) && !(judo && obj && scoreObjectifJudo(e, obj) > 0) && e.categorie !== obj && !(rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0)) return;
+        if (diversifier && (parCat[e.categorie] || 0) >= Math.ceil(n / 2) && !(obj && scoreObjectifJudo(e, obj) > 0) && e.categorie !== obj && !(rep.technique && sa(e.nom).indexOf(sa(rep.technique)) >= 0)) return;
         out.push(e); parCat[e.categorie] = (parCat[e.categorie] || 0) + 1; pris[e.id] = 1;
       });
       if (out.length < n) tri.forEach(function (e) { if (out.length < n && !pris[e.id]) { out.push(e); pris[e.id] = 1; } });
@@ -5425,56 +5417,29 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (rep.calme === 'Étirements') { var t = fin.filter(function (e) { return !MOTS_CALME.test(sa(e.nom)); }); return t.length ? t : fin; }
       return fin;
     }
-    var doux = rep.groupe === 'Gym douce', formatT = rep.format && formatsDe(rep.groupe).indexOf(rep.format) >= 0 ? rep.format : formatParDefaut(rep.groupe), niveauT = judo ? null : niveauEffectifTaiso(rep);
-    // Taïso : le corps de séance (en blocs) est construit en premier, pour cibler l'échauffement et les étirements sur les zones travaillées
-    var blocsCorps = null, zones = {};
-    if (!judo) {
-      var phC = phases.filter(function (x) { return x[0] === 'Corps de séance'; })[0];
-      blocsCorps = construireBlocs(formatT, base.filter(mom('Corps de séance')), phC[1], doux, choisir, niveauT, { intensite: rep.intensite || 0, participants: rep.participants || 0 });
-      zones = zonesTravaillees(blocsCorps);
-    }
-    function cible(pool, n) {   // la moitié au moins prise parmi les exercices qui visent les zones du corps de séance
-      var top = pool.filter(function (e) { return cibleZones(e, zones) > 0; }).sort(function (a, b) { return cibleZones(b, zones) - cibleZones(a, zones); });
-      var a = choisir(top.slice(0, Math.max(n * 2, 4)), Math.ceil(n / 2), false); return a.concat(choisir(pool, n - a.length, false));
-    }
     phases.forEach(function (ph, i) {
-      if (judo) phasePedagogique = ph[0];
+      phasePedagogique = ph[0];
       var min = ph[1], ex;
-      if (!judo && ph[0] === 'Corps de séance') {
-        var items = [].concat.apply([], blocsCorps.map(function (b) { return b.items; })), occupe = blocsCorps.reduce(function (t, b) { return t + b.minutes; }, 0);
-        if (!items.length) manques.push(ph[0]);
-        resultat.push({ nom: ph[0], minutes: min, blocs: blocsCorps, format: formatT, niveau: niveauT, transitions: Math.max(0, Math.round(min - occupe)), exercices: items });
-        return;
-      }
       if (i === 0) { ex = routine; if (!ex.length) manques.push('routine de mobilité (non choisie)'); }
       else {
-        var dernier = i === phases.length - 1, n = Math.max(dernier && judo && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
-        if (judo && rep.cibleDureeBlocMin && (ph[0] === 'Corps de séance' || ph[0] === 'Randori')) n = Math.min(6, Math.max(1, Math.round(min / Number(rep.cibleDureeBlocMin))));
-        var finS = function () { return base.filter(mom('Fin de séance')); }, calme = function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); };
-        if (!judo && ph[0] === 'Retour au calme') { pool = finS().filter(calme); if (!pool.length) pool = finS(); }
-        else if (!judo && ph[0] === 'Étirements') { pool = finS().filter(function (e) { return !calme(e); }); if (!pool.length) pool = finS(); }
-        else if (!judo && ph[0] === 'Échauffement') {
-          pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e) && niveauOk(e, niveauT) && (!doux || !estImpact(e)); });
-          if (pool.length < 3) pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e) && (!doux || !estImpact(e)) && niveauOk(e, niveauT); });
-          n = Math.min(4, Math.max(3, Math.round(min / 2)));
-        }
-        else if (dernier) pool = poolCalme();
+        var dernier = i === phases.length - 1, n = Math.max(dernier && rep.calme === 'Les deux' ? 2 : 1, Math.round(min / ph[2])), pool;
+        if (rep.cibleDureeBlocMin && (ph[0] === 'Corps de séance' || ph[0] === 'Randori')) n = Math.min(6, Math.max(1, Math.round(min / Number(rep.cibleDureeBlocMin))));
+        if (dernier) pool = poolCalme();
         else if (i === 1) { pool = base.filter(function (e) { return mom('Échauffement')(e) && !estMobilite(e); }); if (!pool.length) pool = base.filter(mom('Échauffement')); }
-        else if (judo && i === 3) {
+        else if (i === 3) {
           pool = base.filter(function (e) { return mom('Corps de séance')(e) && !pris[e.id] && (e.rolePedagogique === 'Opposition' || (e.niveauOpposition && /Opposition dirigée|Opposition libre/.test(e.niveauOpposition)) || MOTS_RANDORI.test(sa(e.nom + ' ' + e.thematique))); });
           if (!pool.length) manques.push('Randori : aucun exercice d’opposition adapté, aucune substitution cardio automatique');
         }
         else pool = base.filter(mom('Corps de séance'));
-        if (judo && dernier && rep.calme === 'Les deux' && n >= 2) {
+        if (dernier && rep.calme === 'Les deux' && n >= 2) {
           var calmes = choisir(pool.filter(function (e) { return MOTS_CALME.test(sa(e.nom + ' ' + e.description)); }), 1, false);
           ex = calmes.concat(choisir(pool, n - calmes.length, false));
-        } else if (!judo && (ph[0] === 'Échauffement' || ph[0] === 'Étirements')) ex = cible(pool, n);
-        else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
+        } else ex = choisir(pool, n, ph[0] === 'Corps de séance' || ph[0] === 'Randori');
         if (ex.length < n) manques.push(ph[0]);
       }
       if (ex.length > min) ex = ex.slice(0, min);
       var durees = repartirDurees(min, ex.length), transitionsPedagogiques = 0;
-      if (judo && i > 0 && ex.length) {
+      if (i > 0 && ex.length) {
         if (ex.every(function (e) { return Number(e.dureeBlocMin) > 0; })) {
           var prevues = ex.map(function (e) { return Math.round(Number(e.dureeBlocMin)); });
           var somme = prevues.reduce(function (a,b) { return a + b; },0);
@@ -5485,13 +5450,17 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       }
       resultat.push({ nom: ph[0], minutes: min, transitions: transitionsPedagogiques, exercices: ex.map(function (e, k) { return { e: e, duree: durees[k] }; }) });
     });
-    if (judo && typeof phasesDe === 'function') { var labelsAge = phasesDe('Judo',rep.groupe); resultat.forEach(function (p,i) { p.libelle = labelsAge[i] || p.nom; }); }
+    if (typeof phasesDe === 'function') { var labelsAge = phasesDe('Judo',rep.groupe); resultat.forEach(function (p,i) { p.libelle = labelsAge[i] || p.nom; }); }
     return { phases: resultat, manques: manques };
   }
 
+  // Routeur conservé pour les appels existants, sans logique métier partagée.
+  function genererSeance(rep, judo, tous, tout, graine) {
+    return judo ? genererSeanceJudo(rep, tous, tout, graine) : genererSeanceTaiso(rep, tous, tout, graine);
+  }
   function Generateur(p) {
     var judo = p.espace === 'Judo';
-    function ficheAutorisee(e) { return e && e.typeFiche !== 'Technique' && (judo || (Array.isArray(e.public) && e.public.indexOf('Taïso') >= 0)); }
+    function ficheAutorisee(e) { return e && e.typeFiche !== 'Technique' && Array.isArray(e.public) && e.public.indexOf(p.espace) >= 0; }
     p = Object.assign({}, p, { donnees: p.donnees.filter(ficheAutorisee), tout: p.tout.filter(ficheAutorisee) });
     var s1 = React.useState(0), etape = s1[0], setEtape = s1[1];
     var routineInit = lireRoutine(p.espace);
@@ -7280,7 +7249,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v26');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v27');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7303,6 +7272,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v26">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v27">
 </body>
 </html>
