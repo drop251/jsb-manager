@@ -103,6 +103,11 @@ fs.mkdirSync('qa-captures',{recursive:true});
          family:family?{height:rect(family).h,marginTop:familyStyle.marginTop,marginBottom:familyStyle.marginBottom}:null};
       });
       assert.ok(layout,'Catalogue absent');
+      assert.ok(await page.locator('.wrap > .barre-recherche').evaluate(el=>{const group=el.parentElement.querySelector('.sousgrille');return !group || Boolean(el.compareDocumentPosition(group)&Node.DOCUMENT_POSITION_FOLLOWING);}), 'Recherche avant les sous-groupes');
+      await page.getByRole('searchbox',{name:'Rechercher une fiche'}).fill('jsb-aucun-resultat-qa');
+      assert.equal(await page.locator('.barre-compte .compte').textContent(),'0 fiches');
+      await page.getByRole('searchbox',{name:'Rechercher une fiche'}).fill('');
+
       assert.equal(layout.types.length,3);
       assert.equal(layout.gap,'10px');
       assert.ok(layout.types.every(t=>t.h>=44&&t.x>=0&&t.right<=layout.width+1),JSON.stringify(layout));
