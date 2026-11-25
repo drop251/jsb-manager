@@ -16,7 +16,7 @@ test('Interface : feuille de style locale chargée après les styles historiques
  assert.match(css,/\.onglet-txt\s*\{[^}]*font-size:\s*\.75rem/);
  assert.match(css,/\.sous\s*\{\s*min-height:\s*44px/);
 });
-test('Interface : cinq destinations et titre sémantique conservés',()=>{
+test('Interface : quatre destinations et titre sémantique conservés',()=>{
  const html=read('index.html');
  assert.match(html,/var NAV = \[\['', 'Accueil', 'accueil'\], \['taiso', 'Taïso', 'taiso'\], \['judo', 'Judo', 'judo'\], \['presences', 'Présences', 'presences'\]\]/);
  assert.ok(html.includes("h('h1', null, f.sous || esp.label)"));
@@ -35,7 +35,7 @@ test('Interface : espace de travail adaptatif et largeur minimale des contrôles
  const css=read('ui/interface.css');
  assert.match(css,/\.wrap\s*\{\s*max-width:\s*1360px/);
  assert.match(css,/\.gn:not\(\.cx-gestion\)\s*\{\s*width:\s*min\(740px,100%\)/);
- assert.match(css,/repeat\(5,minmax\(0,1fr\)\)/);
+ assert.match(css,/repeat\(4,minmax\(0,1fr\)\)/);
  assert.match(css,/orientation:\s*landscape/);
  assert.match(css,/max-width:\s*360px/);
 });
@@ -60,7 +60,8 @@ test('Interface : tableau de bord et commande principale reliés aux données et
  assert.ok(html.includes("className: 'accueil-preparer'"));
  assert.ok(html.includes("poserIntention({ type: 'generer' }); aller(label === 'Judo' ? 'judo' : 'taiso')"));
  assert.ok(html.includes("suivi.actifs == null ? '—' : suivi.actifs"));
- assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.date === auj; }).length"));
+ assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.espace === 'Judo'; }).length"));
+ assert.ok(html.includes("historiqueAccueil.filter(function (x) { return x.espace === 'Taïso'; }).length"));
  assert.ok(html.includes("historiqueAccueil.slice(0, 3)"));
  assert.match(css,/--jsb-brand-ivory:\s*#f4f5ef/);
  assert.match(css,/--bg:\s*#151c29/);
