@@ -722,3 +722,19 @@
 :root[data-texte-grand] .wrap > .sousgrille .sous { flex-basis:100%; }
 :root[data-texte-grand] .wrap > .barre-recherche { flex-wrap:wrap; }
 :root[data-texte-grand] .wrap > .barre-recherche .cherche { flex-basis:100%; }
+
+/* V19 — exercise sheet hierarchy, scoped to the exercise dialog. */
+.fiche-v19 { color:var(--ink); }
+.fiche-v19 .fiche-rubrique { font-size:1rem; font-weight:750; margin:18px 0 8px; letter-spacing:-.015em; }
+.fiche-v19 .fiche-essentiel { display:grid; gap:8px; margin:12px 0; grid-template-columns:minmax(0,1fr); }
+.fiche-v19 .fiche-essentiel > div { padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); min-width:0; }
+.fiche-v19 .fiche-essentiel > .securite { border-inline-start:4px solid var(--jsb-accent-ink); background:var(--jsb-accent-soft); }
+.fiche-v19 .fiche-essentiel dt { font-size:.8125rem; font-weight:750; letter-spacing:0; text-transform:none; }
+.fiche-v19 .faits dd { overflow-wrap:anywhere; line-height:1.5; }
+.fiche-v19 .fiche-admin > summary { color:var(--jsb-accent-ink); font-weight:750; }
+.fiche-v19 .fiche-outils > summary { min-height:44px; box-sizing:border-box; padding-block:10px; }
+.fiche-v19 .fiche-admin .fiche-outils { margin-block:8px; }
+.fiche-v19 .fiche-adapt { min-width:0; }
+.fiche-v19 .sheet-ajout { min-height:48px; }
+@media (min-width:600px) { .fiche-v19 .fiche-essentiel { grid-template-columns:repeat(2,minmax(0,1fr)); } .fiche-v19 .fiche-essentiel > .securite { grid-column:1/-1; } }
+:root[data-texte-grand] .fiche-v19 .fiche-essentiel { grid-template-columns:minmax(0,1fr); }
