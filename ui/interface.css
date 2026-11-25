@@ -705,3 +705,20 @@
  .aujourdhui .tuile small { font-size:.8125rem; }
 }
 :root[data-texte-grand] .aujourdhui .tuile { min-height:0; }
+
+/* V16 — compact catalogue navigation, preserving accessible controls. */
+.wrap > .barre-recherche { margin-block:0; }
+.wrap > .catalogue-familles { min-width:0; }
+@media (max-width:959px) {
+ .wrap:has(> .catalogue-types) > .hero { padding-block:8px; }
+ .wrap > .sousgrille { display:flex; flex-wrap:wrap; align-items:stretch; }
+ .wrap > .sousgrille .sous { flex:1 1 auto; max-width:100%; min-width:0; }
+ .wrap > .sousgrille .sous b { overflow-wrap:anywhere; }
+ .wrap > .barre-recherche { align-items:stretch; }
+ .wrap > .barre-recherche .cherche { min-width:0; flex:1 1 0; }
+ .wrap > .barre-recherche .filtres-btn { flex:0 0 auto; }
+ .wrap > .barre-compte .compte { font-weight:650; }
+}
+:root[data-texte-grand] .wrap > .sousgrille .sous { flex-basis:100%; }
+:root[data-texte-grand] .wrap > .barre-recherche { flex-wrap:wrap; }
+:root[data-texte-grand] .wrap > .barre-recherche .cherche { flex-basis:100%; }
