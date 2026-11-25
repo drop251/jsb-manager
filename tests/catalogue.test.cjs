@@ -72,7 +72,7 @@ function cards(tree){return nodes(tree).filter(n=>n.props.className==='carte').m
 test('Parcours Judo : famille, sous-famille, recherche et changement de public restent cohérents',()=>{
  const {render}=appFixture();let tree=render();assert.equal(cards(tree).length,3);
  find(tree,n=>n.type==='button'&&text(n)==='Travail debout (1)').props.onClick();tree=render();assert.equal(cards(tree).length,1);
- find(tree,n=>n.props.id==='c-sous-famille').props.onChange('Jambes');tree=render();assert.equal(cards(tree).length,1);
+ assert.equal(nodes(tree).some(n=>n.props.id==='c-sous-famille'),false,'Une sous-famille unique ne nécessite pas de filtre');
  find(tree,n=>n.props.id==='recherche').props.onChange({target:{value:'jambes'}});tree=render();assert.equal(cards(tree).length,1);
  find(tree,n=>n.type==='button'&&text(n).startsWith('Poussins')).props.onClick();tree=render();
  assert.equal(find(tree,n=>n.type==='button'&&text(n)==='Toutes (2)').props['aria-pressed'],true);
@@ -116,3 +116,16 @@ test('Un type inconnu dans une base complète est refusé sans convertir les anc
  const result=await c.lireBaseFichier({text:async()=>JSON.stringify(source)});assert.equal(result[0].typeFiche,undefined);
  await assert.rejects(c.lireBaseFichier({text:async()=>JSON.stringify([{...source[0],typeFiche:'Séance'}])}),/typeFiche/);
 });
+
+ test('Filtres contextuels : les choix uniques sont masqués, les choix multiples et actifs restent accessibles',()=>{
+ const f=appFixture('taiso');let t=f.render();
+ assert.equal(nodes(t).some(n=>n.props.className==='catalogue-types'),false);
+ assert.ok(nodes(t).some(n=>n.props.className==='catalogue-familles'));
+ find(t,n=>n.type==='button'&&text(n).startsWith('Training')).props.onClick();t=f.render();
+ assert.equal(nodes(t).some(n=>n.props.className==='catalogue-familles'),false);
+ f.c.BASE.push({id:6,nom:'Fente',public:['Taïso'],sousGroupes:['Training'],categorie:'Renforcement',sousFamille:'Jambes'}, {id:7,nom:'Pompe',public:['Taïso'],sousGroupes:['Training'],categorie:'Renforcement',sousFamille:'Bras'});t=f.render();
+ const sub=find(t,n=>n.props.id==='c-sous-famille');sub.props.onChange('Bras');t=f.render();assert.equal(cards(t).length,1);
+ find(t,n=>n.props['aria-label']==='Retirer le filtre Bras').props.onClick();t=f.render();assert.equal(cards(t).length,3);
+ f.c.BASE.push({id:8,nom:'Technique test',public:['Taïso'],sousGroupes:['Training'],typeFiche:'Technique',categorie:'Renforcement'});t=f.render();
+ assert.ok(nodes(t).some(n=>n.props.className==='puces catalogue-types'));
+ });
