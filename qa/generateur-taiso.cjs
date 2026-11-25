@@ -10,7 +10,7 @@ const source = [
  part('  function hasard(', '  function melanger('),
  part('  function melanger(', '\n'), 
  part('  function supervisionRequiseTaiso(', '  // V26 : moteur Taïso indépendant'),
- part('  function genererSeanceTaiso(', '  function genererSeance(rep,'),
+ part('  function genererSeanceTaiso(', '  // V27 : moteur Judo indépendant'),
  part('  var CONTRAINTES =', '  function zoneDe('),
  part('  function estImpact(', '  function estUnilateral('),
  part('  function niveauOk(', '  // Un exercice convient-il à ce format ?'),
