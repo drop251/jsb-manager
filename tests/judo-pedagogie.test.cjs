@@ -77,16 +77,15 @@ test('la génération utilise les durées déclarées et signale les trous sans 
     MOTS_RANDORI:/randori/i,MOTS_CALME:/calme/i,
     sa:s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
     scoreObjectifJudo:()=>1,sg:e=>e.sousGroupes,momentsDe:e=>[e.moment],
-    illustre:()=>false,evite:()=>false,estMobilite:()=>false,
+    illustre:()=>false,estMobilite:e=>e.categorie==='Mobilité',
     formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',formatsDe:()=>['Circuit'],
     niveauOk:()=>true,zoneDe:()=>'tronc',cibleZones:()=>0,
     construireBlocs:()=>[],zonesTravaillees:()=>({})
   });
-  vm.runInContext(fn('okTaiso'),ctx);
   vm.runInContext(fn('repartirDurees'),ctx);
-  vm.runInContext(fn('genererSeance'),ctx);
+  vm.runInContext(fn('genererSeanceJudo'),ctx);
   function e(id,nom,moment,role,duree,opp) {
-    return {id,nom,sousGroupes:['Poussins'],equipement:'Tatami',moment,categorie:'Équilibre',technique:'Ne-waza (Osaekomi-waza)',rolePedagogique:role,competenceCiblee:'Conserver une immobilisation',prerequis:'Aucun',niveauOpposition:opp||'Coopération',dureeBlocMin:duree,format:'Binôme'};
+    return {id,nom,public:['Judo'],sousGroupes:['Poussins'],equipement:'Tatami',moment,categorie:'Équilibre',technique:'Ne-waza (Osaekomi-waza)',rolePedagogique:role,competenceCiblee:'Conserver une immobilisation',prerequis:'Aucun',niveauOpposition:opp||'Coopération',dureeBlocMin:duree,format:'Binôme'};
   }
   const list=[
     e(1,'Routine','Échauffement','Préparation',6), e(2,'Échauffement','Échauffement','Préparation',10),
@@ -98,12 +97,21 @@ test('la génération utilise les durées déclarées et signale les trous sans 
     e(8,'Randori entrée','Corps de séance','Opposition',6,'Opposition dirigée'),
     e(9,'Retour calme','Fin de séance','Retour au calme',7,'Sans opposition')
   ];
+  list[0].categorie='Mobilité';
+  list.push({...list[6],id:98,public:['Taïso']});
   const rep={groupe:'Poussins',duree:'60 min',routine:[1],objectif:'Travail au sol — Ne-waza',calme:'Étirements',cibleDureeBlocMin:'6',niveauOpposition:'Opposition dirigée',organisationSeance:'Mixte'};
-  const result=ctx.genererSeance(rep,true,list,list,10);
+  const result=ctx.genererSeanceJudo(rep,list,list,10);
   assert.equal(result.phases.reduce((s,p)=>s+p.minutes,0),60);
   for(const ph of result.phases) {
     if(!ph.exercices.length)continue;
     assert.equal(ph.exercices.reduce((s,x)=>s+x.duree,0)+(ph.transitions||0),ph.minutes,ph.nom);
   }
-  assert.ok(result.phases.find(x=>x.nom==='Randori').exercices.every(x=>x.e.rolePedagogique==='Opposition'));
+  const randori=result.phases.find(x=>x.nom==='Randori');
+  assert.ok(randori.exercices.length>0);
+  assert.ok(randori.exercices.every(x=>x.e.rolePedagogique==='Opposition'));
+  assert.deepEqual(Array.from(result.phases[0].exercices,x=>x.e.id),[1]);
+  assert.ok(result.phases.every(ph=>ph.exercices.every(x=>x.e.id!==98)));
+  const empty=ctx.genererSeanceJudo(rep,[],[],10);
+  assert.ok(empty.phases.every(ph=>ph.exercices.length===0));
+  assert.ok(empty.manques.some(m=>m.includes('Randori')));
 });
