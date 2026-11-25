@@ -159,7 +159,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
     MOTS_RANDORI:/randori/i,MOTS_CALME:/calme/i,
     sa:x=>String(x||'').toLowerCase(),techniqueDe:x=>x,scoreObjectifJudo:()=>0,
     sg:e=>e.sousGroupes,momentsDe:e=>[e.moment],
-    illustre:()=>false,evite:()=>false,estMobilite:()=>false,
+    illustre:()=>false,evite:()=>false,estMobilite:e=>e.categorie==='Mobilité',estImpact:()=>false,
     formatParDefaut:()=>'Circuit',niveauParDefaut:()=>'Débutant',niveauEffectifTaiso:()=> 'Débutant',supervisionRequiseTaiso:()=>false,formatsDe:()=>['Circuit'],
     niveauOk:()=>true,zoneDe:()=>'tronc',cibleZones:()=>0,
     construireBlocs:()=>[],zonesTravaillees:()=>({}),compatibleDosageJudo:()=>true
@@ -167,8 +167,9 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   vm.createContext(ctx);
   vm.runInContext(fonction('okTaiso'),ctx);
   vm.runInContext(fonction('repartirDurees'),ctx);
+  vm.runInContext(fonction('genererSeanceTaiso'),ctx);
   vm.runInContext(fonction('genererSeance'),ctx);
-  const all=[{id:1,nom:'Routine',sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
+  const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
   all.push({...all[0],id:99,typeFiche:'Technique'});
   for(const duree of [45,60,75,90]){
     for(const judo of [true,false]){
@@ -176,6 +177,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
       const result=ctx.genererSeance(rep,judo,all,all,1122);
       assert.equal(result.phases.reduce((n,p)=>n+p.minutes,0),duree,rep.groupe+' '+duree);
       assert.ok(result.phases.every(p=>p.minutes>0));
+      assert.deepEqual(Array.from(result.phases[0].exercices,x=>x.e.id),[1]);
       assert.ok(result.phases.every(p=>p.exercices.every(x=>x.e.id!==99)));
       result.phases.filter(p=>!p.blocs && p.exercices.length).forEach(p=>assert.equal(p.exercices.reduce((n,e)=>n+e.duree,0),p.minutes,p.nom));
     }
