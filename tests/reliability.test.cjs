@@ -170,7 +170,7 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
   ctx.genererSeanceJudo=require('../modules/judo.js').creerMoteur(ctx).genererSeanceJudo;
   vm.runInContext(fonction('genererSeance'),ctx);
-  const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
+  const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité',niveau:'Débutant'}];
   all.push({...all[0],id:99,typeFiche:'Technique'}, {...all[0],id:98,public:['Taïso']}, {...all[0],id:97,public:['Judo']});
   for(const duree of [45,60,75,90]){
     for(const judo of [true,false]){
