@@ -4654,6 +4654,18 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       });
     });
   }
+  // Reset only the local exercise library; never erase the user workspace or PWA shell.
+  function viderCatalogueLocal() {
+    return Stockage.lire(CLE_VIDEOS).then(function (videos) {
+      var entrees = [['jsb-exercices', []], [CLE_AJOUTS, []], [CLE_ILLUS_IA, {}], [CLE_IMG_PERSO, {}], [CLE_VIDEOS, {}], ['jsb-catalogue-en-ligne-desactive', true]];
+      Object.keys(videos || {}).forEach(function (id) { entrees.push([cleVideo(id), null]); });
+      return Stockage.ecrireLot(entrees);
+    }).then(function (ok) {
+      if (!ok) throw new Error('Réinitialisation impossible.');
+      try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {}
+      return true;
+    });
+  }
   function GestionExercices(props) {
     var s1 = React.useState(null), rapport = s1[0], setRapport = s1[1];
     var s2 = React.useState(''), msg = s2[0], setMsg = s2[1];
@@ -4726,6 +4738,14 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         setTimeout(function () { location.reload(); }, 700);
       }).catch(function (err) { setMsg('Import interrompu : ' + (err.message || 'stockage indisponible')); }).finally(function () { if (!reussi) { verrouImport.current = false; setEnCours(false); } });
     }
+    function viderCatalogue() {
+      if (verrouImport.current || enCours) return;
+      if (!window.confirm('Vider définitivement les exercices Judo et Taïso et leurs médias locaux ? Les licenciés, présences, planning, séances et réglages restent conservés. Les anciennes séances peuvent référencer des exercices absents. Exportez le catalogue avant si nécessaire.')) return;
+      verrouImport.current = true; ++lectureImport.current; setEnCours(true); setRapport(null); setMsg('Réinitialisation du catalogue…');
+      viderCatalogueLocal().then(function () { location.reload(); }).catch(function (err) {
+        verrouImport.current = false; setEnCours(false); setMsg(err.message || 'Réinitialisation impossible.');
+      });
+    }
     function exporter() {
       var propre = BASE.map(function (e) { var c = Object.assign({}, e); delete c.ajoute; var s = svgIA(e); if (s) c.illustration = s; delete c.image; delete c.illustration; return c; });
       enregistrerFichier('exercices-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(propre, null, 2)], { type: 'application/json' }), setMsg);
@@ -4765,7 +4785,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches et vidéos (.zip)'),
         h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
         photosJudo.length ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
-        nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null),
+        nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null,
+        h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: viderCatalogue }, 'Vider le catalogue d’exercices')),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         h('p', { className: 'gestion-msg' }, (rapport.totalLignes || 0) + ' ligne(s) analysée(s) en aperçu, sans écriture dans la bibliothèque. ' + (rapport.doublons || []).length + ' déjà présente(s) sans correction. ' + (rapport.refuses || []).length + ' refusée(s).'),
@@ -7229,7 +7250,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         if (ids[e.id] !== undefined) { if (e._jsbOverride) BASE[ids[e.id]] = Object.assign({}, BASE[ids[e.id]], e, { ajoute: false }); }
         else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: !e._jsbOverride })); }
       });
-    }).catch(function () {}).then(chargerEnLigne);
+    }).catch(function () {}).then(function () { return Stockage.lire('jsb-catalogue-en-ligne-desactive').then(function (desactive) { if (!desactive) return chargerEnLigne(); }); });
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
     .then(demarrer, demarrer);
@@ -7240,7 +7261,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v16');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v17');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7263,6 +7284,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v16">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v17">
 </body>
 </html>
