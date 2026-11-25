@@ -43,3 +43,18 @@ test('La typographie Archivo reste locale et disponible hors ligne',()=>{
   assert.match(css,/data:font\/woff2;base64,/);
   assert.ok(sw.includes("'./ui/archivo.css'"),'Police absente du cache hors ligne');
 });
+
+test('Le noyau de stockage modulaire est chargé avant l’application et précaché',()=>{
+  const marker='<script src="./core/stockage-web.js"></script>';
+  assert.ok(html.includes(marker));
+  assert.equal(html.indexOf(marker),html.lastIndexOf(marker));
+  assert.ok(html.indexOf(marker)<html.indexOf('var h = React.createElement'));
+  assert.ok(sw.includes("'./core/stockage-web.js'"));
+  const source=fs.readFileSync(path.join(root,'core/stockage-web.js'),'utf8');
+  assert.doesNotThrow(()=>new vm.Script(source));
+  const {creerStockage}=require('../core/stockage-web.js');
+  const api=creerStockage({});
+  assert.deepEqual(Object.keys(api).sort(),['lire','ecrire','ecrireLot','fermer','oublierAncien','ancien','proteger'].sort());
+  assert.match(source,/BASE = 'jsb-manager', TABLE = 'donnees'/);
+  assert.match(html,/var Stockage = window.JSBStockageWeb.creerStockage\(window\)/);
+});
