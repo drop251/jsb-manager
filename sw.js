@@ -21,6 +21,10 @@ self.addEventListener('fetch', function (ev) {
     return;
   }
   if (url.origin !== self.location.origin) return;
+  // Les nouveaux points d’entrée et API ne relèvent pas du cache de la PWA historique.
+  var scopePath = new URL(self.registration.scope).pathname;
+  var relativePath = url.pathname.slice(scopePath.length);
+  if (url.pathname.indexOf(scopePath) === 0 && /^(?:apps|api|backend)(?:\/|$)/.test(relativePath)) return;
   if (url.searchParams.has('jsb-version-check') && /\/index\.html$/.test(url.pathname)) {
     ev.respondWith(fetch(req, { cache: 'no-store' }).then(async function (rep) {
       if (!rep.ok) return rep;
