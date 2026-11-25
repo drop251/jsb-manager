@@ -738,3 +738,17 @@
 .fiche-v19 .sheet-ajout { min-height:48px; }
 @media (min-width:600px) { .fiche-v19 .fiche-essentiel { grid-template-columns:repeat(2,minmax(0,1fr)); } .fiche-v19 .fiche-essentiel > .securite { grid-column:1/-1; } }
 :root[data-texte-grand] .fiche-v19 .fiche-essentiel { grid-template-columns:minmax(0,1fr); }
+
+/* V19.1 — compact first viewport; no clipping or truncation of safety instructions. */
+.fiche-v19 > .fiche-essentiel { margin:0; border-top:0; gap:6px; flex:none; }
+.fiche-v19 .fiche-essentiel > div { display:block; padding:10px 12px; }
+.fiche-v19 .fiche-essentiel > .securite { margin:0; padding:10px 12px !important; border:1px solid var(--line) !important; border-inline-start:4px solid var(--warn) !important; }
+.fiche-v19 .fiche-essentiel dd { margin-top:3px; }
+@media (max-width:599px) {
+ .fiche-v19.sheet { gap:10px; }
+ .fiche-v19 > h2 { font-size:clamp(1.25rem,6vw,1.5rem); }
+ .fiche-v19 > .fiche-essentiel { grid-template-columns:minmax(0,1fr); }
+ .fiche-v19 > .sheet-barre { gap:8px; }
+ .fiche-v19 > .pastilles { margin-top:0; }
+}
+:root[data-texte-grand] .fiche-v19 > h2 { font-size:var(--t-xl); }
