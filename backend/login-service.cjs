@@ -9,8 +9,8 @@ function normalizeEmail(value){
  const email=value.trim().toLowerCase();
  return email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;
 }
-function createLoginService({limiter,sessions,findAccountByEmail,verifyMfa,checkPassword=verifyPassword}={}){
- if(!limiter||typeof limiter.reserve!=='function'||!sessions||typeof sessions.issue!=='function'||typeof findAccountByEmail!=='function'||typeof verifyMfa!=='function'||typeof checkPassword!=='function')throw new TypeError('Adaptateurs de connexion requis');
+function createLoginService({limiter,sessions,findAccountByEmail,verifyMfa,verifyRecovery=async()=>false,checkPassword=verifyPassword}={}){
+ if(!limiter||typeof limiter.reserve!=='function'||!sessions||typeof sessions.issue!=='function'||typeof findAccountByEmail!=='function'||typeof verifyMfa!=='function'||typeof verifyRecovery!=='function'||typeof checkPassword!=='function')throw new TypeError('Adaptateurs de connexion requis');
  async function login({email,password,sourceId,mfaCode}={}){
   const key=normalizeEmail(email);
   if(!key||!validPassword(password))return failure();
@@ -22,7 +22,7 @@ function createLoginService({limiter,sessions,findAccountByEmail,verifyMfa,check
    let mfaVerified=false;
    if(account.role==='admin'){
     if(typeof mfaCode!=='string'||!mfaCode||mfaCode.length>128)return failure();
-    mfaVerified=await verifyMfa(account.id,mfaCode)===true;
+    mfaVerified=(/^\d{6}$/.test(mfaCode)?await verifyMfa(account.id,mfaCode):await verifyRecovery(account.id,mfaCode))===true;
     if(!mfaVerified)return failure();
    }
    const session=await sessions.issue({accountId:account.id,credentialVerified:true,mfaVerified});
