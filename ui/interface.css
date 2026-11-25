@@ -385,14 +385,14 @@
 /* V7 — bibliothèque mobile : densité utile, sans réduction des cibles tactiles.
    Aucun filtre ni bouton retiré ; les sous-groupes restent défilables. */
 @media (max-width:599px) {
-  .wrap:has(> .catalogue-types) { gap:10px; }
-  .wrap:has(> .catalogue-types) > .appbar {
+  .wrap:has(> .barre-seance) { gap:10px; }
+  .wrap:has(> .barre-seance) > .appbar {
     min-height:52px;
     padding-top:calc(4px + env(safe-area-inset-top,0px));
     padding-bottom:4px;
   }
-  .wrap:has(> .catalogue-types) .appbar-titre strong { font-size:1.0625rem; line-height:1.2; }
-  .wrap:has(> .catalogue-types) .appbar-titre small { font-size:.75rem; line-height:1.25; }
+  .wrap:has(> .barre-seance) .appbar-titre strong { font-size:1.0625rem; line-height:1.2; }
+  .wrap:has(> .barre-seance) .appbar-titre small { font-size:.75rem; line-height:1.25; }
   .wrap > .sousgrille { gap:6px; padding-block:0 2px; }
   .wrap > .sousgrille .sous { min-height:44px; padding:6px 10px; gap:5px; }
   .wrap > .sousgrille .sous b { font-size:.875rem; }
@@ -710,7 +710,7 @@
 .wrap > .barre-recherche { margin-block:0; }
 .wrap > .catalogue-familles { min-width:0; }
 @media (max-width:959px) {
- .wrap:has(> .catalogue-types) > .hero { padding-block:8px; }
+ .wrap:has(> .barre-seance) > .hero { padding-block:8px; }
  .wrap > .sousgrille { display:flex; flex-wrap:wrap; align-items:stretch; }
  .wrap > .sousgrille .sous { flex:1 1 auto; max-width:100%; min-width:0; }
  .wrap > .sousgrille .sous b { overflow-wrap:anywhere; }
