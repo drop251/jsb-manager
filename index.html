@@ -2016,7 +2016,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v23'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v24'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -5551,10 +5551,10 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       var section = function (id, titreS, contenu) { return h('section', { className: 'gn-q', 'aria-labelledby': id }, h('h3', { id: id }, titreS), contenu); };
       var chips = function (k, liste) { return h('div', { className: 'gn-choix gn-chips' }, liste.map(function (c) { return option(c, rep[k] === c, function () { maj(k, c); }, k + c); })); };
       var contenu0 = h('div', { className: 'gn-etape gn-unique' },
-        h('div', { className: 'gn-entete-prepa' }, h('h2', null, 'Préparer une séance de Taïso'),
-          h('button', { type: 'button', className: 'cs-btn mini gn-annuler', onClick: demanderAnnulation }, 'Annuler la préparation')),
+        h('div', { className: 'gn-entete-prepa' }, h('h2', null, 'Préparation Taïso'),
+          h('button', { type: 'button', className: 'cs-btn mini gn-annuler', onClick: demanderAnnulation }, 'Annuler')),
         erreurGeneration ? h('p', { className: 'gn-erreur', role: 'alert' }, erreurGeneration) : null,
-        h('p', { className: 'gn-aide' }, 'Vos réponses de la dernière fois sont déjà cochées : ajustez si besoin, puis générez.'),
+        h('p', { className: 'gn-aide' }, 'Réglages précédents repris.'),
         coursJour ? h('p', { className: 'gn-cours' }, '📅 Cours d\'aujourd\'hui : ' + coursJour.texte + ' · séance de ' + coursJour.duree) : null,
         modeles.length ? h('details', { className: 'gn-avances' }, h('summary', null, 'Mes modèles enregistrés', h('small', null, modeles.length + ' modèle' + (modeles.length > 1 ? 's' : ''))),
           section('gq-modeles', 'Choisir un modèle', h('ul', { className: 'gn-modeles' }, modeles.map(function (m) {
@@ -5593,7 +5593,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
           h('button', { type: 'button', className: 'cs-btn', onClick: demanderAnnulation }, 'Quitter'),
           h('button', { type: 'button', className: 'cs-btn plein', disabled: !rep.groupe || !rep.routine.length, onClick: function () { setEditRoutine(false); generer(); } }, 'Générer la séance')));
       return ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: demanderAnnulation },
-        h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte('taiso'),
+        h('div', { className: 'gn gn-v22 gn-preparation', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte('taiso'),
           onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); demanderAnnulation(); } } }, contenu0)), document.body);
     }
     if (etape === 0) {
@@ -5765,6 +5765,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('p', { className: 'gn-num' }, [rep.groupe, rep.objectif !== 'Varié' ? rep.objectif : '', tech, !judo && (rep.contraintes || []).length ? 'sans : ' + rep.contraintes.join(', ').toLowerCase() : '', !judo && rep.binome ? 'en binôme' : ''].filter(Boolean).join(' · ')),
         h('h2', null, 'Séance proposée'),
         h('p', { className: 'gn-cours' }, rep.duree + ' · ' + total + ' exercices · ' + rep.groupe),
+        h('details', { className: 'gn-avances gn-ajuster' }, h('summary', null, 'Ajuster la séance', h('small', null, [rep.duree, !judo ? rep.format : ''].filter(Boolean).join(' · '))),
         h('div', { className: 'gn-durees', role: 'group', 'aria-label': 'Durée' }, (judo ? dureesGroupeJudo(rep.groupe) : DUREES).map(function (d) {
           var v = d + ' min'; return option(v, rep.duree === v, function () { var n = maj('duree', v); generer(n); });
         })),
@@ -5780,7 +5781,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
           h('p', { className: 'gn-aide', id: 'gn-int-l' }, 'Intensité'),
           h('div', { className: 'gn-durees gn-intensites', role: 'group', 'aria-labelledby': 'gn-int-l' }, INTENSITES.map(function (t, k) {
             return option(t, (rep.intensite || 0) === k - 1, function () { var n = maj('intensite', k - 1); generer(n); }, 'i-' + k);
-          }))),
+          })))),
         (function () { var c = res.phases.filter(function (x) { return x.blocs; })[0]; if (!c) return null; var ch = chargeSeance(c.blocs);
           return h('p', { className: 'gn-charge' }, h('b', null, 'Charge : '), 'environ ' + ch.minutes + ' min d\'effort · ' + ch.zones.join(' · '));
         })(),
@@ -5811,7 +5812,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         direct ? h(SeanceDirecte, { seance: direct, base: p.tout, fermer: function () { setDirect(null); } }) : null);
     }
     return ReactDOM.createPortal(h('div', { className: 'gn-voile', onClick: demanderAnnulation },
-      h('div', { className: 'gn', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
+      h('div', { className: 'gn gn-v22 ' + (res ? 'gn-resultat' : 'gn-preparation'), role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Générer une séance', style: teinte(judo ? 'judo' : 'taiso'),
         onClick: function (ev) { ev.stopPropagation(); }, onKeyDown: function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); if (!direct) demanderAnnulation(); } } }, contenu)), document.body);
   }
   // ===== Corps de séance Taïso en blocs (26/10/2026, revu le 26/10/2026 après analyse) =====
@@ -7203,7 +7204,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v23');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v24');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7226,6 +7227,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v23">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v24">
 </body>
 </html>
