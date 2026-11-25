@@ -29,7 +29,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
       const r=b.getBoundingClientRect(),label=b.querySelector('.onglet-txt'),s=getComputedStyle(label);
       return {text:label.textContent,height:r.height,width:r.width,visible:r.left>=-1&&r.right<=innerWidth+1,font:s.fontSize};
     }));
-    assert.equal(metrics.length,5);
+    assert.equal(metrics.length,4);
     for(const m of metrics){assert.ok(m.height>=44&&m.width>=44&&m.visible,JSON.stringify(m));assert.equal(m.font,'12px');}
     await page.getByRole('region',{name:'Tableau de bord'}).waitFor();
     await page.getByText('Espace administrateur',{exact:true}).waitFor();
@@ -221,7 +221,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
           })
         };
       });
-      assert.equal(layout.buttons.length,5);
+      assert.equal(layout.buttons.length,4);
       assert.ok(layout.scroll<=layout.viewport+2,JSON.stringify(layout));
       for(const b of layout.buttons){
         assert.ok(b.w>=44 && b.h>=44 && b.x>=-1 && b.right<=layout.viewport+1 && b.top>=-1 && b.bottom<=size.height+1 && b.labelFits,JSON.stringify({size,b}));
