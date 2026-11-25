@@ -80,3 +80,14 @@ jobs:
           set -euo pipefail
           node --test backend/db/tests/quota.integration.cjs
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.quota_events')" = 0
+
+      - name: Tester les inscriptions et confirmations avec PostgreSQL réel
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          node --test tests/delivery-vault.test.cjs backend/db/tests/registration.integration.cjs
+          for table in accounts sessions action_tokens delivery_outbox; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
+          done
