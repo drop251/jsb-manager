@@ -764,8 +764,8 @@ body { background: var(--bg); }
 
 /* ② Capsule d'onglets : largeurs fixes, une pastille crème qui glisse (transform seul, aucune mise en page animée) */
 @media (max-width: 959px) {
-  .onglets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 6px; }
-  .onglets::after { content: ""; position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 5); border-radius: 20px;
+  .onglets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 6px; }
+  .onglets::after { content: ""; position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 4); border-radius: 20px;
     background: var(--creme); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .38s cubic-bezier(.22, 1, .36, 1), opacity .2s; z-index: 0; pointer-events: none; }
   .onglets.sans-actif::after { opacity: 0; }
   .onglet-nav, .onglet-nav[aria-current="page"], .onglets .onglet-nav:nth-child(2)[aria-current="page"], .onglets .onglet-nav:nth-child(5)[aria-current="page"] {
@@ -1608,7 +1608,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     { key: 'taiso', label: 'Taïso', couleur: 'taiso', intro: 'Gym douce et renforcement.', sous: ['Gym douce', 'Training'], sousTous: 'Tout le taïso' },
     { key: 'judo', label: 'Judo', couleur: 'judo', intro: 'Chutes, techniques debout et au sol, randori.', sous: ['Éveils (4-5 ans)', 'Pré-poussins', 'Poussins', 'Benjamins', 'Adultes'], sousTous: 'Tous les âges' },
     { key: 'suivi', label: 'Suivi et reprise', couleur: 'suivi', intro: "Prévention, reprise après blessure et tests.", sous: [], sousTous: '' },
-    { key: 'seance', label: 'Mes séances', couleur: 'seance', intro: 'Séances de la semaine et historique.', sous: ['Semaine', 'Historique', 'Fiche PDF'], sousTous: '', special: true },
     { key: 'presences', label: 'Présences', couleur: 'pres', intro: "Appel et suivi de l'assiduité.", sous: ['Appel', 'Bilan', 'Export Excel'], sousTous: '', special: true }
   ];
   var NIVEAUX = ['Débutant', 'Intermédiaire', 'Expert'];
@@ -1692,7 +1691,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     retour: 'M15 5l-7 7 7 7'
   };
   function Icone(p) { return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true', width: p.taille || 24, height: p.taille || 24 }, h('path', { d: ICONES[p.nom] })); }
-  var NAV = [['', 'Accueil', 'accueil'], ['taiso', 'Taïso', 'taiso'], ['judo', 'Judo', 'judo'], ['seance', 'Séances', 'seance'], ['presences', 'Présences', 'presences']];
+  var NAV = [['', 'Accueil', 'accueil'], ['taiso', 'Taïso', 'taiso'], ['judo', 'Judo', 'judo'], ['presences', 'Présences', 'presences']];
   function niveauTexte(e, judo) { return e.grade || (NIVEAUX.indexOf(e.niveau) < 0 ? '' : e.niveau); }
 
   // Le clavier reste dans la dernière fenêtre explicitement modale et visible.
@@ -1907,15 +1906,15 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null,
       tuile('presences', 'presences', 'Licenciés', suivi.actifs == null ? '—' : suivi.actifs, 'Licenciés actifs', 'pres'),
       tuile('presences', 'suivi', 'Attention', suivi.n == null ? '—' : suivi.n, 'Licenciés à surveiller', 'suivi', function () { try { sessionStorage.setItem('jsb-pr-vue', 'bilan'); } catch (e) {} p.aller('presences'); }),
-      tuile('seance', 'seance', 'Aujourd’hui', historiqueAccueil.filter(function (x) { return x.date === auj; }).length, 'Séances datées du jour', 'seance'),
-      tuile('seance', 'seance', 'Historique', historiqueAccueil.length, 'Séances enregistrées', 'seance'),
-      tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Ma séance', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
-        nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance'),
+      tuile('judo', 'judo', 'Séances Judo', historiqueAccueil.filter(function (x) { return x.espace === 'Judo'; }).length, 'Séances enregistrées', 'seance', function () { p.aller('judo', true); }),
+      tuile('taiso', 'taiso', 'Séances Taïso', historiqueAccueil.filter(function (x) { return x.espace === 'Taïso'; }).length, 'Séances enregistrées', 'seance', function () { p.aller('taiso', true); }),
+      tuile(nj || !nt ? 'judo' : 'taiso', 'seance', 'Préparation en cours', nj + nt ? (nj + nt) + ' exercice' + (nj + nt > 1 ? 's' : '') : 'Vide',
+        nj + nt ? [nj ? nj + ' judo' : '', nt ? nt + ' taïso' : ''].filter(Boolean).join(' · ') : 'Générez ou composez une séance', 'seance', function () { p.aller(nj || !nt ? 'judo' : 'taiso', true); }),
       tuile('presences', 'presences', 'Dernier appel', appel ? appel.n + ' présent' + (appel.n > 1 ? 's' : '') : appel === false ? 'Aucun' : '…',
         appel ? dateFr(appel.date) + ' · ' + appel.groupe : 'Faites l\'appel depuis Présences', 'pres'),
-      h('div', { className: 'accueil-activite' }, h('div', { className: 'accueil-activite-tete' }, h('h2', null, 'Activité récente'), h('button', { type: 'button', className: 'btn lien', onClick: function () { p.aller('seance'); } }, 'Tout voir')),
+      h('div', { className: 'accueil-activite' }, h('div', { className: 'accueil-activite-tete' }, h('h2', null, 'Activité récente')),
         historiqueAccueil.length ? historiqueAccueil.slice(0, 3).map(function (x, i) {
-          return h('button', { key: x.id || i, type: 'button', className: 'accueil-activite-ligne', onClick: function () { p.aller('seance'); } },
+          return h('button', { key: x.id || i, type: 'button', className: 'accueil-activite-ligne', onClick: function () { p.aller(x.espace === 'Taïso' ? 'taiso' : 'judo', true); } },
             h(Icone, { nom: x.espace === 'Judo' ? 'judo' : x.espace === 'Taïso' ? 'taiso' : 'seance', taille: 20 }),
             h('span', null, h('b', null, x.titre || 'Séance enregistrée'), h('small', null, x.espace || 'Séance')), h('time', { dateTime: x.date }, dateFr(x.date)));
         }) : h('p', null, 'Aucune séance enregistrée pour le moment.')));
@@ -2016,7 +2015,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v31'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v32a'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -2372,7 +2371,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
   // --- Onglet « Mes séances »
   function MesSeances(p) {
-    var planning = usePlanning(), histo = useHisto();
+    var planning = usePlanning(), histo = useHisto().filter(function (s) { return !p.espace || s.espace === p.espace; });
     var s1 = React.useState(null), direct = s1[0], setDirect = s1[1];
     var historiqueVisible = React.useState(30), nbHistorique = historiqueVisible[0], setNbHistorique = historiqueVisible[1];
     var suppression = React.useState(null), aSupprimer = suppression[0], setASupprimer = suppression[1];
@@ -2392,8 +2391,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       setASupprimer(null); setMessageSuppression('');
     }
     var sel = lireSel(), nJ = (sel.judo || []).length, nT = (sel.taiso || []).length;
-    var creneaux = prochainsCreneaux(planning, 8);
-    function ouvrir(espace, intention) { if (intention) poserIntention(intention); p.aller(espace); }
+    var creneaux = prochainsCreneaux(planning, 8).filter(function (c) { return !p.espace || espaceDuCours(c.cours) === (p.espace === 'Taïso' ? 'taiso' : 'judo'); });
+    function ouvrir(espace, intention) { if (p.ouvrir) { p.ouvrir(espace, intention); return; } if (intention) poserIntention(intention); p.aller(espace); }
     function ligneSeance(s) {
       return h('li', { key: s.id, className: 'ms-ligne' },
         h('div', { className: 'ms-texte' }, h('b', null, dateFr(s.date) + (s.heure ? ' · ' + heureFr(s.heure) : '') + ' · ' + (s.cours || []).join(', ')),
@@ -2422,26 +2421,26 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       })) : h('div', { className: 'cs-vide' }, h('strong', null, 'Aucun cours dans votre planning'),
         h('span', null, 'Ajoutez vos créneaux dans Présences pour afficher vos cours ici.'),
         h('button', { type: 'button', className: 'cs-btn plein', onClick: function () { try { sessionStorage.setItem('jsb-pr-vue', 'planning'); } catch (e) {} p.aller('presences'); } }, 'Renseigner mon planning')),
-      h('h2', { className: 'ms-h' }, 'Ma séance en cours'),
-      h('div', { className: 'ms-tuiles' }, [['judo', 'Judo', nJ], ['taiso', 'Taïso', nT]].map(function (x) {
+      p.espace ? null : h('h2', { className: 'ms-h' }, 'Ma séance en cours'),
+      p.espace ? null : h('div', { className: 'ms-tuiles' }, [['judo', 'Judo', nJ], ['taiso', 'Taïso', nT]].map(function (x) {
         return h('div', { key: x[0], className: 'ms-tuile' },
           h('b', null, x[1]), h('span', null, x[2] ? x[2] + (x[2] > 1 ? ' exercices' : ' exercice') : 'Aucun exercice sélectionné'),
           h('div', { className: 'ms-actions' },
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'ouvrir' }); } }, 'Ouvrir'),
             h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { ouvrir(x[0], { type: 'generer' }); } }, 'Générer')));
       })),
-      h('h2', { className: 'ms-h' }, 'Historique'),
+      h('h2', { className: 'ms-h' }, p.espace ? 'Historique ' + p.espace : 'Historique'),
       messageSuppression ? h('p', { role: 'alert', className: 'cs-msg' }, messageSuppression) : null,
       histo.length ? h('div', { className: 'ms-filtres', role: 'search', 'aria-label': 'Rechercher une séance' },
         h('label', null, 'Rechercher', h('input', { type: 'search', value: recherche, placeholder: 'Titre, groupe ou date', onChange: function (ev) { changerFiltre(setRecherche, ev.target.value); } })),
-        h('label', null, 'Discipline', h('select', { value: discipline, onChange: function (ev) { changerFiltre(setDiscipline, ev.target.value); } },
+        p.espace ? null : h('label', null, 'Discipline', h('select', { value: discipline, onChange: function (ev) { changerFiltre(setDiscipline, ev.target.value); } },
           h('option', { value: '' }, 'Toutes'), h('option', { value: 'Judo' }, 'Judo'), h('option', { value: 'Taïso' }, 'Taïso'))),
         recherche || discipline ? h('button', { type: 'button', className: 'cs-btn mini', onClick: function () { setRecherche(''); changerFiltre(setDiscipline, ''); } }, 'Effacer les filtres') : null) : null,
       histo.length ? h('p', { className: 'ms-vide', role: 'status' }, histoFiltree.length ? histoFiltree.length + (histoFiltree.length > 1 ? ' séances trouvées' : ' séance trouvée') : 'Aucune séance trouvée.') : null,
       histoFiltree.length ? h('ul', { className: 'ms-liste' }, histoFiltree.slice(0, nbHistorique).map(ligneSeance))
         : !histo.length ? h('p', { className: 'ms-vide' }, 'Créez une séance dans « Ma séance » ou générez sa fiche PDF pour la retrouver ici.') : null,
       histoFiltree.length > nbHistorique ? h('button', { type: 'button', className: 'cs-btn', onClick: function () { setNbHistorique(nbHistorique + 30); } }, 'Voir les séances précédentes (' + (histoFiltree.length - nbHistorique) + ')') : null,
-      h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, null)),
+      h('details', { className: 'ms-fiche' }, h('summary', null, 'Fiche vierge et trame JSB en 5 phases'), h(SeanceType, { espace: p.espace })),
       direct ? h(SeanceDirecte, { seance: direct, fermer: function () { setDirect(null); } }) : null);
   }
 
@@ -2482,7 +2481,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function liste(titre, items) { return h('div', { className: 'st-bloc' }, h('h3', null, titre), h('ul', null, items.map(function (x) { return h('li', { key: x }, x); }))); }
     return h('section', { className: 'st' },
       p.titre ? h('div', null, h('h1', null, 'Séance type'), h('p', { className: 'intro' }, 'La trame JSB, en Judo et en Taïso, et sa fiche vierge à télécharger.')) : null,
-      h('div', { className: 'st-onglets', role: 'group', 'aria-label': 'Fiche' }, [['judo', 'Judo'], ['taiso', 'Taïso']].map(function (o) {
+      p.espace ? null : h('div', { className: 'st-onglets', role: 'group', 'aria-label': 'Fiche' }, [['judo', 'Judo'], ['taiso', 'Taïso']].map(function (o) {
         return h('button', { key: o[0], type: 'button', className: 'vue-btn', 'aria-pressed': onglet === o[0], onClick: function () { setOnglet(o[0]); setMsg(''); } }, o[1]);
       })),
       h('div', { className: 'st-carte' },
@@ -6229,7 +6228,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     'Si l\'éducateur demande d\'ajouter des exercices à sa séance, utilise l\'outil ajouterASeance (s\'il est disponible) puis dis ce que tu as ajouté.',
     'Sécurité : rappelle le point de vigilance quand c\'est utile ; pour une douleur, une blessure ou un problème de santé, oriente vers un professionnel de santé.',
     'Si l\'éducateur te demande de préparer la séance d\'un cours (ex. « prépare la séance de mercredi pour les Poussins »), compose une séance complète dans la trame (exercices de la base, durées en minutes réalistes pour la durée du créneau) puis enregistre-la avec l\'outil preparerSeance sur le bon créneau de la liste fournie ; résume ensuite la séance en quelques lignes.',
-    'Utilisation de l\'app : onglets Accueil (cours du jour, alerte de suivi), Taïso, Judo, Mes séances (séances de la semaine par créneau, historique, mode séance en direct avec minuteur, fiche vierge), Présences (appel en une touche, bilan, suivi des absences, planning, sauvegarde chiffrée) ; « Générer une séance » ; « Ma séance » rassemble les exercices ajoutés ; ajout d\'exercices par le menu du profil.'
+    'Utilisation de l\'app : onglets Accueil (cours du jour, alerte de suivi), Taïso et Judo (séances de la semaine, historique propre à la discipline, mode séance en direct, fiche vierge), Présences (appel en une touche, bilan, suivi des absences, planning, sauvegarde chiffrée) ; « Générer une séance » ; « Ma séance » rassemble les exercices ajoutés ; ajout d\'exercices par le menu du profil.'
   ].join('\n');
   var SUGGESTIONS_CHAT = ['Un échauffement ludique pour des poussins', 'Séance taïso Gym douce de 45 min', 'Exercices de gainage sans matériel', 'Comment exporter le bilan du mois ?'];
   function motsDe(t) { return sansAccent(t || '').split(/[^a-z0-9-]+/).filter(function (m) { return m.length > 2 && ['les', 'des', 'une', 'pour', 'avec', 'sans', 'dans', 'est', 'que', 'qui', 'mon', 'mes', 'son', 'ses', 'aux', 'par', 'sur', 'pas', 'moi', 'fais', 'donne', 'propose', 'quel', 'quels', 'quelle', 'comment', 'exercice', 'exercices', 'seance'].indexOf(m) < 0; }); }
@@ -6935,6 +6934,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var s6 = useState('cat'), tri = s6[0], setTri = s6[1];
     var s7 = useState(false), genOuvert = s7[0], setGenOuvert = s7[1];
     var s8 = useState(null), genere = s8[0], setGenere = s8[1];
+    var vueS = useState(false), vueSeances = vueS[0], setVueSeances = vueS[1];
+    var repriseS = useState(0), repriseSeance = repriseS[0], setRepriseSeance = repriseS[1];
     // Rendu progressif de la liste : 24 cartes, puis 24 de plus quand on approche du bas (IntersectionObserver)
     var PAS_LISTE = 24, s9 = useState(PAS_LISTE), nbVisibles = s9[0], setNbVisibles = s9[1];
     React.useEffect(function () { setNbVisibles(PAS_LISTE); }, [cle, f.sous, f.typeFiche, f.famille, f.sousFamille, f.cat, f.niv, f.mom, f.tech, f.fmt, f.q, f.acc, f.insp, f.grp, f.iso, f.uni, f.poly, f.fav, f.illus, tri, (f.dispo || []).join()]);
@@ -7032,7 +7033,13 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     }, []);
     var donnees = demo ? BASE.concat(EXEMPLES) : BASE;
     function de(esp) { return donnees.filter(function (e) { return (e.public || []).indexOf(esp.label) >= 0; }); }
-    function aller(k) { setCle(k); setF(VIDE); setOuverte(null); setTiroir(false); setPanneauF(false); try { history.replaceState(null, '', k ? '#' + k : location.pathname); } catch (err) {} try { window.scrollTo(0, 0); } catch (err) {} }
+    function aller(k, ouvrirSeances) { setVueSeances(ouvrirSeances === true); setCle(k === 'seance' ? null : k); setF(VIDE); setOuverte(null); setTiroir(false); setPanneauF(false); try { history.replaceState(null, '', k ? '#' + k : location.pathname); } catch (err) {} try { window.scrollTo(0, 0); } catch (err) {} }
+    function ouvrirSeanceDiscipline(espace, intention) {
+      if (espace === cle) {
+        if (intention.type === 'generer') { setGenOuvert(true); return; }
+        poserIntention(intention); setRepriseSeance(function (n) { return n + 1; });
+      } else { poserIntention(intention); aller(espace); }
+    }
     function maj(k, v) { var n = Object.assign({}, f); n[k] = v; if (k === 'famille' || k === 'sous' || k === 'typeFiche') n.sousFamille = ''; if (k === 'sous' || k === 'typeFiche') n.famille = ''; setF(n); }
     var bandeau = demo ? h('div', { className: 'bandeau' }, 'Mode exemple : ces exercices servent seulement à montrer la présentation, ils ne sont pas dans la base.',
       h('button', { type: 'button', onClick: function () { setDemo(false); } }, 'Retirer les exemples')) : null;
@@ -7097,7 +7104,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
     var esp = ESPACES.filter(function (x) { return x.key === cle; })[0], judo = cle === 'judo';
     if (esp.special) return cadre(h('main', Object.assign({ style: teinte(esp.couleur) }, glisse), h('div', { className: 'wrap' }, entete(esp), bandeau,
-      h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), esp.key === 'presences' ? h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)) : h(MesSeances, { aller: aller }))));
+      h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)))));
     var tous = de(esp);
     var parPublic = tous.filter(function (e) { return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.typeFiche || (e.typeFiche || 'Exercice') === f.typeFiche); });
     var familles = famillesCatalogue(parPublic, esp.label);
@@ -7161,9 +7168,11 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null) : null,
       (cle === 'taiso' || cle === 'judo') ? h('div', { className: 'barre barre-seance' },
         h('button', { type: 'button', className: 'gn-ouvrir', onClick: function () { setGenOuvert(true); } }, 'Générer une séance'),
-        h(PanierSeance, { sel: sel, donnees: tous.concat(donnees.filter(function (e) { return sel.ids.indexOf(e.id) >= 0 && tous.indexOf(e) < 0; })), espace: esp.label, sous: f.sous, genere: genere, effacerGeneration: function (jeton) {
+        h(PanierSeance, { key: cle + '-' + repriseSeance, sel: sel, donnees: tous.concat(donnees.filter(function (e) { return sel.ids.indexOf(e.id) >= 0 && tous.indexOf(e) < 0; })), espace: esp.label, sous: f.sous, genere: genere, effacerGeneration: function (jeton) {
           setGenere(function (courant) { return !jeton || (courant && courant.jeton === jeton) ? null : courant; });
         } })) : null,
+      (cle === 'taiso' || cle === 'judo') ? h('button', { type: 'button', className: 'cs-btn', 'aria-expanded': vueSeances, onClick: function () { setVueSeances(!vueSeances); } }, 'Séances et historique') : null,
+      (cle === 'taiso' || cle === 'judo') && vueSeances ? h(MesSeances, { key: cle, espace: esp.label, aller: aller, ouvrir: ouvrirSeanceDiscipline }) : null,
       actifs.length || f.q ? h('div', { className: 'actifs', role: 'group', 'aria-label': 'Filtres actifs' },
         actifs.map(function (x, i) { return h('button', { key: i, type: 'button', className: 'actif-puce', 'aria-label': 'Retirer le filtre ' + x[0], onClick: x[1] }, x[0], h('span', { 'aria-hidden': 'true' }, ' ✕')); }),
         h('button', { type: 'button', className: 'btn lien', onClick: toutEffacer }, 'Tout effacer')) : null,
@@ -7284,7 +7293,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v31');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v32a');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7307,6 +7316,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v31">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v32a">
 </body>
 </html>
