@@ -1948,7 +1948,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     appliquerAffichage(AFFICHAGE);
   }
 
-  // Vibrations : Android (navigator.vibrate) ; iPhone (Safari 18+) via un interrupteur natif invisible.
   var MOTIFS = { selection: 6, leger: 12, succes: [14, 70, 14], erreur: [40, 60, 40] };
   var interrupteurIOS = null;
   function vibrer(type) {
@@ -2053,7 +2052,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('path', { d: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z' })), p.texte ? h('span', null, on ? 'Favori' : 'Ajouter aux favoris') : null);
   }
 
-  // --- Historique des séances : { id, date, heure, cours: [..], espace, titre, exos: [{ id, nom, phase, duree }], infos }
   function cleHisto() { return 'jsb-historique' + suffixeProfil(); }
   function lireHisto() { var l = lireJSON(cleHisto(), []); return Array.isArray(l) ? l.filter(function (x) { return x && x.date && Array.isArray(x.exos); }) : []; }
   function signatureSeanceHistorique(s) {
@@ -2175,7 +2173,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   }
   // Suite de blocs d'un exercice
   function planExercice(x, e) {
-    // Exercice d'un bloc (circuit, Tabata, EMOM, Pilates…) : son « travail » prévu par le générateur
     if (x && x.travail && (x.travail.sec || x.travail.reps)) {
       var t = x.travail, bl = [], nS = t.series || 1, nC = t.sec && t.cote ? 2 : 1;
       for (var s0 = 1; s0 <= nS; s0++) {
@@ -2270,7 +2267,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var dernierBip = React.useRef(-1);
     var hors = React.useState(''), msgHors = hors[0], setMsgHors = hors[1];
     var charge = React.useState(false), chargeHors = charge[0], setChargeHors = charge[1];
-    // Annonces vocales (option, gardée sur l'appareil) : exercice suivant, récupération, changement de côté
     var s6 = React.useState(function () { return lireJSON('jsb-voix', false) === true; }), voix = s6[0], setVoix = s6[1];
     function parler(t) {
       if (!voix || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
@@ -2288,7 +2284,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       try { annoncer('Exercice ' + (n + 1) + ' sur ' + exos.length + ' : ' + exos[n].nom); } catch (err) {}
       parler(exos[n].nom + (b0.reps ? ', ' + b0.reps : ''));
     }
-    // Bloc suivant dans l'exercice (récupération et côté suivant démarrent seuls), sinon exercice suivant
     function blocSuivant(auto) {
       var k = bi + 1;
       if (k >= plan.length) { aller(i + 1, auto); return; }
@@ -2684,7 +2679,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!supprimerHisto(id)) { setErreurSuppressionHisto('Séance conservée. Réessayez la suppression.'); return; }
       setSuppressionHisto(null); setErreurSuppressionHisto('');
     }
-    // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
       if (x.type === 'preparer') { preparerCours(x.cle); }
@@ -2773,7 +2767,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
       return true;
     }
-    // dur : progression « un cran plus dur » (même durée, effort un peu plus long ou plus de répétitions)
     function reprendre(s, dur) {
       var absents = s.exos.filter(function (x) { return !p.donnees.some(function (e) { return e.id === x.id; }); });
       if (absents.length) { setMsg('Reprise impossible : ' + absents.length + (absents.length > 1 ? ' exercices ne figurent plus' : ' exercice ne figure plus') + ' dans le catalogue actuel. La séance enregistrée et le brouillon sont conservés.'); return false; }
@@ -2803,7 +2796,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       intensite: judoEsp ? ['Faible', 'Modérée', 'Soutenue', 'Élevée'] : ['Faible (effort 3-4 sur 10)', 'Modérée (5-6 sur 10)', 'Soutenue (7-8 sur 10)', 'Élevée (9 sur 10)'],
       format: FORMATS_TAISO
     };
-    // Valeurs proposées d'office : groupe du créneau ou du sous-groupe ouvert, durée du créneau, matériel des exercices
     var grpCours = coursChoisi ? coursChoisi.cours.filter(function (c) { return opts.groupe.indexOf(c) >= 0; })[0] : '';
     var dureeCours = coursChoisi && coursChoisi.fin ? (minutes(coursChoisi.fin) - minutes(coursChoisi.heure)) + ' min' : '';
     if (dureeCours && opts.duree.indexOf(dureeCours) < 0) opts.duree.unshift(dureeCours);
@@ -2902,7 +2894,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
             }))) : null)));
   }
 
-  // ---- Section Présences : licenciés classés par catégorie d'âge, appel, bilan, export Excel (données sur l'appareil)
   var CLE_PRES = 'jsb-presences';
   var STATUTS = [['P', 'Présent'], ['A', 'Absent']];
   // Catégories par âge atteint dans l'année civile de début de saison (septembre).
@@ -2952,8 +2943,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var j = p.j, ini = ((j.prenom || '').charAt(0) + (j.nom || '').charAt(0)).toUpperCase();
     return j.photo ? h('img', { className: 'pr-photo', src: j.photo, alt: 'Photo de ' + (j.prenom || '') + ' ' + (j.nom || '') }) : h('span', { className: 'pr-photo sans', 'aria-hidden': 'true' }, ini || '?');
   }
-  // ---- Stockage des présences : IndexedDB (plusieurs centaines de Mo possibles), stockage persistant demandé,
-  // repli sur localStorage si IndexedDB est indisponible. Les écritures sont mises en file pour garder l'ordre.
   var Stockage = (function () {
     var BASE = 'jsb-manager', TABLE = 'donnees', ouverture = null, file = Promise.resolve(), persistance = null;
     function ouvrir() {
@@ -2982,7 +2971,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); return true; } catch (err) { return false; } }
     function cleSecours(cle) { return cle + '-secours'; }
     function retirerSecours(cle) { try { localStorage.removeItem(cleSecours(cle)); } catch (err) {} }
-    // Un échec IndexedDB ne doit pas laisser une version locale plus récente invisible à la prochaine ouverture.
     function relire(cle) {
       var secours = lireLocal(cleSecours(cle));
       if (secours !== null) {
