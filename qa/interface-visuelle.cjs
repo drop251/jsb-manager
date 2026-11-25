@@ -103,6 +103,11 @@ fs.mkdirSync('qa-captures',{recursive:true});
          family:family?{height:rect(family).h,marginTop:familyStyle.marginTop,marginBottom:familyStyle.marginBottom}:null};
       });
       assert.ok(layout,'Catalogue absent');
+      assert.ok(await page.locator('.wrap > .barre-recherche').evaluate(el=>{const group=el.parentElement.querySelector('.sousgrille');return !group || Boolean(el.compareDocumentPosition(group)&Node.DOCUMENT_POSITION_FOLLOWING);}), 'Recherche avant les sous-groupes');
+      await page.getByRole('searchbox',{name:'Rechercher une fiche'}).fill('jsb-aucun-resultat-qa');
+      assert.equal(await page.locator('.barre-compte .compte').textContent(),'0 fiches');
+      await page.getByRole('searchbox',{name:'Rechercher une fiche'}).fill('');
+
       assert.equal(layout.types.length,3);
       assert.equal(layout.gap,'10px');
       assert.ok(layout.types.every(t=>t.h>=44&&t.x>=0&&t.right<=layout.width+1),JSON.stringify(layout));
@@ -367,6 +372,38 @@ fs.mkdirSync('qa-captures',{recursive:true});
       }
       console.log('PASS appel mobile peuplé',theme,JSON.stringify({before,after,panel}));
     }
+    // Administrator reset is deliberately scoped to the exercise library.
+    await page.goto(base,{waitUntil:'domcontentloaded'});
+    await nav.waitFor({timeout:45000});
+    const readWorkspace=()=>page.evaluate(()=>new Promise((resolve,reject)=>{
+      const request=indexedDB.open('jsb-manager');
+      request.onerror=()=>reject(request.error);
+      request.onsuccess=()=>{const db=request.result, tx=db.transaction('donnees','readonly'), store=tx.objectStore('donnees');
+        const keys=['jsb-presences','jsb-exercices','jsb-ajouts','jsb-videos','jsb-catalogue-en-ligne-desactive'];
+        const result={}; keys.forEach(k=>{const q=store.get(k);q.onsuccess=()=>{result[k]=q.result??null;};});
+        tx.oncomplete=()=>{db.close();resolve(result);};tx.onerror=()=>{db.close();reject(tx.error);};
+      };
+    }));
+    const workspace=await readWorkspace();
+    await page.locator('.cx-avatar.petit').click();
+    await page.getByRole('menuitem',{name:'Ajouter des exercices',exact:true}).click();
+    const reset=page.getByRole('button',{name:'Vider le catalogue d’exercices',exact:true});
+    page.once('dialog',d=>d.dismiss());
+    await reset.click();
+    assert.deepEqual(await readWorkspace(),workspace);
+    page.once('dialog',d=>d.accept());
+    await Promise.all([page.waitForEvent('load'),reset.click()]);
+    await nav.waitFor({timeout:45000});
+    const emptied=await readWorkspace();
+    assert.deepEqual(emptied['jsb-exercices'],[]);
+    assert.deepEqual(emptied['jsb-ajouts'],[]);
+    assert.deepEqual(emptied['jsb-videos'],{});
+    assert.equal(emptied['jsb-catalogue-en-ligne-desactive'],true);
+    assert.deepEqual(emptied['jsb-presences'],workspace['jsb-presences']);
+    await page.locator('.version').filter({hasText:'0 fiches'}).waitFor();
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('.version').filter({hasText:'0 fiches'}).waitFor();
+    await snapshot('16-catalogue-vide');
     assert.deepEqual(errors,[],'Exceptions JavaScript');
     console.log('PASS',engine,theme,JSON.stringify(metrics));
    } finally{await context.close();}
