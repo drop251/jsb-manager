@@ -1,7 +1,7 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-20261125-ui-presences-v20';
-var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './ui/bootstrap-v12.css', './ui/typographie-v12.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
+var CACHE = 'jsb-manager-20261125-ui-presences-v21';
+var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './ui/update.js', './ui/bootstrap-v12.css', './ui/typographie-v12.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
@@ -21,6 +21,24 @@ self.addEventListener('fetch', function (ev) {
     return;
   }
   if (url.origin !== self.location.origin) return;
+  if (url.searchParams.has('jsb-version-check') && /\/index\.html$/.test(url.pathname)) {
+    ev.respondWith(fetch(req, { cache: 'no-store' }).then(async function (rep) {
+      if (!rep.ok) return rep;
+      var headers = new Headers(rep.headers);
+      headers.set('X-JSB-Version-Check', 'network');
+      headers.delete('Content-Encoding'); headers.delete('Content-Length');
+      return new Response(await rep.text(), { status: rep.status, headers: headers });
+    }));
+    return;
+  }
+  if (req.mode === 'navigate' && url.searchParams.has('jsb-refresh')) {
+    ev.respondWith(fetch(req, { cache: 'reload' }).then(function (rep) {
+      if (!rep.ok) throw new Error('network');
+      var copy = rep.clone();
+      return caches.open(CACHE).then(function (c) { return c.put('./index.html', copy); }).then(function () { return rep; });
+    }).catch(function () { return caches.match('./index.html').then(function (r) { return r || Response.error(); }); }));
+    return;
+  }
   // Exercices illustrés publiés avec l'app : catalogue réseau d'abord (mises à jour), photos et vidéos gardées pour le hors-ligne
   if (url.pathname.indexOf('/illustres/') >= 0) {
     var catalogue = /catalogue\.json$/.test(url.pathname);
