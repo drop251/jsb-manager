@@ -24,10 +24,8 @@ function context() {
     NIVEAUX_TAISO: ['Débutant', 'Intermédiaire', 'Confirmé', 'Expert']
   };
   vm.createContext(c);
-  for (const name of [
-    'supervisionRequiseTaiso', 'okTaiso', 'niveauParDefaut',
-    'niveauEffectifTaiso', 'niveauOk', 'equipementDe'
-  ]) vm.runInContext(fn(name), c);
+  Object.assign(c, require('../modules/taiso.js').creerSelection(c));
+  vm.runInContext(fn('equipementDe'), c);
   return c;
 }
 
