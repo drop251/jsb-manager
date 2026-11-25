@@ -32,7 +32,20 @@ test('Prévisualisations indépendantes : Coach, Particulier, Admin, mobile et d
      await page.locator('nav').getByRole('button',{name:'Réglages'}).click();
      await page.getByRole('button',{name:/Gestion des comptes/}).click();
      await page.getByRole('button',{name:/Changer de compte/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Changer de compte');
+     assert.equal(await page.getByRole('button',{name:'Particulier',exact:true}).getAttribute('aria-pressed'),'true');
+     await page.locator('#view').getByRole('button',{name:/Coach Espace club/}).click();
      assert.equal(await page.getByRole('button',{name:'Coach',exact:true}).getAttribute('aria-pressed'),'true');
+     await page.locator('nav').getByRole('button',{name:'Réglages'}).click();
+     await page.getByRole('button',{name:/Gestion des comptes/}).click();
+     await page.getByRole('button',{name:/Créer un nouveau compte/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Créer un compte');
+     await page.getByRole('button',{name:/Compte Particulier/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Compte Particulier');
+     await page.getByRole('button',{name:/Retour/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Créer un compte');
+     await page.getByRole('button',{name:/Retour/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Gestion des comptes');
      await page.locator('nav').getByRole('button',{name:'Judo'}).click();
      assert.equal(await page.getByRole('button',{name:/Préparer une séance Judo/}).count(),1);
      await page.locator('nav').getByRole('button',{name:'Taïso'}).click();
@@ -44,6 +57,12 @@ test('Prévisualisations indépendantes : Coach, Particulier, Admin, mobile et d
       await page.getByRole('button',{name:/Retour/}).click();
      }
      assert.equal(await page.getByRole('button',{name:/Licenciés|Présences|Planning|Changer de compte/}).count(),0);
+     assert.ok((await page.locator('.summary').textContent()).includes('aucun indicateur réel'));
+     await page.getByRole('button',{name:/Comptes plateforme/}).click();
+     await page.getByRole('button',{name:/Comptes Coach/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Comptes Coach');
+     await page.getByRole('button',{name:/Retour/}).click();
+     assert.equal(await page.locator('h1').textContent(),'Comptes plateforme');
     }
     assert.equal(await page.locator('form,input[type=password]').count(),0);
     assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
