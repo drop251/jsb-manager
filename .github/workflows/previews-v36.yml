@@ -1,0 +1,41 @@
+name: JSB Manager - apercus separes V36
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installer le navigateur de recette
+        run: |
+          npm install --prefix "$RUNNER_TEMP/jsb-preview-ci" --no-save --no-package-lock playwright@1.51.1
+          "$RUNNER_TEMP/jsb-preview-ci/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Recette des deux interfaces
+        env:
+          NODE_PATH: ${{ runner.temp }}/jsb-preview-ci/node_modules
+        run: node --test tests/previews-v36.integration.cjs
+      - name: Preparer les artefacts autonomes
+        run: |
+          mkdir -p "$RUNNER_TEMP/jsb-manager-preview" "$RUNNER_TEMP/jsb-admin-preview"
+          cp apps/public/index.html "$RUNNER_TEMP/jsb-manager-preview/index.html"
+          cp apps/admin/index.html "$RUNNER_TEMP/jsb-admin-preview/index.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JSB-Manager-V36-apercu
+          path: ${{ runner.temp }}/jsb-manager-preview/index.html
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JSB-Admin-V36-apercu
+          path: ${{ runner.temp }}/jsb-admin-preview/index.html
+          if-no-files-found: error
+          retention-days: 14
