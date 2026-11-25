@@ -31,7 +31,7 @@ test('Le changement de type contrôle la sécurité et refuse un doublon de mêm
  f.c.BASE=[{...exercice,id:99,typeFiche:'Technique'}];await assert.rejects(f.c.enregistrerClassementFiche(exercice,{...valeurs,typeFiche:'Technique'}),/existe déjà/);
 });
 test('Une correction locale sur une fiche publiée reçoit encore ses médias au rechargement',()=>{
- const f=fixture();f.c.BASE=[{...exercice,typeFiche:'Technique',_jsbOverride:true}];f.c.cleEL=f.c.cle;f.c.EN_LIGNE={n:0};vm.runInContext(fn('fusionnerEnLigne'),f.c);
+ const f=fixture();f.c.BASE=[{...exercice,typeFiche:'Technique',_jsbOverride:true}];f.c.cleEL=f.c.cle;f.c.EN_LIGNE={n:0};f.c.disciplinesMasquees=[];vm.runInContext(fn('fusionnerEnLigne'),f.c);
  const received=[];f.c.fusionnerEnLigne([{...exercice,image:'medias/test.png'}],(x,e)=>received.push(e.id));assert.deepEqual(received,[55]);assert.equal(f.c.BASE.length,1);assert.equal(f.c.BASE[0].typeFiche,'Technique');
 });
 test('Le formulaire bloque la conversion d’une fiche encore sélectionnée dans le brouillon',()=>{
