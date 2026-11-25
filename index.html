@@ -2017,7 +2017,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v34'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v35'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -6794,9 +6794,15 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     if (esp.special) return cadre(h('main', Object.assign({ style: teinte(esp.couleur) }, glisse), h('div', { className: 'wrap' }, entete(esp), bandeau,
       h('header', { className: 'hero' }, h('h1', null, esp.label), h('p', null, esp.intro)), h(Garde, { titre: 'La section Présences a rencontré une erreur.' }, h(Presences)))));
     var tous = de(esp);
-    var parPublic = tous.filter(function (e) { return (!f.sous || sg(e).indexOf(f.sous) >= 0) && (!f.typeFiche || (e.typeFiche || 'Exercice') === f.typeFiche); });
+    var parGroupe = tous.filter(function (e) { return !f.sous || sg(e).indexOf(f.sous) >= 0; });
+    var typesDisponibles = uniq(parGroupe.map(function (e) { return e.typeFiche || 'Exercice'; }));
+    var afficherTypes = typesDisponibles.length > 1 || !!f.typeFiche;
+    var parPublic = parGroupe.filter(function (e) { return !f.typeFiche || (e.typeFiche || 'Exercice') === f.typeFiche; });
     var familles = famillesCatalogue(parPublic, esp.label);
-    var sousFamilles = f.famille ? uniq(parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === f.famille; }).map(sousFamilleCatalogue).filter(Boolean)).sort(function (a,b) { return a.localeCompare(b,'fr'); }) : [];
+    var familleEffective = f.famille || (familles.length === 1 ? familles[0] : '');
+    var afficherFamilles = familles.length > 1 || !!f.famille;
+    var sousFamilles = familleEffective ? uniq(parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === familleEffective; }).map(sousFamilleCatalogue).filter(Boolean)).sort(function (a,b) { return a.localeCompare(b,'fr'); }) : [];
+    var afficherSousFamilles = sousFamilles.length > 1 || !!f.sousFamille;
     var socle = judo ? ['Poids du corps', 'Tatami', 'Judogi', 'Partenaire'] : ['Poids du corps', 'Tatami'];
     var q = sansAccent(f.q.trim());
     var liste = tous.filter(function (e) {
@@ -6844,16 +6850,16 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         return h('button', { key: cle + x, type: 'button', className: 'sous', 'aria-pressed': f.sous === x, onClick: function () { maj('sous', x); } },
           h('b', null, x || esp.sousTous), h('small', null, n + (n > 1 ? ' fiches' : ' fiche')));
       })) : null,
-      h('div', { className: 'puces catalogue-types', role: 'group', 'aria-label': 'Type de fiche' }, [['','Tout'],['Exercice','Exercices'],['Technique','Fiches techniques']].map(function (t) {
+      afficherTypes ? h('div', { className: 'puces catalogue-types', role: 'group', 'aria-label': 'Type de fiche' }, [['','Tout'],['Exercice','Exercices'],['Technique','Fiches techniques']].map(function (t) {
         return h('button', { key: t[0], type: 'button', className: 'btn', 'aria-pressed': (f.typeFiche || '') === t[0], onClick: function () { maj('typeFiche',t[0]); } }, t[1]);
-      })),
-      familles.length ? h('section', { className: 'catalogue-familles', 'aria-label': 'Familles d’exercices', 'data-sans-glisse': '' },
-        h('h2', null, 'Familles'),
-        familles.length > 4 ? h(Champ, { id: 'c-famille', label: 'Famille', tous: 'Toutes (' + parPublic.length + ')', options: familles.map(function (fam) { return { value: fam, label: fam + ' (' + parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length + ')' }; }), value: f.famille || '', onChange: function (v) { maj('famille', v); } }) : h('div', { className: 'puces' }, [''].concat(familles).map(function (fam) {
+      })) : null,
+      (afficherFamilles || afficherSousFamilles) ? h('section', { className: 'catalogue-familles', 'aria-label': 'Familles d’exercices', 'data-sans-glisse': '' },
+        h('h2', null, afficherFamilles ? 'Familles' : 'Sous-familles'),
+        !afficherFamilles ? null : familles.length > 4 ? h(Champ, { id: 'c-famille', label: 'Famille', tous: 'Toutes (' + parPublic.length + ')', options: familles.map(function (fam) { return { value: fam, label: fam + ' (' + parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length + ')' }; }), value: f.famille || '', onChange: function (v) { maj('famille', v); } }) : h('div', { className: 'puces' }, [''].concat(familles).map(function (fam) {
           var n = fam ? parPublic.filter(function (e) { return familleCatalogue(e, esp.label) === fam; }).length : parPublic.length;
           return h('button', { key: fam, type: 'button', className: 'btn', 'aria-pressed': (f.famille || '') === fam, onClick: function () { maj('famille', fam); } }, (fam || 'Toutes') + ' (' + n + ')');
         })),
-        sousFamilles.length ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null) : null,
+        afficherSousFamilles ? h(Champ, { id: 'c-sous-famille', label: 'Sous-famille', tous: 'Toutes', options: sousFamilles, value: f.sousFamille || '', onChange: function (v) { maj('sousFamille', v); } }) : null) : null,
       (cle === 'taiso' || cle === 'judo') ? h('div', { className: 'barre barre-seance' },
         h('button', { type: 'button', className: 'gn-ouvrir', onClick: function () { setGenOuvert(true); } }, 'Générer une séance'),
         h(PanierSeance, { key: cle + '-' + repriseSeance, sel: sel, donnees: tous.concat(donnees.filter(function (e) { return sel.ids.indexOf(e.id) >= 0 && tous.indexOf(e) < 0; })), espace: esp.label, sous: f.sous, genere: genere, effacerGeneration: function (jeton) {
@@ -6914,7 +6920,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         return h(React.Fragment, { key: e.id }, debutFamille ? h('h2', { className: 'catalogue-groupe' }, famille, h('span', { className: 'catalogue-groupe-nombre' }, ' · ' + effectifsFamille[famille])) : null,
           h('div', { className: 'carte-w' }, h('button', { type: 'button', className: 'carte', onClick: function (ev) { declencheurFiche.current = ev.currentTarget; setOuverte(e.id); } },
           h(Illustration, { e: e, petit: true }),
-          h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, court(e.categorie)),
+          (estFav || tri !== 'cat' || court(e.categorie) !== famille) ? h('span', { className: 'carte-cat' }, estFav ? h('span', { className: 'fav-mini', 'aria-label': 'Favori' }, '★ ') : null, (tri !== 'cat' || court(e.categorie) !== famille) ? court(e.categorie) : null) : null,
           e.typeFiche === 'Technique' ? h('span', { className: 'tag' }, 'Fiche technique') : null,
           h('span', { className: 'carte-nom' }, e.nom),
           h('span', { className: 'carte-pied' },
@@ -6981,7 +6987,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v34');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v35');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7004,6 +7010,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v34">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v35">
 </body>
 </html>
