@@ -1,0 +1,58 @@
+name: JSB Manager - recette PostgreSQL
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jsb_ci
+          POSTGRES_PASSWORD: jsb_ci_ephemeral_only
+          POSTGRES_DB: jsb_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U jsb_ci -d jsb_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: jsb_ci
+      PGPASSWORD: jsb_ci_ephemeral_only
+      PGDATABASE: jsb_ci
+      PGCONNECT_TIMEOUT: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer le client PostgreSQL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y postgresql-client
+      - name: Appliquer les migrations et tester le schéma
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = jsb_ci
+          for migration in backend/db/migrations/*.sql; do
+            echo "Migration: $migration"
+            psql -X -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          for recipe in backend/db/tests/*.sql; do
+            echo "Recette: $recipe"
+            psql -X -v ON_ERROR_STOP=1 -f "$recipe"
+          done
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.accounts')" = 0
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_legal.acceptances')" = 0
+          echo "Recette PostgreSQL réussie; aucune donnée de compte ou acceptation conservée."
