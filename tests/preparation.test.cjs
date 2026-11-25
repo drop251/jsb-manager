@@ -9,6 +9,7 @@ function fixture({fail=false,failSelection=false,intention=null,exosHistorique=n
  const c={JSON,Date,Math,Object,console};vm.createContext(c);
  c.React={Fragment:'fragment',useState(initial){const i=index++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return [states[i],x=>states[i]=typeof x==='function'?x(states[i]):x];},useEffect(fn){effects.push(fn);}};
  c.h=(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)});
+ stockage.set('selection-test',JSON.stringify({judo:idsSelection}));
  c.localStorage={getItem:k=>stockage.get(k)??null,setItem:(k,v)=>stockage.set(k,String(v)),removeItem:k=>stockage.delete(k)};
  c.lireJSON=(k,d)=>JSON.parse(stockage.get(k)??'null')??d;c.sa=x=>x.toLowerCase();c.suffixeProfil=()=> '-test';c.usePlanning=()=>[];c.useHisto=()=>[];
  c.phasesDe=()=> ['Accueil','Échauffement','Technique','Opposition','Retour au calme'];c.phaseDefaut=()=>2;c.estJeuneJudo=()=>false;c.prochainsCreneaux=()=>creneaux;
@@ -17,9 +18,10 @@ function fixture({fail=false,failSelection=false,intention=null,exosHistorique=n
  c.window={confirm:()=>confirmer};
  c.prendreIntention=()=>intention;c.lireHisto=()=>[{id:'ancienne',date:'2026-11-16',espace:'Judo',trame:3,infos:{groupe:'Adultes',thematique:'Ancienne séance'},exos:exosHistorique||[{id:1,phase:2,duree:'12'}]}];c.dateFr=x=>x;
  for(const name of ['cleBrouillonSeance','ecrireJSON']) { const a=html.indexOf('  function '+name+'(');assert.ok(a>=0);vm.runInContext(html.slice(a,html.indexOf('\n',a)),c); }
+ vm.runInContext(fn('recupererPreparation'),c);
  vm.runInContext(fn('enregistrerPreparation'),c);
  vm.runInContext(fn('PanierSeance'),c);
- const props={espace:'Judo',sous:'Poussins',sel:{ids:idsSelection,set:ids=>{if(failSelection)return false;props.sel.ids=ids;return true;}},donnees:[{id:1,nom:'Entrées',public:['Judo'],sousGroupes:['Poussins'],categorieAge:'Poussins',technique:'Ashi-waza',thematique:'Placement',dosage:'3 × 6'}]};
+ const props={espace:'Judo',sous:'Poussins',sel:{ids:idsSelection,espace:'judo',cleStockage:'selection-test',set:ids=>{if(failSelection)return false;props.sel.ids=ids;stockage.set('selection-test',JSON.stringify({judo:ids}));return true;}},donnees:[{id:1,nom:'Entrées',public:['Judo'],sousGroupes:['Poussins'],categorieAge:'Poussins',technique:'Ashi-waza',thematique:'Placement',dosage:'3 × 6'}]};
  const render=()=>{index=0;return c.PanierSeance(props);};
  let tree=render();tree.props.onClick();
  return {render,saved,exported,stockage,reprendreIntention:()=>effects[1]()};

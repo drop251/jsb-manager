@@ -320,31 +320,54 @@ test('cancelled proposals do not persist preferences, and pending transfer is co
 
 test('session transfer persists plan and restores previous draft on selection failure',()=>{
   const {ctx,local}=environnement();
-  vm.runInContext(fonction('ecrireJSON'),ctx);
-  vm.runInContext(fonction('enregistrerPreparation'),ctx);
+  for(const name of ['recupererPreparation','enregistrerPreparation'])vm.runInContext(fonction(name),ctx);
   const cle='draft', old=JSON.stringify({infos:{groupe:'Training'},plan:{1:{duree:'5'}}});
-  local.set(cle,old);
+  local.set(cle,old);local.set('selection-test',JSON.stringify({taiso:[1],judo:[77]}));
   const infos={groupe:'Gym douce',duree:'60 min'}, plan={2:{duree:'8',dosage:'12 répétitions'}};
-  let selected=[1], writes=0;
-  assert.equal(ctx.enregistrerPreparation(cle,{set:()=>{writes++;return false;}},[2],plan,infos),false);
-  assert.equal(local.get(cle),old);
+  let writes=0;
+  const sel={espace:'taiso',cleStockage:'selection-test',set:()=>{writes++;return false;}};
+  assert.equal(ctx.enregistrerPreparation(cle,sel,[2],plan,infos),false);
+  assert.equal(local.get(cle),old);assert.equal(local.has(cle+'-transaction'),false);
   assert.equal(writes,1);
-  assert.equal(ctx.enregistrerPreparation(cle,{set:ids=>{selected=ids;return true;}},[2],plan,infos),true);
-  assert.deepEqual(selected,[2]);
+  sel.set=ids=>{local.set('selection-test',JSON.stringify({taiso:ids,judo:[77]}));return true;};
+  assert.equal(ctx.enregistrerPreparation(cle,sel,[2],plan,infos),true);
+  assert.deepEqual(JSON.parse(local.get('selection-test')),{taiso:[2],judo:[77]});
   assert.deepEqual(JSON.parse(local.get(cle)).plan,plan);
   assert.deepEqual(JSON.parse(local.get(cle)).infos,infos);
-  local.delete(cle);
-  assert.equal(ctx.enregistrerPreparation(cle,{set:()=>false},[2],plan,infos),false);
-  assert.equal(local.has(cle),false);
+  local.delete(cle);sel.set=()=>false;
+  assert.equal(ctx.enregistrerPreparation(cle,sel,[3],plan,infos),false);
+  assert.equal(local.has(cle),false);assert.equal(local.has(cle+'-transaction'),false);
 });
-test('session transfer refuses to change selection when draft cannot be persisted',()=>{
+test('session transfer refuses to change selection when journal cannot be persisted',()=>{
   const {ctx,local}=environnement();
-  vm.runInContext(fonction('ecrireJSON'),ctx);
-  vm.runInContext(fonction('enregistrerPreparation'),ctx);
+  for(const name of ['recupererPreparation','enregistrerPreparation'])vm.runInContext(fonction(name),ctx);
   local.set('draft','previous');
   ctx.localStorage.setItem=()=>{throw Error('quota');};
   let called=false;
-  assert.equal(ctx.enregistrerPreparation('draft',{set:()=>{called=true;return true;}},[2],{},{}),false);
+  assert.equal(ctx.enregistrerPreparation('draft',{espace:'taiso',cleStockage:'selection-test',set:()=>{called=true;return true;}},[2],{},{}),false);
   assert.equal(called,false);
   assert.equal(local.get('draft'),'previous');
+});
+test('interrupted preparation restores prior draft or retains completed transfer',()=>{
+  const {ctx,local}=environnement();
+  vm.runInContext(fonction('recupererPreparation'),ctx);
+  const cle='draft',avant=JSON.stringify({infos:{groupe:'Training'}}),apres=JSON.stringify({infos:{groupe:'Gym douce'}});
+  const j={version:1,espace:'taiso',cleSelection:'selection-test',idsAvant:[1],idsApres:[2],avant,apres};
+  for(const [ids,draft,expected] of [[[1],avant,avant],[[1],apres,avant],[[2],apres,apres],[[2],avant,apres]]){
+    local.set('selection-test',JSON.stringify({taiso:ids,judo:[77]}));local.set(cle,draft);local.set(cle+'-transaction',JSON.stringify(j));
+    assert.equal(ctx.recupererPreparation(cle,'taiso','selection-test'),true);
+    assert.equal(local.get(cle),expected);assert.equal(local.has(cle+'-transaction'),false);
+    assert.deepEqual(JSON.parse(local.get('selection-test')),{taiso:ids,judo:[77]});
+  }
+  local.set('selection-test',JSON.stringify({taiso:[3]}));local.set(cle,apres);local.set(cle+'-transaction',JSON.stringify(j));
+  assert.equal(ctx.recupererPreparation(cle,'taiso','selection-test'),false);
+  assert.equal(local.get(cle),apres);assert.ok(local.has(cle+'-transaction'));
+});
+test('recovery does not erase a later edit or a journal for another profile',()=>{
+  const {ctx,local}=environnement();vm.runInContext(fonction('recupererPreparation'),ctx);
+  const j={version:1,espace:'judo',cleSelection:'profile-A',idsAvant:[1],idsApres:[2],avant:'old',apres:'new'};
+  local.set('draft-transaction',JSON.stringify(j));local.set('profile-A',JSON.stringify({judo:[2]}));local.set('draft','later edit');
+  assert.equal(ctx.recupererPreparation('draft','judo','profile-B'),false);
+  assert.equal(ctx.recupererPreparation('draft','judo','profile-A'),false);
+  assert.equal(local.get('draft'),'later edit');assert.ok(local.has('draft-transaction'));
 });
