@@ -7170,8 +7170,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('button', { type: 'button', className: 'gn-ouvrir', onClick: function () { setGenOuvert(true); } }, 'Générer une séance'),
         h(PanierSeance, { key: cle + '-' + repriseSeance, sel: sel, donnees: tous.concat(donnees.filter(function (e) { return sel.ids.indexOf(e.id) >= 0 && tous.indexOf(e) < 0; })), espace: esp.label, sous: f.sous, genere: genere, effacerGeneration: function (jeton) {
           setGenere(function (courant) { return !jeton || (courant && courant.jeton === jeton) ? null : courant; });
-        } }),
-        h('button', { type: 'button', className: 'cs-btn', 'aria-expanded': vueSeances, onClick: function () { setVueSeances(!vueSeances); } }, 'Séances et historique')) : null,
+        } })) : null,
+      (cle === 'taiso' || cle === 'judo') ? h('button', { type: 'button', className: 'cs-btn', 'aria-expanded': vueSeances, onClick: function () { setVueSeances(!vueSeances); } }, 'Séances et historique') : null,
       (cle === 'taiso' || cle === 'judo') && vueSeances ? h(MesSeances, { key: cle, espace: esp.label, aller: aller, ouvrir: ouvrirSeanceDiscipline }) : null,
       actifs.length || f.q ? h('div', { className: 'actifs', role: 'group', 'aria-label': 'Filtres actifs' },
         actifs.map(function (x, i) { return h('button', { key: i, type: 'button', className: 'actif-puce', 'aria-label': 'Retirer le filtre ' + x[0], onClick: x[1] }, x[0], h('span', { 'aria-hidden': 'true' }, ' ✕')); }),
