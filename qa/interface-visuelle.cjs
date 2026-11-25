@@ -372,6 +372,26 @@ fs.mkdirSync('qa-captures',{recursive:true});
       }
       console.log('PASS appel mobile peuplé',theme,JSON.stringify({before,after,panel}));
     }
+    // Exercise sheet: safety, dosage, execution and administrative tools.
+    await nav.getByRole('button',{name:'Taïso',exact:true}).click();
+    const sheetCard=page.locator('.carte').first();
+    await sheetCard.waitFor({state:'visible'});
+    await sheetCard.click();
+    const sheet=page.locator('.fiche-v19');
+    await sheet.waitFor({state:'visible'});
+    const essentials=sheet.locator('.fiche-essentiel');
+    assert.ok(await essentials.isVisible());
+    assert.equal(await sheet.getByText('Dosage de base',{exact:true}).count(),1);
+    assert.ok(await essentials.evaluate(el=>Boolean(el.compareDocumentPosition(el.parentElement.querySelector('.fiche-rubrique'))&Node.DOCUMENT_POSITION_FOLLOWING)));
+    const admin=sheet.locator('.fiche-admin');
+    assert.equal(await admin.getAttribute('open'),null);
+    await admin.locator(':scope > summary').click();
+    await admin.getByText('Modifier le classement',{exact:true}).waitFor({state:'visible'});
+    await admin.getByText('Médias et export',{exact:true}).click();
+    await admin.getByText('Ajouter une vidéo',{exact:true}).waitFor({state:'visible'});
+    await snapshot('17-fiche-exercice');
+    await sheet.getByRole('button',{name:'Fermer la fiche',exact:true}).click();
+    await sheet.waitFor({state:'hidden'});
     // Administrator reset is deliberately scoped to the exercise library.
     await page.goto(base,{waitUntil:'domcontentloaded'});
     await nav.waitFor({timeout:45000});

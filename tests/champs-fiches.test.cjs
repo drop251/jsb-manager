@@ -21,8 +21,18 @@ test('Aucune source ni accessibilité ne sont inventées lorsque ces champs sont
 function nodes(n){return n&&typeof n==='object'?[n,...n.children.flatMap(nodes)]:[];}
 function texte(n){return n&&typeof n==='object'?n.children.map(texte).join(''):String(n??'');}
 function renderFiche(e){const c={React:{useState:x=>[x,()=>{}],useEffect(){},useRef:value=>({current:value})},ReactDOM:{createPortal:x=>x},h:(type,props,...children)=>({type,props:props||{},children:children.flat(Infinity).filter(x=>x!=null&&x!==false)}),window:{innerWidth:390},document:{body:{}},teinte:()=>({}),etapesDe:()=>[],aVideo:()=>false,dosageAfficheJudo:e=>e.dosage,familleCatalogue:e=>e.famille,sousFamilleCatalogue:()=>'',sg:e=>e.sousGroupes,sansCesure:x=>x,niveauTexte:e=>e.grade||e.niveau,court:x=>x};for(const n of ['Icone','Description','Illustration','Grade','ClassementFiche','BoutonIllusIA','BoutonVideo','BoutonExportFiche'])c[n]=n;vm.createContext(c);vm.runInContext(fn('Fiche'),c);return c.Fiche({e,espace:{key:'judo',label:'Judo'}});}
-test('La fiche affiche les rubriques dans l’ordre demandé et conserve le grade séparément',()=>{
- const c=init(),e=c.classer(ligne(),'Judo'),t=renderFiche(e);const dl=nodes(t).find(n=>n.type==='dl');const labels=nodes(dl).filter(n=>n.type==='dt').map(texte);assert.deepEqual(labels,['Point de sécurité','Dosage de base','Critère de réussite','Famille','Niveau','Sous-groupe','Matériel','Muscles cibles','Moment de la séance','Variante plus facile','Variante plus difficile','Accessibilité','Inspiration','Format']);assert.ok(nodes(t).some(n=>n.type==='dt'&&texte(n)==='Grade Judo'));const flat=nodes(t);assert.ok(flat.findIndex(n=>n.type==='Description')<flat.findIndex(n=>n.type==='figure'));
+test('La fiche priorise la sécurité et conserve toutes les rubriques ainsi que le grade séparé',()=>{
+ const c=init(),e=c.classer(ligne(),'Judo'),t=renderFiche(e),flat=nodes(t);
+ const essential=flat.find(n=>n.type==='dl'&&n.props.className==='faits fiche-essentiel');
+ assert.deepEqual(nodes(essential).filter(n=>n.type==='dt').map(texte),['Point de sécurité','Dosage de base','Critère de réussite']);
+ assert.ok(flat.indexOf(essential)<flat.findIndex(n=>n.type==='Description'));
+ const labels=flat.filter(n=>n.type==='dt').map(texte);
+ for(const label of ['Famille','Niveau','Sous-groupe','Matériel','Muscles cibles','Moment de la séance','Variante plus facile','Variante plus difficile','Accessibilité','Inspiration','Format','Grade Judo'])assert.ok(labels.includes(label),label);
+ const adapt=flat.find(n=>n.props.className==='fiche-adapt');
+ assert.deepEqual(nodes(adapt).filter(n=>n.type==='dt').map(texte),['Variante plus facile','Variante plus difficile','Accessibilité']);
+ const admin=flat.find(n=>n.props.className==='fiche-outils fiche-admin');
+ for(const type of ['ClassementFiche','BoutonVideo','BoutonExportFiche'])assert.ok(nodes(admin).some(n=>n.type===type),type);
+ assert.equal(flat.some(n=>n.type==='figure'),false,'Pas de média vide');
 });
 test('L’export HTML conserve le texte complet, les sources et l’ordre des champs',()=>{
  const c=init();vm.runInContext(fn('esc'),c);vm.runInContext(html.slice(html.indexOf('  var CHAMPS_FICHE ='),html.indexOf('  function esc(')),c);vm.runInContext(fn('ficheHtml'),c);const e=c.classer(ligne(),'Judo'),out=c.ficheHtml(e,{},'');assert.ok(out.includes(e.inspiration));assert.ok(out.indexOf(e.description)<out.indexOf('Point de sécurité</h2>'));const fields=['Dosage de base','Critère de réussite','Famille','Niveau','Sous-groupe','Matériel','Muscles cibles','Moment de la séance','Variante plus facile','Variante plus difficile','Accessibilité','Inspiration','Format'];let last=-1;for(const f of fields){const at=out.indexOf('<dt>'+f+'</dt>');assert.ok(at>last,f);last=at;}
