@@ -25,7 +25,7 @@ function createLoginService({limiter,sessions,findAccountByEmail,verifyMfa,verif
     mfaVerified=(/^[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{8}){3}$/.test(mfaCode)?await verifyRecovery(account.id,mfaCode):await verifyMfa(account.id,mfaCode))===true;
     if(!mfaVerified)return failure();
    }
-   const session=await sessions.issue({accountId:account.id,credentialVerified:true,mfaVerified});
+   const session=await sessions.issue({accountId:account.id,credentialVerified:true,mfaVerified,...(account.credentialVersion===undefined?{}:{credentialVersion:account.credentialVersion,roleAtVerification:account.role})});
    if(!session)return failure();
    return Object.freeze({ok:true,status:200,token:session.token,expiresAt:session.expiresAt});
   }catch(_){return Object.freeze({ok:false,status:503});}
