@@ -22,7 +22,7 @@ function createLoginService({limiter,sessions,findAccountByEmail,verifyMfa,verif
    let mfaVerified=false;
    if(account.role==='admin'){
     if(typeof mfaCode!=='string'||!mfaCode||mfaCode.length>128)return failure();
-    mfaVerified=(/^\d{6}$/.test(mfaCode)?await verifyMfa(account.id,mfaCode):await verifyRecovery(account.id,mfaCode))===true;
+    mfaVerified=(/^[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{8}){3}$/.test(mfaCode)?await verifyRecovery(account.id,mfaCode):await verifyMfa(account.id,mfaCode))===true;
     if(!mfaVerified)return failure();
    }
    const session=await sessions.issue({accountId:account.id,credentialVerified:true,mfaVerified});
