@@ -35,3 +35,40 @@ test('refus par défaut: identités absentes, inactives, rôles et opérations i
  assert.equal(authorize(admin,'catalogue','export'),false);
  assert.equal(authorize(admin,'unknown','read'),false);
 });
+
+test('Coach : refus des opérations inter-clubs, y compris modification et suppression',()=>{
+ for(const r of ['clubMembers','attendance','clubPlanning']) for(const a of ['read','write','delete']){
+  assert.equal(authorize(coach,r,a,{clubId:'club-a'}),true);
+  assert.equal(authorize(coach,r,a,{clubId:'club-b'}),false);
+  assert.equal(authorize(coach,r,a),false);
+ }
+ assert.equal(authorize({...coach,clubIds:[]},'attendance','read',{clubId:'club-a'}),false);
+});
+test('Particulier : aucune opération club même avec une appartenance déclarée',()=>{
+ const p={...individual,clubIds:['club-a']};
+ for(const r of ['clubMembers','attendance','clubReports','clubPlanning']) for(const a of ['read','write','delete','export'])
+  assert.equal(authorize(p,r,a,{clubId:'club-a'}),false);
+});
+test('Coach et particulier : isolation mutuelle des séances, sauvegardes et acceptations',()=>{
+ for(const [u,other] of [[coach,individual],[individual,coach]]) for(const r of ['privateSessions','privateBackups','legalAcceptance']) for(const a of ['read','write','delete'])
+  assert.equal(authorize(u,r,a,{ownerId:other.id}),false);
+});
+test('Coach et particulier : comptes inactifs et sessions non authentifiées refusés',()=>{
+ for(const u of [coach,individual]) for(const patch of [{status:'suspended'},{status:'pending'},{status:'deleted'},{authenticated:false},{id:''}]){
+  const invalid={...u,...patch};
+  assert.equal(authorize(invalid,'catalogue','read'),false);
+  assert.equal(authorize(invalid,'generator','run',{ownerId:u.id}),false);
+  assert.equal(authorize(invalid,'privateBackups','read',{ownerId:u.id}),false);
+  assert.equal(authorize(invalid,'attendance','read',{clubId:'club-a'}),false);
+ }
+});
+test('Grand public : accès aux fonctions usuelles sans privilèges administrateur',()=>{
+ for(const u of [coach,individual]){
+  assert.equal(authorize(u,'generator','run',{ownerId:u.id}),true);
+  assert.equal(authorize(u,'generator','run',{ownerId:'autre'}),false);
+  for(const r of ['platformAccounts','aggregateStats','generatorTest']) for(const a of ['read','write','delete','suspend','reactivate','run','export'])
+   assert.equal(authorize(u,r,a),false);
+  for(const a of ['write','import','delete']) assert.equal(authorize(u,'catalogue',a),false);
+  for(const a of ['draft','publish']) assert.equal(authorize(u,'legal',a),false);
+ }
+});
