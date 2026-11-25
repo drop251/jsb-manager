@@ -12,7 +12,7 @@ function fixture({fail=false,failSelection=false,intention=null,exosHistorique=n
  c.lireJSON=()=>({infos:infosBrouillon,plan:{1:{phase:2,duree:'8'}}});c.sa=x=>x.toLowerCase();c.suffixeProfil=()=> '-test';c.usePlanning=()=>[];c.useHisto=()=>[];
  c.phasesDe=()=> ['Accueil','Échauffement','Technique','Opposition','Retour au calme'];c.phaseDefaut=()=>2;c.estJeuneJudo=()=>false;c.prochainsCreneaux=()=>creneaux;
  c.dateIsoLocale=()=> '2026-11-17';c.ajouterHisto=s=>{if(fail)return false;saved.push(s);return true;};c.materielSeance=()=> 'Tatami';c.uniq=xs=>[...new Set(xs)];c.sg=e=>e.sousGroupes||[];c.FORMATS_TAISO=[];
- c.construirePdf=()=>new Blob(['test']);c.enregistrerFichier=(...args)=>exported.push(args);c.SeanceDirecte='SeanceDirecte';
+ c.construirePdf=(...args)=>new Blob([args[6]||'test']);c.enregistrerFichier=(...args)=>exported.push(args);c.SeanceDirecte='SeanceDirecte';
  c.window={confirm:()=>confirmer};
  c.prendreIntention=()=>intention;c.lireHisto=()=>[{id:'ancienne',date:'2026-11-16',espace:'Judo',trame:3,infos:{groupe:'Adultes',thematique:'Ancienne séance'},exos:exosHistorique||[{id:1,phase:2,duree:'12'}]}];c.dateFr=x=>x;
  vm.runInContext(fn('PanierSeance'),c);
@@ -43,7 +43,7 @@ test('Un échec d’enregistrement ne marque pas la séance comme conservée et 
  const f=fixture({fail:true});let t=f.render();button(t,'Enregistrer la séance').props.onClick();t=f.render();
  assert.ok(text(find(t,n=>n.props.className==='cs-etat')).includes('Brouillon'));
  assert.ok(text(find(t,n=>n.props.className==='cs-msg')).includes('Enregistrement impossible'));
- button(t,'Exporter la fiche PDF').props.onClick();assert.equal(f.exported.length,0);assert.equal(f.saved.length,0);
+ for(const label of ['PDF synthétique','PDF détaillé'])button(t,label).props.onClick();assert.equal(f.exported.length,0);assert.equal(f.saved.length,0);
 });
 
 test('Une reprise depuis le planning qui échoue conserve les informations du brouillon',()=>{
@@ -75,7 +75,7 @@ test('Un ancien créneau indisponible ne transforme pas silencieusement la séan
  const menu=find(t,n=>n.props.id==='cs-cours');assert.ok(text(menu).includes('Ancien créneau indisponible'));
  button(t,'Enregistrer la séance').props.onClick();assert.equal(f.saved.length,0);
  t=f.render();assert.ok(text(find(t,n=>n.props.className==='cs-msg')).includes('créneau choisi n’est plus disponible'));
- button(t,'Exporter la fiche PDF').props.onClick();assert.equal(f.exported.length,0);
+ for(const label of ['PDF synthétique','PDF détaillé'])button(t,label).props.onClick();assert.equal(f.exported.length,0);
  find(f.render(),n=>n.props.id==='cs-cours').props.onChange({target:{value:''}});
  button(f.render(),'Enregistrer la séance').props.onClick();assert.equal(f.saved.length,1);assert.equal(f.saved[0].date,'2026-11-17');
 });
@@ -83,7 +83,7 @@ test('Un ancien créneau indisponible ne transforme pas silencieusement la séan
 test('Un brouillon partiellement introuvable ne peut pas être lancé, enregistré ou exporté en version tronquée',()=>{
  const f=fixture({idsSelection:[1,999]});let t=f.render();
  assert.ok(nodes(t).some(n=>n.props.role==='alert'&&text(n).includes('1 exercice sélectionné est introuvable')));
- button(t,'Enregistrer la séance').props.onClick();button(f.render(),'Exporter la fiche PDF').props.onClick();button(f.render(),'▶ Lancer la séance').props.onClick();
+ button(t,'Enregistrer la séance').props.onClick();for(const label of ['PDF synthétique','PDF détaillé'])button(f.render(),label).props.onClick();button(f.render(),'▶ Lancer la séance').props.onClick();
  assert.equal(f.saved.length,0);assert.equal(f.exported.length,0);assert.ok(!nodes(f.render()).some(n=>n.type==='SeanceDirecte'));
  clickRetrait(f);button(f.render(),'Enregistrer la séance').props.onClick();assert.equal(f.saved.length,1);assert.equal(f.saved[0].exos.length,1);assert.equal(f.saved[0].exos[0].id,1);
 });
@@ -110,4 +110,10 @@ test('Préparer un nouveau cours confirmé démarre sans les exercices du préc�
 });
 test('Un échec de stockage en préparant un nouveau cours conserve le brouillon',()=>{
  const f=fixture({failSelection:true,intention:{type:'preparer',cle:'nouveau'}});f.reprendreIntention();assert.ok(text(f.render()).includes('Nouvelle préparation impossible'));button(f.render(),'Enregistrer la séance').props.onClick();assert.equal(f.saved[0].exos[0].duree,'8');
+});
+
+test('Les deux exports transmettent le mode demandé et conservent la séance',async()=>{
+ for(const [label,mode] of [['PDF synthétique','synthetique'],['PDF détaillé','detaille']]){
+  const f=fixture();button(f.render(),label).props.onClick();assert.equal(f.saved.length,1);assert.equal(f.exported.length,1);assert.ok(f.exported[0][0].endsWith('-'+mode+'.pdf'));assert.equal(await f.exported[0][1].text(),mode);
+ }
 });

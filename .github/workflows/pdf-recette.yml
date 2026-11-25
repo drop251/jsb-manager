@@ -1,0 +1,46 @@
+name: JSB Manager - recette PDF
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: node qa/session-pdf.cjs
+      - run: python -m pip install pymupdf==1.26.5
+      - run: |
+          python - <<'PY'
+          import fitz, pathlib
+          files=list(pathlib.Path('qa-pdf').glob('*.pdf'))
+          assert len(files)==4
+          for f in files:
+              with fitz.open(f) as doc:
+                  text=' '.join(p.get_text() for p in doc)
+                  assert 'Point de sécurité' in text, f
+                  assert ('Fiche de séance Judo' if f.name.startswith('judo') else 'Fiche de séance Taïso') in text, f
+                  assert ('Synthétique' if 'synthetique' in f.name else 'Détaillée') in text, f
+                  assert ('4 répétitions' if f.name.startswith('judo') else '15 répétitions') in text, f
+                  for i,p in enumerate(doc):
+                      assert abs(p.rect.width-595.28)<1 and abs(p.rect.height-841.89)<1
+                      assert p.get_images(), (f,i,'logo absent')
+                      for block in p.get_text('dict')['blocks']:
+                          if block['type']!=0: continue
+                          for line in block['lines']:
+                              for span in line['spans']:
+                                  x0,y0,x1,y1=span['bbox']
+                                  assert x0>=0 and y0>=0 and x1<=p.rect.width and y1<=p.rect.height,(f,i,span)
+                      p.get_pixmap(matrix=fitz.Matrix(1.5,1.5)).save(str(f.with_suffix(''))+'-page-'+str(i+1)+'.png')
+                  print(f.name, len(doc), 'pages A4; logo, dosage, sécurité, mode et limites vérifiés')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jsb-pdf-recette
+          path: qa-pdf/
