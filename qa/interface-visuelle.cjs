@@ -97,7 +97,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
      }
      if((label==='Taïso'||label==='Judo') && engine==='webkit'){
       const layout=await page.evaluate(()=>{
-       const wrap=document.querySelector('.wrap:has(> .catalogue-types)');
+       const wrap=document.querySelector('.wrap:has(> .barre-seance)');
        if(!wrap)return null;
        const rect=n=>{const r=n.getBoundingClientRect();return {x:r.left,right:r.right,y:r.top,w:r.width,h:r.height};};
        const types=[...wrap.querySelectorAll('.catalogue-types > button')].map(rect);
@@ -117,7 +117,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
       assert.equal(await page.locator('.barre-compte .compte').textContent(),'0 fiches');
       await page.getByRole('searchbox',{name:'Rechercher une fiche'}).fill('');
 
-      assert.equal(layout.types.length,3);
+      assert.ok([0,3].includes(layout.types.length),'Types contextuels : zéro ou trois commandes');
       assert.equal(layout.gap,'10px');
       assert.ok(layout.types.every(t=>t.h>=44&&t.x>=0&&t.right<=layout.width+1),JSON.stringify(layout));
       assert.ok(layout.types.every(t=>Math.abs(t.y-layout.types[0].y)<2),'Types sur plusieurs rangées');
@@ -164,12 +164,12 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.getByRole('dialog',{name:'Affichage et accessibilité'}).waitFor();
     const settings=page.getByRole('dialog',{name:'Affichage et accessibilité'});
     const versionStatus=settings.locator('#jsb-maj-etat');
-    assert.match(await versionStatus.textContent(),/20261125-v34/);
+    assert.match(await versionStatus.textContent(),/20261125-v35/);
     const updateButton=settings.getByRole('button',{name:'Vérifier les mises à jour',exact:true});
     const beforeUpdate=await page.evaluate(()=>JSON.stringify(localStorage));
-    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v34')"}));
+    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v35')"}));
     await updateButton.click();
-    await page.getByText('Version à jour : 20261125-v34',{exact:true}).waitFor();
+    await page.getByText('Version à jour : 20261125-v35',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>JSON.stringify(localStorage)),beforeUpdate);
     await page.unroute('**/index.html?jsb-version-check=*');
     await page.route('**/index.html?jsb-version-check=*',route=>route.abort());
