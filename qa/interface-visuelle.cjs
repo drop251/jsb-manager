@@ -73,6 +73,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
       assert.equal(active.background,theme==='light'?'rgb(247, 236, 217)':'rgb(58, 52, 45)');
       if(active.mobile)assert.equal(active.buttonBg,'rgba(0, 0, 0, 0)');
     };
+    assert.equal(await nav.locator('button').count(),4,'Navigation principale à quatre onglets');
     await checkActiveNav();
     await snapshot('01-accueil');
     await page.locator('.accueil-preparer > summary').click();
@@ -86,6 +87,14 @@ fs.mkdirSync('qa-captures',{recursive:true});
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
      await checkActiveNav();
+     if(label==='Judo'||label==='Taïso'){
+       const access=page.getByRole('button',{name:'Séances et historique',exact:true});
+       await access.click();
+       await page.getByRole('heading',{name:'Historique '+label,exact:true}).waitFor({state:'visible'});
+       assert.equal(await access.getAttribute('aria-expanded'),'true');
+       await access.click();
+       await page.getByRole('heading',{name:'Historique '+label,exact:true}).waitFor({state:'hidden'});
+     }
      if((label==='Taïso'||label==='Judo') && engine==='webkit'){
       const layout=await page.evaluate(()=>{
        const wrap=document.querySelector('.wrap:has(> .catalogue-types)');
@@ -155,12 +164,12 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.getByRole('dialog',{name:'Affichage et accessibilité'}).waitFor();
     const settings=page.getByRole('dialog',{name:'Affichage et accessibilité'});
     const versionStatus=settings.locator('#jsb-maj-etat');
-    assert.match(await versionStatus.textContent(),/20261125-v31/);
+    assert.match(await versionStatus.textContent(),/20261125-v32a/);
     const updateButton=settings.getByRole('button',{name:'Vérifier les mises à jour',exact:true});
     const beforeUpdate=await page.evaluate(()=>JSON.stringify(localStorage));
-    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v31')"}));
+    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v32a')"}));
     await updateButton.click();
-    await page.getByText('Version à jour : 20261125-v31',{exact:true}).waitFor();
+    await page.getByText('Version à jour : 20261125-v32a',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>JSON.stringify(localStorage)),beforeUpdate);
     await page.unroute('**/index.html?jsb-version-check=*');
     await page.route('**/index.html?jsb-version-check=*',route=>route.abort());
