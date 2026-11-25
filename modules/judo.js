@@ -1,6 +1,102 @@
 /* JSB Manager V32 — moteur judo, sans DOM ni stockage. Les services métier sont injectés. */
 (function (root) {
   'use strict';
+  // V33 : règles pédagogiques Judo indépendantes du DOM.
+  function creerPedagogie(deps) {
+    var sa = deps.sa, sg = deps.sg, techniqueDe = deps.techniqueDe,
+        FAMILLE_DE = deps.FAMILLE_DE, momentsDe = deps.momentsDe,
+        estEveilJudo = deps.estEveilJudo, estJeuneJudo = deps.estJeuneJudo;
+  function estExerciceJeuneAdapte(e, groupe) {
+    if (groupe === 'Éveils (4-5 ans)' && e && /o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame|juji-gatame/.test(sa(e.nom))) return false;
+    if (!estJeuneJudo(groupe)) return true;
+    if (!e || sg(e).indexOf(groupe) < 0) return false;
+    var s = sa([e.nom, e.description, e.thematique, e.technique, e.famille].join(' '));
+    var nom = sa(e.nom);
+    var techniques = [techniqueDe(e.nom)].map(sa);
+    var techniqueFormelle = techniques.some(function (t) { return !!FAMILLE_DE[t]; }) || /o-soto-gari|o-uchi-gari|ko-uchi-gari|seoi-nage|tai-otoshi|harai-goshi|ippon-seoi-nage|kesa-gatame|yoko-shiho-gatame|tate-shiho-gatame/.test(nom);
+    var danger = /sutemi|kansetsu|shime|etrangl|juji|sankaku|waki.gatame|cle articulaire|saisie des jambes|projection violente|charge lourde|kettlebell|battle rope|souleve de terre|sprint maximum/;
+    if (danger.test(s)) return false;
+    if (groupe === 'Pré-poussins') {
+      if (e.niveauOpposition === 'Opposition libre' || /randori libre|combat libre/.test(nom)) return false;
+      return true;
+    }
+    // À 4–5 ans : apprentissage par l'exploration motrice, sans techniques formelles ni randori.
+    if (techniqueFormelle || /(?:\b|[- ])(?:waza|nage|gatame|osaekomi|ippon|uchi.komi|nage.komi|kumi.kata)\b/.test(s)) return false;
+    if (/projection|immobilisation|combat|randori|opposition libre|musculation|renforcement|gainage statique|pompes? |prise de judo/.test(s)) return false;
+    if (e.rolePedagogique === 'Opposition' || e.niveauOpposition === 'Opposition dirigée' || e.niveauOpposition === 'Opposition libre') return false;
+    return /jeu|ludique|parcours|motric|equilibr|coordina|deplac|marche|roul|ramper|grimper|saut|animal|imitation|mimer|relever|explor|cooper|partenair|entraide|salut|respir|relax|calme|appui|orientation|adresse|prehension|poursuite|saisir/.test(s);
+  }
+  function convientPhaseJeune(e, nomPhase, groupe) {
+    if (!estExerciceJeuneAdapte(e, groupe)) return false;
+    var s = sa([e.nom,e.thematique,e.description,e.competenceCiblee,e.rolePedagogique].join(' '));
+    var m = momentsDe(e), fin = m.indexOf('Fin de séance') >= 0;
+    var aDeux = e.format === 'Binôme' || e.format === 'Collectif' || e.format === 'Trio';
+    if (nomPhase === 'Retour au calme') return fin && /calme|respir|relax|repos|doux|salut|detente|jeu calme/.test(s);
+    if (fin) return false;
+    if (estEveilJudo(groupe)) {
+      if (nomPhase === 'Jeux moteurs') return /jeu|animal|imitation|deplac|march|equilibr|coordina|saut|ramper|roul|motric/.test(s) && !/opposition|combat/.test(s);
+      if (nomPhase === 'Parcours moteurs') return /parcours|atelier|equilibr|franchis|obstacle|explor|ramper|roul|relever|appui|orientation|adresse/.test(s) && !/combat/.test(s);
+      if (nomPhase === 'Jeux coopératifs') return aDeux && /jeu|cooper|entraide|partenair|collectif|transport|ensemble|binome|partage/.test(s) && !/opposition|combat/.test(s);
+      return false;
+    }
+    if (nomPhase === 'Jeux moteurs') return /jeu|animal|motric|equilibr|deplac|coordina|roul|chute|appui/.test(s) && !/randori|opposition/.test(s);
+    if (nomPhase === 'Bases du Judo') return m.indexOf('Corps de séance') >= 0 && e.rolePedagogique !== 'Opposition' && e.niveauOpposition !== 'Opposition dirigée';
+    if (nomPhase === 'Opposition éducative') {
+      return aDeux && m.indexOf('Corps de séance') >= 0 &&
+        (e.niveauOpposition === 'Opposition dirigée' || /jeu d.opposition|opposition educative|randori educatif/.test(s)) &&
+        e.niveauOpposition !== 'Opposition libre';
+    }
+    return false;
+  }
+  function scoreObjectifJeune(e, objectif) {
+    var o = sa(objectif), s = sa([e.nom,e.thematique,e.description,e.competenceCiblee].join(' '));
+    var motifs = [
+      [/equilibr|deplac/, /equilibr|deplac|appui|orient|marche/],
+      [/coordina|motric/, /coordina|motric|animal|imitation|saut|ramper|parcours/],
+      [/roul|chute/, /roul|chute|ukemi|relever|sol/],
+      [/cooper|partage|deux/, /cooper|partag|entraide|ensemble|binome|partenair/],
+      [/contact|saisie/, /contact|saisie|prehension|partenair|toucher/],
+      [/dojo|regle/, /dojo|salut|regle|respect|orientation/],
+      [/travail au sol/, /sol|quadrupedie|roul|retournement/],
+      [/opposition/, /opposition|jeu de lutte|randori educatif/]
+    ];
+    for (var i=0;i<motifs.length;i++) if (motifs[i][0].test(o)) return motifs[i][1].test(s) ? 12 : 0;
+    return 0;
+  }
+  function scoreObjectifJudo(e, objectif) {
+    var nom = sa(e.nom), theme = sa(e.thematique), technique = sa(e.technique);
+    var identite = [nom, theme, technique].join(' ');
+    var texte = identite + ' ' + sa(e.description);
+    if (objectif === 'Découverte et initiation') {
+      return /ukemi|chute|decouv|initiation|ludique|\bjeu\b|\bjeux\b|salut|fondamentaux|placement de base/.test(texte) ? 6 : 0;
+    }
+    if (objectif === 'Apprentissage technique') {
+      return /uchi.?komi|nage.?komi|apprentissage|technique|projection|entree/.test(texte) ? 6 :
+        (technique && technique !== 'preparation physique generale' ? 4 : 0);
+    }
+    if (objectif === 'Perfectionnement technique') {
+      return /uchi.?komi|nage.?komi|repetition|precision|maitrise|perfectionnement|tsukuri|forme de corps|placement/.test(texte) ? 6 : 0;
+    }
+    if (objectif === 'Déplacements et déséquilibres') {
+      return /shintai|tai.?sabaki|kuzushi|deplacement|desequilibr|tsugi.?ashi|ayumi.?ashi|pivot|creation d.angle|appui/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Enchaînements et combinaisons') {
+      return /renraku|encha(i|î)nement|combinaison|liaison|encha(i|î)ner|\bpuis\b|attaque successive/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Défense et contre-attaques') {
+      return /kaeshi|gaeshi|contre.?attaque|contre.?prise|defense|esquive|evitement|reaction a l.attaque/.test(texte) ? 7 : 0;
+    }
+    if (objectif === 'Travail au sol — Ne-waza') {
+      return /ne.?waza|osaekomi|kansetsu|shime.?waza|gatame|jime|immobilis|retournement|passage de garde|quadrupedie|\bsol\b/.test(identite) ||
+        /retournement|immobilis|passage de garde|sortie d.immobilisation/.test(sa(e.description)) ? 8 : 0;
+    }
+    if (objectif === 'Opposition et randori') {
+      return /randori|kakari|shiai|opposition|combat|situation d.opposition|mise en situation/.test(texte) ? 7 : 0;
+    }
+    return 0;
+  }
+    return { estExerciceJeuneAdapte: estExerciceJeuneAdapte, convientPhaseJeune: convientPhaseJeune, scoreObjectifJeune: scoreObjectifJeune, scoreObjectifJudo: scoreObjectifJudo };
+  }
   function creerMoteur(deps) {
     var hasard = deps.hasard,
         melanger = deps.melanger,
@@ -187,7 +283,7 @@
   }
     return { genererSeanceJeunes: genererSeanceJeunes, genererSeanceJudo: genererSeanceJudo };
   }
-  var api = { creerMoteur: creerMoteur };
+  var api = { creerMoteur: creerMoteur, creerPedagogie: creerPedagogie };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.JSBMoteurJudo = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
