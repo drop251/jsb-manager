@@ -40,7 +40,8 @@ function baseContexte() {
   };
   vm.createContext(c);
   ['estEveilJudo','estJeuneJudo','phasesDe','phasesSeance','dureesGroupeJudo',
-    'objectifsGroupeJudo','estExerciceJeuneAdapte','convientPhaseJeune','scoreObjectifJeune','genererSeanceJeunes'].forEach(n=>vm.runInContext(fonction(n),c));
+    'objectifsGroupeJudo','estExerciceJeuneAdapte','convientPhaseJeune','scoreObjectifJeune'].forEach(n=>vm.runInContext(fonction(n),c));
+  c.genererSeanceJeunes=require('../modules/judo.js').creerMoteur(c).genererSeanceJeunes;
   return c;
 }
 function exercise(id,nom,groupe,moment,role,opposition,format){

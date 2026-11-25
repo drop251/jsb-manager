@@ -1,7 +1,7 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-20261125-ui-presences-v32a';
-var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './ui/archivo.css', './ui/update.js', './ui/session-pdf.js', './core/stockage-web.js', './ui/bootstrap-v12.css', './ui/typographie-v12.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
+var CACHE = 'jsb-manager-20261125-ui-presences-v32b';
+var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './ui/archivo.css', './ui/update.js', './ui/session-pdf.js', './core/stockage-web.js', './modules/judo.js', './modules/taiso.js', './ui/bootstrap-v12.css', './ui/typographie-v12.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });

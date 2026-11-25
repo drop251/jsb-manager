@@ -68,7 +68,7 @@ test('aucune fiche invalidée ne peut être sauvegardée en contournant l’aper
   assert.match(html,/Enregistrement bloqué : corrigez les fiches refusées/);
   assert.match(html,/disabled: enCours \|\| !!\(rapport\.refuses && rapport\.refuses\.length\)/);
   assert.match(html,/var erreursFiche = verifierNouvelExerciceJudo\(l, e\)/);
-  assert.match(html,/roleCompatibleJudo\(e, phasePedagogique, rep\)/);
+  assert.match(fs.readFileSync(require('node:path').join(__dirname,'../modules/judo.js'),'utf8'),/roleCompatibleJudo\(e, phasePedagogique, rep\)/);
 });
 test('la génération utilise les durées déclarées et signale les trous sans inventer des exercices',()=>{
   const ctx=setup(names);
@@ -83,7 +83,7 @@ test('la génération utilise les durées déclarées et signale les trous sans 
     construireBlocs:()=>[],zonesTravaillees:()=>({})
   });
   vm.runInContext(fn('repartirDurees'),ctx);
-  vm.runInContext(fn('genererSeanceJudo'),ctx);
+  ctx.genererSeanceJudo=require('../modules/judo.js').creerMoteur(ctx).genererSeanceJudo;
   function e(id,nom,moment,role,duree,opp) {
     return {id,nom,public:['Judo'],sousGroupes:['Poussins'],equipement:'Tatami',moment,categorie:'Équilibre',technique:'Ne-waza (Osaekomi-waza)',rolePedagogique:role,competenceCiblee:'Conserver une immobilisation',prerequis:'Aucun',niveauOpposition:opp||'Coopération',dureeBlocMin:duree,format:'Binôme'};
   }

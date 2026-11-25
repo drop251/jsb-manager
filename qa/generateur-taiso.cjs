@@ -10,7 +10,6 @@ const source = [
  part('  function hasard(', '  function melanger('),
  part('  function melanger(', '\n'), 
  part('  function supervisionRequiseTaiso(', '  // V26 : moteur Taïso indépendant'),
- part('  function genererSeanceTaiso(', '  // V27 : moteur Judo indépendant'),
  part('  var CONTRAINTES =', '  function zoneDe('),
  part('  function estImpact(', '  function estUnilateral('),
  part('  function niveauOk(', '  // Un exercice convient-il à ce format ?'),
@@ -24,6 +23,7 @@ const ctx={
  zonesTravaillees:()=>({}), cibleZones:()=>0
 };
 vm.createContext(ctx);vm.runInContext(source,ctx);
+ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
 const mk=(id,props={})=>({id,nom:'Test '+id,public:['Taïso'],sousGroupes:['Gym douce','Training'],niveau:'Débutant',categorie:'Renforcement',moments:['Corps de séance'],equipement:'Poids du corps',...props});
 const good=mk(1), judo=mk(2,{public:['Judo']}), supervision=mk(3,{supervisionRequise:true}),
  impact=mk(4,{categorie:'Pliométrie'}), technique=mk(5,{typeFiche:'Technique'}),
