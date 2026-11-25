@@ -5490,8 +5490,9 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   }
 
   function Generateur(p) {
-    p = Object.assign({}, p, { donnees: p.donnees.filter(function (e) { return e.typeFiche !== 'Technique'; }), tout: p.tout.filter(function (e) { return e.typeFiche !== 'Technique'; }) });
     var judo = p.espace === 'Judo';
+    function ficheAutorisee(e) { return e && e.typeFiche !== 'Technique' && (judo || (Array.isArray(e.public) && e.public.indexOf('Taïso') >= 0)); }
+    p = Object.assign({}, p, { donnees: p.donnees.filter(ficheAutorisee), tout: p.tout.filter(ficheAutorisee) });
     var s1 = React.useState(0), etape = s1[0], setEtape = s1[1];
     var routineInit = lireRoutine(p.espace);
     // Taïso : les réponses de la dernière fois sont reprises (un seul écran), avec le matériel habituel coché d'office
