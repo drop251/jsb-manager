@@ -2544,7 +2544,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       setTout(t); try { window.dispatchEvent(new Event('jsb-sel')); } catch (err) {} return true;
     }
     function has(id) { return ids.indexOf(id) >= 0; }
-    return { ids: ids, has: has, set: ecrire, clear: function () { ecrire([]); },
+    return { ids: ids, espace: espace, cleStockage: CLE_SEL, has: has, set: ecrire, clear: function () { ecrire([]); },
       toggle: function (id) { ecrire(has(id) ? ids.filter(function (x) { return x !== id; }) : ids.concat([id])); } };
   }
   function Plus(p) {
@@ -2597,17 +2597,61 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       return { statut: 'lance' };
     });
   }
-  // V29 : enregistrer le brouillon avant de changer la sélection. En cas d'échec de sélection,
-  // rétablir le brouillon précédent ; aucun transfert n'est annoncé comme réussi en cas d'erreur.
+  // V30 : journal d'écriture par profil et discipline. La sélection décide si le transfert
+  // est terminé ou doit être annulé. Ne jamais écraser une modification extérieure au journal.
   function cleBrouillonSeance(espace) { return 'jsb-brouillon-' + sa(espace).replace(/[^a-z]/g, '') + suffixeProfil(); }
+  function recupererPreparation(cle, espace, cleSelection) {
+    var journal = cle + '-transaction';
+    try {
+      var brut = localStorage.getItem(journal);
+      if (brut === null) return true;
+      var j = JSON.parse(brut);
+      if (!j || j.version !== 1 || j.espace !== espace || j.cleSelection !== cleSelection ||
+          !Array.isArray(j.idsAvant) || !Array.isArray(j.idsApres) ||
+          (j.avant !== null && typeof j.avant !== 'string') || typeof j.apres !== 'string') return false;
+      var selection = JSON.parse(localStorage.getItem(cleSelection) || '{}');
+      if (!selection || typeof selection !== 'object' || Array.isArray(selection)) return false;
+      var ids = selection[espace] || [], actuel = localStorage.getItem(cle);
+      if (!Array.isArray(ids)) return false;
+      var ancien = JSON.stringify(ids) === JSON.stringify(j.idsAvant), nouveau = JSON.stringify(ids) === JSON.stringify(j.idsApres);
+      if ((!ancien && !nouveau) || (actuel !== j.avant && actuel !== j.apres)) return false;
+      // Si les deux sélections sont identiques, conserver la dernière version effectivement écrite.
+      var cible = nouveau && (!ancien || actuel === j.apres) ? j.apres : j.avant;
+      if (actuel !== cible) {
+        if (cible === null) localStorage.removeItem(cle); else localStorage.setItem(cle, cible);
+      }
+      localStorage.removeItem(journal);
+      return true;
+    } catch (err) { return false; }
+  }
   function enregistrerPreparation(cle, sel, ids, plan, infos) {
-    var avant;
-    try { avant = localStorage.getItem(cle); } catch (err) { return false; }
-    if (!ecrireJSON(cle, { infos: infos, plan: plan, modifieLe: Date.now() })) return false;
-    try { if (sel.set(ids)) return true; } catch (err) {}
-    try { if (avant === null) localStorage.removeItem(cle); else localStorage.setItem(cle, avant); }
-    catch (err) { try { annoncer('Stockage indisponible : vérifiez votre brouillon avant de continuer.'); } catch (e) {} }
-    return false;
+    var espace = sel.espace, cleSelection = sel.cleStockage, journal = cle + '-transaction';
+    if ((espace !== 'judo' && espace !== 'taiso') || !cleSelection || !Array.isArray(ids)) return false;
+    if (!recupererPreparation(cle, espace, cleSelection)) return false;
+    var avant, apres, idsAvant;
+    try {
+      avant = localStorage.getItem(cle);
+      var selection = JSON.parse(localStorage.getItem(cleSelection) || '{}');
+      if (!selection || typeof selection !== 'object' || Array.isArray(selection)) return false;
+      idsAvant = selection[espace] || [];
+      if (!Array.isArray(idsAvant)) return false;
+      apres = JSON.stringify({ infos: infos, plan: plan, modifieLe: Date.now() });
+      localStorage.setItem(journal, JSON.stringify({ version: 1, espace: espace, cleSelection: cleSelection, idsAvant: idsAvant, idsApres: ids, avant: avant, apres: apres }));
+    } catch (err) { return false; }
+    try { localStorage.setItem(cle, apres); } catch (err) { recupererPreparation(cle, espace, cleSelection); return false; }
+    var ok = false;
+    try { ok = sel.set(ids); } catch (err) {}
+    if (!ok) {
+      try {
+        if (avant === null) localStorage.removeItem(cle); else localStorage.setItem(cle, avant);
+        localStorage.removeItem(journal);
+      } catch (err) { try { annoncer('Stockage indisponible : une récupération sera nécessaire au prochain démarrage.'); } catch (e) {} }
+      return false;
+    }
+    // Les deux écritures sont terminées. Le journal est devenu inutile.
+    // Si sa suppression échoue, la récupération sait reconnaître un transfert complet.
+    try { localStorage.removeItem(journal); } catch (err) {}
+    return true;
   }
   function PanierSeance(p) {
     var cleBrouillon = cleBrouillonSeance(p.espace);
@@ -7273,7 +7317,14 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (q) { activerProfil(q, l); return 'chargement'; }
       return 'connexion';
     }), phase = s[0], setPhase = s[1];
-    React.useEffect(function () { if (phase === 'chargement') ajouterLocaux().then(function () { setPhase('app'); }); }, [phase]);
+    React.useEffect(function () { if (phase === 'chargement') {
+      var judoOk = recupererPreparation(cleBrouillonSeance('Judo'), 'judo', CLE_SEL);
+      var taisoOk = recupererPreparation(cleBrouillonSeance('Taïso'), 'taiso', CLE_SEL);
+      if (!judoOk || !taisoOk) {
+        try { window.alert('Une préparation nécessite une vérification du stockage. Les données existantes ont été conservées. Ne remplacez pas le brouillon avant vérification.'); } catch (err) {}
+      }
+      ajouterLocaux().then(function () { setPhase('app'); });
+    } }, [phase]);
     if (phase === 'connexion') return h(Connexion, { entrer: function () { setPhase('chargement'); } });
     if (phase === 'chargement') return null;
     return h(App);
