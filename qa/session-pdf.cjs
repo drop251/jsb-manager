@@ -17,6 +17,8 @@ const fixtures={
   if(key==='taiso')items[2].push(ex(6,'Pompes',{dosage:'10 répétitions',recuperation:'20 s'}),ex(7,'Fentes alternées',{dosage:'12 répétitions',recuperation:'20 s'}),ex(8,'Gainage',{dosage:'30 s',recuperation:'20 s'}));
   const durations=Object.fromEntries(f.times.map((v,i)=>[i+1,v]));if(key==='taiso'){durations[3]=10;durations[6]=10;durations[7]=10;durations[8]=10;}
   const plan={3:{dosage:key==='judo'?'4 répétitions':'15 répétitions',bloc:key==='taiso'?'Atelier 1':''},6:{bloc:'Atelier 1'},7:{bloc:'Atelier 1'},8:{bloc:'Atelier 1'}};
+  const blank=globalThis.JSBSessionPDF[key](jsPDF,logo,{},f.phases,f.phases.map(()=>[]),{},{},true);
+  fs.writeFileSync('qa-pdf/'+key+'-vierge.pdf',Buffer.from(await blank.arrayBuffer()));
   for(const mode of ['synthetique','detaille']){
    const blob=globalThis.JSBSessionPDF[key](jsPDF,logo,f.info,f.phases,items,durations,plan,false,mode);
    fs.writeFileSync('qa-pdf/'+key+'-'+mode+'.pdf',Buffer.from(await blob.arrayBuffer()));
