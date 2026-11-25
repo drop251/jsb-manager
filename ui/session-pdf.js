@@ -34,13 +34,13 @@ function layout(J,logo,discipline,blank,mode){
    pair.forEach((f,j)=>{const x=M+j*(w+gap);d.setFillColor(...gray);d.roundedRect(x,y,w,h,5,5,'F');write(f[0],x+10,y+13,9,false,muted);font(11,true);d.text(ls[j],x+10,y+27,{lineHeightFactor:1.25});});y+=h+gap;
   }
  }
- function phase(name,n,mins){room(53);write(n?String(n).padStart(2,'0'):'',M,y+13,11,true,gold);const x=M+(n?27:0);const ls=lines(name,C-(n?27:0)-75,12,true);font(12,true,navy);d.text(ls,x,y+13);font(10,false,muted);d.text(mins==null?'Durée à préciser':mins+' min',W-M,y+13,{align:'right'});y+=Math.max(23,ls.length*15+7);d.setDrawColor(...gold);d.line(M,y,M+C,y);y+=7;}
+ function phase(name,n,mins){room(53);write(n?String(n).padStart(2,'0'):'',M,y+13,11,true,gold);const x=M+(n?27:0);const ls=lines(name,C-(n?27:0)-75,12,true);font(12,true,navy);d.text(ls,x,y+13);font(10,false,muted);d.text(mins==null?(blank?'____ min':'Durée à préciser'):mins+' min',W-M,y+13,{align:'right'});y+=Math.max(23,ls.length*15+7);d.setDrawColor(...gold);d.line(M,y,M+C,y);y+=7;}
  function blankLines(count){room(count*15+5);d.setDrawColor(210,214,218);d.setLineWidth(.5);for(let i=0;i<count;i++){y+=15;d.line(M,y,M+C,y);}y+=5;}
  function blankTable(count){room(22+count*21);tableHeader();for(let i=0;i<count;i++){const widths=[C*.55,C*.27,C*.18];let x=M;for(const w of widths){d.setDrawColor(210,214,218);d.rect(x,y,w,21);x+=w;}y+=21;}y+=5;}
  function notes(title,value){room(headingHeight(title)+(value?measure(value):50)+8);heading(title);if(value)paragraph(value);else{room(45);d.setDrawColor(190,195,201);d.roundedRect(M,y,C,42,4,4);y+=50;}}
  function bar(groups){
   const total=groups.reduce((a,g)=>a+(g.minutes||0),0);heading('Répartition de la séance');
-  if(!total){paragraph('Durées à préciser');return;}
+  if(!total){paragraph(blank?'Échauffement : ____ min     Travail : ____ min     Retour au calme : ____ min':'Durées à préciser');return;}
   room(62);let x=M;const colors=[[135,150,168],gold,[120,152,138]];
   groups.forEach((g,i)=>{const w=C*(g.minutes||0)/total;if(w>0){d.setFillColor(...colors[i]);d.rect(x,y,w,13,'F');x+=w;}});y+=19;
   groups.forEach(g=>paragraph(g.name+' : '+(g.minutes==null?'non renseigné':g.minutes+' min'),{size:9,color:muted}));
