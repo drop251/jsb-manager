@@ -167,8 +167,8 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
   vm.createContext(ctx);
   vm.runInContext(fonction('okTaiso'),ctx);
   vm.runInContext(fonction('repartirDurees'),ctx);
-  vm.runInContext(fonction('genererSeanceTaiso'),ctx);
-  vm.runInContext(fonction('genererSeanceJudo'),ctx);
+  ctx.genererSeanceTaiso=require('../modules/taiso.js').creerMoteur(ctx).genererSeanceTaiso;
+  ctx.genererSeanceJudo=require('../modules/judo.js').creerMoteur(ctx).genererSeanceJudo;
   vm.runInContext(fonction('genererSeance'),ctx);
   const all=[{id:1,nom:'Routine',public:['Judo','Taïso'],sousGroupes:['Poussins','Training'],equipement:'Poids du corps',moment:'Échauffement',categorie:'Mobilité'}];
   all.push({...all[0],id:99,typeFiche:'Technique'}, {...all[0],id:98,public:['Taïso']}, {...all[0],id:97,public:['Judo']});
@@ -188,11 +188,13 @@ test('Judo and Taiso generator phase totals match the requested duration',()=>{
 
 test('Judo objectives are pedagogical and prioritize relevant exercises without changing Taiso',()=>{
   assert.match(html,/var objectifs = judo \? OBJECTIFS_JUDO :/);
-  assert.match(fonction('genererSeanceJudo'),/if \(obj\) s \+= scoreObjectifJudo\(e, obj\)/);
-  assert.match(fonction('genererSeanceTaiso'),/if \(obj && e\.categorie === obj\) s \+= 2\.5/);
-  assert.doesNotMatch(fonction('genererSeanceJudo'),/okTaiso|construireBlocs|niveauEffectifTaiso/);
-  assert.doesNotMatch(fonction('genererSeanceTaiso'),/scoreObjectifJudo|compatibleDosageJudo|roleCompatibleJudo/);
-  assert.match(html,/aucun exercice ciblé dans ce groupe/);
+  const moteurJudo=fs.readFileSync(require('node:path').join(__dirname,'../modules/judo.js'),'utf8');
+  const moteurTaiso=fs.readFileSync(require('node:path').join(__dirname,'../modules/taiso.js'),'utf8');
+  assert.match(moteurJudo,/if \(obj\) s \+= scoreObjectifJudo\(e, obj\)/);
+  assert.match(moteurTaiso,/if \(obj && e\.categorie === obj\) s \+= 2\.5/);
+  assert.doesNotMatch(moteurJudo,/okTaiso|construireBlocs|niveauEffectifTaiso/);
+  assert.doesNotMatch(moteurTaiso,/scoreObjectifJudo|compatibleDosageJudo|roleCompatibleJudo/);
+  assert.match(moteurJudo,/aucun exercice ciblé dans ce groupe/);
   const ctx={
     sa:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   };
