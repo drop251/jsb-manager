@@ -19,14 +19,20 @@ jobs:
           python - <<'PY'
           import fitz, pathlib
           files=list(pathlib.Path('qa-pdf').glob('*.pdf'))
-          assert len(files)==4
+          assert len(files)==6
           for f in files:
               with fitz.open(f) as doc:
                   text=' '.join(p.get_text() for p in doc)
-                  assert 'Point de sécurité' in text, f
+                  blank='vierge' in f.name
+                  if blank:
+                      assert 'Fiche vierge' in text and len(doc)==1, (f,len(doc))
+                      assert '____ min' in text, f
+                      if f.name.startswith('taiso'): assert 'Dosage' in text and 'Récup.' in text, f
+                  else:
+                      assert 'Point de sécurité' in text, f
                   assert ('Fiche de séance Judo' if f.name.startswith('judo') else 'Fiche de séance Taïso') in text, f
-                  assert ('Synthétique' if 'synthetique' in f.name else 'Détaillée') in text, f
-                  assert ('4 répétitions' if f.name.startswith('judo') else '15 répétitions') in text, f
+                  if not blank: assert ('Synthétique' if 'synthetique' in f.name else 'Détaillée') in text, f
+                  if not blank: assert ('4 répétitions' if f.name.startswith('judo') else '15 répétitions') in text, f
                   for i,p in enumerate(doc):
                       assert abs(p.rect.width-595.28)<1 and abs(p.rect.height-841.89)<1
                       assert p.get_images(), (f,i,'logo absent')
