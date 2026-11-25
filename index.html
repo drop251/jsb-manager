@@ -4752,7 +4752,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     }
     function viderCatalogue(discipline) {
       if (verrouImport.current || enCours) return;
-      if (!window.confirm('Vider définitivement ' + (discipline || 'tout le catalogue') + ' et les médias des fiches supprimées ? Les licenciés, présences, planning, séances et réglages restent conservés. Les anciennes séances peuvent référencer des exercices absents. Exportez le catalogue avant si nécessaire.')) return;
+      var nombre = BASE.filter(function (e) { return !discipline || (e.public || []).indexOf(discipline) >= 0; }).length;
+      if (!window.confirm('Retirer ' + nombre + ' fiche(s) de ' + (discipline || 'tout le catalogue') + ' et les médias des fiches supprimées ? Les licenciés, présences, planning, séances et réglages restent conservés. Les anciennes séances peuvent référencer des exercices absents. Exportez le catalogue avant si nécessaire.')) return;
       verrouImport.current = true; ++lectureImport.current; setEnCours(true); setRapport(null); setMsg('Réinitialisation du catalogue…');
       viderCatalogueLocal(discipline).then(function () { location.reload(); }).catch(function (err) {
         verrouImport.current = false; setEnCours(false); setMsg(err.message || 'Réinitialisation impossible.');
