@@ -38,3 +38,22 @@ Conserver le code et les données locales des fonctions club pour la future vers
 
 ## Ordre des travaux
 V36 : séparation et contrat des droits ; V37 : tableau de bord ; V38 : comptes ; V39 : statistiques ; V40 : documents légaux ; commercial et assistance après définition du modèle ; sécurité dès V36 et recette complète avant publication.
+
+## Sécurité grand public : exigences et recette obligatoire
+L'expérience utilisateur doit rester simple sans affaiblir la sécurité. Coach et particulier sont des comptes grand public ; aucune confiance dans un rôle, un identifiant ou un périmètre envoyé par le client.
+
+| Domaine | Scénarios de recette obligatoires | État |
+|---|---|---|
+| Inscription et authentification | Vérification e-mail, mots de passe hachés côté serveur, limitation des tentatives, réponses non révélatrices de l'existence d'un compte | À implémenter |
+| Réinitialisation | Jeton à durée limitée, usage unique, invalidation des sessions selon politique, refus des jetons expirés ou réutilisés | À implémenter |
+| Sessions | Expiration, déconnexion, révocation, protection CSRF selon mécanisme, cookies sécurisés si utilisés, refus des sessions suspendues | À implémenter |
+| Permissions coach | Refus d'accès administration et autres clubs ; contrôle par action, appartenance réelle et ressource ; révocation des droits | Politique pure à tester ; API à implémenter |
+| Permissions particulier | Refus de toutes les ressources club et administration ; isolation des séances, sauvegardes, acceptations et données de compte | Politique pure à tester ; API à implémenter |
+| API et exports | Requêtes directes sans interface, identifiants substitués, exports et restaurations inter-comptes, validation des entrées | À implémenter |
+| Données personnelles | Minimisation, export et suppression authentifiés, politique de conservation, aucun accès admin aux licenciés, contrôle des journaux | À implémenter |
+| Fichiers | Limites de taille, contrôle du contenu, prévention des chemins malveillants et scripts injectés, aucune restauration non autorisée | À implémenter |
+| PWA et hors ligne | Séparation des caches et données entre comptes, déconnexion sur appareil partagé, reprise sans fuite, pas de données privées en cache public | À implémenter |
+| Documents légaux | Version exacte acceptée, horodatage serveur, preuve non falsifiable par le client, nouvelle acceptation selon nécessité | À implémenter |
+| Paiement éventuel | Prestataire de paiement, validation serveur des notifications, idempotence, aucun stockage des données carte | Conditionnel, à implémenter |
+
+Les tests de politique pure ne valent pas tests d'intégration, d'authentification, de stockage ou de sécurité réseau. La publication grand public est bloquée tant que les contrôles applicables ne sont pas implémentés et testés côté serveur et navigateur. Les contrôles commerciaux restent conditionnels à l'offre retenue. Aucune collecte nouvelle n'est activée par ce document.
