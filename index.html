@@ -1917,7 +1917,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         }) : h('p', null, 'Aucune séance enregistrée pour le moment.')));
   }
 
-  // ===== Accessibilité et retours (15/10/2026) : taille du texte, contraste, animations, vibrations, annonces =====
+  // ===== Accessibilité et retours (15/10/2026)
   // Réglages propres à cet appareil (aucune donnée personnelle) dans localStorage 'jsb-affichage'.
   var CLE_AFFICHAGE = 'jsb-affichage';
   var TAILLES_TEXTE = [[0, 'Système'], [100, 'Standard'], [115, 'Grand'], [130, 'Très grand'], [160, 'Énorme'], [200, 'Maximal']];
@@ -1948,7 +1948,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     appliquerAffichage(AFFICHAGE);
   }
 
-  // Vibrations : Android (navigator.vibrate) ; iPhone (Safari 18+) via un interrupteur natif invisible.
   var MOTIFS = { selection: 6, leger: 12, succes: [14, 70, 14], erreur: [40, 60, 40] };
   var interrupteurIOS = null;
   function vibrer(type) {
@@ -2020,7 +2019,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var n = p.n || 4, cls = p.forme === 'carte' ? 'squelette squelette-carte' : 'squelette squelette-ligne';
     return h('div', { className: 'squelette-liste', 'aria-hidden': 'true' }, Array.apply(null, Array(n)).map(function (_, i) { return h('span', { key: i, className: cls }); }));
   }
-  // ===== Bibliothèque d'exercices (16/10/2026) : favoris, historique des séances, affichage liste/cartes =====
+  // ===== Bibliothèque d'exercices (16/10/2026)
   // Stockage local par profil.
   function suffixeProfil() { return String(CLE_SEL).replace('jsb-seances', ''); }
   // Traits d'union insécables.
@@ -2053,7 +2052,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('path', { d: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z' })), p.texte ? h('span', null, on ? 'Favori' : 'Ajouter aux favoris') : null);
   }
 
-  // --- Historique des séances : { id, date, heure, cours: [..], espace, titre, exos: [{ id, nom, phase, duree }], infos }
   function cleHisto() { return 'jsb-historique' + suffixeProfil(); }
   function lireHisto() { var l = lireJSON(cleHisto(), []); return Array.isArray(l) ? l.filter(function (x) { return x && x.date && Array.isArray(x.exos); }) : []; }
   function signatureSeanceHistorique(s) {
@@ -2111,8 +2109,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     React.useEffect(function () { var actif = true; chargerPres().then(function (d) { if (actif) setPl(d.planning || []); }, function () {}); return function () { actif = false; }; }, []);
     return pl;
   }
-  // ===== Mes séances (16/10/2026) : semaine par créneau, Ma séance Judo/Taïso, historique, fiche vierge ; mode séance en direct =====
-  // Intentions passées d'un écran à l'autre (préparer pour un créneau, ouvrir Ma séance, générer, reprendre une séance)
+  // ===== Mes séances (16/10/2026)
+  // Intentions passées d'un écran à l'autre (prép
   function poserIntention(x) { try { sessionStorage.setItem('jsb-intent', JSON.stringify(x)); } catch (e) {} }
   function prendreIntention(types) {
     try { var x = JSON.parse(sessionStorage.getItem('jsb-intent') || 'null'); if (x && types.indexOf(x.type) >= 0) { sessionStorage.removeItem('jsb-intent'); return x; } } catch (e) {}
@@ -2149,10 +2147,10 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   }
   function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
 
-  // --- Mode séance en direct : plein écran, minuteur, exercice en cours en grand, bip + vibration aux changements
-  // --- Dosage d'un exercice → ce que montre la séance en direct : un temps (compte à rebours) ou un nombre de répétitions
-  // Ex. « 3 × 20 s » → 3 séries de 20 s ; « 30 s par côté » → 30 s côté 1 puis côté 2 ; « 3 × 8 à 10 » → 3 séries de 8 à 10 répétitions ;
-  // « 15 s, 4 répétitions » → 4 fois 15 s ; « 6 par côté » → 6 répétitions par côté. Récupération : « récup 45 s » si indiquée, sinon 30 s.
+  // --- Mode séance en direct
+  // --- Dosage d'un exercice → ce que montre la s
+  // Ex. « 3 × 20 s » → 3 séries de 20 s ; « 30 s 
+  // « 15 s, 4 répétitions » → 4 fois 15 s ; « 6 p
   function lireDosage(d) {
     var t = String(d || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (!t) return null;
     var series = 1, m = t.match(/(\d+)\s*[×x]\s*/), reste = t;
@@ -2173,9 +2171,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     if (/^\d+$/.test(r[1]) && +r[1] === 1) unite = unite.replace(/s$/, '');
     return { mode: 'reps', series: series, reps: r[1] + ' ' + unite, cote: cote, recup: recup };
   }
-  // Suite de blocs d'un exercice : effort (temps ou répétitions), changement de côté, récupération entre séries
+  // Suite de blocs d'un exercice
   function planExercice(x, e) {
-    // Exercice d'un bloc (circuit, Tabata, EMOM, Pilates…) : son « travail » prévu par le générateur
     if (x && x.travail && (x.travail.sec || x.travail.reps)) {
       var t = x.travail, bl = [], nS = t.series || 1, nC = t.sec && t.cote ? 2 : 1;
       for (var s0 = 1; s0 <= nS; s0++) {
@@ -2219,7 +2216,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   function dureePlan(pl) { return pl.reduce(function (t, b) { return t + (b.sec || 0); }, 0); }
   function insec(s) { return String(s).replace(/(\d) (s|sec|min|répétitions?|respirations?|fois|pas)\b/g, '$1 $2').replace(/ à /g, ' à '); }
 
-  // --- Mode séance en direct : plein écran, vidéo au centre, compte à rebours ou répétitions selon l'exercice, bip + vibration
+  // --- Mode séance en direct
   // Prépare explicitement les médias de cette séance, y compris les vidéos réservées.
   function preparerHorsLigne(exos, base, progression) {
     if (!window.caches || !navigator.serviceWorker || !navigator.serviceWorker.controller) return Promise.reject(new Error('installation'));
@@ -2270,7 +2267,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var dernierBip = React.useRef(-1);
     var hors = React.useState(''), msgHors = hors[0], setMsgHors = hors[1];
     var charge = React.useState(false), chargeHors = charge[0], setChargeHors = charge[1];
-    // Annonces vocales (option, gardée sur l'appareil) : exercice suivant, récupération, changement de côté
     var s6 = React.useState(function () { return lireJSON('jsb-voix', false) === true; }), voix = s6[0], setVoix = s6[1];
     function parler(t) {
       if (!voix || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
@@ -2288,7 +2284,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       try { annoncer('Exercice ' + (n + 1) + ' sur ' + exos.length + ' : ' + exos[n].nom); } catch (err) {}
       parler(exos[n].nom + (b0.reps ? ', ' + b0.reps : ''));
     }
-    // Bloc suivant dans l'exercice (récupération et côté suivant démarrent seuls), sinon exercice suivant
     function blocSuivant(auto) {
       var k = bi + 1;
       if (k >= plan.length) { aller(i + 1, auto); return; }
@@ -2450,7 +2445,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     return new Blob([a], { type: 'application/pdf' });
   }
   var PHASES = [['Mobilité', 3], ['Échauffement', 2], ['Corps de séance', 4], ['Randori', 2], ['Étirement', 3]];
-  // Trame JSB adaptée au Taïso (26/10/2026) : même fiche, Randori remplacé par Retour au calme, corps de séance en blocs, colonne Dosage
+  // Trame JSB adaptée au Taïso (26/10/2026)
   var PHASES_T = [['Mobilité', 'Routine articulaire, de la tête aux chevilles'], ['Échauffement', 'Activation progressive : cardio léger, gestes du jour'],
     ['Corps de séance', 'En blocs : circuit, EMOM, Tabata, AMRAP, Pilates / yoga'], ['Retour au calme', 'Respiration, relaxation'], ['Étirements', 'Étirements des muscles travaillés']];
   function enregistrerPdf(nom, blob, setMsg) {
@@ -2503,7 +2498,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   // ---- Sélection d'exercices et génération de la fiche de séance (commun aux deux présentations)
   var CLE_SEL = 'jsb-seances';
   var PHASES_SEANCE = ['Mobilité', 'Échauffement', 'Corps de séance', 'Randori', 'Étirement'];
-  // Trame JSB adaptée au Taïso (26/10/2026) : la phase Randori devient Retour au calme ; tous les étirements en fin de séance
+  // Trame JSB adaptée au Taïso (26/10/2026)
   var PHASES_TAISO = ['Mobilité', 'Échauffement', 'Corps de séance', 'Retour au calme', 'Étirements'];
   var PHASES_TAISO_V1 = ['Échauffement et mobilité', 'Corps de séance', 'Fin de séance'];   // séances enregistrées avant le 26/10/2026
   var PHASES_EVEIL_JUDO = ['Accueil & salut', 'Jeux moteurs', 'Parcours moteurs', 'Jeux coopératifs', 'Retour au calme'];
@@ -2571,7 +2566,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     items.forEach(function (e) { (e.equipement || '').split(' + ').forEach(function (x) { if (x && x !== 'Poids du corps' && x !== 'Partenaire' && t.indexOf(x) < 0) t.push(x); }); });
     return t.join(', ');
   }
-  // Fiche de séance JSB (PDF). Taïso : trame adaptée, colonne Dosage, format du corps de séance, adaptations. vierge : lignes vides à remplir à la main
+  // Fiche de séance JSB (PDF). Taïso
   function construirePdf(infos, parPhase, durees, espace, vierge, plan) {
     plan = plan || {};
     var J = window.jspdf && window.jspdf.jsPDF, PH = phasesDe(espace, infos && infos.groupe, infos && infos.intitulesPhases), taiso = espace === 'Taïso';
@@ -2684,7 +2679,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!supprimerHisto(id)) { setErreurSuppressionHisto('Séance conservée. Réessayez la suppression.'); return; }
       setSuppressionHisto(null); setErreurSuppressionHisto('');
     }
-    // Venue de « Mes séances » ou de l'accueil : préparer pour un créneau, ouvrir, reprendre une séance enregistrée
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
       if (x.type === 'preparer') { preparerCours(x.cle); }
@@ -2773,7 +2767,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
       return true;
     }
-    // dur : progression « un cran plus dur » (même durée, effort un peu plus long ou plus de répétitions)
     function reprendre(s, dur) {
       var absents = s.exos.filter(function (x) { return !p.donnees.some(function (e) { return e.id === x.id; }); });
       if (absents.length) { setMsg('Reprise impossible : ' + absents.length + (absents.length > 1 ? ' exercices ne figurent plus' : ' exercice ne figure plus') + ' dans le catalogue actuel. La séance enregistrée et le brouillon sont conservés.'); return false; }
@@ -2803,7 +2796,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       intensite: judoEsp ? ['Faible', 'Modérée', 'Soutenue', 'Élevée'] : ['Faible (effort 3-4 sur 10)', 'Modérée (5-6 sur 10)', 'Soutenue (7-8 sur 10)', 'Élevée (9 sur 10)'],
       format: FORMATS_TAISO
     };
-    // Valeurs proposées d'office : groupe du créneau ou du sous-groupe ouvert, durée du créneau, matériel des exercices
     var grpCours = coursChoisi ? coursChoisi.cours.filter(function (c) { return opts.groupe.indexOf(c) >= 0; })[0] : '';
     var dureeCours = coursChoisi && coursChoisi.fin ? (minutes(coursChoisi.fin) - minutes(coursChoisi.heure)) + ' min' : '';
     if (dureeCours && opts.duree.indexOf(dureeCours) < 0) opts.duree.unshift(dureeCours);
@@ -2902,7 +2894,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
             }))) : null)));
   }
 
-  // ---- Section Présences : licenciés classés par catégorie d'âge, appel, bilan, export Excel (données sur l'appareil)
   var CLE_PRES = 'jsb-presences';
   var STATUTS = [['P', 'Présent'], ['A', 'Absent']];
   // Catégories par âge atteint dans l'année civile de début de saison (septembre).
@@ -2952,8 +2943,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     var j = p.j, ini = ((j.prenom || '').charAt(0) + (j.nom || '').charAt(0)).toUpperCase();
     return j.photo ? h('img', { className: 'pr-photo', src: j.photo, alt: 'Photo de ' + (j.prenom || '') + ' ' + (j.nom || '') }) : h('span', { className: 'pr-photo sans', 'aria-hidden': 'true' }, ini || '?');
   }
-  // ---- Stockage des présences : IndexedDB (plusieurs centaines de Mo possibles), stockage persistant demandé,
-  // repli sur localStorage si IndexedDB est indisponible. Les écritures sont mises en file pour garder l'ordre.
   var Stockage = (function () {
     var BASE = 'jsb-manager', TABLE = 'donnees', ouverture = null, file = Promise.resolve(), persistance = null;
     function ouvrir() {
@@ -2982,7 +2971,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); return true; } catch (err) { return false; } }
     function cleSecours(cle) { return cle + '-secours'; }
     function retirerSecours(cle) { try { localStorage.removeItem(cleSecours(cle)); } catch (err) {} }
-    // Un échec IndexedDB ne doit pas laisser une version locale plus récente invisible à la prochaine ouverture.
     function relire(cle) {
       var secours = lireLocal(cleSecours(cle));
       if (secours !== null) {
@@ -4655,14 +4643,26 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     });
   }
   // Reset only the local exercise library; never erase the user workspace or PWA shell.
-  function viderCatalogueLocal() {
-    return Stockage.lire(CLE_VIDEOS).then(function (videos) {
-      var entrees = [['jsb-exercices', []], [CLE_AJOUTS, []], [CLE_ILLUS_IA, {}], [CLE_IMG_PERSO, {}], [CLE_VIDEOS, {}], ['jsb-catalogue-en-ligne-desactive', true]];
-      Object.keys(videos || {}).forEach(function (id) { entrees.push([cleVideo(id), null]); });
+  function sansDiscipline(e, discipline) {
+    if (!e || !discipline) return null;
+    var publics = (e.public || []).filter(function (p) { return p !== discipline; });
+    return publics.length ? Object.assign({}, e, { public: publics }) : null;
+  }
+  var disciplinesMasquees = [];
+  function viderCatalogueLocal(discipline) {
+    var cleMasque = 'jsb-catalogue-en-ligne-desactive';
+    return Promise.all(['jsb-exercices', CLE_AJOUTS, CLE_ILLUS_IA, CLE_IMG_PERSO, CLE_VIDEOS, cleMasque].map(function (k) { return Stockage.lire(k); })).then(function (r) {
+      var garder = function (l) { return (l || []).map(function (e) { return sansDiscipline(e, discipline); }).filter(Boolean); };
+      var ids = new Set(garder(BASE).map(function (e) { return String(e.id); }));
+      var retires = new Set(BASE.filter(function (e) { return !ids.has(String(e.id)); }).map(function (e) { return String(e.id); }));
+      var nettoyer = function (m) { var n = {}; if (discipline) Object.keys(m || {}).forEach(function (k) { if (!retires.has(k)) n[k] = m[k]; }); return n; };
+      var masque = !discipline || r[5] === true ? true : uniq((Array.isArray(r[5]) ? r[5] : []).concat(discipline));
+      var entrees = [['jsb-exercices', garder(r[0])], [CLE_AJOUTS, garder(r[1])], [CLE_ILLUS_IA, nettoyer(r[2])], [CLE_IMG_PERSO, nettoyer(r[3])], [CLE_VIDEOS, nettoyer(r[4])], [cleMasque, masque]];
+      Object.keys(r[4] || {}).forEach(function (id) { if (!discipline || retires.has(id)) entrees.push([cleVideo(id), null]); });
       return Stockage.ecrireLot(entrees);
     }).then(function (ok) {
       if (!ok) throw new Error('Réinitialisation impossible.');
-      try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {}
+      if (!discipline) try { localStorage.removeItem(CLE_CODE_ILLUS); } catch (e) {}
       return true;
     });
   }
@@ -4738,11 +4738,12 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         setTimeout(function () { location.reload(); }, 700);
       }).catch(function (err) { setMsg('Import interrompu : ' + (err.message || 'stockage indisponible')); }).finally(function () { if (!reussi) { verrouImport.current = false; setEnCours(false); } });
     }
-    function viderCatalogue() {
+    function viderCatalogue(discipline) {
       if (verrouImport.current || enCours) return;
-      if (!window.confirm('Vider définitivement les exercices Judo et Taïso et leurs médias locaux ? Les licenciés, présences, planning, séances et réglages restent conservés. Les anciennes séances peuvent référencer des exercices absents. Exportez le catalogue avant si nécessaire.')) return;
+      var nombre = BASE.filter(function (e) { return !discipline || (e.public || []).indexOf(discipline) >= 0; }).length;
+      if (!window.confirm('Retirer ' + nombre + ' fiche(s) de ' + (discipline || 'tout le catalogue') + ' et les médias des fiches supprimées ? Les licenciés, présences, planning, séances et réglages restent conservés. Les anciennes séances peuvent référencer des exercices absents. Exportez le catalogue avant si nécessaire.')) return;
       verrouImport.current = true; ++lectureImport.current; setEnCours(true); setRapport(null); setMsg('Réinitialisation du catalogue…');
-      viderCatalogueLocal().then(function () { location.reload(); }).catch(function (err) {
+      viderCatalogueLocal(discipline).then(function () { location.reload(); }).catch(function (err) {
         verrouImport.current = false; setEnCours(false); setMsg(err.message || 'Réinitialisation impossible.');
       });
     }
@@ -4786,7 +4787,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
         photosJudo.length ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null,
-        h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: viderCatalogue }, 'Vider le catalogue d’exercices')),
+        h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: function () { viderCatalogue(); } }, 'Vider le catalogue d’exercices'),
+        ['Judo','Taïso'].map(function (d) { return h('button', { key:d, type:'button', className:'btn lien', disabled:enCours, onClick:function () { viderCatalogue(d); } }, 'Vider le ' + d); })),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         h('p', { className: 'gestion-msg' }, (rapport.totalLignes || 0) + ' ligne(s) analysée(s) en aperçu, sans écriture dans la bibliothèque. ' + (rapport.doublons || []).length + ' déjà présente(s) sans correction. ' + (rapport.refuses || []).length + ' refusée(s).'),
@@ -6783,6 +6785,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     BASE.forEach(function (e) { parCle[cleEL(e.nom) + '|' + (e.public || [])[0] + '|' + (e.typeFiche || 'Exercice')] = e; parId[e.id] = e; });
     liste.forEach(function (x) {
       if (!x || !x.nom || !Array.isArray(x.public)) return;
+      if (disciplinesMasquees.length) { x = Object.assign({}, x, { public: x.public.filter(function (p) { return disciplinesMasquees.indexOf(p) < 0; }) }); if (!x.public.length) return; }
       var k = cleEL(x.nom) + '|' + x.public[0] + '|' + (x.typeFiche || 'Exercice');
       var memeId = parId[x.id];
       var cible = memeId && cleEL(memeId.nom) === cleEL(x.nom) && (memeId.public || [])[0] === x.public[0] ? memeId : parCle[k];
@@ -7250,7 +7253,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         if (ids[e.id] !== undefined) { if (e._jsbOverride) BASE[ids[e.id]] = Object.assign({}, BASE[ids[e.id]], e, { ajoute: false }); }
         else { ids[e.id] = BASE.length; BASE.push(Object.assign({}, e, { ajoute: !e._jsbOverride })); }
       });
-    }).catch(function () {}).then(function () { return Stockage.lire('jsb-catalogue-en-ligne-desactive').then(function (desactive) { if (!desactive) return chargerEnLigne(); }); });
+    }).catch(function () {}).then(function () { return Stockage.lire('jsb-catalogue-en-ligne-desactive').then(function (desactive) { disciplinesMasquees = Array.isArray(desactive) ? desactive : []; if (desactive !== true) return chargerEnLigne(); }); });
   }
   (BASE_LOCALE && !BASE.length ? Stockage.lire('jsb-exercices').then(function (d) { if (Array.isArray(d) && d.length) BASE = d; }, function () {}) : Promise.resolve())
     .then(demarrer, demarrer);
@@ -7261,7 +7264,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v17');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v18');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7284,6 +7287,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v17">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v18">
 </body>
 </html>
