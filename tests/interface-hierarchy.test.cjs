@@ -18,7 +18,7 @@ test('Interface : feuille de style locale chargée après les styles historiques
 });
 test('Interface : cinq destinations et titre sémantique conservés',()=>{
  const html=read('index.html');
- assert.match(html,/var NAV = \[\['', 'Accueil', 'accueil'\], \['taiso', 'Taïso', 'taiso'\], \['judo', 'Judo', 'judo'\], \['seance', 'Séances', 'seance'\], \['presences', 'Présences', 'presences'\]\]/);
+ assert.match(html,/var NAV = \[\['', 'Accueil', 'accueil'\], \['taiso', 'Taïso', 'taiso'\], \['judo', 'Judo', 'judo'\], \['presences', 'Présences', 'presences'\]\]/);
  assert.ok(html.includes("h('h1', null, f.sous || esp.label)"));
  assert.ok(html.includes("h('h1', null, esp.label)"));
 });
