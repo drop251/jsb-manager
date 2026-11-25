@@ -5,6 +5,7 @@ const digest=token=>createHash('sha256').update(token,'utf8').digest('hex');
 const validToken=t=>typeof t==='string'&&/^[A-Za-z0-9_-]{43}$/.test(t);
 const validAccount=a=>a&&typeof a.id==='string'&&a.id.trim()!==''&&ROLES.has(a.role)&&a.status==='active';
 const invalid=()=>null;
+const versionValid=v=>Number.isSafeInteger(v)&&v>0;
 // Store contract: insert(record) must be unique, find(hash), remove(hash),
 // removeAccount(accountId). Production adapters must implement atomic operations.
 // Accounts and credentials are verified elsewhere; issue() is server-only.
@@ -17,8 +18,12 @@ function createSessions({store,loadAccount,now=Date.now,ttlMs=8*60*60*1000,admin
   if(!verified||verified.credentialVerified!==true||typeof verified.accountId!=='string')return invalid();
   const a=await loadAccount(verified.accountId);
   if(!validAccount(a)||a.id!==verified.accountId||(a.role==='admin'&&verified.mfaVerified!==true))return invalid();
+  if(a.credentialVersion!==undefined||verified.credentialVersion!==undefined){
+   if(!versionValid(a.credentialVersion)||verified.credentialVersion!==a.credentialVersion||verified.roleAtVerification!==a.role)return invalid();
+  }
   const token=randomBytes(32).toString('base64url'), issuedAt=time(), expiresAt=issuedAt+(a.role==='admin'?adminTtlMs:ttlMs);
-  await store.insert({hash:digest(token),accountId:a.id,roleAtIssue:a.role,issuedAt,expiresAt});
+  const saved=await store.insert({hash:digest(token),accountId:a.id,roleAtIssue:a.role,issuedAt,expiresAt,...(a.credentialVersion===undefined?{}:{credentialVersion:a.credentialVersion})});
+  if(saved===false)return invalid();
   return Object.freeze({token,expiresAt});
  }
  async function resolveSession(token){
@@ -28,7 +33,7 @@ function createSessions({store,loadAccount,now=Date.now,ttlMs=8*60*60*1000,admin
   const t=time();
   if(t<record.issuedAt||t>=record.expiresAt){await store.remove(hash);return invalid();}
   const a=await loadAccount(record.accountId);
-  if(!validAccount(a)||a.id!==record.accountId||a.role!==record.roleAtIssue){await store.remove(hash);return invalid();}
+  if(!validAccount(a)||a.id!==record.accountId||a.role!==record.roleAtIssue||((a.credentialVersion!==undefined||record.credentialVersion!==undefined)&&(!versionValid(a.credentialVersion)||a.credentialVersion!==record.credentialVersion))){await store.remove(hash);return invalid();}
   const clubIds=a.role==='coach'&&Array.isArray(a.clubIds)?a.clubIds.filter(id=>typeof id==='string'&&id.trim()!==''):[];
   return Object.freeze({id:a.id,role:a.role,status:a.status,authenticated:true,clubIds:Object.freeze(clubIds)});
  }
