@@ -32,3 +32,14 @@ test('Les données et le gabarit PDF restent dans le HTML',()=>{
   assert.match(html,/<script id="exemples" type="application\/json">/);
   assert.match(html,/<script id="fiche-pdf" type="text\/plain">/);
 });
+
+test('La typographie Archivo reste locale et disponible hors ligne',()=>{
+  const marker='<link rel="stylesheet" href="./ui/archivo.css">';
+  assert.ok(html.includes(marker));
+  assert.equal(html.indexOf(marker),html.lastIndexOf(marker));
+  assert.ok(!html.includes('data:font/woff2;base64,'));
+  const css=fs.readFileSync(path.join(root,'ui/archivo.css'),'utf8');
+  assert.match(css,/@font-face\s*\{\s*font-family:\s*'Archivo'/);
+  assert.match(css,/data:font\/woff2;base64,/);
+  assert.ok(sw.includes("'./ui/archivo.css'"),'Police absente du cache hors ligne');
+});
