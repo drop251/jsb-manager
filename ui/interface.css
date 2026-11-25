@@ -688,3 +688,20 @@
 .rg .rg-themes .rg-taille input { position:static; opacity:1; width:18px; height:18px; flex:none; accent-color:var(--jsb-accent-ink); margin:0; }
 .rg .rg-themes .rg-taille { gap:6px; }
 .rg .rg-themes .rg-taille:has(input:checked)::before { content:none; }
+
+/* V15 — administrator home: compact metrics and catalog shortcuts. */
+.accueil-catalogue { display:grid; gap:10px; min-width:0; }
+.accueil-catalogue > h2 { margin:0; font-size:1.125rem; font-weight:750; }
+.accueil-catalogue .blocs.raccourcis { margin:0; }
+.accueil-catalogue .bloc-txt { display:none; }
+.accueil-catalogue .bloc { min-height:64px; }
+.accueil-intro .accueil-sous { color:var(--jsb-accent-ink); font-weight:650; }
+@media (max-width:959px) {
+ .wrap > .accueil-intro.hero { padding:16px; gap:6px; }
+ .aujourdhui { padding:12px; gap:8px; }
+ .aujourdhui .tuile { min-height:92px; padding:10px; gap:4px; border-radius:12px; }
+ .aujourdhui .tuile-tete svg { padding:4px; width:16px; height:16px; }
+ .aujourdhui .tuile strong { font-size:clamp(1.125rem, 4.5vw, 1.5rem); }
+ .aujourdhui .tuile small { font-size:.8125rem; }
+}
+:root[data-texte-grand] .aujourdhui .tuile { min-height:0; }
