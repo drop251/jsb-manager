@@ -199,7 +199,7 @@ test('Judo objectives are pedagogical and prioritize relevant exercises without 
     sa:x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   };
   vm.createContext(ctx);
-  vm.runInContext(fonction('scoreObjectifJudo'),ctx);
+  Object.assign(ctx, require('../modules/judo.js').creerPedagogie(ctx));
   const correspondances=[
     ['Découverte et initiation','Jeu des chutes arrière'],
     ['Apprentissage technique','O-soto-gari : uchi-komi'],
