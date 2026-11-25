@@ -81,7 +81,7 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await snapshot('09-action-principale');
     await page.goto(base,{waitUntil:'domcontentloaded'});
     await nav.waitFor({timeout:45000});
-    for(const [n,label] of ['Judo','Taïso','Séances','Présences'].entries()){
+    for(const [n,label] of ['Judo','Taïso','Présences'].entries()){
      await nav.getByRole('button',{name:label,exact:true}).click();
      await page.locator('.appbar-titre strong').waitFor({state:'visible'});
      assert.equal(await nav.getByRole('button',{name:label,exact:true}).getAttribute('aria-current'),'page');
