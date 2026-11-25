@@ -3,7 +3,7 @@
 'use strict';
 const navy=[31,40,57],gold=[180,139,80],gray=[244,245,239],ink=[36,42,50],muted=[83,91,100];
 const text=v=>String(v==null?'':v).replace(/[’‘]/g,"'").replace(/[–—]/g,'-').replace(/œ/g,'oe').replace(/→/g,'>').replace(/[  ]/g,' ');
-function layout(J,logo,discipline,blank){
+function layout(J,logo,discipline,blank,mode){
  const d=new J({unit:'pt',format:'a4'}),W=d.internal.pageSize.getWidth(),H=d.internal.pageSize.getHeight(),M=34,C=W-2*M;let y=0;
  function font(size=10,bold=false,color=ink){d.setFont('helvetica',bold?'bold':'normal');d.setFontSize(size);d.setTextColor(...color);}
  function lines(v,width,size=10,bold=false){font(size,bold);return d.splitTextToSize(text(v),width);}
@@ -12,7 +12,7 @@ function layout(J,logo,discipline,blank){
   d.setFillColor(...navy);d.rect(0,0,W,98,'F');
   write('JSB MANAGER · '+discipline.toUpperCase(),M,25,10,true,gold);
   write(discipline==='Judo'?'Fiche de séance Judo':'Fiche de séance Taïso',M,53,23,true,[255,255,255]);
-  write(blank?'Fiche vierge':discipline==='Judo'?'Fiche pédagogique':'Fiche coach',M,74,10,false,[230,232,236]);
+  write(blank?'Fiche vierge':(discipline==='Judo'?'Fiche pédagogique':'Fiche coach')+' - '+(mode==='synthetique'?'Synthétique':'Détaillée'),M,74,10,false,[230,232,236]);
   if(logo)try{d.addImage(logo,'PNG',W-M-55,19,55,55);}catch(e){}
   y=118;
  }
@@ -53,22 +53,27 @@ function layout(J,logo,discipline,blank){
 }
 function minutes(items,durations,override){if(override!=null&&override!==''&&Number.isFinite(Number(override)))return Number(override);let values=items.map(e=>parseFloat(durations[e.id])).filter(Number.isFinite);return values.length?values.reduce((a,b)=>a+b,0):null;}
 function field(l,v){return v?l+' : '+v:'';}
-function details(L,e,p,judo){
+function details(L,e,p,judo,mode){
+ if(mode==='synthetique'){
+  const fields=judo?[['Consigne',e.description],['Opposition',e.niveauOpposition],['Organisation',e.organisation],['Prérequis',e.prerequis]]:[['Travail',p.travail],['Tours',p.tours]];
+  for(const [k,v] of fields.concat([['Critère de réussite',e.critere],['Point de sécurité',e.vigilance],['Adaptation',e.varianteFacile]]))if(v)L.paragraph(field(k,v),{size:9,bold:k==='Point de sécurité'});
+  return;
+ }
  if(e.description)L.paragraph(e.description);
  const fields=judo?[['Compétence ciblée',e.competenceCiblee],['Rôle pédagogique',e.rolePedagogique],['Prérequis',e.prerequis],['Opposition',e.niveauOpposition],['Organisation Tori / Uke',e.organisation]]:[['Matériel',e.materielDetail||e.equipement],['Travail',p.travail],['Tours',p.tours],['Muscles cibles',e.muscles]];
  for(const [k,v] of fields)if(v)L.paragraph(field(k,v),{size:9});
  for(const [k,v] of [['Critère de réussite',e.critere],['Point de sécurité',e.vigilance],['Variante plus facile',e.varianteFacile],['Variante plus difficile',e.varianteDifficile],['Accessibilité',e.accessibilite]])if(v)L.paragraph(field(k,v),{size:9,bold:k==='Point de sécurité'});
 }
-function judo(J,logo,info,phases,items,durations,plan,blank){
- const L=layout(J,logo,'Judo',blank),all=items.flat(),competences=[...new Set(all.map(e=>e.competenceCiblee).filter(Boolean))];
+function judo(J,logo,info,phases,items,durations,plan,blank,mode){
+ const L=layout(J,logo,'Judo',blank,mode),all=items.flat(),competences=[...new Set(all.map(e=>e.competenceCiblee).filter(Boolean))];
  L.cards([['Catégorie',info.groupe||info.public],['Durée',info.duree],['Compétence',competences.join(' ; ')],['Famille',info.thematique]]);
  L.heading('Objectif pédagogique');L.paragraph(info.objectif|| (blank?'________________________________':'Non renseigné'));
  phases.forEach((name,i)=>{const list=items[i]||[];L.phase(name,i+1,minutes(list,durations,info.tempsPhases&&info.tempsPhases[i]));if(info.reperesPhases)L.paragraph(info.reperesPhases[i]);if(!list.length)L.paragraph(blank?'Situation : __________________________________':'Aucun exercice enregistré');
- list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);L.paragraph([field('Dosage',p.dosage||e.dosage),field('Temps indicatif',durations[e.id]?durations[e.id]+' min':'')].filter(Boolean).join(' · '));details(L,e,p,true);});});
+ list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);L.paragraph([field('Dosage',p.dosage||e.dosage),field('Temps indicatif',durations[e.id]?durations[e.id]+' min':'')].filter(Boolean).join(' · '));details(L,e,p,true,mode);});});
  if(info.vigilance)L.notes('Points de vigilance',info.vigilance);L.notes('Bilan pédagogique',info.note);return L.finish();
 }
-function taiso(J,logo,info,phases,items,durations,plan,blank){
- const L=layout(J,logo,'Taïso',blank);
+function taiso(J,logo,info,phases,items,durations,plan,blank,mode){
+ const L=layout(J,logo,'Taïso',blank,mode);
  L.cards([['Public',info.groupe||info.public],['Durée',info.duree],['Objectif',info.objectif],['Effectif',info.participants],['Matériel',info.materiel],['Niveau',info.niveau]]);
  const sums=phases.map((_,i)=>minutes(items[i]||[],durations));
  const combine=ids=>{const v=ids.map(i=>sums[i]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0):null;};
@@ -76,7 +81,7 @@ function taiso(J,logo,info,phases,items,durations,plan,blank){
  if(info.intensite)L.paragraph(field('Intensité',info.intensite));
  phases.forEach((name,i)=>{const list=items[i]||[];L.phase(name,null,sums[i]);if(i===2&&info.format)L.paragraph(field('Format',info.format),{bold:true});if(!list.length){L.paragraph(blank?'Exercice : __________________________________':'Aucun exercice enregistré');return;}
  let bloc=null;list.forEach((e,index)=>{const p=plan[e.id]||{},next=p.bloc||'';if(next!==bloc||index===0){bloc=next;if(bloc)L.heading(bloc);L.tableHeader();}L.row(e.nom,p.dosage||e.dosage,p.recuperation||e.recuperation||'');});
- list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);details(L,e,p,false);});});
+ list.forEach(e=>{const p=plan[e.id]||{};L.heading(e.nom);details(L,e,p,false,mode);});});
  L.notes('Sécurité et adaptations',[info.vigilance,info.adaptations].filter(Boolean).join('\n'));L.notes('Observations du coach',info.note);return L.finish();
 }
 root.JSBSessionPDF={judo,taiso};
