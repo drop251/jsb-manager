@@ -1564,7 +1564,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   var h = React.createElement, useState = React.useState;
   var BASE = JSON.parse(document.getElementById('base').textContent);
   var EXEMPLES = JSON.parse(document.getElementById('exemples').textContent);
-  // Version en ligne (GitHub) : la base n'est pas publiée, elle est importée une fois et gardée dans le stockage de l'appareil
+  // Base importée et stockée localement.
   var BASE_LOCALE = !!window.JSB_BASE_LOCALE;
   function lireBaseFichier(fichier) {
     return fichier.text().then(function (t) {
@@ -1716,7 +1716,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         (p.tous ? [h('option', { key: '', value: '' }, p.tous)] : []).concat(p.options.map(function (o) { var v = o.value || o; return h('option', { key: v, value: v }, o.label || o); }))));
   }
 
-  // Description découpée en parties titrées quand elle suit le modèle du catalogue (Analyse technique, Mise en pédagogie…)
+  // Sections de description.
   var PARTIES = ['Kumi-kata', 'Analyse technique', 'Mise en pédagogie', 'Exercice de transfert', 'Forme enfants'];
   function Description(p) {
     var t = sansCesure(p.texte || ''), re = /(Analyse technique|Mise en pédagogie|Exercice de transfert|Forme enfants)\s*:\s*/g, morceaux = [], m, debut = 0, titre = null;
@@ -1799,7 +1799,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     React.useEffect(function () { if (dialogRef.current) dialogRef.current.focus(); }, [e.id]);
     var type = e.pilote || [e.isometrique ? 'Isométrique' : 'Dynamique', e.unilateral ? 'Unilatéral' : 'Bilatéral', e.polyarticulaire ? 'Poly-articulaire' : ''].filter(Boolean).join(' · ');
     function fait(t, v) { return v ? h('div', null, h('dt', { className: 'etiq' }, t), h('dd', null, v)) : null; }
-    // Tablette et ordinateur : la fiche s'affiche à côté de la liste (on peut toucher un autre exercice sans la fermer)
+    // Fiche latérale sur grand écran.
     React.useEffect(function () { document.body.classList.add('fiche-ouverte'); return function () { document.body.classList.remove('fiche-ouverte'); }; }, []);
     return ReactDOM.createPortal(h('div', { className: 'voile voile-fiche', onClick: p.fermer },
       h('aside', { className: 'sheet', role: 'dialog', 'aria-modal': cote ? undefined : 'true', 'aria-label': e.nom, tabIndex: -1, ref: dialogRef, style: teinte(p.espace.couleur),
@@ -1932,7 +1932,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
   function appliquerAffichage(a) {
     var r = document.documentElement, ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (a.theme === 'light' || a.theme === 'dark') r.setAttribute('data-theme', a.theme); else r.removeAttribute('data-theme');
-    // « Système » : suit la taille du texte du téléphone (Dynamic Type sur iOS, réglage du navigateur ailleurs)
+    // Taille système.
     if (!a.texte) { r.style.fontSize = ''; if (ios && window.CSS && CSS.supports('font', '-apple-system-body')) r.style.font = '-apple-system-body'; else r.style.font = ''; }
     else { r.style.font = ''; r.style.fontSize = a.texte + '%'; }
     var base = parseFloat(getComputedStyle(r).fontSize) || 16;
@@ -1958,7 +1958,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!interrupteurIOS) {
         var l = document.createElement('label'), i = document.createElement('input');
         i.type = 'checkbox'; i.tabIndex = -1; i.setAttribute('switch', ''); l.appendChild(i); l.setAttribute('aria-hidden', 'true');
-        // Dans l'écran (en haut à gauche) et invisible : un élément hors écran ferait défiler la page au focus
+        // Évite le défilement au focus.
         l.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;contain:strict';
         document.body.appendChild(l); interrupteurIOS = l;
       }
@@ -1966,7 +1966,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (type === 'succes' || type === 'erreur') setTimeout(function () { interrupteurIOS.click(); }, 90);
     } catch (e) {}
   }
-  // Retour haptique réservé aux gestes qui enregistrent quelque chose (pas à la navigation, pour rester fluide)
+  // Haptique à l'enregistrement.
   var HAPTIQUE = [
     ['.pr-st, .pr-appel-btn, .carte-w .cs-plus, .sheet-ajout, .ch-exo', 'leger'],
     ['.pr-maj .cs-btn.plein, .pr-confirme .cs-btn.plein, .gestion-rapport .btn.plein', 'succes']
@@ -2021,9 +2021,9 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     return h('div', { className: 'squelette-liste', 'aria-hidden': 'true' }, Array.apply(null, Array(n)).map(function (_, i) { return h('span', { key: i, className: cls }); }));
   }
   // ===== Bibliothèque d'exercices (16/10/2026) : favoris, historique des séances, affichage liste/cartes =====
-  // Tout reste sur l'appareil, par profil (même suffixe que la sélection « Ma séance »). Aucune donnée personnelle.
+  // Stockage local par profil.
   function suffixeProfil() { return String(CLE_SEL).replace('jsb-seances', ''); }
-  // Mots composés courts (« fémoro-patellaire », « avant-bras ») : trait d'union insécable, pour ne jamais couper un mot en fin de ligne
+  // Traits d'union insécables.
   function sansCesure(t) { return String(t == null ? '' : t).replace(/([A-Za-zÀ-ÿ]+)-(?=([A-Za-zÀ-ÿ]+))/g, function (m, a, b) { return a.length + b.length <= 18 ? a + '\u2011' : m; }); }
   function lireJSON(cle, defaut) { try { var v = JSON.parse(localStorage.getItem(cle)); return v == null ? defaut : v; } catch (e) { return defaut; } }
   function ecrireJSON(cle, v) { try { localStorage.setItem(cle, JSON.stringify(v)); return true; } catch (e) { return false; } }
