@@ -101,7 +101,7 @@ test('offline Safari video range responses and invalid ranges',async()=>{
   let listener;
   const response=new Response(Uint8Array.from([10,20,30,40,50]),{headers:{'Content-Type':'video/mp4'}});
   const ctx={URL,Request,Response,Headers,setTimeout,clearTimeout,Promise,
-    self:{location:{origin:'https://example.test'},addEventListener:(n,fn)=>{if(n==='fetch')listener=fn;}},
+    self:{location:{origin:'https://example.test'},registration:{scope:'https://example.test/'},addEventListener:(n,fn)=>{if(n==='fetch')listener=fn;}},
     caches:{open:async()=>({match:async()=>response.clone()})},fetch:async()=>{throw Error('offline');}};
   vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../sw.js'),'utf8'),ctx);
   async function request(range){let result;listener({request:new Request('https://example.test/illustres/medias/9001.mp4',{headers:{Range:range}}),respondWith:p=>result=p});return result;}
