@@ -131,11 +131,17 @@ fs.mkdirSync('qa-captures',{recursive:true});
       if(await open.isVisible()){
        await open.click();
        await page.locator('.gn[role="dialog"]').waitFor({state:'visible'});
+       const generator=page.locator('.gn-v22.gn-preparation');
+       assert.ok(await generator.isVisible());
+       const controls=await generator.locator('.gn-option:visible').evaluateAll(es=>es.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height})));
+       assert.ok(controls.every(r=>r.h>=43.5),JSON.stringify(controls));
+       assert.ok(await generator.getByRole('button',{name:'Générer la séance',exact:true}).isVisible());
+       assert.ok(await generator.getByRole('heading',{name:'Objectif',exact:true}).isVisible());
        await snapshot('06-generateur');
        // Fermer par le bouton système, sans créer ni modifier une séance.
        await page.keyboard.press('Escape');
        if(await page.locator('.gn[role="dialog"]').isVisible()){
-        const cancel=page.getByRole('button',{name:'Annuler la préparation',exact:true});
+        const cancel=page.getByRole('button',{name:'Annuler',exact:true});
         if(await cancel.isVisible()){page.once('dialog',d=>d.accept());await cancel.click();}
        }
        // Le scénario suivant dispose d'un nouveau document pour éviter toute interaction derrière un dialogue.
@@ -149,12 +155,12 @@ fs.mkdirSync('qa-captures',{recursive:true});
     await page.getByRole('dialog',{name:'Affichage et accessibilité'}).waitFor();
     const settings=page.getByRole('dialog',{name:'Affichage et accessibilité'});
     const versionStatus=settings.locator('#jsb-maj-etat');
-    assert.match(await versionStatus.textContent(),/20261125-v23/);
+    assert.match(await versionStatus.textContent(),/20261125-v24/);
     const updateButton=settings.getByRole('button',{name:'Vérifier les mises à jour',exact:true});
     const beforeUpdate=await page.evaluate(()=>JSON.stringify(localStorage));
-    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v23')"}));
+    await page.route('**/index.html?jsb-version-check=*',route=>route.fulfill({status:200,headers:{'X-JSB-Version-Check':'network'},body:"setAttribute('data-jsb-version', '20261125-v24')"}));
     await updateButton.click();
-    await page.getByText('Version à jour : 20261125-v23',{exact:true}).waitFor();
+    await page.getByText('Version à jour : 20261125-v24',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>JSON.stringify(localStorage)),beforeUpdate);
     await page.unroute('**/index.html?jsb-version-check=*');
     await page.route('**/index.html?jsb-version-check=*',route=>route.abort());
