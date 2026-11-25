@@ -37,7 +37,7 @@ function layout(J,logo,discipline,blank,mode){
  function phase(name,n,mins){room(53);write(n?String(n).padStart(2,'0'):'',M,y+13,11,true,gold);const x=M+(n?27:0);const ls=lines(name,C-(n?27:0)-75,12,true);font(12,true,navy);d.text(ls,x,y+13);font(10,false,muted);d.text(mins==null?(blank?'____ min':'Durée à préciser'):mins+' min',W-M,y+13,{align:'right'});y+=Math.max(23,ls.length*15+7);d.setDrawColor(...gold);d.line(M,y,M+C,y);y+=7;}
  function blankLines(count){room(count*15+5);d.setDrawColor(210,214,218);d.setLineWidth(.5);for(let i=0;i<count;i++){y+=15;d.line(M,y,M+C,y);}y+=5;}
  function blankTable(count){room(22+count*21);tableHeader();for(let i=0;i<count;i++){const widths=[C*.55,C*.27,C*.18];let x=M;for(const w of widths){d.setDrawColor(210,214,218);d.rect(x,y,w,21);x+=w;}y+=21;}y+=5;}
- function notes(title,value){room(headingHeight(title)+(value?measure(value):50)+8);heading(title);if(value)paragraph(value);else{room(45);d.setDrawColor(190,195,201);d.roundedRect(M,y,C,42,4,4);y+=50;}}
+ function notes(title,value){const boxHeight=blank?36:42,space=boxHeight+8;room(headingHeight(title)+(value?measure(value):space)+(blank?0:8));heading(title);if(value)paragraph(value);else{room(boxHeight+3);d.setDrawColor(190,195,201);d.roundedRect(M,y,C,boxHeight,4,4);y+=space;}}
  function bar(groups){
   const total=groups.reduce((a,g)=>a+(g.minutes||0),0);heading('Répartition de la séance');
   if(!total){paragraph(blank?'Échauffement : ____ min     Travail : ____ min     Retour au calme : ____ min':'Durées à préciser');return;}
@@ -85,7 +85,7 @@ function taiso(J,logo,info,phases,items,durations,plan,blank,mode){
  const combine=ids=>{const v=ids.map(i=>sums[i]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0):null;};
  L.bar([{name:'Échauffement',minutes:combine([0,1])},{name:'Travail',minutes:sums[2]},{name:'Retour au calme',minutes:combine([3,4])}]);
  if(info.intensite)L.paragraph(field('Intensité',info.intensite));
- phases.forEach((name,i)=>{const list=items[i]||[];L.room(110);L.phase(name,null,sums[i]);if(i===2&&info.format)L.paragraph(field('Format',info.format),{bold:true});if(!list.length){if(blank){if(i===2)L.blankTable(4);else L.blankLines(1);}else L.paragraph('Aucun exercice enregistré');return;}
+ phases.forEach((name,i)=>{const list=items[i]||[];L.room(blank?(i===2?141:50):110);L.phase(name,null,sums[i]);if(i===2&&info.format)L.paragraph(field('Format',info.format),{bold:true});if(!list.length){if(blank){if(i===2)L.blankTable(4);else L.blankLines(1);}else L.paragraph('Aucun exercice enregistré');return;}
  let bloc=null;list.forEach((e,index)=>{const p=plan[e.id]||{},next=p.bloc||'';if(next!==bloc||index===0){bloc=next;if(bloc)L.heading(bloc);L.tableHeader();}L.row(e.nom,p.dosage||e.dosage,p.recuperation||e.recuperation||'');});
  if(mode==='synthetique'){
   list.forEach(e=>{const p=plan[e.id]||{};L.room(55);L.paragraph(e.nom+' - '+[field('Point de sécurité',e.vigilance),field('Critère',e.critere),field('Adaptation',e.varianteFacile),field('Travail',p.travail),field('Tours',p.tours)].filter(Boolean).join(' · '),{size:9});});
