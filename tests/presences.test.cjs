@@ -33,7 +33,8 @@ function environnement() {
   };
   c.window=c;
   vm.createContext(c);
-  for (const n of ['debutSaison','catDe','coursDe','ageDe','peutTaiso','coursListe','rangCat','triCat','triJudokas','bilanDe','suiviDe','aSurveiller','cleTexte','oui','deux','lireDate','brut','colonne','memeJudoka','distance','trouverJudoka','fusionnerJudokas','exporterExcel','dateFr','nomComplet'])
+  Object.assign(c, require('../modules/club.js').creerService(c));
+  for (const n of ['cleTexte','oui','deux','lireDate','brut','colonne','memeJudoka','distance','trouverJudoka','fusionnerJudokas','exporterExcel','dateFr','nomComplet'])
     vm.runInContext(source(n),c);
   return c;
 }
