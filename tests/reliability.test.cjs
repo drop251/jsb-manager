@@ -277,6 +277,7 @@ test('cancelling an editable session requires confirmation and clears only the d
   let confirmed=false,selected=['a'],infos={keep:true},plan={id:1},closed=false,clearedToken=false;
   const ctx={
     window:{confirm:()=>confirmed},
+    cleBrouillon:'draft',enregistrerPreparation:(cle,sel,ids)=>sel.set(ids),setSignatureSauvee:()=>{},
     sel:{set:ids=>{selected=ids;return true;}},
     p:{espace:'Judo',effacerGeneration:()=>{clearedToken=true;}},
     setInfos:v=>{infos=v;},setPlan:v=>{plan=v;},setMsg:()=>{},setDirect:()=>{},setOuvert:v=>{closed=!v;}
@@ -288,7 +289,7 @@ test('cancelling an editable session requires confirmation and clears only the d
 
 test('failed selection write must not erase draft during cancellation',()=>{
   let writes=0;
-  const ctx={window:{confirm:()=>true},sel:{set:()=>false},
+  const ctx={window:{confirm:()=>true},cleBrouillon:'draft',enregistrerPreparation:(cle,sel,ids)=>sel.set(ids),setSignatureSauvee:()=>{writes++;},sel:{set:()=>false},
     p:{espace:'Taïso'},setInfos:()=>{writes++;},setPlan:()=>{writes++;},setMsg:()=>{},setDirect:()=>{},setOuvert:()=>{writes++;}};
   vm.createContext(ctx);vm.runInContext(fonction('abandonner',4),ctx);
   assert.equal(ctx.abandonner(),false);assert.equal(writes,0);
@@ -315,4 +316,35 @@ test('cancelled proposals do not persist preferences, and pending transfer is co
   assert.match(save,/if \(!p\.valider\(ids, plan, infos\)\) return/);
   assert.match(html,/p\.effacerGeneration\(jeton\)/);
   assert.match(html,/Annuler la préparation/);
+});
+
+test('session transfer persists plan and restores previous draft on selection failure',()=>{
+  const {ctx,local}=environnement();
+  vm.runInContext(fonction('ecrireJSON'),ctx);
+  vm.runInContext(fonction('enregistrerPreparation'),ctx);
+  const cle='draft', old=JSON.stringify({infos:{groupe:'Training'},plan:{1:{duree:'5'}}});
+  local.set(cle,old);
+  const infos={groupe:'Gym douce',duree:'60 min'}, plan={2:{duree:'8',dosage:'12 répétitions'}};
+  let selected=[1], writes=0;
+  assert.equal(ctx.enregistrerPreparation(cle,{set:()=>{writes++;return false;}},[2],plan,infos),false);
+  assert.equal(local.get(cle),old);
+  assert.equal(writes,1);
+  assert.equal(ctx.enregistrerPreparation(cle,{set:ids=>{selected=ids;return true;}},[2],plan,infos),true);
+  assert.deepEqual(selected,[2]);
+  assert.deepEqual(JSON.parse(local.get(cle)).plan,plan);
+  assert.deepEqual(JSON.parse(local.get(cle)).infos,infos);
+  local.delete(cle);
+  assert.equal(ctx.enregistrerPreparation(cle,{set:()=>false},[2],plan,infos),false);
+  assert.equal(local.has(cle),false);
+});
+test('session transfer refuses to change selection when draft cannot be persisted',()=>{
+  const {ctx,local}=environnement();
+  vm.runInContext(fonction('ecrireJSON'),ctx);
+  vm.runInContext(fonction('enregistrerPreparation'),ctx);
+  local.set('draft','previous');
+  ctx.localStorage.setItem=()=>{throw Error('quota');};
+  let called=false;
+  assert.equal(ctx.enregistrerPreparation('draft',{set:()=>{called=true;return true;}},[2],{},{}),false);
+  assert.equal(called,false);
+  assert.equal(local.get('draft'),'previous');
 });

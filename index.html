@@ -2016,7 +2016,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v28'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v29'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -2539,7 +2539,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     // Ajout venu d'ailleurs (Assistant JSB) : relire la sélection enregistrée
     React.useEffect(function () { function relire() { setTout(lireSel()); } window.addEventListener('jsb-sel', relire); return function () { window.removeEventListener('jsb-sel', relire); }; }, []);
     var ids = tout[espace] || [];
-    function ecrire(n) { var t = Object.assign({}, tout); t[espace] = n;
+    function ecrire(n) { var t = Object.assign({}, lireSel()); t[espace] = n;
       if (!ecrireJSON(CLE_SEL, t)) { try { annoncer('Sélection non enregistrée : stockage indisponible.'); } catch (err) {} return false; }
       setTout(t); try { window.dispatchEvent(new Event('jsb-sel')); } catch (err) {} return true;
     }
@@ -2597,8 +2597,20 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       return { statut: 'lance' };
     });
   }
+  // V29 : enregistrer le brouillon avant de changer la sélection. En cas d'échec de sélection,
+  // rétablir le brouillon précédent ; aucun transfert n'est annoncé comme réussi en cas d'erreur.
+  function cleBrouillonSeance(espace) { return 'jsb-brouillon-' + sa(espace).replace(/[^a-z]/g, '') + suffixeProfil(); }
+  function enregistrerPreparation(cle, sel, ids, plan, infos) {
+    var avant;
+    try { avant = localStorage.getItem(cle); } catch (err) { return false; }
+    if (!ecrireJSON(cle, { infos: infos, plan: plan, modifieLe: Date.now() })) return false;
+    try { if (sel.set(ids)) return true; } catch (err) {}
+    try { if (avant === null) localStorage.removeItem(cle); else localStorage.setItem(cle, avant); }
+    catch (err) { try { annoncer('Stockage indisponible : vérifiez votre brouillon avant de continuer.'); } catch (e) {} }
+    return false;
+  }
   function PanierSeance(p) {
-    var cleBrouillon = 'jsb-brouillon-' + sa(p.espace).replace(/[^a-z]/g, '') + suffixeProfil();
+    var cleBrouillon = cleBrouillonSeance(p.espace);
     var brouillon = lireJSON(cleBrouillon, {});
     var s1 = React.useState(false), ouvert = s1[0], setOuvert = s1[1];
     var s2 = React.useState(function () { return brouillon && brouillon.infos || {}; }), infos = s2[0], setInfos = s2[1];
@@ -2619,13 +2631,13 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     React.useEffect(function () {
       var x = prendreIntention(['preparer', 'ouvrir', 'reprendre']); if (!x) return;
       if (x.type === 'preparer') { preparerCours(x.cle); }
-      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { if (reprendre(s, x.plusDur) && x.cle) setInfos(Object.assign({}, s.infos || {}, { _cours: x.cle })); } }
+      if (x.type === 'reprendre') { var s = lireHisto().filter(function (y) { return y.id === x.id; })[0]; if (s) { reprendre(s, x.plusDur, x.cle); } }
       setOuvert(true);
     }, []);
     // Séance proposée par le générateur : phases, durées et en-tête pré-remplis, puis ouverture
     var jeton = p.genere && p.genere.jeton;
     React.useEffect(function () { if (jeton) {
-      setPlan(p.genere.plan || {}); setInfos(p.genere.infos || {}); setMsg(''); setOuvert(true);
+      setSignatureSauvee(''); setPlan(p.genere.plan || {}); setInfos(p.genere.infos || {}); setMsg(''); setOuvert(true);
       if (p.effacerGeneration) p.effacerGeneration(jeton);
     } }, [jeton]);
     var sel = p.sel, n = sel.ids.length, PH = phasesDe(p.espace, infos.groupe || p.sous, infos.intitulesPhases);
@@ -2648,7 +2660,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function preparerCours(cle) {
       if (infos._cours === cle) return true;
       if (!autoriserRemplacement()) { setMsg('La préparation en cours est conservée.'); return false; }
-      if (!sel.set([])) { setMsg('Nouvelle préparation impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
+      if (!enregistrerPreparation(cleBrouillon, sel, [], {}, { _cours: cle })) { setMsg('Nouvelle préparation impossible : stockage indisponible. Vérifiez votre brouillon.'); return false; }
       setSignatureSauvee(''); setInfos({ _cours: cle }); setPlan({}); setMsg(''); return true;
     }
     function phaseDe(e) { var x = plan[e.id]; return x && x.phase != null ? x.phase : phaseDefaut(e); }
@@ -2659,8 +2671,8 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
     function majInfo(k, v) { setMsg(''); var ni = Object.assign({}, infos); ni[k] = v; setInfos(ni); }
     function abandonner() {
       if (!window.confirm('Annuler la préparation ' + p.espace + ' ? Les exercices, durées et informations non enregistrées seront effacés. Vos séances enregistrées seront conservées.')) return false;
-      if (!sel.set([])) { setMsg('Annulation impossible : stockage indisponible. Réessayez.'); return false; }
-      setPlan({}); setInfos({}); setMsg(''); setDirect(null); setOuvert(false);
+      if (!enregistrerPreparation(cleBrouillon, sel, [], {}, {})) { setMsg('Annulation impossible : stockage indisponible. Réessayez.'); return false; }
+      setSignatureSauvee(''); setPlan({}); setInfos({}); setMsg(''); setDirect(null); setOuvert(false);
       if (p.effacerGeneration) p.effacerGeneration();
       return true;
     }
@@ -2704,14 +2716,15 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       if (!silencieux) setMsg('Séance enregistrée' + (coursChoisi ? ' pour ' + coursChoisi.texte : ' pour aujourd\'hui') + '. Elle apparaîtra dans l\'appel de ce cours.');
       return true;
     }
-    function reprendre(s, dur) {
+    function reprendre(s, dur, cleCours) {
       var absents = s.exos.filter(function (x) { return !p.donnees.some(function (e) { return e.id === x.id; }); });
       if (absents.length) { setMsg('Reprise impossible : ' + absents.length + (absents.length > 1 ? ' exercices ne figurent plus' : ' exercice ne figure plus') + ' dans le catalogue actuel. La séance enregistrée et le brouillon sont conservés.'); return false; }
       var ancienne = s.espace === 'Taïso' && !s.trame;   // ancienne trame Taïso en 3 phases : phases recalculées
       var ids = [], np = {}; s.exos.map(function (x) { return dur ? plusDurExo(x) : x; }).forEach(function (x) { if (ids.indexOf(x.id) < 0) { ids.push(x.id); np[x.id] = { phase: ancienne ? null : x.phase, duree: x.duree, bloc: x.bloc, dosage: x.dosage, travail: x.travail, tours: x.tours }; } });
       if (!autoriserRemplacement()) { setMsg('La préparation en cours est conservée.'); return false; }
-      if (!sel.set(ids)) { setMsg('Reprise impossible : stockage indisponible. Le brouillon est conservé.'); return false; }
-      setSignatureSauvee(''); setPlan(np); setInfos(Object.assign({}, s.infos || {}, { _cours: '' })); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
+      var ni = Object.assign({}, s.infos || {}, { _cours: cleCours || '' });
+      if (!enregistrerPreparation(cleBrouillon, sel, ids, np, ni)) { setMsg('Reprise impossible : stockage indisponible. Vérifiez votre brouillon.'); return false; }
+      setSignatureSauvee(''); setPlan(np); setInfos(ni); setMsg('Séance du ' + dateFr(s.date) + ' reprise' + (dur ? ' un cran plus dure (effort un peu plus long ou plus de répétitions, même durée)' : '') + ' : ajustez-la puis enregistrez-la pour un nouveau cours.');
       return true;
     }
     function telecharger(mode) {
@@ -7246,7 +7259,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       genOuvert ? h(Generateur, { espace: esp.label, donnees: tous, tout: donnees, sous: f.sous, fermer: function () { setGenOuvert(false); },
         valider: function (ids, plan, infos) {
           if (sel.ids.length && !window.confirm('Remplacer les ' + sel.ids.length + ' exercices déjà dans « Ma séance » par la séance générée ?')) return false;
-          if (!sel.set(ids)) return false;
+          if (!enregistrerPreparation(cleBrouillonSeance(esp.label), sel, ids, plan, infos)) { try { annoncer('Préparation non enregistrée : stockage indisponible. Réessayez.'); } catch (err) {} return false; }
           setGenere({ jeton: Date.now(), plan: plan, infos: infos }); setGenOuvert(false); return true;
         } }) : null)));
   }
@@ -7289,7 +7302,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v28');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v29');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7312,6 +7325,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v28">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v29">
 </body>
 </html>
