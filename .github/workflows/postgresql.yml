@@ -114,6 +114,20 @@ jobs:
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_catalogue.$table")" = 0
           done
 
+      - name: Tester la publication transactionnelle des catalogues
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          node --test backend/db/tests/catalogue-publication.integration.cjs
+          for table in publications releases exercises current_release; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_catalogue.$table")" = 0
+          done
+          for table in accounts sessions; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
+          done
+
       - name: Tester le runtime HTTP et MFA avec PostgreSQL réel
         env:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
