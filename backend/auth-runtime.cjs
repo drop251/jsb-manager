@@ -21,6 +21,7 @@ const {analyzeCatalogueImport}=require('../core/catalogue-import.cjs');
 const {authorize}=require('../core/platform-permissions.cjs');
 const {createXlsxRecipeAnalyzer}=require('./xlsx-recipe-analyzer.cjs');
 const {createPublicationFlow}=require('./catalogue-publication-flow.cjs');
+const {createCatalogueHistory}=require('./db/catalogue-history.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
@@ -53,6 +54,19 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  if(typeof enableCataloguePublication!=='boolean')throw TypeError('Configuration publication invalide');
  const publication=enableCataloguePublication?createPublicationFlow({pool,key:createHmac('sha256',quotaSecret).update('JSB/catalogue-publication/v1').digest(),now}):null;
  const publishLimiter=limiter('catalogue-publication',5,10);
+ const history=createCatalogueHistory(pool),historyLimiter=limiter('catalogue-history',60,120),restoreLimiter=limiter('catalogue-restoration',5,10);
+ async function catalogueHistory(actor,body,source){
+  if(!authorize(actor,'catalogue','import'))return {ok:false,status:403};
+  if(!await historyLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  const result=await history.list(actor,body.discipline,{offset:body.offset});
+  if(result.ok)result.history.restoreEnabled=!!publication;
+  return result;
+ }
+ async function catalogueRestore(actor,body,source,sessionHash){
+  if(!publication||!authorize(actor,'catalogue','import'))return {ok:false,status:403};
+  if(!await restoreLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  return history.restore(actor,sessionHash,body);
+ }
  async function analyzeCandidate(body,includeCanonical=false){
   if(body.format==='xlsx-recipe'||body.format==='xlsx-contract'){
    if(!['judo','taiso'].includes(body.discipline)||(body.format==='xlsx-recipe'&&body.discipline!=='taiso'))return {status:400};
@@ -88,14 +102,14 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!result.analysis.valid||!result.canonical)return {ok:false,status:400};
   return publication.publish(actor,sessionHash,{receipt:body.receipt,canonical:result.canonical,confirmed:body.confirmed,confirmationVersion:body.confirmationVersion});
  }
- const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,catalogueImport,...(publication?{cataloguePublish}:{}),now});
+ const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,catalogueImport,catalogueHistory,...(publication?{cataloguePublish,catalogueRestore}:{}),now});
  async function checkReady(){
   const [delivery,mfa]=await Promise.all([deliveryKeys.loadKey(deliveryKeys.activeKeyId),mfaKeys.loadKey(mfaKeys.activeKeyId)]);
   if(!Buffer.isBuffer(delivery)||delivery.length!==32||!Buffer.isBuffer(mfa)||mfa.length!==32||timingSafeEqual(delivery,mfa)||[delivery,mfa].some(k=>quotaSecret.length===k.length&&timingSafeEqual(k,quotaSecret)))throw Error('Clés serveur absentes ou non distinctes');
   // Check required schema, not merely connectivity. No data is returned.
   await pool.query("SELECT a.id FROM jsb_auth.accounts a, jsb_auth.sessions s, jsb_auth.action_tokens t, jsb_auth.delivery_outbox o, jsb_auth.quota_events q, jsb_auth.mfa_factors f WHERE false");
   await pool.query('SELECT r.version,e.pedagogical_details FROM jsb_catalogue.releases r, jsb_catalogue.exercises e, jsb_catalogue.current_release c WHERE false');
-  if(publication)await pool.query('SELECT version FROM jsb_catalogue.publications WHERE false');
+  await pool.query('SELECT p.version,c.generation,r.generation FROM jsb_catalogue.publications p, jsb_catalogue.current_release c, jsb_catalogue.restorations r WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});
