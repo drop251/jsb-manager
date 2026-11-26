@@ -17,9 +17,11 @@ function navigation({ network, offline = null }) {
     clients: { claim() { return Promise.resolve(); } }
   };
   const caches = {
-    match() { return offline instanceof Error ? Promise.reject(offline) : Promise.resolve(offline); },
-    open() {
+    match() { throw new Error('Une lecture globale des caches est interdite'); },
+    open(name) {
+      assert.match(name, /^jsb-manager-/);
       return Promise.resolve({
+        match() { return offline instanceof Error ? Promise.reject(offline) : Promise.resolve(offline); },
         put(url, response) { writes.push({ url, response }); return Promise.resolve(); }
       });
     }
@@ -80,4 +82,9 @@ test('PWA : erreur HTTP et cache indisponible conservent la vraie réponse HTTP'
   const serverError = { ok: false, status: 503 };
   const result = navigation({ network: serverError, offline: new Error('cache indisponible') });
   assert.equal(await result.response, serverError);
+});
+
+test('PWA : le secours ne consulte jamais les caches globaux', async () => {
+  const result = navigation({ network: new Error('hors ligne'), offline: { tag: 'local' } });
+  assert.equal((await result.response).tag, 'local');
 });

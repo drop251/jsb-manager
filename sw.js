@@ -1,13 +1,14 @@
 // Service worker JSB Manager : garde une copie complète de l'app sur l'appareil pour fonctionner hors ligne.
 // 20261103-jsb-objectifs-judo-v1 change à chaque construction : l'iPhone récupère la nouvelle version à la prochaine ouverture avec réseau.
-var CACHE = 'jsb-manager-20261125-ui-presences-v35';
+var CACHE_PREFIX = 'jsb-manager-';
+var CACHE = 'jsb-manager-20261126-ui-presences-v35-offline-isolation-v2';
 var FICHIERS = ['./', './index.html', './jsb-edge-swipe.js', './ui/interface.css', './ui/archivo.css', './ui/update.js', './ui/session-pdf.js', './core/stockage-web.js', './modules/judo.js', './modules/taiso.js', './ui/bootstrap-v12.css', './ui/typographie-v12.css', './vendor/react.js', './vendor/react-dom.js', './vendor/xlsx.js', './vendor/jspdf.js', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (ev) {
   ev.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
 self.addEventListener('activate', function (ev) {
   ev.waitUntil(caches.keys().then(function (cles) {
-    return Promise.all(cles.filter(function (k) { return k.indexOf('jsb-') === 0 && k !== CACHE && k !== 'jsb-polices' && k !== 'jsb-illustres'; }).map(function (k) { return caches.delete(k); }));
+    return Promise.all(cles.filter(function (k) { return k.indexOf(CACHE_PREFIX) === 0 && k !== CACHE; }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
 self.addEventListener('fetch', function (ev) {
@@ -36,7 +37,7 @@ self.addEventListener('fetch', function (ev) {
       if (!rep.ok) throw new Error('network');
       var copy = rep.clone();
       return caches.open(CACHE).then(function (c) { return c.put('./index.html', copy); }).then(function () { return rep; });
-    }).catch(function () { return caches.match('./index.html').then(function (r) { return r || Response.error(); }); }));
+    }).catch(function () { return caches.open(CACHE).then(function (c) { return c.match('./index.html'); }).then(function (r) { return r || Response.error(); }); }));
     return;
   }
   // Exercices illustrés publiés avec l'app : catalogue réseau d'abord (mises à jour), photos et vidéos gardées pour le hors-ligne
@@ -75,7 +76,7 @@ self.addEventListener('fetch', function (ev) {
     // Réseau d'abord pour recevoir les mises à jour, mais copie locale au bout de 3 s (réseau faible au dojo)
     ev.respondWith(new Promise(function (ok) {
       var fini = false;
-      function locale() { return Promise.resolve().then(function () { return caches.match('./index.html', { ignoreSearch: true }); }).catch(function () { return null; }); }
+      function locale() { return Promise.resolve().then(function () { return caches.open(CACHE).then(function (c) { return c.match('./index.html', { ignoreSearch: true }); }); }).catch(function () { return null; }); }
       var minuteur = setTimeout(function () { locale().then(function (r) { if (r && !fini) { fini = true; ok(r); } }); }, 3000);
       fetch(req, { cache: 'no-cache' }).then(function (rep) {
         if (rep.ok) {
@@ -109,5 +110,5 @@ self.addEventListener('fetch', function (ev) {
     }));
     return;
   }
-  ev.respondWith(caches.match(req, { ignoreSearch: true }).then(function (r) { return r || fetch(req); }));
+  ev.respondWith(caches.open(CACHE).then(function (c) { return c.match(req, { ignoreSearch: true }); }).then(function (r) { return r || fetch(req); }));
 });
