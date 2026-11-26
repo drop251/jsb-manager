@@ -1,0 +1,74 @@
+# Préproduction privée uniquement. Aucun secret en clair, aucune donnée réelle.
+databases:
+  - name: jsb-v36-preprod-db
+    databaseName: jsb_preprod
+    postgresMajorVersion: "16"
+    region: frankfurt
+    plan: free
+    ipAllowList: []
+
+envVarGroups:
+  - name: jsb-v36-preprod-secrets
+    envVars:
+      - key: JSB_TESTER_SECRET
+        generateValue: true
+      - key: JSB_QUOTA_SECRET
+        generateValue: true
+      - key: JSB_DELIVERY_SECRET
+        generateValue: true
+      - key: JSB_MFA_SECRET
+        generateValue: true
+      - key: JSB_GATEWAY_SECRET
+        generateValue: true
+
+services:
+  - type: web
+    name: jsb-manager-v36-preprod
+    runtime: node
+    branch: deploy/render-v36-private
+    region: frankfurt
+    plan: free
+    autoDeployTrigger: off
+    buildCommand: npm install --no-save --no-package-lock --ignore-scripts pg@8.16.3
+    startCommand: node backend/render-preproduction.cjs
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: jsb-v36-preprod-secrets
+      - key: NODE_VERSION
+        value: "22"
+      - key: JSB_APP
+        value: public
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jsb-v36-preprod-db
+          property: connectionString
+      - key: JSB_PEER_ORIGIN
+        fromService:
+          type: web
+          name: jsb-admin-v36-preprod
+          envVarKey: RENDER_EXTERNAL_URL
+  - type: web
+    name: jsb-admin-v36-preprod
+    runtime: node
+    branch: deploy/render-v36-private
+    region: frankfurt
+    plan: free
+    autoDeployTrigger: off
+    buildCommand: npm install --no-save --no-package-lock --ignore-scripts pg@8.16.3
+    startCommand: node backend/render-preproduction.cjs
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: jsb-v36-preprod-secrets
+      - key: NODE_VERSION
+        value: "22"
+      - key: JSB_APP
+        value: admin
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jsb-v36-preprod-db
+          property: connectionString
+      - key: JSB_PEER_ORIGIN
+        fromService:
+          type: web
+          name: jsb-manager-v36-preprod
+          envVarKey: RENDER_EXTERNAL_URL
