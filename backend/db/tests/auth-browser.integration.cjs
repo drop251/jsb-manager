@@ -156,6 +156,27 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
+    const draftTitle='Recette privée '+name;
+    await page.locator('#taiso-draft-title').fill(draftTitle);
+    await page.getByRole('button',{name:'Enregistrer le brouillon',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 1'}).waitFor({state:'visible',timeout:15000});
+    const savedRow=(await pool.query('SELECT id,revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND title=$2',[ids.coach,draftTitle])).rows[0];
+    assert.equal(savedRow.revision,1);
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 1'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#taiso-duration').inputValue(),'60');
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    await page.locator('#taiso-duration').selectOption('45');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 45 min'}).waitFor({state:'visible',timeout:15000});
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 2'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,2);
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.locator('#taiso-duration').selectOption('60');
+
     await page.locator('#taiso-format').selectOption('Circuit');
     await page.locator('#taiso-configure').check();
     await page.locator('#taiso-org-stations').fill('4');
@@ -193,6 +214,9 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.notEqual(cookies.find(c=>c.name==='__Host-jsb-public').value,first.value);
     const current=await page.evaluate(async()=>await (await fetch('/api/session',{cache:'no-store'})).json());
     assert.deepEqual(current.account,{id:ids.individual,role:'individual'});
+    const privateProbe=await page.evaluate(async({expectedAccount,id})=>{const r=await fetch('/api/private/taiso/drafts/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccount,id})});return r.status;},{expectedAccount:ids.individual,id:savedRow.id});
+    assert.equal(privateProbe,409);
+
     await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
     assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
@@ -207,6 +231,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
     await waitStatus(admin,'Session vérifiée : Administrateur');
     assert.ok(await admin.locator('#mfa').isDisabled());
+    assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
     assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
     assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
     await admin.locator('[data-workspace-page="maintenance"]').click();
