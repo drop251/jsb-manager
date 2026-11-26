@@ -15,3 +15,16 @@ test('Les textes longs sont paginés sans erreur',()=>{
  const long={...exercise,description:'Consigne détaillée et complète. '.repeat(1500)};
  assert.doesNotThrow(()=>globalThis.JSBSessionPDF.judo(jsPDF,null,info,phases,[[],[],[long],[],[]],{1:20},{},false));
 });
+
+test('PDF Taïso enregistré : trame historique, deux niveaux de détail et document portable',async()=>{
+ const {renderTaisoSavedPdf}=require('../backend/taiso-saved-pdf.cjs');
+ const record={title:'Fixture hors connexion',version:'fixture-v1',revision:3,validatedAt:null,stale:false,
+  settings:{criteria:{groupe:'Training',niveau:'Intermédiaire',sansMateriel:true,materiel:[]}},
+  snapshot:{discipline:'taiso',minutes:60,format:'Séries classiques',missing:['Échauffement'],phases:phases.map((name,i)=>({name,minutes:[5,8,35,4,8][i],unallocatedMinutes:[5,8,30,4,8][i],blocks:i===2?[{name:'Séries classiques',references:['JSB-TAISO-FIXTURE'],organization:{plannedSeconds:null,budgetSeconds:2100,issues:['organization-not-configured']}}]:[],exercises:i===2?[{reference:'JSB-TAISO-FIXTURE',name:'Fixture exercice',allocationMinutes:5,dosage:'8 répétitions',safety:'Fixture sécurité',description:'Fixture consigne',successCriteria:'Fixture critère',prescription:{mode:'Répétitions',repetitions:8}}]:[]}))}};
+ for(const mode of ['detaille','synthetique']){
+  const buffer=Buffer.from(await renderTaisoSavedPdf(record,mode),'base64');
+  assert.equal(buffer.subarray(0,4).toString(),'%PDF');
+  assert.ok(buffer.length>1000&&buffer.length<=4*1024*1024);
+ }
+ await assert.rejects(renderTaisoSavedPdf({...record,snapshot:{...record.snapshot,discipline:'judo'}}),TypeError);
+});

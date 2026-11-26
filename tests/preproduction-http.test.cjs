@@ -1,0 +1,55 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const http=require('node:http');
+const fs=require('node:fs/promises');
+const os=require('node:os');
+const path=require('node:path');
+const {build}=require('../scripts/build-auth-preview.cjs');
+const {createPreproductionHandler}=require('../backend/preproduction-http.cjs');
+test('Préproduction : origine, contrôle d’accès, intégrité et fichiers strictement isolés',async()=>{
+ const temp=await fs.mkdtemp(path.join(os.tmpdir(),'jsb-preprod-'));
+ const servers=[];
+ try{
+  for(const app of ['public','admin']){
+   const directory=path.join(temp,app);
+   await build(app,directory);
+   const server=http.createServer((req,res)=>handler(req,res));servers.push(server);
+   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+   const host='127.0.0.1:'+server.address().port,origin='https://'+host;
+   let apiCalls=0,access=true;
+   const options={app,origin,directory,authorizeAccess:async()=>access,authHandler:async(req,res)=>{apiCalls++;res.writeHead(401,{'Cache-Control':'no-store'});res.end();}};
+   const handler=await createPreproductionHandler(options);
+   function request(url,{method='GET',headers={}}={}){
+    return new Promise((resolve,reject)=>{
+     const req=http.request({hostname:'127.0.0.1',port:server.address().port,path:url,method,headers:{Host:host,...headers}},res=>{
+      let body='';res.setEncoding('utf8');res.on('data',x=>body+=x);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body}));
+     });req.on('error',reject);req.end();
+    });
+   }
+   const entry='/'+app+'/auth.html',other=app==='public'?'admin':'public';
+   access=false;
+   for(const url of ['/',entry,'/api/session'])assert.equal((await request(url)).status,403);
+   assert.equal(apiCalls,0);
+   access=true;
+   assert.equal((await request(entry,{headers:{Host:'wrong.test'}})).status,421);
+   const redirect=await request('/');assert.equal(redirect.status,302);assert.equal(redirect.headers.location,entry);
+   const html=await request(entry);assert.equal(html.status,200);assert.match(html.headers['cache-control'],/no-store/);
+   assert.match(html.headers['content-security-policy'],/frame-ancestors 'none'/);
+   assert.doesNotMatch(html.headers['content-security-policy'],/unsafe-eval/);
+   assert.equal(html.body.includes('id="mfa"'),app==='admin');
+   assert.equal((await request(entry,{method:'HEAD'})).body,'');
+   assert.equal((await request('/shared/auth-client.mjs')).status,200);
+   for(const url of ['/public/offline.html','/public/offline.mjs','/public/offline-sw.js'])assert.equal((await request(url)).status,app==='public'?200:404);
+   for(const url of ['/'+other+'/auth.html','/index.html','/manifest.json','/backend/auth-runtime.cjs','/../backend/auth-runtime.cjs','/%2e%2e/backend/auth-runtime.cjs',entry+'?x=1'])assert.equal((await request(url)).status,404);
+   assert.equal((await request(entry,{method:'POST'})).status,405);
+   assert.equal((await request('/api/session')).status,401);assert.equal(apiCalls,1);
+   await fs.appendFile(path.join(directory,app,'auth.html'),'tamper');
+   await assert.rejects(createPreproductionHandler(options),/Intégrité/);
+   await assert.rejects(createPreproductionHandler({...options,authorizeAccess:undefined}),TypeError);
+  }
+ }finally{
+  for(const server of servers)await new Promise(resolve=>server.close(resolve));
+  await fs.rm(temp,{recursive:true,force:true});
+ }
+});

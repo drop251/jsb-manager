@@ -1,0 +1,84 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const load=()=>import('../apps/shared/auth-client.mjs');
+const origin='https://manager.example.test';
+const coach={id:'a',role:'coach'},individual={id:'b',role:'individual'};
+function fixture(responses,{allowedRoles=['coach','individual'],locks}={}){
+ const calls=[],transitions=[];
+ const options={origin,allowedRoles,locks:locks===undefined?{request:async(name,options,fn)=>{transitions.push([name,options]);return fn();}}:locks,fetchImpl:async(url,options)=>{
+  calls.push({url,options});const next=responses.shift();if(!next)throw Error('Requête imprévue');
+  if(next instanceof Error)throw next;
+  return new Response(JSON.stringify(next.body),{status:next.status,headers:{'Content-Type':next.type||'application/json'}});
+ }};
+ return {options,calls,transitions};
+}
+const ok=account=>({status:200,body:{ok:true,account}}),denied={status:401,body:{ok:false}};
+test('Client : session confirmée après connexion, transport même origine et sans stockage',async()=>{
+ const {createAuthClient}=await load(),f=fixture([ok(coach),ok(coach)]);
+ const c=createAuthClient(f.options);
+ assert.deepEqual(await c.login({email:'a@example.test',password:'secret',role:'admin',token:'fake'}),{ok:true,account:coach});
+ assert.deepEqual(f.calls.map(x=>x.url),[origin+'/api/login',origin+'/api/session']);
+ assert.deepEqual(JSON.parse(f.calls[0].options.body),{email:'a@example.test',password:'secret'});
+ for(const {options} of f.calls){assert.equal(options.credentials,'same-origin');assert.equal(options.mode,'same-origin');assert.equal(options.cache,'no-store');assert.equal(options.redirect,'error');}
+ assert.equal(f.calls[0].options.referrerPolicy,'same-origin');
+ assert.equal(f.calls[0].options.referrer,origin+'/');
+ assert.equal(f.calls[1].options.referrerPolicy,'no-referrer');
+ assert.deepEqual(f.transitions,[['jsb-auth-transition-v1',{mode:'exclusive'}]]);
+});
+test('Client : refus de connexion, quota, déconnexion confirmée',async()=>{
+ const {createAuthClient}=await load(),f=fixture([denied,{status:429,body:{ok:false}},{status:200,body:{ok:true}},denied]);
+ const c=createAuthClient(f.options);
+ assert.deepEqual(await c.login({}),{ok:false,status:401});
+ assert.deepEqual(await c.login({}),{ok:false,status:429});
+ assert.deepEqual(await c.logout(),{ok:true});
+ assert.equal(f.transitions.length,3);
+});
+test('Client : échec fermé en cas de rôle interdit, changement concurrent ou API indisponible',async()=>{
+ const {createAuthClient}=await load();
+ for(const responses of [[ok({id:'z',role:'admin'})],[ok(coach),ok(individual)],[ok(coach),denied],[new Error('offline')],[{status:200,body:{ok:true,account:coach},type:'text/html'}]]){
+  await assert.rejects(createAuthClient(fixture(responses).options).login({}));
+ }
+ const f=fixture([ok(coach)],{locks:null});
+ await assert.rejects(createAuthClient(f.options).login({}),/verrouillage/);
+ assert.equal(f.calls.length,0);
+ assert.throws(()=>createAuthClient({...f.options,origin:'http://manager.example.test'}),TypeError);
+});
+test('Client : session administrateur et code MFA, refus des profils publics',async()=>{
+ const {createAuthClient}=await load(),admin={id:'x',role:'admin'},f=fixture([ok(admin),ok(admin),ok(coach)],{allowedRoles:['admin']});
+ const c=createAuthClient(f.options);
+ assert.deepEqual(await c.login({email:'admin@example.test',password:'secret',mfaCode:'123456'}),{ok:true,account:admin});
+ assert.equal(JSON.parse(f.calls[0].options.body).mfaCode,'123456');
+ await assert.rejects(c.session(),/Identité/);
+});
+
+test('Client : cycle de compte disponible seulement dans le périmètre grand public',async()=>{
+ const {createAuthClient}=await load();
+ const accepted={status:202,body:{ok:true}},confirmed={status:200,body:{ok:true}},invalid={status:400,body:{ok:false}};
+ const f=fixture([accepted,confirmed,accepted,accepted,invalid]),c=createAuthClient(f.options);
+ assert.deepEqual(await c.register({email:'test@example.test',password:'fixture',role:'admin'}),{ok:false,status:400});
+ assert.equal(f.calls.length,0);
+ assert.deepEqual(await c.register({email:'test@example.test',password:'fixture',role:'coach'}),{ok:true,status:202});
+ assert.deepEqual(await c.verifyEmail('fixture-code'),{ok:true,status:200});
+ assert.deepEqual(await c.resendVerification('test@example.test'),{ok:true,status:202});
+ assert.deepEqual(await c.requestReset('test@example.test'),{ok:true,status:202});
+ assert.deepEqual(await c.confirmReset({token:'fixture-code',password:'fixture'}),{ok:false,status:400});
+ assert.deepEqual(f.calls.map(x=>new URL(x.url).pathname),['/api/register','/api/verify-email','/api/resend-verification','/api/password-reset/request','/api/password-reset/confirm']);
+ assert.equal(f.transitions.length,5);
+ const admin=createAuthClient(fixture([],{allowedRoles:['admin']}).options);
+ for(const name of ['register','verifyEmail','resendVerification','requestReset','confirmReset'])assert.equal(admin[name],undefined);
+});
+
+test('Catalogue : filtre borné, version et discipline confirmées par le serveur',async()=>{
+ const {createAuthClient}=await load();
+ const items=[{reference:'fixture-1',name:'Exercice de recette',family:'Famille de recette'}];
+ const result={discipline:'taiso',version:'fixture-v1',offset:0,total:1,items};
+ const f=fixture([{status:200,body:{ok:true,results:result}},{status:409,body:{ok:false}},{status:200,body:{ok:true,results:{...result,discipline:'judo'}}}]);
+ const c=createAuthClient(f.options),criteria={version:'fixture-v1',query:'recette',family:'Famille de recette'};
+ assert.deepEqual(await c.searchCatalogue('taiso',criteria),{state:'ready',...result});
+ assert.equal(f.calls[0].url,origin+'/api/catalogue/taiso/search');
+ assert.deepEqual(JSON.parse(f.calls[0].options.body),{...criteria,offset:0});
+ assert.deepEqual(await c.searchCatalogue('taiso',criteria),{state:'version-changed'});
+ await assert.rejects(c.searchCatalogue('taiso',criteria),/Résultats invalides/);
+ await assert.rejects(c.searchCatalogue('unknown',criteria),TypeError);
+});

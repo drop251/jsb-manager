@@ -7,11 +7,12 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
 
-function navigation({ network, offline = null }) {
+function navigation({ network, offline = null, url = 'https://jsb.test/app/', method = 'GET' }) {
   const listeners = {};
   const writes = [];
   const self = {
     location: { origin: 'https://jsb.test' },
+    registration: { scope: 'https://jsb.test/app/' },
     addEventListener(name, handler) { listeners[name] = handler; },
     skipWaiting() { return Promise.resolve(); },
     clients: { claim() { return Promise.resolve(); } }
@@ -34,7 +35,7 @@ function navigation({ network, offline = null }) {
   };
   vm.runInNewContext(source, context, { filename: 'sw.js' });
   const event = {
-    request: { url: 'https://jsb.test/app/', method: 'GET', mode: 'navigate' },
+    request: { url, method, mode: 'navigate' },
     respondWith(promise) { this.result = promise; }
   };
   listeners.fetch(event);
@@ -80,4 +81,11 @@ test('PWA : erreur HTTP et cache indisponible conservent la vraie réponse HTTP'
   const serverError = { ok: false, status: 503 };
   const result = navigation({ network: serverError, offline: new Error('cache indisponible') });
   assert.equal(await result.response, serverError);
+});
+
+test('PWA historique : les routes des nouvelles applications et API ne sont ni servies ni écrites en cache',()=>{
+ for(const route of ['apps/admin/index.html','apps/public/index.html','api/accounts','backend/private','apps','api']){
+  const result=navigation({url:'https://jsb.test/app/'+route,network:{ok:true},offline:{tag:'historique'}});
+  assert.equal(result.response,undefined,route);assert.equal(result.writes.length,0,route);
+ }
 });

@@ -445,6 +445,13 @@ h1 { font-family: var(--display); font-weight: 750; font-stretch: 88%; font-size
 .cx-menu-tete small { color: var(--muted); font-size: 0.8125rem; }
 .cx-menu button { min-height: 44px; padding: 0 12px; border: none; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .cx-menu button:hover { background: var(--chip); }
+.cx-menu-section { display:flex; flex-direction:column; border-top:1px solid var(--line); padding-top:4px; }
+.cx-menu-section:first-of-type { border-top:0; }
+.cx-menu-section-label { padding:6px 12px 2px; font-size:.75rem; font-weight:600; color:var(--muted); }
+.cx-menu { max-width:calc(100vw - 24px); max-height:65vh; overflow:auto; }
+.cx-menu .cx-menu-ajout { border:0 !important; border-radius:8px !important; margin-bottom:0; }
+.gestion-zone-sensible { border-top:1px solid var(--line); padding-top:12px; }
+.gestion-zone-sensible h3, .gestion-zone-export h3 { font-size:1rem; margin:0 0 8px; }
 @media (prefers-reduced-motion: reduce) { .cx-points.erreur { animation: none; } }
 .cx-menu-ajout { border-bottom: 1px solid var(--line) !important; border-radius: 8px 8px 0 0 !important; margin-bottom: 4px; }
 .cx-gestion { display: flex; flex-direction: column; gap: 12px; }
@@ -2017,7 +2024,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         interrupteur('contraste', 'Contraste renforcé', 'Textes secondaires et contours plus foncés.'),
         interrupteur('animations', 'Réduire les animations', 'Supprime les glissements et les effets de chargement.')),
       h('fieldset', null, h('legend', null, 'Version et mises à jour'),
-        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v35'),
+        h('p', { id:'jsb-maj-etat', role:'status' }, 'Version : 20261125-v36'),
         h('button', { type:'button', className:'cs-btn', onClick:function(e){ window.jsbVerifierMiseAJour(e.currentTarget); } }, 'Vérifier les mises à jour')),
       h('p', { className: 'rg-note' }, 'Ces réglages restent sur cet appareil.'));
   }
@@ -4709,13 +4716,14 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
         h('li', null, h('strong', null, 'Illustrations'), ' — intégrées automatiquement : images collées dans le classeur Excel (sur la ligne de l\'exercice ou placées dans la cellule), colonne « image » ou « illustration » du fichier (image ou dessin SVG), ou images choisies en même temps et nommées comme l\'exercice (« Assis-debout de la chaise.png ») ou par son numéro (« 3045.jpg »). Elles s\'appliquent aussi aux exercices déjà dans la base.'),
         h('li', null, h('strong', null, 'Vidéos'), ' — courtes démonstrations (.mp4, .mov, .webm ; 10 à 30 s en 720p conseillé), nommées comme l\'exercice ou par son numéro (« 3071.mp4 »), ou ajoutées depuis la fiche. Lues en boucle sans le son dans la fiche et pendant la séance en direct. Gardées sur cet appareil uniquement.'),
         h('li', null, h('strong', null, 'Export complet'), ' — « Exporter tout » crée un .zip avec chaque fiche lisible (description, sécurité, détails), les photos, les dessins et les vidéos. Pour tout retrouver sur un autre appareil, choisissez ce .zip ici. Chaque fiche s\'exporte aussi seule depuis l\'exercice.'))),
-      h('div', { className: 'gestion-actions' },
+      h('section', { className: 'gestion-zone-export', 'aria-label': 'Export du catalogue' }, h('h3', null, 'Export du catalogue'), h('div', { className: 'gestion-actions' },
         h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: function () { exporterTout(BASE, setMsg); } }, 'Exporter tout : fiches et vidéos (.zip)'),
-        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'),
+        h('button', { type: 'button', className: 'btn', disabled: enCours, onClick: exporter }, 'Exporter la base seule (' + BASE.length + ', .json)'))),
+      h('section', { className: 'gestion-zone-sensible', 'aria-label': 'Suppressions du catalogue' }, h('h3', null, 'Suppressions du catalogue'), h('p', null, 'Vérifiez votre sauvegarde avant toute suppression.'), h('div', { className: 'gestion-actions' },
         photosJudo.length ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirerPhotosJudo }, 'Supprimer les photos Judo (' + photosJudo.length + ')') : null,
         nbAjouts ? h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: retirer }, 'Retirer les ajouts (' + nbAjouts + ')') : null,
         h('button', { type: 'button', className: 'btn lien', disabled: enCours, onClick: function () { viderCatalogue(); } }, 'Vider le catalogue d’exercices'),
-        ['Judo','Taïso'].map(function (d) { return h('button', { key:d, type:'button', className:'btn lien', disabled:enCours, onClick:function () { viderCatalogue(d); } }, 'Vider le ' + d); })),
+        ['Judo','Taïso'].map(function (d) { return h('button', { key:d, type:'button', className:'btn lien', disabled:enCours, onClick:function () { viderCatalogue(d); } }, 'Vider le ' + d); }))),
       msg ? h('p', { role: 'status', className: 'gestion-msg' }, msg) : null,
       rapport ? h('div', { className: 'gestion-rapport', role: 'region', 'aria-label': 'Compte rendu du classement' },
         h('p', { className: 'gestion-msg' }, (rapport.totalLignes || 0) + ' ligne(s) analysée(s) en aperçu, sans écriture dans la bibliothèque. ' + (rapport.doublons || []).length + ' déjà présente(s) sans correction. ' + (rapport.refuses || []).length + ' refusée(s).'),
@@ -5040,12 +5048,16 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
       h('button', { type: 'button', className: 'cx-avatar petit', 'aria-label': 'Profil : ' + nomProfil(PROFIL), 'aria-expanded': ouvert, onClick: function () { setOuvert(!ouvert); } }, initiales(PROFIL)),
       ouvert ? h('div', { className: 'cx-menu', role: 'menu' },
         h('div', { className: 'cx-menu-tete' }, h('strong', null, nomProfil(PROFIL)), PROFIL.email ? h('small', null, PROFIL.email) : null, h('small', null, PROFIL.club || 'Club non renseigné')),
-        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices'),
-        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition('compte'); } }, 'Mon compte'),
-        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité'),
+        h('div', { className: 'cx-menu-section', role: 'group', 'aria-label': 'Catalogue' }, h('span', { className: 'cx-menu-section-label', 'aria-hidden': 'true' }, 'Catalogue'),
+          h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-ajout', onClick: function () { setOuvert(false); setGestion(true); } }, 'Ajouter des exercices')),
+        h('div', { className: 'cx-menu-section', role: 'group', 'aria-label': 'Profil et données' }, h('span', { className: 'cx-menu-section-label', 'aria-hidden': 'true' }, 'Profil et données'),
+          h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-profil', onClick: function () { setOuvert(false); setEdition('compte'); } }, 'Mon compte')),
+        h('div', { className: 'cx-menu-section', role: 'group', 'aria-label': 'Application' }, h('span', { className: 'cx-menu-section-label', 'aria-hidden': 'true' }, 'Application'),
+          h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-reglages', onClick: function () { setOuvert(false); setReglages(true); } }, 'Affichage et accessibilité')),
         AUTH_ACTIVE && PROFIL.code ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); } catch (err) {} location.reload(); } }, 'Verrouiller') : null,
         AUTH_ACTIVE ? h('button', { type: 'button', role: 'menuitem', onClick: function () { try { sessionStorage.removeItem('jsb-ouvert'); localStorage.removeItem(CLE_ACTIF); } catch (err) {} location.reload(); } }, 'Changer de profil') : null,
-        h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-suppr', onClick: function () { setOuvert(false); setEdition('suppr'); } }, 'Supprimer mon compte')) : null, fenetre, fenReglages, fenProfil);
+        h('div', { className: 'cx-menu-section', role: 'group', 'aria-label': 'Actions sensibles' }, h('span', { className: 'cx-menu-section-label', 'aria-hidden': 'true' }, 'Actions sensibles'),
+          h('button', { type: 'button', role: 'menuitem', className: 'cx-menu-suppr', onClick: function () { setOuvert(false); setEdition('suppr'); } }, 'Supprimer mon compte'))) : null, fenetre, fenReglages, fenProfil);
   }
   // ---- Générateur de séance en 5 questions (trame de Girma) :
   // 1. Mobilité : routine toujours la même, choisie une fois et gardée (par profil), modifiable
@@ -6987,7 +6999,7 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 (function () {
   if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
   var dejaControle = !!navigator.serviceWorker.controller, propose = false;
-  document.documentElement.setAttribute('data-jsb-version', '20261125-v35');
+  document.documentElement.setAttribute('data-jsb-version', '20261125-v36');
   function proposer() {
     if (propose || !dejaControle) return; propose = true;
     var d = document.createElement('div'); d.id = 'maj-dispo'; d.setAttribute('role', 'status');
@@ -7010,6 +7022,6 @@ h1, .hero h1 { font-size: min(var(--t-xxl), 44px); letter-spacing: -.01em; }
 
 
 
-<link rel="stylesheet" href="./ui/interface.css?v=20261125-v35">
+<link rel="stylesheet" href="./ui/interface.css?v=20261125-v36">
 </body>
 </html>
