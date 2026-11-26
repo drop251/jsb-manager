@@ -143,7 +143,75 @@ function renderWorkspace(){
       }catch(e){if(live()&&run===generation)report.replaceChildren(element('p',['Fichier trop volumineux (4 Mio maximum).','Trop d’analyses. Réessayez plus tard.','Le format Excel provisoire est réservé au Taïso.','Sélectionnez un fichier JSON ou XLSX.','Analyse Excel indisponible : vérifiez la configuration serveur.'].includes(e.message)?e.message:'Analyse indisponible. Vérifiez votre fichier et votre session.'));}
       finally{if(live()&&run===generation)check.disabled=!file.files?.length;}
      });
-     block.append(dl,select,vl,version,fl,file,check,report);detail.insertBefore(block,list);
+     const historyBlock=element('section');historyBlock.className='workspace-detail';
+     const historyButton=element('button','Consulter l’historique');historyButton.type='button';
+     const historyResult=element('div');historyResult.id='catalogue-history';historyResult.setAttribute('aria-live','polite');
+     let historyRun=0,restoring=false;
+     async function historyRequest(path,body){
+      const response=await fetch(location.origin+'/api/admin/catalogue/'+path,{method:'POST',credentials:'same-origin',mode:'same-origin',referrer:location.origin+'/',referrerPolicy:'same-origin',cache:'no-store',redirect:'error',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(response.status===401||response.status===403){void refresh();throw Error('Session indisponible');}
+      if(!response.ok)throw Error(response.status===409?'Le catalogue a changé. Rechargez l’historique.':'Opération non confirmée. Rechargez l’historique.');
+      return response.json();
+     }
+     async function loadHistory(offset=0){
+      if(!live()||restoring)return;
+      const run=++historyRun,discipline=select.value;
+      const current=()=>live()&&run===historyRun&&select.value===discipline;
+      historyButton.disabled=true;historyResult.replaceChildren(element('p','Chargement des versions…'));
+      try{
+       const data=await historyRequest('history',{discipline,offset});
+       if(!current())return;
+       const h=data.history;
+       if(data.ok!==true||h?.discipline!==discipline||!Array.isArray(h.versions)||!Array.isArray(h.restorations)||typeof h.generation!=='string')throw Error('Historique invalide');
+       historyResult.replaceChildren(element('h4','Version active : '+(h.activeVersion??'Aucune')),element('p',h.total+' version(s) publiées'));
+       if(!h.versions.length)historyResult.append(element('p','Aucune version enregistrée dans le journal.'));
+       for(const entry of h.versions){
+        const section=element('section');section.className='workspace-detail';
+        section.append(element('h4',entry.version+(entry.version===h.activeVersion?' · Active':' · Archivée')),element('p',entry.count+' fiche(s) · '+new Date(Number(entry.publishedAt)).toLocaleString('fr-FR')),element('p','Empreinte : '+entry.hash));
+        if(h.restoreEnabled===true&&h.activeVersion&&entry.version!==h.activeVersion){
+         const open=element('button','Préparer la restauration');open.type='button';
+         open.addEventListener('click',()=>{
+          if(!current()||restoring)return;
+          open.remove();
+          const warning=element('p','Réactiver '+entry.version+' à la place de '+h.activeVersion+'. Toutes les versions seront conservées.');
+          const reason=element('textarea');reason.maxLength=500;reason.setAttribute('aria-label','Motif de restauration');reason.placeholder='Motif obligatoire';
+          const typed=element('input');typed.type='text';typed.maxLength=80;typed.setAttribute('aria-label','Version à restaurer');typed.placeholder=entry.version;
+          const confirm=element('button','Restaurer cette version');confirm.type='button';confirm.disabled=true;
+          const eligible=()=>{confirm.disabled=restoring||!reason.value.trim()||typed.value!==entry.version;};
+          reason.addEventListener('input',eligible);typed.addEventListener('input',eligible);
+          confirm.addEventListener('click',async()=>{
+           if(!current()||restoring||confirm.disabled)return;
+           restoring=true;confirm.disabled=true;select.disabled=true;historyButton.disabled=true;
+           try{
+            const data=await historyRequest('restore',{discipline,targetVersion:entry.version,expectedVersion:h.activeVersion,expectedGeneration:h.generation,confirmationVersion:typed.value,confirmed:true,reason:reason.value});
+            if(!current())return;
+            if(data.ok!==true||data.restoration?.version!==entry.version||data.restoration.discipline!==discipline)throw Error('Résultat non confirmé. Rechargez l’historique.');
+            reset();historyResult.replaceChildren(element('p','Version '+entry.version+' restaurée. Toutes les versions sont conservées.'));
+           }catch(e){if(current())historyResult.replaceChildren(element('p',e.message));}
+           finally{restoring=false;if(live()){select.disabled=false;historyButton.disabled=false;}}
+          });
+          section.append(warning,reason,typed,confirm);
+         });
+         section.append(open);
+        }
+        historyResult.append(section);
+       }
+       if(offset>0||offset+30<h.total){
+        const prev=element('button','Précédent'),next=element('button','Suivant');prev.type=next.type='button';
+        prev.disabled=offset===0;next.disabled=offset+30>=h.total;
+        prev.addEventListener('click',()=>void loadHistory(Math.max(0,offset-30)));next.addEventListener('click',()=>void loadHistory(offset+30));historyResult.append(prev,next);
+       }
+       if(h.restorations.length){
+        historyResult.append(element('h4','Dernières restaurations'));
+        for(const e of h.restorations)historyResult.append(element('p',e.previousVersion+' → '+e.restoredVersion+' · '+new Date(Number(e.restoredAt)).toLocaleString('fr-FR')+' · '+e.reason));
+       }
+      }catch(e){if(current())historyResult.replaceChildren(element('p',e.message));}
+      finally{if(current())historyButton.disabled=false;}
+     }
+     select.addEventListener('change',()=>{historyRun++;historyResult.replaceChildren();historyButton.disabled=false;});
+     historyButton.addEventListener('click',()=>void loadHistory());
+     historyBlock.append(element('h3','Historique des versions'),element('p','Sélectionnez la discipline ci-dessus. La restauration ne supprime aucune version.'),historyButton,historyResult);
+     block.append(dl,select,vl,version,fl,file,check,report,historyBlock);detail.insertBefore(block,list);
     }
    });grid.append(button);
   }
