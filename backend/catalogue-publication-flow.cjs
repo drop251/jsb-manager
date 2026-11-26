@@ -19,12 +19,13 @@ function createPublicationFlow({pool,key,now=Date.now,publisher=createCatalogueP
   if(!allowed(actor,sessionHash))return null;
   const checked=canonicalCheck(canonical);if(!checked)return null;
   const {discipline,version,hash,count}=checked.report;
-  const r=await pool.query('SELECT version FROM jsb_catalogue.current_release WHERE discipline=$1',[discipline]);
+  const r=await pool.query('SELECT version,generation::text AS generation FROM jsb_catalogue.current_release WHERE discipline=$1',[discipline]);
   const previousVersion=r.rows[0]?.version??null;
+  const generation=r.rows[0]?.generation??'0';
   const existing=await pool.query('SELECT 1 FROM jsb_catalogue.releases WHERE discipline=$1 AND version=$2',[discipline,version]);
   if(existing.rowCount!==0)return null;
   const expiresAt=now()+TTL;
-  const payload=Buffer.from(JSON.stringify({discipline,version,hash,count,previousVersion,expiresAt})).toString('base64url');
+  const payload=Buffer.from(JSON.stringify({discipline,version,hash,count,previousVersion,generation,expiresAt})).toString('base64url');
   return {receipt:payload+'.'+sign(payload,actor,sessionHash).toString('base64url'),previousVersion,expiresAt};
  }
  function verify(actor,sessionHash,receipt){
@@ -47,7 +48,7 @@ function createPublicationFlow({pool,key,now=Date.now,publisher=createCatalogueP
   if(!checked)return {ok:false,status:400};
   const r=checked.report;
   if(r.discipline!==p.discipline||r.version!==p.version||r.hash!==p.hash||r.count!==p.count)return {ok:false,status:409};
-  return publisher.publish(actor,sessionHash,{discipline:r.discipline,text:checked.text,expectedHash:p.hash,expectedPreviousVersion:p.previousVersion,confirmed:true});
+  return publisher.publish(actor,sessionHash,{discipline:r.discipline,text:checked.text,expectedHash:p.hash,expectedPreviousVersion:p.previousVersion,expectedGeneration:p.generation,confirmed:true});
  }
  return Object.freeze({prepare,verify,publish});
 }
