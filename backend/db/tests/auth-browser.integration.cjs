@@ -86,13 +86,26 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(new URL(page.url()).pathname,'/public/auth.html');
     await waitStatus(page,'Connectez-vous');
     assert.ok(await page.locator('#password').isEnabled(),name);
+    assert.equal(await page.locator('#workspace').isVisible(),false);
+    assert.equal(await page.locator('#workspace').textContent(),'');
     await signIn(page,emails.coach);await waitStatus(page,'Session vérifiée : Coach');
     assert.equal(await page.locator('#password').inputValue(),'');
+    assert.ok(await page.locator('#workspace').isVisible());
+    assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
+    assert.equal(await page.locator('[data-workspace-page="personal"]').count(),0);
+    await page.locator('[data-workspace-page="judo"]').click();
+    assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    await page.locator('#workspace-back').click();
+    await page.locator('[data-workspace-page="club"]').click();
+    assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
     let cookies=await ctx.cookies(publicOrigin);
     const first=cookies.find(c=>c.name==='__Host-jsb-public');
     assert.ok(first?.secure&&first?.httpOnly&&first?.sameSite==='Strict');
     assert.ok(!(await page.evaluate(()=>document.cookie)).includes('__Host-jsb-public'));
     await signIn(page,emails.individual);await waitStatus(page,'Session vérifiée : Particulier');
+    assert.ok(await page.locator('[data-workspace-page="personal"]').isVisible());
+    assert.equal(await page.locator('[data-workspace-page="club"]').count(),0);
+    assert.doesNotMatch(await page.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
     cookies=await ctx.cookies(publicOrigin);
     assert.notEqual(cookies.find(c=>c.name==='__Host-jsb-public').value,first.value);
     const current=await page.evaluate(async()=>await (await fetch('/api/session',{cache:'no-store'})).json());
@@ -111,9 +124,15 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
     await waitStatus(admin,'Session vérifiée : Administrateur');
     assert.ok(await admin.locator('#mfa').isDisabled());
+    assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
+    assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
+    await admin.locator('[data-workspace-page="maintenance"]').click();
+    assert.match(await admin.locator('#workspace').textContent(),/Diagnostic e-mail/);
+    assert.doesNotMatch(await admin.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
     assert.equal(await admin.locator('#mfa').inputValue(),'');
     assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
+    assert.equal(await admin.locator('#workspace').textContent(),'');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
     // A failed login can leave its error message visible even though the previous
     // session is valid. Headless bringToFront does not guarantee visibilitychange.
@@ -130,6 +149,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.bringToFront();
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
     await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await second.locator('#workspace').textContent(),'');
+    assert.equal(await page.locator('#workspace').textContent(),'');
     await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     // Complete registration and recovery with an in-memory mail provider only.
