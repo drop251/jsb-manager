@@ -159,3 +159,47 @@ test('Formats Taïso : paramètres explicites, sélection des stations et budget
  assert.equal(pending.organizationPending,true);
  assert.equal(pending.phases[2].blocks[0].organization.plannedSeconds,null);
 });
+
+test('Edition Taïso : rejeu déterministe, références autorisées et recalcul des budgets',()=>{
+ const {generateTaisoDraft}=require('../core/taiso-versioned-planner.cjs');
+ const items=Array.from({length:10},(_,i)=>fixture('taiso',{
+  reference:'JSB-TAISO-EDIT-'+i,name:'Fixture '+i,classification:'Renforcement',
+  moment:'Corps de séance',dosageMode:'Durée et répétitions',effortSeconds:'20',repetitions:'8',
+  dosage:'8 répétitions ou 20 s, récupération 45 s'
+ }));
+ items.push(fixture('taiso',{reference:'JSB-TAISO-EDIT-BLOCKED',moment:'Corps de séance',restrictions:'Candidat à la recette'}));
+ const options={minutes:60,seed:42,format:'Circuit',organization:{stations:4,rounds:3,recoverySeconds:20,repWindowSeconds:30,roundRestSeconds:60}};
+ const original=JSON.stringify(items),base=generateTaisoDraft(items,criteria,options),body=base.phases[2],block=body.blocks[0];
+ assert.equal(block.references.length,4);
+ assert.ok(block.alternatives.length>0);
+ const ref=block.references[0],alternative=block.alternatives[0].reference;
+ const replace={action:'replace',phase:body.name,reference:ref,replacement:alternative};
+ const next=generateTaisoDraft(items,criteria,{...options,edits:[replace]});
+ assert.equal(next.editCount,1);
+ assert.equal(next.phases[2].blocks[0].references[0],alternative);
+ assert.equal(next.phases[2].exercises[0].prescription.repetitions,8);
+ assert.equal(next.phases[2].exercises[0].dosage,items.find(e=>e.reference===alternative).details.dosage);
+ const down={action:'down',phase:body.name,reference:alternative};
+ const moved=generateTaisoDraft(items,criteria,{...options,edits:[replace,down]});
+ assert.equal(moved.phases[2].blocks[0].references[1],alternative);
+ assert.equal(moved.phases[2].exercises[1].reference,alternative);
+ const remove={action:'remove',phase:body.name,reference:alternative};
+ const edited=generateTaisoDraft(items,criteria,{...options,edits:[replace,down,remove]});
+ assert.equal(edited.editCount,3);
+ assert.equal(edited.phases[2].exercises.length,3);
+ assert.ok(edited.phases[2].unallocatedMinutes>0);
+ assert.equal(edited.organizationPending,true);
+ assert.ok(edited.missing.includes(body.name));
+ assert.ok(edited.phases[2].blocks[0].organization.issues.includes('insufficient-stations'));
+ assert.deepEqual(generateTaisoDraft(items,criteria,{...options,edits:[replace,down,remove]}),edited);
+ assert.equal(JSON.stringify(items),original);
+ for(const invalid of [
+  {...replace,replacement:'JSB-TAISO-EDIT-BLOCKED'},
+  {...replace,replacement:block.references[1]},
+  {...replace,replacement:'unknown'},
+  {...replace,phase:'Mobilité'},
+  {...replace,extra:'forged'},
+  {action:'up',phase:body.name,reference:ref},
+  {action:'remove',phase:body.name,reference:'unknown'}
+ ])assert.equal(generateTaisoDraft(items,criteria,{...options,edits:[invalid]}),null,JSON.stringify(invalid));
+});
