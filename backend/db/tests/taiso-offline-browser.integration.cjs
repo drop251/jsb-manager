@@ -48,17 +48,11 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   // No fallback on a deliberate gateway denial while online.
   allowed=false;
   assert.equal((await context.request.get(origin+'/public/offline.html')).status(),403);
-  // Some engines reject a top-level empty 403 as an invalid response.
-  // In either case it must not display the cached offline reader.
-  // Keep the controlled reader tab intact: Chromium can commit its
-  // chrome-error page asynchronously after a rejected navigation.
+  // A real, non-empty refusal must stay an HTTP 403, never a cached reader.
   const deniedPage=await context.newPage();
-  let denied=false;
-  try{
-   const response=await deniedPage.goto(origin+'/public/offline.html');
-   denied=response?.status()===403;
-  }catch(e){denied=/ERR_INVALID_RESPONSE|internal error|navigation|load/i.test(e.message);}
-  assert.ok(denied,'La navigation refusée ne doit pas servir la page en cache');
+  const refused=await deniedPage.goto(origin+'/public/offline.html');
+  assert.equal(refused?.status(),403);
+  assert.match(await deniedPage.locator('body').innerText(),/Accès refusé/);
   assert.equal(await deniedPage.getByRole('heading',{name:'Consultation hors connexion'}).count(),0);
   await deniedPage.close();
   allowed=true;
