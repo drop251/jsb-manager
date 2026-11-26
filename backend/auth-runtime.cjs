@@ -52,10 +52,10 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  async function catalogueImport(actor,body,source){
   if(!authorize(actor,'catalogue','import'))return {ok:false,status:403};
   if(!await importLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
-  if(body.format==='xlsx-recipe'){
-   if(body.discipline!=='taiso')return {ok:false,status:400};
+  if(body.format==='xlsx-recipe'||body.format==='xlsx-contract'){
+   if(!['judo','taiso'].includes(body.discipline)||(body.format==='xlsx-recipe'&&body.discipline!=='taiso'))return {ok:false,status:400};
    if(!xlsxAnalyzer)return {ok:false,status:503};
-   const analysis=await xlsxAnalyzer(body.base64);
+   const analysis=await xlsxAnalyzer(body.base64,{discipline:body.discipline,version:body.version});
    return analysis?{ok:true,status:200,analysis}:{ok:false,status:503};
   }
   if(body.format!==undefined&&body.format!=='json')return {ok:false,status:400};
