@@ -50,7 +50,17 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
  }
  // Only the public client exposes account lifecycle operations. The backend
  // remains authoritative and the admin origin has no matching routes.
- const api={session,login,logout};
+ async function catalogue(discipline){
+  if(!['judo','taiso'].includes(discipline))throw TypeError('Discipline invalide');
+  const r=await request('/api/catalogue/'+discipline);
+  if(r.status!==200)throw Error('Catalogue indisponible');
+  const c=r.data.catalogue;
+  if(!c||c.discipline!==discipline||!['published','unpublished'].includes(c.state)||!Number.isSafeInteger(c.count)||c.count<0||!Array.isArray(c.families)||c.families.some(f=>typeof f.family!=='string'||!Number.isSafeInteger(f.count)||f.count<1)||c.families.reduce((n,f)=>n+f.count,0)!==c.count)throw Error('Catalogue invalide');
+  if(c.state==='unpublished'&&(c.version!==null||c.publishedAt!==null||c.count!==0))throw Error('Etat catalogue invalide');
+  if(c.state==='published'&&(typeof c.version!=='string'||!Number.isSafeInteger(c.publishedAt)))throw Error('Version invalide');
+  return c;
+ }
+ const api={session,login,logout,catalogue};
  if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
   async function action(path,body,expected){
    return exclusive(async()=>{
