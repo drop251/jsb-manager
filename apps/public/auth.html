@@ -30,7 +30,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .jsb-nav{display:flex;align-items:center;gap:4px;position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:4;padding:6px;border:1px solid var(--line);background:var(--surface);border-radius:14px;margin:0 0 16px}
 .jsb-nav button{flex:1;min-width:0;min-height:44px;width:auto;margin:0;padding:6px 4px;background:transparent;color:var(--muted);font-size:.75rem;line-height:1.25;overflow-wrap:anywhere;border:1px solid transparent}
 .jsb-nav button[aria-current=page]{background:var(--selected);color:var(--accent);border-color:var(--line)}
-@media(max-width:759px){.jsb-nav{position:fixed;top:auto;bottom:calc(4px + env(safe-area-inset-bottom,0px));left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));margin:0;box-shadow:0 4px 16px rgba(15,20,30,.18)}.workspace-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:759px){html{scroll-padding-top:calc(64px + env(safe-area-inset-top,0px));scroll-padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}.jsb-nav{overflow-x:auto;overscroll-behavior-x:contain;position:fixed;top:auto;bottom:calc(4px + env(safe-area-inset-bottom,0px));left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));margin:0;box-shadow:0 4px 16px rgba(15,20,30,.18)}.jsb-nav button{flex:1 0 64px;min-width:64px}.workspace-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.workspace-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.workspace-detail{animation:none}}
 </style></head>
