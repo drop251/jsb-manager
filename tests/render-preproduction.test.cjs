@@ -39,12 +39,13 @@ test('Render : passerelle privée, refus des preuves injectées, hôte unique',a
   const nav=await request('/admin/auth.html',{Accept:'text/html'});
   assert.equal(nav.status,303);assert.equal(nav.headers.location,'/access');
   const login=await request('/access',{Accept:'text/html'});
-  assert.equal(login.status,200);assert.match(login.headers['content-type'],/^text\/html/);assert.equal(login.headers['content-disposition'],'inline');
+  assert.equal(login.status,200);assert.match(login.headers['content-type'],/^text\/html/);assert.equal(login.headers['content-disposition'],'inline');assert.equal(login.headers['referrer-policy'],'same-origin');
   assert.match(await login.text(),/<form method="post" action="\/access">/);
   const post=(password,origin='https://'+opts.host)=>{const body=new URLSearchParams({password}).toString();return request('/access',{Origin:origin,'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)},'POST',body);};
   assert.equal((await post('incorrect')).status,403);
   assert.equal((await post(env.JSB_TESTER_SECRET,'https://coach.onrender.com')).status,403);
-  const success=await post(env.JSB_TESTER_SECRET);assert.equal(success.status,303);
+  const opaque=await post(env.JSB_TESTER_SECRET,'null');assert.equal(opaque.status,403);assert.match(opaque.headers['content-type'],/^text\/html/);assert.match(await opaque.text(),/validation du formulaire a été refusée/);
+  const success=await post(env.JSB_TESTER_SECRET);assert.equal(success.status,303);assert.equal(success.headers.location,'/admin/auth.html');
   const setCookie=success.headers['set-cookie'][0];assert.match(setCookie,/; Secure; HttpOnly; SameSite=Lax/);
   const cookie=setCookie.split(';')[0];
   assert.equal((await request('/admin/auth.html',{Cookie:cookie+'x',Accept:'text/html'})).status,303);
