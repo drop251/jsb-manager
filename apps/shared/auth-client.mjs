@@ -9,7 +9,10 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
   return Object.freeze({id:value.id,role:value.role});
  }
  async function request(path,body){
-  const response=await fetchImpl(origin+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',mode:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json',...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  // With mode same-origin, a no-referrer policy can serialize Origin as null
+  // on POST (notably WebKit). Keep the strict server origin check; send only
+  // the origin root as the referrer for same-origin mutations.
+  const response=await fetchImpl(origin+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',mode:'same-origin',referrer:origin+'/',referrerPolicy:body===undefined?'no-referrer':'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'application/json',...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
   if(!response||!/^application\/json(?:;|$)/i.test(response.headers.get('content-type')||''))throw Error('API indisponible');
   const data=await response.json();
   if(!data||typeof data.ok!=='boolean'||data.ok!==(response.status===200||response.status===202))throw Error('Réponse API invalide');
