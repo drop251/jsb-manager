@@ -69,3 +69,43 @@ test('Taïso V1 : matériel Aucun reconnu sans modifier la fiche ni lever les re
  assert.equal(blocked.excluded[0].code,'restriction-review-required');
  assert.equal(selectTaisoCandidates([fixture('taiso',{equipment:'Aucun + Mur'})],criteria).candidates.length,0);
 });
+
+test('Proposition Taïso versionnée : budgets exacts, prescriptions sources et exclusion des fiches provisoires',()=>{
+ const {generateTaisoDraft}=require('../core/taiso-versioned-planner.cjs');
+ const items=[
+  fixture('taiso',{reference:'JSB-TAISO-MOB',classification:'Mobilité articulaire (routine)',moment:'Échauffement',level:'Débutant'}),
+  fixture('taiso',{reference:'JSB-TAISO-CHAUD',classification:'Cardio',moment:'Échauffement'}),
+  ...Array.from({length:10},(_,i)=>fixture('taiso',{reference:'JSB-TAISO-CORPS-'+i,moment:'Corps de séance',dosageMode:'Durée et répétitions',effortSeconds:'30',repetitions:'8',dosage:'2 × 8 répétitions ou 30 s, récupération 45 s'})),
+  fixture('taiso',{reference:'JSB-TAISO-RESTRICT',moment:'Corps de séance',restrictions:'Candidat à la recette'})
+ ];
+ const original=JSON.stringify(items),options={minutes:60,seed:42};
+ const plan=generateTaisoDraft(items,criteria,options);
+ assert.equal(plan.requiresCoachReview,true);
+ assert.equal(plan.phases.length,5);
+ assert.equal(plan.phases.reduce((n,p)=>n+p.minutes,0),60);
+ assert.deepEqual(generateTaisoDraft(items,criteria,options),plan);
+ assert.equal(JSON.stringify(items),original);
+ const exercises=plan.phases.flatMap(p=>p.exercises);
+ assert.ok(exercises.length>0);
+ assert.equal(new Set(exercises.map(x=>x.reference)).size,exercises.length);
+ assert.ok(exercises.every(e=>e.prescription.mode==='Répétitions'&&e.prescription.repetitions===8&&!Object.hasOwn(e.prescription,'effortSeconds')));
+ assert.ok(exercises.every(e=>e.reference!=='JSB-TAISO-RESTRICT'));
+ assert.ok(plan.phases.every(p=>p.exercises.reduce((n,e)=>n+e.allocationMinutes,0)+p.unallocatedMinutes===p.minutes));
+ assert.ok(plan.missing.includes('Retour au calme'));assert.ok(plan.missing.includes('Étirements'));
+ const timed=generateTaisoDraft(items,{...criteria,mode:'Durée'},options);
+ const timedExercises=timed.phases.flatMap(p=>p.exercises);
+ assert.ok(timedExercises.length>0);
+ assert.ok(timedExercises.every(e=>e.prescription.effortSeconds===30&&!Object.hasOwn(e.prescription,'repetitions')&&e.dosage==='2 × 8 répétitions ou 30 s, récupération 45 s'));
+ assert.equal(generateTaisoDraft(items,criteria,{...options,minutes:61}),null);
+ assert.equal(generateTaisoDraft(items,criteria,{...options,seed:0}),null);
+});
+test('Proposition Taïso : référentiel vide ou entièrement exclu, aucune fiche artificielle',()=>{
+ const {generateTaisoDraft}=require('../core/taiso-versioned-planner.cjs');
+ for(const minutes of [45,60,75,90]){
+  const draft=generateTaisoDraft([fixture('taiso',{restrictions:'Candidat à la recette'})],criteria,{minutes,seed:1});
+  assert.equal(draft.candidateCount,0);assert.equal(draft.excludedCount,1);
+  assert.ok(draft.phases.every(p=>p.exercises.length===0&&p.unallocatedMinutes===p.minutes));
+  assert.equal(draft.phases.reduce((n,p)=>n+p.minutes,0),minutes);
+  assert.ok(draft.missing.length>=5);
+ }
+});
