@@ -66,7 +66,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!await planLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   const result=await generatorSource.taisoCandidates(actor,{version:body.version,generation:body.generation},body.criteria);
   if(!result.ok)return result;
-  const draft=planFromCandidates(result,body.criteria,{minutes:body.minutes,seed:body.seed,objective:body.objective,format:body.format});
+  const draft=planFromCandidates(result,body.criteria,{minutes:body.minutes,seed:body.seed,objective:body.objective,format:body.format,organization:body.organization});
   if(!draft)return {ok:false,status:400};
   // Recheck the active pointer after planning so a concurrent withdrawal
   // cannot silently return an already superseded catalogue.
