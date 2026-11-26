@@ -48,5 +48,28 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    return Object.freeze({ok:true});
   });
  }
- return Object.freeze({session,login,logout});
+ // Only the public client exposes account lifecycle operations. The backend
+ // remains authoritative and the admin origin has no matching routes.
+ const api={session,login,logout};
+ if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
+  async function action(path,body,expected){
+   return exclusive(async()=>{
+    const r=await request(path,body);
+    if(r.status===expected)return Object.freeze({ok:true,status:r.status});
+    if([400,429].includes(r.status))return Object.freeze({ok:false,status:r.status});
+    throw Error('Service indisponible');
+   });
+  }
+  Object.assign(api,{
+   register:({email,password,role}={})=>{
+    if(!roles.has(role))return Promise.resolve(Object.freeze({ok:false,status:400}));
+    return action('/api/register',{email,password,role},202);
+   },
+   verifyEmail:token=>action('/api/verify-email',{token},200),
+   resendVerification:email=>action('/api/resend-verification',{email},202),
+   requestReset:email=>action('/api/password-reset/request',{email},202),
+   confirmReset:({token,password}={})=>action('/api/password-reset/confirm',{token,password},200)
+  });
+ }
+ return Object.freeze(api);
 }
