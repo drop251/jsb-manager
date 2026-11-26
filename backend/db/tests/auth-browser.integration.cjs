@@ -102,7 +102,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
    const directory=path.join(dir,app);
    await build(app,directory);
    // Synthetic access gateway, only on the isolated loopback CI listeners.
-   handlers.set(app,await createPreproductionHandler({app,origin,directory,authHandler,authorizeAccess:req=>['127.0.0.1','127.0.0.2'].includes(req.socket.remoteAddress)}));
+   handlers.set(app,await createPreproductionHandler({app,origin,directory,authHandler,otherOrigin:app==='admin'?publicOrigin:adminOrigin,authorizeAccess:req=>['127.0.0.1','127.0.0.2'].includes(req.socket.remoteAddress)}));
   }
   const ids={};const hash=await hashPassword(password);
   for(const role of Object.keys(emails)){
@@ -259,6 +259,18 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
     await waitStatus(admin,'Session vérifiée : Administrateur');
     assert.ok(await admin.locator('#mfa').isDisabled());
+    // Switch through the actual links, without logging out either origin.
+    const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await publicTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    assert.equal((await publicTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    const [adminTab]=await Promise.all([ctx.waitForEvent('page'),publicTab.locator('a[href="/switch-workspace"]').click()]);
+    await adminTab.waitForURL(adminOrigin+'/admin/auth.html');
+    await waitStatus(adminTab,'Session vérifiée : Administrateur');
+    assert.equal((await adminTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await adminTab.close();await publicTab.close();await admin.bringToFront();
     assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
 
     assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
