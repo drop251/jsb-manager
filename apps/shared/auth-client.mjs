@@ -60,7 +60,16 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
   if(c.state==='published'&&(typeof c.version!=='string'||!Number.isSafeInteger(c.publishedAt)))throw Error('Version invalide');
   return c;
  }
- const api={session,login,logout,catalogue};
+ async function searchCatalogue(discipline,{version,query='',family='',offset=0}={}){
+  if(!['judo','taiso'].includes(discipline))throw TypeError('Discipline invalide');
+  const r=await request('/api/catalogue/'+discipline+'/search',{version,query,family,offset});
+  if(r.status===409)return {state:'version-changed'};
+  if(r.status!==200)throw Error('Recherche indisponible');
+  const v=r.data.results;
+  if(!v||v.discipline!==discipline||v.version!==version||v.offset!==offset||!Number.isSafeInteger(v.total)||v.total<0||!Array.isArray(v.items)||v.items.length!==Math.min(30,Math.max(0,v.total-offset))||v.items.some(i=>!i||typeof i.reference!=='string'||typeof i.name!=='string'||typeof i.family!=='string'))throw Error('Résultats invalides');
+  return {state:'ready',...v};
+ }
+ const api={session,login,logout,catalogue,searchCatalogue};
  if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
   async function action(path,body,expected){
    return exclusive(async()=>{
