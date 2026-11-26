@@ -177,6 +177,7 @@ jobs:
             psql -X -v ON_ERROR_STOP=1 -f "$migration"
           done
           node --test backend/db/tests/bootstrap-admin.integration.cjs
+          JSB_XLSX_PYTHON="$(command -v python)" node --test backend/db/tests/preproduction-preflight.integration.cjs
           for table in accounts sessions mfa_factors recovery_codes; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
