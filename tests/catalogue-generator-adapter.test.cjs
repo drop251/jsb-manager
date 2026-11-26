@@ -56,3 +56,16 @@ test('Source versionnée : contrôle de rôle, snapshot actif et absence de donn
  assert.equal(result.status,200);assert.equal(result.candidates.length,1);
  assert.ok(queries.every(q=>q.sql.includes('jsb_catalogue.publications')&&!q.sql.includes('jsb_auth')));
 });
+
+test('Taïso V1 : matériel Aucun reconnu sans modifier la fiche ni lever les restrictions',()=>{
+ const item=fixture('taiso',{equipment:'Aucun'});
+ const result=selectTaisoCandidates([item],criteria);
+ assert.equal(result.candidates.length,1);
+ assert.equal(result.candidates[0].exercise.equipement,'Poids du corps');
+ assert.equal(result.candidates[0].canonical.details.equipment,'Aucun');
+ const provisional=fixture('taiso',{equipment:'Aucun',restrictions:'Candidat à la recette ; essai terrain non renseigné.'});
+ const blocked=selectTaisoCandidates([provisional],criteria);
+ assert.equal(blocked.candidates.length,0);
+ assert.equal(blocked.excluded[0].code,'restriction-review-required');
+ assert.equal(selectTaisoCandidates([fixture('taiso',{equipment:'Aucun + Mur'})],criteria).candidates.length,0);
+});
