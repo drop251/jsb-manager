@@ -21,7 +21,7 @@ test('Deux distributions de préproduction strictement isolées et reproductible
   assert.throws(()=>filesFor('../backend'),TypeError);
   for(const app of ['public','admin']){
    const dest=path.join(tmp,app),m=await build(app,dest);
-   const expected=[app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs'];
+   const expected=[app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-sw.js']:[])];
    assert.deepEqual(await walk(dest),[...expected,'manifest.json'].sort());
    assert.equal(m.entrypoint,'/'+app+'/auth.html');
    assert.equal(m.purpose,'preproduction-auth-only');
