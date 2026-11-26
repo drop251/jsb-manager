@@ -121,7 +121,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test backend/db/tests/catalogue-publication.integration.cjs
-          for table in publications releases exercises current_release; do
+          for table in restorations publications releases exercises current_release; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_catalogue.$table")" = 0
           done
           for table in accounts sessions; do
@@ -155,6 +155,9 @@ jobs:
         run: |
           set -euo pipefail
           JSB_XLSX_PYTHON="$(command -v python)" node --test backend/db/tests/auth-browser.integration.cjs
+          for table in restorations publications releases exercises current_release; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_catalogue.$table")" = 0
+          done
           for table in accounts sessions action_tokens delivery_outbox quota_events mfa_factors recovery_codes; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
