@@ -87,6 +87,8 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
     const body=await json(req,8*1024*1024);
     const result=await catalogueImport(actor,body,source);
+    const confirmed=await actorFor(oldToken);
+    if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
     if(result.status!==200)return serviceResult(res,result);
     return send(res,200,{ok:true,analysis:result.analysis});
    }
