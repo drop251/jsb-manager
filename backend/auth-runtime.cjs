@@ -19,9 +19,10 @@ const {createAuthHttpHandler}=require('./auth-http.cjs');
 const {createCatalogueReadService}=require('./catalogue-read.cjs');
 const {analyzeCatalogueImport}=require('../core/catalogue-import.cjs');
 const {authorize}=require('../core/platform-permissions.cjs');
+const {createXlsxRecipeAnalyzer}=require('./xlsx-recipe-analyzer.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
-function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,now=Date.now}={}){
+function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,now=Date.now}={}){
  function origin(value){
   if(typeof value!=='string')throw TypeError('Origine requise');
   const u=new URL(value);if(u.protocol!=='https:'||u.origin!==value)throw TypeError('Origine HTTPS exacte requise');return u;
@@ -47,9 +48,17 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  const catalogue=createCatalogueReadService(pool);
  const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,now});
  const importLimiter=limiter('catalogue-analysis',20,40);
+ const xlsxAnalyzer=xlsxPython===undefined?null:createXlsxRecipeAnalyzer({pythonExecutable:xlsxPython});
  async function catalogueImport(actor,body,source){
   if(!authorize(actor,'catalogue','import'))return {ok:false,status:403};
   if(!await importLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  if(body.format==='xlsx-recipe'){
+   if(body.discipline!=='taiso')return {ok:false,status:400};
+   if(!xlsxAnalyzer)return {ok:false,status:503};
+   const analysis=await xlsxAnalyzer(body.base64);
+   return analysis?{ok:true,status:200,analysis}:{ok:false,status:503};
+  }
+  if(body.format!==undefined&&body.format!=='json')return {ok:false,status:400};
   const result=analyzeCatalogueImport(body.text,body.discipline);
   // Do not return the canonical dataset or retain a draft in this dry run.
   return {ok:true,status:200,analysis:result.ok?{valid:true,...result.report}:{valid:false,errorCount:result.errorCount,errors:result.errors}};
