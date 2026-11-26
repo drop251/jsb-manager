@@ -11,9 +11,14 @@ const {Pool}=require('pg');
 const {chromium,webkit}=require('playwright');
 const {createAuthRuntime}=require('../../auth-runtime.cjs');
 const {createMfaVault}=require('../../mfa-vault.cjs');
+const {createDeliveryVault}=require('../../delivery-vault.cjs');
+const {createDeliveryStore}=require('../delivery-store.cjs');
+const {createDeliveryWorker}=require('../../delivery-worker.cjs');
+const {createResendTransport}=require('../../resend-transport.cjs');
 const {codeForStep}=require('../../admin-mfa.cjs');
 const {hashPassword}=require('../../passwords.cjs');
 const password='Phrase de passe JSB navigateur CI !';
+const registrationEmails=['browser-new-chromium@example.test','browser-new-webkit@example.test'];
 const emails={coach:'browser-coach@example.test',individual:'browser-individual@example.test',admin:'browser-admin@example.test'};
 const keyset=(name,byte)=>({activeKeyId:name,loadKey:async id=>id===name?Buffer.alloc(32,byte):undefined});
 const {build}=require('../../../scripts/build-auth-preview.cjs');
@@ -127,12 +132,25 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
     await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
-    // Public account forms use real endpoints; no external mail delivery.
+    // Complete registration and recovery with an in-memory mail provider only.
+    const address=registrationEmails[name==='Chromium'?0:1];
+    const messages=[];
+    const sendMail=createResendTransport({apiKey:'fixture-only',from:'sender@example.test',namespace:'browser-ci-fixture',fetchImpl:async(url,options)=>{
+     assert.equal(url,'https://api.resend.com/emails');
+     messages.push(JSON.parse(options.body));
+     return new Response(JSON.stringify({id:'simulated-'+messages.length}),{status:200});
+    }});
+    const worker=createDeliveryWorker({store:createDeliveryStore(pool),vault:createDeliveryVault(keyset('browser-mail-ci',22)),allowRecipient:email=>email===address,sendMail});
+    async function deliver(){
+     assert.equal(await worker.runOnce(),'sent');
+     const message=messages.at(-1);assert.deepEqual(message.to,[address]);
+     return message.text.split('\n\n')[1];
+    }
     await page.locator('[data-panel="register-panel"]').click();
     assert.ok(await page.locator('#register-role').isEnabled());
     assert.deepEqual(await page.locator('#register-role option').evaluateAll(opts=>opts.map(o=>o.value)),['','coach','individual']);
     await page.locator('#register-role').selectOption('coach');
-    await page.locator('#register-email').fill(emails.coach);
+    await page.locator('#register-email').fill(address);
     await page.locator('#register-password').fill(password);
     await page.locator('#register-confirm').fill(password+' mismatch');
     await page.locator('#register-form button[type=submit]').click();
@@ -143,13 +161,38 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#register-form button[type=submit]').click();
     await waitStatus(page,'Demande enregistrée');
     assert.ok(await page.locator('#verify-panel').isVisible());
-    await page.locator('#verify-panel [data-close-panel]').click();
+    const original=await deliver();
+    await page.locator('#resend-email').fill(address);
+    await page.locator('#resend-form button[type=submit]').click();
+    await waitStatus(page,'nouveau code pourra être envoyé');
+    const replacement=await deliver();
+    assert.notEqual(original,replacement);
+    await page.locator('#verify-code').fill(original);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Code invalide');
+    await page.locator('#verify-code').fill(replacement);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Adresse confirmée');
+    await signIn(page,address);await waitStatus(page,'Session vérifiée : Coach');
     await page.locator('[data-panel="reset-request-panel"]').click();
-    await page.locator('#reset-email').fill(emails.coach);
+    await page.locator('#reset-email').fill(address);
     await page.locator('#reset-request-form button[type=submit]').click();
     await waitStatus(page,'Demande enregistrée');
     assert.ok(await page.locator('#reset-confirm-panel').isVisible());
-    await page.locator('#reset-confirm-panel [data-close-panel]').click();
+    const resetCode=await deliver(),newPassword=password+' nouvelle';
+    await page.locator('#reset-code').fill(resetCode);
+    await page.locator('#reset-password').fill(newPassword);
+    await page.locator('#reset-confirm').fill(newPassword);
+    await page.locator('#reset-confirm-form button[type=submit]').click();
+    await waitStatus(page,'Mot de passe réinitialisé');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    await signIn(page,address);await waitStatus(page,'Identifiants incorrects');
+    await page.locator('#email').fill(address);
+    await page.locator('#password').fill(newPassword);
+    await page.locator('#login button[type=submit]').click();
+    await waitStatus(page,'Session vérifiée : Coach');
+    await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    assert.equal(await worker.runOnce(),'idle');
     assert.equal(await admin.locator('#account-actions').count(),0);
     assert.deepEqual(errors,[]);
     assert.ok(network.filter(x=>x.path==='/api/login'||x.path==='/api/logout').every(x=>x.origin==='same-origin'),name+' : Origin des mutations');
@@ -160,7 +203,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[Object.values(emails)]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
