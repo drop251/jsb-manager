@@ -8,7 +8,7 @@ function createXlsxRecipeAnalyzer({pythonExecutable}={}){
  if(typeof pythonExecutable!=='string'||!isAbsolute(pythonExecutable))throw TypeError('Interpréteur Python absolu requis');
  const script=join(__dirname,'../scripts/read-taiso-xlsx-stream.py');
  let busy=false;
- return async function analyze(base64,{discipline='taiso',version}={}){
+ return async function analyze(base64,{discipline='taiso',version,includeCanonical=false}={}){
   if(typeof base64!=='string'||base64.length>Math.ceil(LIMIT/3)*4||!base64.length||!/^[A-Za-z0-9+/]+={0,2}$/.test(base64))return invalid('invalid-xlsx');
   const bytes=Buffer.from(base64,'base64');
   if(bytes.length>LIMIT||bytes.toString('base64')!==base64)return invalid('invalid-xlsx');
@@ -23,7 +23,7 @@ function createXlsxRecipeAnalyzer({pythonExecutable}={}){
     child.stdin.on('error',()=>{});
     child.stdin.end(bytes);
    });
-   try{return analyzeWorkbook(JSON.parse(output),discipline,version);}
+   try{return analyzeWorkbook(JSON.parse(output),discipline,version,{includeCanonical});}
    catch{return invalid('invalid-xlsx');}
   }catch(error){
    if(error?.code===2)return invalid('invalid-xlsx');
