@@ -305,8 +305,8 @@ function renderWorkspace(){
             if(!live()||run!==requestId)return;
             if(response.state!=='ready'||response.draft.revision!==stored.revision){message.textContent='Révision modifiée. Rechargez la séance.';return;}
             const q=response.draft,d=q.snapshot;
-            const copy={schema:'JSB-TAISO-OFFLINE-1',title:q.title,version:q.version,revision:q.revision,minutes:d.minutes,format:d.format,mode:d.mode,status:q.stale?'Catalogue ancien à revérifier':q.validatedAt?'Validation déclarée à l’export':'Brouillon non validé',missing:d.missing,
-             phases:d.phases.map(p=>({name:p.name,minutes:p.minutes,unallocatedMinutes:p.unallocatedMinutes,exercises:p.exercises.map(e=>({reference:e.reference,name:e.name,allocationMinutes:e.allocationMinutes,dosage:e.dosage,safety:e.safety,prescription:e.prescription,...Object.fromEntries(['description','successCriteria','easier','harder','equipment','accessibility'].filter(k=>typeof e[k]==='string').map(k=>[k,e[k]]))})),blocks:p.blocks.map(b=>({name:b.name,budgetSeconds:b.organization.budgetSeconds,plannedSeconds:b.organization.plannedSeconds,issues:b.organization.issues}))}))};
+            const copy={schema:'JSB-TAISO-OFFLINE-1',draftId:q.id,generation:q.generation,baseEditCount:(q.settings.edits||[]).length,title:q.title,version:q.version,revision:q.revision,minutes:d.minutes,format:d.format,mode:d.mode,status:q.stale?'Catalogue ancien à revérifier':q.validatedAt?'Validation déclarée à l’export':'Brouillon non validé',missing:d.missing,
+             phases:d.phases.map(p=>({name:p.name,minutes:p.minutes,unallocatedMinutes:p.unallocatedMinutes,exercises:p.exercises.map(e=>({reference:e.reference,name:e.name,allocationMinutes:e.allocationMinutes,dosage:e.dosage,safety:e.safety,prescription:e.prescription,...Object.fromEntries(['description','successCriteria','easier','harder','equipment','accessibility'].filter(k=>typeof e[k]==='string').map(k=>[k,e[k]]))})),blocks:p.blocks.map(b=>({name:b.name,references:b.references,budgetSeconds:b.organization.budgetSeconds,plannedSeconds:b.organization.plannedSeconds,issues:b.organization.issues}))}))};
             const data=new Blob([JSON.stringify(copy)],{type:'application/json'});
             if(data.size>524288)throw Error('Copie trop volumineuse');
             if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
@@ -380,7 +380,40 @@ function renderWorkspace(){
         }
         showSaved.addEventListener('click',()=>void listDrafts());
         newDraft.addEventListener('click',()=>{if(!live())return;requestId++;libraryRun++;savedDraft=null;editing.textContent='Nouvelle séance';result.replaceChildren();libraryStatus.replaceChildren();check.disabled=generate.disabled=showSaved.disabled=false;});
-        library.append(element('h3','Suivi et reprise'),showSaved,newDraft,editing,libraryStatus);
+
+        const importLabel=element('label','Reprendre des modifications hors connexion'),importFile=element('input');importFile.id='taiso-import-offline';importFile.type='file';importFile.accept='.json,application/json';importLabel.htmlFor=importFile.id;
+        const importStatus=element('p');importStatus.id='taiso-import-status';importStatus.setAttribute('role','status');
+        importFile.addEventListener('change',async()=>{
+         if(!live()||!importFile.files?.length)return;
+         const file=importFile.files[0],run=++requestId;
+         importFile.disabled=true;check.disabled=generate.disabled=true;importStatus.textContent='Contrôle des modifications locales…';
+         try{
+          if(file.size>65536)throw Error('Fichier trop volumineux.');
+          const patch=JSON.parse(await file.text());
+          if(!patch||patch.schema!=='JSB-TAISO-EDITS-1'||typeof patch.draftId!=='string'||!/^[a-f0-9]{32}$/.test(patch.draftId)||
+           !Number.isSafeInteger(patch.revision)||patch.revision<1||typeof patch.version!=='string'||typeof patch.generation!=='string'||!Number.isSafeInteger(patch.baseEditCount)||patch.baseEditCount<0||
+           !Array.isArray(patch.edits)||!patch.edits.length||patch.baseEditCount+patch.edits.length>60||
+           patch.edits.some(e=>!e||typeof e!=='object'||Array.isArray(e)||Object.keys(e).length!==3||!['up','down','remove'].includes(e.action)||typeof e.phase!=='string'||e.phase.length>100||typeof e.reference!=='string'||e.reference.length>80))throw Error('Fichier de modifications non conforme.');
+          const response=await client.privateTaisoDraft('read',account.id,{id:patch.draftId});
+          if(!live()||run!==requestId)return;
+          if(response.state!=='ready'){importStatus.textContent=draftError(response);return;}
+          const q=response.draft;
+          if(q.stale||q.revision!==patch.revision||q.version!==patch.version||q.generation!==patch.generation||q.version!==data.version||q.generation!==data.generation||(q.settings.edits||[]).length!==patch.baseEditCount){
+           importStatus.textContent='Le brouillon ou le catalogue a changé. Aucun écrasement effectué. Conservez votre fichier pour une reprise manuelle.';return;
+          }
+          const nextSettings={...q.settings,edits:[...(q.settings.edits||[]),...patch.edits]};
+          const next=await client.taisoDraft(nextSettings);
+          const current=await client.session();
+          if(!live()||run!==requestId)return;
+          if(current.state!=='signed-in'||current.account.id!==account.id||current.account.role!==account.role){void refresh();return;}
+          if(next.state!=='ready'){importStatus.textContent='Modifications non acceptées par le référentiel actif.';return;}
+          savedDraft=q;restoreSettings(q.settings);editing.textContent='Brouillon : '+q.title+' · révision '+q.revision;
+          renderProposal(next,nextSettings,false);
+          importStatus.textContent='Modifications locales vérifiées. Enregistrez les modifications pour les conserver sur le serveur.';
+         }catch(e){if(live()&&run===requestId)importStatus.textContent='Import refusé ou indisponible. Aucun changement enregistré.';}
+         finally{if(live()){importFile.disabled=false;importFile.value='';if(run===requestId)check.disabled=generate.disabled=false;}}
+        });
+        library.append(element('h3','Suivi et reprise'),showSaved,newDraft,editing,libraryStatus,importLabel,importFile,importStatus);
         async function prepareDraft(isDraft){
          if(!live()||check.disabled||generate.disabled)return;
          const run=++requestId;
