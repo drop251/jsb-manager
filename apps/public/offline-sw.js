@@ -26,7 +26,13 @@ self.addEventListener('fetch',event=>{
   try{return await fetch(req);}catch(e){
    const cache=await caches.open(CACHE);
    const response=await cache.match((path==='/'||path==='/public/auth.html')?ASSETS[0]:path);
-   if(response)return response;throw e;
+   if(response){
+    // A cached reader URL differs from the original navigation URL. Return
+    // a fresh response for navigation to avoid engine-specific URL handling.
+    if(req.mode==='navigate')return new Response(await response.arrayBuffer(),{status:200,headers:response.headers});
+    return response;
+   }
+   throw e;
   }
  })());
 });
