@@ -49,7 +49,13 @@ async function main(){
   if(process.env.JSB_TEST_PAIR_BUNDLE!==undefined){
    if(process.env.JSB_APP!=='admin')throw Error('Amorçage réservé au serveur Admin');
    const {initializeTestPair}=require('./render-test-pair.cjs');
-   const state=await initializeTestPair({pool,mfaKeys:opts.config.mfaKeys,bundle:process.env.JSB_TEST_PAIR_BUNDLE});
+   let state;
+   try{state=await initializeTestPair({pool,mfaKeys:opts.config.mfaKeys,bundle:process.env.JSB_TEST_PAIR_BUNDLE});}
+   catch(e){
+    const codes=new Set(['BUNDLE_SIZE','BUNDLE_JSON','BUNDLE_SCHEMA','BUNDLE_EMAILS','BUNDLE_PASSWORD_HASH','BUNDLE_TOTP','DB_CONNECT','DB_TRANSACTION','DB_LOCK','DB_RECEIPT','ALREADY_CONSUMED','DB_ACCOUNT_CHECK','ACCOUNTS_EXIST','MFA_ENCRYPTION','DB_INSERT_ACCOUNTS','DB_INSERT_MFA','DB_FINALIZE']);
+    console.error('JSB amorçage refusé : '+(codes.has(e?.jsbBootstrapCode)?e.jsbBootstrapCode:'UNKNOWN'));
+    throw Error('Amorçage refusé');
+   }
    console.log(state==='created'?'JSB : deux comptes de test initialisés.':'JSB : amorçage déjà consommé.');
   }
   instance=await createServer({config:opts.config,pool});
