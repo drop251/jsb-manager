@@ -1,6 +1,7 @@
 'use strict';
 const {createHash}=require('node:crypto');
 const {validatePedagogicalDetails}=require('./catalogue-details.cjs');
+const {CONTRACT_VERSION,validateWorkbookRow}=require('./catalogue-workbook-contract.cjs');
 const MAX_BYTES=4*1024*1024,MAX_ROWS=2000,MAX_ERRORS=100;
 const validText=(v,n)=>typeof v==='string'&&v===v.trim()&&v.length>0&&v.length<=n&&!/[\u0000-\u001f\u007f]/.test(v);
 function analyzeCatalogueImport(text,discipline){
@@ -26,6 +27,10 @@ function analyzeCatalogueImport(text,discipline){
   }
   const details=validatePedagogicalDetails(discipline,item.details);
   if(!details)add(row,'details','invalid-pedagogical-fields');
+  if(details&&Object.hasOwn(details,'contractVersion')){
+   if(details.contractVersion!==CONTRACT_VERSION)add(row,'contractVersion','invalid-contract');
+   else for(const e of validateWorkbookRow(discipline,{...details,reference:item.reference,name:item.name,family:item.family,discipline:discipline==='taiso'?'Taïso':'Judo'}))add(row,e.field,e.code);
+  }
   if(before!==errorCount)continue;
   rows.push({reference:item.reference,name:item.name,family:item.family,details});
   families.set(item.family,(families.get(item.family)||0)+1);
