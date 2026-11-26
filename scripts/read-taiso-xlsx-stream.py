@@ -3,7 +3,7 @@
 import importlib.util
 import json
 import sys
-import tempfile
+from io import BytesIO
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -22,10 +22,7 @@ def main():
         payload = sys.stdin.buffer.read(MAX_FILE + 1)
         if not payload or len(payload) > MAX_FILE:
             return 2
-        with tempfile.TemporaryDirectory(prefix="jsb-xlsx-") as directory:
-            path = Path(directory) / "recipe.xlsx"
-            path.write_bytes(payload)
-            rows = converter.read_rows(path)
+        rows = converter.read_rows(BytesIO(payload))
         output = json.dumps(rows, ensure_ascii=False).encode("utf-8")
         if len(output) > MAX_OUTPUT:
             return 2
