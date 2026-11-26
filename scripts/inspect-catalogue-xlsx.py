@@ -20,8 +20,7 @@ class InspectionError(ValueError):
     pass
 
 
-def inspect_workbook(path):
-    from openpyxl import load_workbook
+def check_archive(path):
     p = Path(path)
     if p.suffix.lower() != ".xlsx" or not p.is_file() or p.stat().st_size > MAX_FILE:
         raise InspectionError("Fichier XLSX de 4 Mio maximum requis.")
@@ -44,6 +43,12 @@ def inspect_workbook(path):
                 xml = archive.read(part)
                 if re.search(br"<!\s*(?:DOCTYPE|ENTITY)", xml.replace(b"\x00", b""), re.I):
                     raise InspectionError("Déclaration XML interdite.")
+    return p
+
+
+def inspect_workbook(path):
+    from openpyxl import load_workbook
+    p = check_archive(path)
     # Read-only mode; never evaluate formulas, never follow external links.
     book = load_workbook(p, read_only=True, data_only=False, keep_links=False)
     try:
