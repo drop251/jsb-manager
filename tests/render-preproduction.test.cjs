@@ -41,11 +41,31 @@ test('Render : passerelle privée, refus des preuves injectées, hôte unique',a
   const login=await request('/access',{Accept:'text/html'});
   assert.equal(login.status,200);assert.match(login.headers['content-type'],/^text\/html/);assert.equal(login.headers['content-disposition'],'inline');assert.equal(login.headers['referrer-policy'],'same-origin');
   assert.match(await login.text(),/<form method="post" action="\/access">/);
-  const post=(password,origin='https://'+opts.host)=>{const body=new URLSearchParams({password}).toString();return request('/access',{Origin:origin,'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)},'POST',body);};
+  async function challenge(){
+   const page=await request('/access?ios=3',{Accept:'text/html'});
+   assert.equal(page.status,200);
+   const html=await page.text(),csrf=html.match(/name="csrf" value="([^"]+)"/)[1];
+   const cookie=page.headers['set-cookie'][0];
+   assert.match(cookie,/; Secure; HttpOnly; SameSite=Strict/);
+   assert.equal(cookie.split(';')[0],'__Host-jsb-preview-form='+csrf);
+   return {csrf,cookie:cookie.split(';')[0]};
+  }
+  async function post(password,{origin='https://'+opts.host,site='same-origin',noCookie=false,forged=false,noOrigin=false}={}){
+   const f=await challenge();
+   const body=new URLSearchParams({password,csrf:forged?f.csrf.slice(0,-1)+(f.csrf.endsWith('a')?'b':'a'):f.csrf}).toString();
+   const headers={'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)};
+   if(!noOrigin)headers.Origin=origin;
+   if(site!==null)headers['Sec-Fetch-Site']=site;
+   if(!noCookie)headers.Cookie=f.cookie;
+   return request('/access',headers,'POST',body);
+  }
   assert.equal((await post('incorrect')).status,403);
-  assert.equal((await post(env.JSB_TESTER_SECRET,'https://coach.onrender.com')).status,403);
-  const opaque=await post(env.JSB_TESTER_SECRET,'null');assert.equal(opaque.status,403);assert.match(opaque.headers['content-type'],/^text\/html/);assert.match(await opaque.text(),/validation du formulaire a été refusée/);
-  const success=await post(env.JSB_TESTER_SECRET);assert.equal(success.status,303);assert.equal(success.headers.location,'/admin/auth.html');
+  assert.equal((await post(env.JSB_TESTER_SECRET,{origin:'https://coach.onrender.com'})).status,403);
+  assert.equal((await post(env.JSB_TESTER_SECRET,{site:'cross-site'})).status,403);
+  const missing=await post(env.JSB_TESTER_SECRET,{origin:'null',noCookie:true});assert.equal(missing.status,403);assert.match(await missing.text(),/cookies sont bloqués/);
+  assert.equal((await post(env.JSB_TESTER_SECRET,{origin:'null',forged:true})).status,403);
+  assert.equal((await post(env.JSB_TESTER_SECRET,{noOrigin:true,site:null})).status,303);
+  const success=await post(env.JSB_TESTER_SECRET,{origin:'null',site:null});assert.equal(success.status,303);assert.equal(success.headers.location,'/admin/auth.html');
   const setCookie=success.headers['set-cookie'][0];assert.match(setCookie,/; Secure; HttpOnly; SameSite=Lax/);
   const cookie=setCookie.split(';')[0];
   assert.equal((await request('/admin/auth.html',{Cookie:cookie+'x',Accept:'text/html'})).status,303);
