@@ -72,6 +72,9 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   }
   const envelope=await createMfaVault(mfaKeys).seal({accountId:ids.admin,factorVersion,secret});
   await pool.query('INSERT INTO jsb_auth.mfa_factors(account_id,factor_version,encrypted_secret,enabled) VALUES ($1,$2,$3,true)',[ids.admin,factorVersion,envelope]);
+  await pool.query("INSERT INTO jsb_catalogue.releases(discipline,version,source_hash,published_at) VALUES ('taiso','browser-fixture',$1,$2)",['b'.repeat(64),Date.now()]);
+  await pool.query("INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family) VALUES ('taiso','browser-fixture','fixture-a','Fixture Alpha','Famille A'),('taiso','browser-fixture','fixture-b','Fixture Beta','Famille B')");
+  await pool.query("INSERT INTO jsb_catalogue.current_release(discipline,version) VALUES ('taiso','browser-fixture')");
   for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]]){
    network.length=0;
    // Reset only the synthetic factor between engines; production never resets replay counters.
@@ -95,6 +98,14 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('[data-workspace-page="personal"]').count(),0);
     await page.locator('[data-workspace-page="judo"]').click();
     assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    await page.locator('#workspace-back').click();
+    await page.locator('[data-workspace-page="taiso"]').click();
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
+    await page.locator('#catalogue-family').selectOption('Famille B');
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Beta'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#catalogue-results summary').count(),1);
+    await page.locator('#catalogue-results summary').click();
+    assert.match(await page.locator('#catalogue-results').textContent(),/fixture-b/);
     await page.locator('#workspace-back').click();
     await page.locator('[data-workspace-page="club"]').click();
     assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
@@ -224,7 +235,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
