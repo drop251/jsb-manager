@@ -43,6 +43,59 @@ function renderWorkspace(){
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
     workspace.replaceChildren(detail);h.focus({preventScroll:true});
+    if(key==='catalogue'){
+     const block=element('section');block.className='workspace-detail';
+     block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON uniquement. Aucun import ni aucune publication ne sera effectué.'));
+     const dl=element('label','Discipline');dl.htmlFor='import-discipline';
+     const select=element('select');select.id='import-discipline';
+     for(const [value,name] of [['taiso','Taïso'],['judo','Judo']]){const option=element('option',name);option.value=value;select.append(option);}
+     const fl=element('label','Fichier JSON au format canonique');fl.htmlFor='import-file';
+     const file=element('input');file.id='import-file';file.type='file';file.accept='.json,application/json';
+     const check=element('button','Analyser sans importer');check.type='button';check.disabled=true;
+     const report=element('div');report.id='import-report';report.setAttribute('role','status');
+     let generation=0;
+     const live=()=>!busy&&workspaceIdentity===identity&&block.isConnected;
+     function reset(){generation++;report.replaceChildren();check.disabled=!file.files?.length;}
+     file.addEventListener('change',reset);select.addEventListener('change',reset);
+     check.addEventListener('click',async()=>{
+      const selected=file.files?.[0],discipline=select.value;
+      if(!live()||!selected)return;
+      const run=++generation;check.disabled=true;report.replaceChildren(element('p','Analyse en cours…'));
+      try{
+       if(selected.size>4*1024*1024)throw Error('Fichier trop volumineux (4 Mio maximum).');
+       const text=await selected.text();
+       if(!live()||run!==generation)return;
+       const before=await client.session();
+       if(!live()||run!==generation)return;
+       if(before.state!=='signed-in'||before.account.id!==account.id||before.account.role!=='admin'){void refresh();return;}
+       const response=await fetch(location.origin+'/api/admin/catalogue/analyze',{method:'POST',credentials:'same-origin',mode:'same-origin',referrer:location.origin+'/',referrerPolicy:'same-origin',cache:'no-store',redirect:'error',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify({discipline,text})});
+       if(response.status===401||response.status===403){if(live()&&run===generation)void refresh();return;}
+       if(response.status===429)throw Error('Trop d’analyses. Réessayez plus tard.');
+       if(!response.ok)throw Error('Analyse indisponible.');
+       const data=await response.json(),confirmed=await client.session();
+       if(!live()||run!==generation)return;
+       if(confirmed.state!=='signed-in'||confirmed.account.id!==account.id||confirmed.account.role!=='admin'){void refresh();return;}
+       const a=data.analysis;
+       if(data.ok!==true||typeof a?.valid!=='boolean')throw Error('Rapport invalide.');
+       report.replaceChildren();
+       if(!a.valid){
+        report.append(element('h4','Fichier refusé'),element('p',String(a.errorCount)+' erreur(s). Aucune modification.'));
+        const errors=element('ul');
+        const labels={'invalid-discipline':'Discipline invalide','size-limit':'Taille dépassée','invalid-json':'JSON illisible','invalid-envelope':'Structure ou discipline incorrecte','row-limit':'Nombre de fiches hors limites','invalid-shape':'Structure de fiche incorrecte','invalid-text':'Texte absent ou invalide','duplicate-reference':'Référence en double','invalid-pedagogical-fields':'Champs pédagogiques manquants ou invalides'};
+        for(const e of a.errors)errors.append(element('li',(e.row?'Fiche '+e.row:'Fichier')+' · '+e.field+' : '+(labels[e.code]||'Erreur de validation')));
+        report.append(errors);
+       }else{
+        if(a.discipline!==discipline)throw Error('Discipline incohérente.');
+        report.append(element('h4','Structure conforme'),element('p','Version '+a.version+' · '+a.count+' fiche(s)'),element('p','Empreinte SHA-256 : '+a.hash));
+        const families=element('ul');for(const f of a.families)families.append(element('li',f.family+' : '+f.count));report.append(families);
+        const sample=element('ul');for(const e of a.sample)sample.append(element('li',e.reference+' · '+e.name+' · '+e.family));
+        report.append(element('h4','Aperçu des cinq premières fiches au maximum'),sample,element('p','Contrôle structurel uniquement. La validation pédagogique et la publication restent distinctes.'));
+       }
+      }catch(e){if(live()&&run===generation)report.replaceChildren(element('p',e.message==='Fichier trop volumineux (4 Mio maximum).'||e.message==='Trop d’analyses. Réessayez plus tard.'?e.message:'Analyse indisponible. Vérifiez votre fichier et votre session.'));}
+      finally{if(live()&&run===generation)check.disabled=!file.files?.length;}
+     });
+     block.append(dl,select,fl,file,check,report);detail.insertBefore(block,list);
+    }
    });grid.append(button);
   }
   workspace.append(grid);if(focus)heading.focus({preventScroll:true});
