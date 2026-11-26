@@ -39,7 +39,7 @@ function validForm(req,params,key,host){
  if(values.length!==1||tokens.length!==1)return false;
  const cookie=values[0].slice(FORM_COOKIE.length+1),token=tokens[0];
  const m=/^(\d{10})\.([A-Za-z0-9_-]{32})\.([A-Za-z0-9_-]{43})$/.exec(token);
- if(!m||cookie.length!==token.length||!timingSafeEqual(Buffer.from(cookie),Buffer.from(token)))return false;
+ if(!m||!/^\d{10}\.[A-Za-z0-9_-]{32}\.[A-Za-z0-9_-]{43}$/.test(cookie)||!timingSafeEqual(Buffer.from(cookie),Buffer.from(token)))return false;
  const expires=Number(m[1]),now=Math.floor(Date.now()/1000);
  return expires>now&&expires<=now+FORM_TTL&&timingSafeEqual(Buffer.from(m[3]),Buffer.from(formProof(key,host,m[1]+'.'+m[2])));
 }
