@@ -117,6 +117,25 @@ jobs:
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
 
+
+      - name: Tester l’initialisation du premier administrateur sur une base éphémère dédiée
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          test "$PGDATABASE" = jsb_ci
+          createdb jsb_preprod
+          trap 'dropdb --if-exists jsb_preprod' EXIT
+          export PGDATABASE=jsb_preprod
+          for migration in backend/db/migrations/*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          node --test backend/db/tests/bootstrap-admin.integration.cjs
+          for table in accounts sessions mfa_factors recovery_codes; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
+          done
+
       - name: Construire les distributions de préproduction isolées
         run: |
           set -euo pipefail
