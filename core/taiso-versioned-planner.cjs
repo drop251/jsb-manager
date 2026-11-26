@@ -19,42 +19,64 @@ function zoneDe(e){
 const MOTS_ZONE={bas:/ischio|quadri|mollet|fessi|psoas|hanche|jambe|cuisse|adduct|cheville|pigeon|papillon/,haut:/epaule|pector|dos|bras|triceps|biceps|nuque|trapez/,tronc:/colonne|torsion|dos|abdo|lombaire|cobra|chat|enfant/};
 function zonesTravaillees(blocs){const z={};for(const b of blocs)for(const it of b.items){const k=zoneDe(it.e);z[k]=(z[k]||0)+1;}return z;}
 function cibleZones(e,zones){const t=sa(e.nom+' '+e.muscles+' '+e.description);return Object.keys(zones).reduce((n,k)=>n+(MOTS_ZONE[k]?.test(t)?zones[k]:0),0);}
-const FORMAT='Séries classiques',estMobilite=e=>/^Mobilit/.test(e.categorie||'')&&momentsDe(e).includes('Échauffement');
+const FORMAT='Séries classiques';
+const FORMATS=Object.freeze([FORMAT,'Circuit','EMOM','Tabata','AMRAP','Pilates / yoga','Mixte']);
+const estMobilite=e=>/^Mobilit/.test(e.categorie||'')&&momentsDe(e).includes('Échauffement');
+function formatsFor(criteria){
+ return FORMATS.filter(f=>!(criteria.groupe==='Gym douce'&&['Tabata','AMRAP'].includes(f))&&
+  !(criteria.mode==='Répétitions'&&f==='Tabata')&&!(criteria.mode==='Durée'&&['EMOM','AMRAP'].includes(f)));
+}
+function compatibleFormat(e,format){
+ const dos=sa(e.dosage),c=e.categorie||'';
+ const displacement=/aller-retour|aller retour|\d+\s*m\b|traversee|parcours/.test(dos),breathing=/respiration/.test(dos);
+ const iso=/tenu|maintien|gainage|planche|chaise/.test(sa(e.nom))&&e.modeDosage!=='Répétitions';
+ const unilateral=/par (cote|jambe|bras)|chaque cote|inverser/.test(dos);
+ if(/^Mobilit/.test(c))return false;
+ if(format===FORMAT)return !displacement&&!breathing;
+ if(format==='Pilates / yoga')return !rules.estImpact(e)&&!/^Cardio/.test(c)&&!displacement&&(/^Gainage|^Équilibre/.test(c)||/pilates|yoga/i.test(e.inspiration||''));
+ if(displacement||breathing)return false;
+ if(format==='Tabata')return !iso&&!unilateral&&!/^Équilibre/.test(c)&&e.duree_s===20;
+ if(format==='EMOM'||format==='AMRAP')return !iso&&!/^Équilibre/.test(c)&&Number.isSafeInteger(e.repetitions);
+ if(format==='Circuit')return !/^Équilibre/.test(c)||!iso;
+ return false;
+}
 function construireBlocs(format,pool,minutes,doux,choisir,niveau){
- if(format!==FORMAT||minutes<8)return [];
- // Same eligibility rule as the historical series format; no calculated
- // recovery/series is substituted for the original prescription.
- const eligible=pool.filter(e=>!/^Mobilit/.test(e.categorie||'')&&!/aller-retour|aller retour|\d+\s*m\b|traversee|parcours|respiration/.test(sa(e.dosage))&&rules.niveauOk(e,niveau));
+ if(minutes<8)return [];
+ if(format==='Mixte'){
+  const first=Math.round(minutes*.6);
+  return [...construireBlocs('Circuit',pool,first,doux,choisir,niveau),...construireBlocs('Pilates / yoga',pool,minutes-first,doux,choisir,niveau)];
+ }
+ const eligible=pool.filter(e=>compatibleFormat(e,format)&&rules.niveauOk(e,niveau));
  const count=Math.max(3,Math.round(minutes/5)),chosen=choisir(eligible,count,true);
  if(!chosen.length)return [];
  const allocations=repartirDurees(minutes,chosen.length);
- return [{nom:'Séries classiques',minutes,items:chosen.map((e,i)=>({e,duree:allocations[i]}))}];
+ return [{nom:format,minutes,items:chosen.map((e,i)=>({e,duree:allocations[i]}))}];
 }
 const engine=creerMoteur({hasard,melanger,...rules,sg:e=>e.sousGroupes||[],estMobilite,illustre:()=>false,momentsDe,
- formatsDe:()=>[FORMAT],formatParDefaut:()=>FORMAT,construireBlocs,zonesTravaillees,cibleZones,
+ formatsDe:groupe=>FORMATS.filter(f=>groupe!=='Gym douce'||!['Tabata','AMRAP'].includes(f)),formatParDefaut:()=>FORMAT,construireBlocs,zonesTravaillees,cibleZones,
  MOTS_CALME:/respir|relax|savasana|calme|meteo|doudou|dort|boule|recuperation|jambes au mur/,sa,repartirDurees});
-function planFromCandidates(selection,criteria,{minutes,seed,objective=''}={}){
+function planFromCandidates(selection,criteria,{minutes,seed,objective='',format=FORMAT}={}){
  if(!selection||!Array.isArray(selection.candidates)||!Array.isArray(selection.excluded)||
  ![45,60,75,90].includes(minutes)||!Number.isSafeInteger(seed)||seed<1||seed>2147483646||
- typeof objective!=='string'||objective.length>120)return null;
+ typeof objective!=='string'||objective.length>120||!formatsFor(criteria).includes(format))return null;
  const items=selection.candidates.map(x=>x.exercise),byReference=new Map(selection.candidates.map(x=>[x.exercise.id,x.canonical]));
  const routine=items.filter(estMobilite).slice(0,3).map(e=>e.id);
- const proposal=engine.genererSeanceTaiso({...criteria,duree:minutes,format:FORMAT,routine,objectif:objective},items,items,seed);
+ const proposal=engine.genererSeanceTaiso({...criteria,duree:minutes,format,routine,objectif:objective},items,items,seed);
  const phases=proposal.phases.map(p=>{
   const exercises=p.exercices.map(x=>{
    const e=byReference.get(x.e.id);
    const prescription=criteria.mode==='Durée'?{mode:'Durée',effortSeconds:Number(e.details.effortSeconds)}:{mode:'Répétitions',repetitions:Number(e.details.repetitions)};
    return {reference:e.reference,name:e.name,family:e.family,allocationMinutes:x.duree,dosage:e.details.dosage,prescription,safety:e.details.safety};
   });
-  return {name:p.nom,minutes:p.minutes,exercises,unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
+  return {name:p.nom,minutes:p.minutes,exercises,blocks:(p.blocs||[]).map(b=>({name:b.nom,minutes:b.minutes,references:b.items.map(x=>x.e.id)})),unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
  });
  const missing=[...proposal.manques];
  const body=phases.find(p=>p.name==='Corps de séance');
  if(body&&body.exercises.length<Math.max(3,Math.round(body.minutes/5))&&!missing.includes(body.name))missing.push(body.name);
- return {format:FORMAT,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true};
+ return {format,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true,organizationPending:format!==FORMAT};
 }
 function generateTaisoDraft(items,criteria,options){
  const selection=selectTaisoCandidates(items,criteria);
  return selection?planFromCandidates(selection,criteria,options):null;
 }
-module.exports=Object.freeze({generateTaisoDraft,planFromCandidates});
+module.exports=Object.freeze({generateTaisoDraft,planFromCandidates,formatsFor});
