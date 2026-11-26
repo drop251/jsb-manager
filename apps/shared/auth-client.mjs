@@ -87,6 +87,18 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
  }
  const api={session,login,logout,catalogue,searchCatalogue,exerciseDetail};
  if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
+  async function taisoCandidates({version,generation,criteria}={}){
+   const r=await request('/api/generator/taiso/candidates',{version,generation,criteria});
+   if(r.status===409)return {state:'version-changed'};
+   if(r.status===429)return {state:'rate-limited'};
+   if(r.status!==200)throw Error('Sélection indisponible');
+   const v=r.data.selection;
+   if(!v||v.discipline!=='taiso'||v.version!==version||v.generation!==generation||
+     !Number.isSafeInteger(v.total)||v.total<0||!Number.isSafeInteger(v.excluded)||v.excluded<0||
+     v.total+v.excluded>2000||!Array.isArray(v.items)||v.items.length!==Math.min(v.total,30)||
+     v.items.some(i=>!i||['reference','name','family','dosage'].some(k=>typeof i[k]!=='string'||!i[k].trim())))throw Error('Sélection invalide');
+   return {state:'ready',...v};
+  }
   async function action(path,body,expected){
    return exclusive(async()=>{
     const r=await request(path,body);
@@ -96,6 +108,7 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    });
   }
   Object.assign(api,{
+   taisoCandidates,
    register:({email,password,role}={})=>{
     if(!roles.has(role))return Promise.resolve(Object.freeze({ok:false,status:400}));
     return action('/api/register',{email,password,role},202);
