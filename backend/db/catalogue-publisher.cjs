@@ -16,6 +16,8 @@ function createCataloguePublisher(pool){
   if(!analyzed.ok)return fail(400);
   if(analyzed.report.hash!==expectedHash)return fail(409);
   const {version,exercises}=analyzed.canonical;
+  // Recipe identifiers are never permanent reference-catalogue identifiers.
+  if(version.toLowerCase().startsWith('recette-')||exercises.some(e=>e.reference.toLowerCase().startsWith('recette-')))return fail(400);
   const client=await pool.connect();
   try{
    await client.query('BEGIN');
