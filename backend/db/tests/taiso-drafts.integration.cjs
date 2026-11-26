@@ -35,6 +35,20 @@ test('Brouillons privés : propriétaire, révision, concurrence, catalogue anci
   const updates=await Promise.all(['A','B'].map(title=>store.execute(a,s,'save',{...request,title,id:key,revision:1},prepared)));
   assert.deepEqual(updates.map(x=>x.status).sort(),[200,409]);
   assert.equal((await store.execute(a,s,'list',{expectedAccount:a.id})).total,1);
+  // Validation attestation must be separate, and never approve an incomplete draft.
+  assert.equal((await store.execute(a,s,'validate',{expectedAccount:a.id,id:key,revision:2,confirmed:true})).status,400);
+  const completed={...prepared,draft:{...prepared.draft,missing:[],organizationPending:false,phases:Array.from({length:5},(_,i)=>({exercises:[{reference:'fixture-'+i}],unallocatedMinutes:0,blocks:i===2?[{organization:{state:'budgeted'}}]:[]}))}};
+  const complete=await store.execute(a,s,'save',{...request,title:'Complete fixture'},completed);
+  assert.equal(complete.status,200);assert.equal(complete.saved.validatedAt,null);
+  const confirm={expectedAccount:a.id,id:complete.saved.id,revision:1,confirmed:true};
+  assert.equal((await store.execute(a,s,'validate',{...confirm,confirmed:false})).status,400);
+  assert.equal((await store.execute(b,digests[1],'validate',{...confirm,expectedAccount:b.id})).status,409);
+  const approved=await store.execute(a,s,'validate',confirm);
+  assert.equal(approved.status,200);assert.equal(approved.saved.revision,2);assert.ok(Number(approved.saved.validatedAt)>0);
+  assert.equal((await store.execute(a,s,'validate',confirm)).status,409);
+  const changed=await store.execute(a,s,'save',{...request,id:complete.saved.id,revision:2},completed);
+  assert.equal(changed.saved.validatedAt,null);
+  assert.equal((await store.execute(a,s,'delete',{expectedAccount:a.id,id:complete.saved.id,revision:3})).status,200);
   await pool.query("UPDATE jsb_catalogue.current_release SET generation=2 WHERE discipline='taiso' AND version=$1",[version]);
   assert.equal((await store.execute(a,s,'read',{expectedAccount:a.id,id:key})).draft.stale,true);
   assert.equal((await store.execute(a,s,'save',{...request,id:key,revision:2},prepared)).status,409);
