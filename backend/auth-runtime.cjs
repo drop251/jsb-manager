@@ -17,6 +17,8 @@ const {createMfaVault}=require('./mfa-vault.cjs');
 const {createAdminMfa}=require('./admin-mfa.cjs');
 const {createAuthHttpHandler}=require('./auth-http.cjs');
 const {createCatalogueReadService}=require('./catalogue-read.cjs');
+const {analyzeCatalogueImport}=require('../core/catalogue-import.cjs');
+const {authorize}=require('../core/platform-permissions.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,now=Date.now}={}){
@@ -44,13 +46,21 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  const passwordReset=createPasswordResetService({requestLimiter:limiter('reset-request',3,20),confirmLimiter:limiter('reset-confirm',5,40),...resetStore,now});
  const catalogue=createCatalogueReadService(pool);
  const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,now});
- const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,now});
+ const importLimiter=limiter('catalogue-analysis',20,40);
+ async function catalogueImport(actor,body,source){
+  if(!authorize(actor,'catalogue','import'))return {ok:false,status:403};
+  if(!await importLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  const result=analyzeCatalogueImport(body.text,body.discipline);
+  // Do not return the canonical dataset or retain a draft in this dry run.
+  return {ok:true,status:200,analysis:result.ok?{valid:true,...result.report}:{valid:false,errorCount:result.errorCount,errors:result.errors}};
+ }
+ const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,catalogueImport,now});
  async function checkReady(){
   const [delivery,mfa]=await Promise.all([deliveryKeys.loadKey(deliveryKeys.activeKeyId),mfaKeys.loadKey(mfaKeys.activeKeyId)]);
   if(!Buffer.isBuffer(delivery)||delivery.length!==32||!Buffer.isBuffer(mfa)||mfa.length!==32||timingSafeEqual(delivery,mfa)||[delivery,mfa].some(k=>quotaSecret.length===k.length&&timingSafeEqual(k,quotaSecret)))throw Error('Clés serveur absentes ou non distinctes');
   // Check required schema, not merely connectivity. No data is returned.
   await pool.query("SELECT a.id FROM jsb_auth.accounts a, jsb_auth.sessions s, jsb_auth.action_tokens t, jsb_auth.delivery_outbox o, jsb_auth.quota_events q, jsb_auth.mfa_factors f WHERE false");
-  await pool.query('SELECT r.version FROM jsb_catalogue.releases r, jsb_catalogue.exercises e, jsb_catalogue.current_release c WHERE false');
+  await pool.query('SELECT r.version,e.pedagogical_details FROM jsb_catalogue.releases r, jsb_catalogue.exercises e, jsb_catalogue.current_release c WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});
