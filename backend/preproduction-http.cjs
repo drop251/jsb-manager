@@ -13,6 +13,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
  const manifest=JSON.parse(await readFile(join(root,'manifest.json'),'utf8'));
  const entry='/'+app+'/auth.html';
  const types=new Map([[entry,'text/html; charset=utf-8'],['/'+app+'/auth-page.mjs','text/javascript; charset=utf-8'],['/shared/auth-client.mjs','text/javascript; charset=utf-8']]);
+ if(app==='public'){types.set('/public/offline.html','text/html; charset=utf-8');types.set('/public/offline.mjs','text/javascript; charset=utf-8');types.set('/public/offline-sw.js','text/javascript; charset=utf-8');}
  if(manifest.app!==app||manifest.purpose!=='preproduction-auth-only'||manifest.entrypoint!==entry||Object.keys(manifest.files||{}).length!==types.size)throw Error('Distribution incompatible');
  const assets=new Map();
  for(const [url,type] of types){
@@ -22,7 +23,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
   if(createHash('sha256').update(bytes).digest('hex')!==manifest.files[name])throw Error('Intégrité de la distribution invalide');
   assets.set(url,{bytes,type});
  }
- const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"};
+ const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"};
  function empty(res,status,extra={}){res.writeHead(status,{...headers,...extra});res.end();}
  return async function handle(req,res){
   try{
