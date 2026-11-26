@@ -3,7 +3,7 @@ const {CONTRACT_VERSION,CONTRACTS,NUMBER_FIELDS,validateWorkbookRow}=require('./
 const {analyzeCatalogueImport}=require('./catalogue-import.cjs');
 const {HEADERS,mapTaisoRecipe,restoreSourceRow}=require('./taiso-xlsx-recipe.cjs');
 const same=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
-function analyzeWorkbook(rows,discipline,version){
+function analyzeWorkbook(rows,discipline,version,{includeCanonical=false}={}){
  const spec=CONTRACTS[discipline],errors=[];let errorCount=0;
  const add=(row,field,code)=>{errorCount++;if(errors.length<100)errors.push({row,field,code});};
  const invalid=()=>({valid:false,errorCount,errors,publishable:false});
@@ -31,6 +31,6 @@ function analyzeWorkbook(rows,discipline,version){
  if(errorCount)return invalid();
  const checked=analyzeCatalogueImport(JSON.stringify({discipline,version,exercises}),discipline);
  if(!checked.ok){for(const e of checked.errors)add(e.row?e.row+1:0,e.field,e.code);return {...invalid(),errorCount:checked.errorCount};}
- return {valid:true,mode:'xlsx-contract',contractVersion:CONTRACT_VERSION,publishable:false,columns:spec.length,...checked.report};
+ return {valid:true,mode:'xlsx-contract',contractVersion:CONTRACT_VERSION,publishable:false,columns:spec.length,...checked.report,...(includeCanonical?{canonical:checked.canonical}:{})};
 }
 module.exports=Object.freeze({analyzeWorkbook});
