@@ -17,7 +17,9 @@ const password='Phrase de passe JSB navigateur CI !';
 const emails={coach:'browser-coach@example.test',individual:'browser-individual@example.test',admin:'browser-admin@example.test'};
 const keyset=(name,byte)=>({activeKeyId:name,loadKey:async id=>id===name?Buffer.alloc(32,byte):undefined});
 const apps=path.resolve(__dirname,'../../../apps');
-const waitStatus=(page,expected)=>page.waitForFunction(s=>document.querySelector('#status')?.textContent.includes(s),expected);
+// Use native locator waiting: waitForFunction compiles a string in the page,
+// which is correctly rejected by the production CSP (no unsafe-eval).
+const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
 async function signIn(page,email,code){
  await page.locator('#email').fill(email);await page.locator('#password').fill(password);
  if(code!==undefined)await page.locator('#mfa').fill(code);
@@ -64,6 +66,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     const ctx=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
     const page=await ctx.newPage(),admin=await ctx.newPage(),errors=[];
     for(const p of [page,admin])p.on('pageerror',e=>errors.push(e.message));
+    await page.bringToFront();
     await page.goto(publicOrigin+'/public/auth.html');
     await waitStatus(page,'Connectez-vous');
     assert.ok(await page.locator('#password').isEnabled(),name);
@@ -80,6 +83,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.deepEqual(current.account,{id:ids.individual,role:'individual'});
     await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await admin.bringToFront();
     await admin.goto(adminOrigin+'/admin/auth.html');await waitStatus(admin,'Connectez-vous');
     assert.equal((await ctx.cookies(adminOrigin)).some(c=>c.name==='__Host-jsb-public'),false);
     assert.equal((await admin.evaluate(async()=> (await fetch('/public/auth.html')).status)),404);
@@ -92,6 +96,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await page.bringToFront();await waitStatus(page,'Session vérifiée : Particulier');
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     assert.deepEqual(errors,[]);
