@@ -61,10 +61,18 @@
             catch (err) { tx.abort(); ko(err); }
           });
         }); });
+        travail = travail.then(function (ok) { entrees.forEach(function (x) { retirerSecours(x[0]); }); return ok; });
         file = travail.catch(function () { return false; });
-        return travail.then(function (ok) { entrees.forEach(function (x) { retirerSecours(x[0]); }); return ok; });
+        return travail;
       },
-      fermer: function () { var o = ouverture; ouverture = null; return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve(); },
+      fermer: function () {
+        var travail = file.then(function () {
+          var o = ouverture; ouverture = null;
+          return o ? o.then(function (db) { db.close(); }, function () {}) : Promise.resolve();
+        });
+        file = travail.catch(function () { return false; });
+        return travail;
+      },
       oublierAncien: function (cle) { try { env.localStorage.removeItem(cle); } catch (err) {} },
       ancien: lireLocal,
       proteger: function () {
