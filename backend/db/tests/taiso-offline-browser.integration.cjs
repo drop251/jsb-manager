@@ -39,7 +39,7 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   });
   const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v1');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
   assert.deepEqual(cache,['/public/offline.html','/public/offline.mjs']);
-  assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+  assert.equal((await context.request.get(origin+'/api/session')).status(),401);
   // No fallback on a deliberate gateway denial while online.
   allowed=false;assert.equal((await page.goto(origin+'/public/offline.html')).status(),403);allowed=true;
   await page.goto(origin+'/public/offline.html');
