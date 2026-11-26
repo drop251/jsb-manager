@@ -16,7 +16,8 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(app==='public')for(const p of ['/api/register','/api/verify-email','/api/resend-verification','/api/password-reset/request','/api/password-reset/confirm'])paths.set(p,'POST');
  const cataloguePaths=new Map([['/api/catalogue/judo','judo'],['/api/catalogue/taiso','taiso']]);
  const catalogueSearchPaths=new Map([['/api/catalogue/judo/search','judo'],['/api/catalogue/taiso/search','taiso']]);
- if(catalogue!==undefined){if(typeof catalogue?.read!=='function'||typeof catalogue?.search!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');for(const path of catalogueSearchPaths.keys())paths.set(path,'POST');}
+ const catalogueDetailPaths=new Map([['/api/catalogue/judo/detail','judo'],['/api/catalogue/taiso/detail','taiso']]);
+ if(catalogue!==undefined){if(typeof catalogue?.read!=='function'||typeof catalogue?.search!=='function'||typeof catalogue?.detail!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');for(const path of catalogueSearchPaths.keys())paths.set(path,'POST');for(const path of catalogueDetailPaths.keys())paths.set(path,'POST');}
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
   const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(cookieName+'='));
@@ -75,6 +76,14 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     return send(res,200,{ok:true,catalogue:result.catalogue});
    }
    const body=await json(req);
+   if(catalogueDetailPaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const result=await catalogue.detail(actor,catalogueDetailPaths.get(req.url),{version:body.version,reference:body.reference});
+    if(result?.status===404)return send(res,404,{ok:false});
+    if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
+    return send(res,200,{ok:true,exercise:result.exercise});
+   }
    if(catalogueSearchPaths.has(req.url)){
     const actor=await actorFor(oldToken);
     if(!actor)return send(res,401,{ok:false});
