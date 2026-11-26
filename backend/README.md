@@ -64,3 +64,16 @@ python scripts/inspect-catalogue-xlsx.py /chemin/vers/catalogue.xlsx
 L'inspection ne modifie pas le classeur, ne calcule pas les formules et n'accède pas à la base. Elle indique les onglets visibles et masqués, les lignes peuplées (qui ne constituent pas un décompte d'exercices), les formules présentes et au maximum trois lignes candidates d'en-têtes parmi les douze premières lignes. Ces candidates peuvent contenir des données ; le rapport reste local, à examiner par l'opérateur. Aucun onglet ou en-tête n'est présumé correct. Limites de recette : 4 Mio compressés, 32 Mio décompressés, 512 entrées ZIP, 32 feuilles, 2 500 lignes et 128 colonnes par feuille.
 
 Le format canonique JSON actuel ne couvre pas encore toutes les colonnes historiques d'un classeur réel : notamment description d'exécution, sous-famille, classification et tags restent à rapprocher du modèle métier avant conversion. Ne pas déduire de référence depuis un index, ni supprimer des colonnes non reconnues. Ne pas convertir les fichiers d'audit ou d'exclusions en catalogue. Identifier le classeur définitif et confirmer les onglets, en-têtes, identifiants et restrictions à partir de ses octets ; enrichir le schéma et tester la conversion sans perte avant raccordement de l'import XLSX dans JSB Admin. Aucun fichier utilisateur ni exercice réel n'est ajouté à la recette.
+
+
+### Recette du classeur provisoire Taïso (228 fiches)
+Le format observé est un onglet visible Exercices de 22 colonnes textuelles, sans référence pérenne. Le mapping strict est dans `core/taiso-xlsx-recipe.cjs`. Les en-têtes doivent correspondre exactement. Les champs non interprétés, notamment les tags, restent sous leur forme d'origine. Le contrôle de restitution compare toutes les cellules d'exercice.
+
+```sh
+python scripts/convert-taiso-xlsx-recipe.py /chemin/vers/provisoire.xlsx /chemin/vers/recette-neuve.json
+```
+
+La commande est locale, sans écriture en base, refuse les formules et l'écrasement de fichiers, et nécessite les dépendances Python précédentes ainsi que Node.js. Le JSON produit est une enveloppe `recipe-only` incompatible avec le contrat de publication. Les références et versions réservées commençant par `RECETTE-` (sans distinction de casse) sont également refusées par le moteur de publication. Les références temporaires liées aux numéros de ligne ne sont pas des identifiants pérennes. L'interface Admin reste limitée à l'analyse JSON ; aucun classeur réel n'est ajouté au dépôt. La CI teste un classeur synthétique de même structure et volume et un lot PostgreSQL synthétique de 228 fiches.
+
+### Livrables de clôture du module Catalogue
+Après stabilisation des contrats de données, des filtres, du générateur et des parcours d'import/publication, établir le cahier des charges commun, les spécifications distinctes Judo et Taïso, deux modèles Excel vierges et la grille de contrôle avant import. Distinguer les exigences effectivement testées des règles pédagogiques à valider humainement. Vérifier les références stables, la conservation de chaque champ, les valeurs autorisées, les dosages et les restrictions ; aucune donnée provisoire ne doit être publiée. Ne pas considérer le format provisoire à 22 colonnes comme le contrat définitif.
