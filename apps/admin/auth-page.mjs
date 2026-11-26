@@ -11,6 +11,8 @@ const clearSecrets=()=>{document.querySelector('#password').value='';const mfa=d
 const label=role=>({coach:'Coach',individual:'Particulier',admin:'Administrateur'}[role]||'');
 
 const workspace=document.querySelector('#workspace');
+const accountTools=document.querySelector('.account-tools');
+let settingsOpen=false;
 const workspacePages={"common":[["accounts","Comptes plateforme","Coach et Particulier",["Comptes Coach","Comptes Particulier","Suspension et réactivation — à raccorder"]],["stats","Statistiques","Indicateurs agrégés uniquement",["Comptes actifs","Inscriptions","Usage agrégé"]],["catalogue","Catalogue de référence","Référentiels indépendants",["Judo — base non validée","Taïso — référentiel à raccorder","Historique des versions"]],["legal","Documents légaux","CGU et confidentialité",["CGU","Politique de confidentialité","CGV — désactivées"]],["tests","Tests des générateurs","Recette isolée",["Judo","Taïso"]],["maintenance","Maintenance","Sécurité et messagerie",["État du serveur","Diagnostic e-mail — non raccordé","Journal administratif","Sauvegardes plateforme"]]]};
 let workspaceIdentity=null;
 const element=(tag,txt)=>{const node=document.createElement(tag);if(txt)node.textContent=txt;return node;};
@@ -28,12 +30,13 @@ function renderWorkspace(){
  const items=[...workspacePages.common];
  function navigation(current){
   const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
-  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance'};
-  for(const key of ['home',...items.map(item=>item[0])]){
+  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance',settings:'Réglages'};
+  for(const key of ['home',...items.map(item=>item[0]),'settings']){
    const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
    if(current===key)button.setAttribute('aria-current','page');
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity||key===current)return;
+    if(key==='settings'){settings();return;}
     home(key==='home');
     if(key!=='home')workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();
    });
@@ -41,8 +44,19 @@ function renderWorkspace(){
   }
   return nav;
  }
+ function settings(){
+  if(busy||workspaceIdentity!==identity)return;
+  settingsOpen=true;
+  clearSecrets();
+  const heading=element('h2','Réglages');heading.tabIndex=-1;
+  workspace.replaceChildren(navigation('settings'),heading);
+  accountTools.hidden=false;paint(status.textContent);
+  window.scrollTo(0,0);heading.focus({preventScroll:true});
+ }
  function home(focus=false){
   if(busy||workspaceIdentity!==identity)return;
+  settingsOpen=false;
+  accountTools.hidden=true;
   workspace.replaceChildren(navigation('home'));
   const heading=element('h2','Tableau de bord Administrateur');heading.tabIndex=-1;
   workspace.append(heading,element('p','Navigation de préproduction. Les données et actions métier restent indisponibles.'));
@@ -230,13 +244,18 @@ function renderWorkspace(){
     }
    });grid.append(button);
   }
-  workspace.append(grid);if(focus)heading.focus({preventScroll:true});
+  workspace.append(grid);window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
  }
  home();
 }
 
 function paint(message){
  renderWorkspace();
+ const signedIn=session?.state==='signed-in';
+ if(!signedIn&&!busy){settingsOpen=false;}
+ accountTools.hidden=Boolean(signedIn&&!settingsOpen)||Boolean(busy&&!session&&!settingsOpen);
+ form.hidden=Boolean(signedIn);
+
  fields.disabled=busy||!session||session.state==='signed-in';
  logout.hidden=session?.state!=='signed-in';logout.disabled=busy||logout.hidden;
  active.textContent=session?.state==='signed-in'?'Compte actif : '+label(session.account.role):session?.state==='signed-out'?'Aucun compte connecté':'Session non confirmée';
