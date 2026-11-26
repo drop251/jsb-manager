@@ -19,9 +19,9 @@ function createCatalogueHistory(pool){
   SELECT (SELECT version FROM active) AS "activeVersion",COALESCE((SELECT generation FROM active),'0') AS generation,
    (SELECT count(*)::integer FROM published) AS total,
    COALESCE((SELECT json_agg(row_to_json(page) ORDER BY "publishedAt" DESC,version DESC) FROM page),'[]'::json) AS versions,
-   COALESCE((SELECT json_agg(row_to_json(events) ORDER BY events.generation DESC) FROM (
+   COALESCE((SELECT json_agg(row_to_json(events) ORDER BY events.generation::bigint DESC) FROM (
      SELECT previous_version AS "previousVersion",restored_version AS "restoredVersion",generation::text AS generation,
-       restored_at AS "restoredAt",reason FROM jsb_catalogue.restorations WHERE discipline=$1 ORDER BY generation DESC LIMIT 10
+       restored_at AS "restoredAt",reason FROM jsb_catalogue.restorations h WHERE discipline=$1 ORDER BY h.generation DESC LIMIT 10
    ) events),'[]'::json) AS restorations`,[discipline,offset]);
   return {ok:true,status:200,history:{discipline,offset,...r.rows[0]}};
  }
