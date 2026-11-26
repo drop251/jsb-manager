@@ -239,6 +239,25 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo' AND version=$1",[publicationVersion])).rows[0].n,'1');
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await admin.getByRole('button',{name:'Consulter l’historique'}).click();
+    await admin.locator('#catalogue-history').filter({hasText:'Version active : '+publicationVersion}).waitFor({state:'visible',timeout:15000});
+    if(name==='WebKit'){
+     const archived=admin.locator('#catalogue-history section').filter({hasText:'browser-publish-chromium · Archivée'});
+     await archived.getByRole('button',{name:'Préparer la restauration'}).click();
+     const restore=archived.getByRole('button',{name:'Restaurer cette version'});
+     assert.ok(await restore.isDisabled());
+     await archived.getByRole('textbox',{name:'Motif de restauration'}).fill('Synthetic regression');
+     await archived.getByRole('textbox',{name:'Version à restaurer'}).fill('browser-publish-chromium');
+     assert.ok(await restore.isEnabled());
+     await restore.click();
+     await admin.locator('#catalogue-history').filter({hasText:'Version browser-publish-chromium restaurée'}).waitFor({state:'visible',timeout:15000});
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,'browser-publish-chromium');
+     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo'")).rows[0].n,'2');
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    }
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/history',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
 
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
@@ -334,7 +353,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
