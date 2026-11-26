@@ -67,7 +67,7 @@ function renderWorkspace(){
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
        const preparation=element('section');preparation.className='workspace-detail';preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
-       preparation.append(element('h3','Préparer une séance Taïso'),element('p','Vérifiez les exercices compatibles ou construisez une proposition en séries classiques, à valider avant utilisation.'));
+       preparation.append(element('h3','Préparer une séance Taïso'),element('p','Choisissez le format et vérifiez les exercices compatibles. Chaque proposition reste à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
         const form=element('div');
@@ -80,9 +80,54 @@ function renderWorkspace(){
         const level=makeSelect('taiso-level','Niveau maximal',['Débutant','Intermédiaire','Expert'],'Intermédiaire');
         const mode=makeSelect('taiso-mode','Mode de dosage',['Répétitions','Durée'],'Répétitions');
         const duration=makeSelect('taiso-duration','Durée totale (minutes)',['45','60','75','90'],'60');
+        const format=makeSelect('taiso-format','Format',['Séries classiques','Circuit','EMOM','Tabata','AMRAP','Pilates / yoga','Mixte'],'Séries classiques');
         function makeCheck(id,label,checked=false){
          const row=element('div'),input=element('input'),l=element('label',label);input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
         }
+        const configure=makeCheck('taiso-configure','Préciser l’organisation du corps de séance');
+        const org=element('section');org.className='exercise-group';form.append(org);
+        let settingsReader=()=>undefined;
+        function rebuildOrganization(){
+         org.replaceChildren();
+         if(!configure.checked){settingsReader=()=>undefined;return;}
+         function fields(kind,prefix){
+          org.append(element('h4',kind));
+          const controls=[];
+          function number(key,label,min,max){
+           const l=element('label',label),input=element('input');input.type='number';input.min=String(min);input.max=String(max);input.step='1';input.id=prefix+key;input.required=true;l.htmlFor=input.id;org.append(l,input);controls.push([key,input,min,max]);
+          }
+          if(['Circuit','EMOM','AMRAP'].includes(kind))number('stations','Nombre de stations',2,8);
+          if(kind==='Circuit'||kind==='EMOM')number('rounds','Nombre de tours',1,kind==='Circuit'?6:10);
+          if(kind==='Circuit'||kind==='Séries classiques'||kind==='Pilates / yoga'){
+           if(kind!=='Circuit')number('series','Séries par exercice',1,8);
+           number('recoverySeconds',kind==='Circuit'?'Récupération après chaque station (s)':'Récupération entre séries (s)',0,180);
+           if(mode.value==='Répétitions')number('repWindowSeconds','Budget par passage en répétitions (s)',15,180);
+           if(kind==='Circuit')number('roundRestSeconds','Pause entre tours (s)',0,180);
+          }
+          if(kind==='Tabata'){number('pairs','Nombre de paires d’exercices (8 intervalles par paire)',1,4);org.append(element('p','20 s d’effort / 10 s de récupération ; deux exercices alternés.'));}
+          if(kind==='EMOM')org.append(element('p','Une station par minute. La récupération correspond au temps restant ; la faisabilité doit être vérifiée.'));
+          if(kind==='AMRAP')number('limitMinutes','Durée maximale du bloc (min)',1,30);
+          return ()=>{
+           const out={};
+           for(const [key,input,min,max] of controls){const n=Number(input.value);if(!input.value.trim()||!Number.isSafeInteger(n)||n<min||n>max)throw Error('Renseignez tous les paramètres dans les limites indiquées.');out[key]=n;}
+           if(mode.value==='Durée'&&['Circuit','Séries classiques','Pilates / yoga'].includes(kind))out.repWindowSeconds=null;
+           return out;
+          };
+         }
+         if(format.value==='Mixte'){const circuit=fields('Circuit','taiso-circuit-'),pilates=fields('Pilates / yoga','taiso-pilates-');settingsReader=()=>({circuit:circuit(),pilates:pilates()});}
+         else settingsReader=fields(format.value,'taiso-org-');
+         org.append(element('p','Ces réglages organisent le bloc ; ils ne modifient pas le dosage source. Le coach doit vérifier leur compatibilité.'));
+        }
+        function refreshFormats(){
+         const previous=format.value;
+         const allowed=['Séries classiques','Circuit','EMOM','Tabata','AMRAP','Pilates / yoga','Mixte'].filter(f=>!(group.value==='Gym douce'&&['Tabata','AMRAP'].includes(f))&&!(mode.value==='Répétitions'&&f==='Tabata')&&!(mode.value==='Durée'&&['EMOM','AMRAP'].includes(f)));
+         format.replaceChildren();
+         for(const name of allowed){const option=element('option',name);option.value=name;format.append(option);}
+         format.value=allowed.includes(previous)?previous:allowed[0];rebuildOrganization();
+        }
+        group.addEventListener('change',refreshFormats);mode.addEventListener('change',refreshFormats);
+        format.addEventListener('change',rebuildOrganization);configure.addEventListener('change',rebuildOrganization);
+        refreshFormats();
         const noEquipment=makeCheck('taiso-no-equipment','Sans matériel (poids du corps et tatami)',true);
         const equipmentLabel=element('label','Matériel disponible (séparer par des points-virgules)'),equipment=element('input');equipment.id='taiso-equipment';equipmentLabel.htmlFor=equipment.id;equipment.maxLength=1000;equipment.disabled=true;
         form.append(equipmentLabel,equipment);
@@ -91,38 +136,48 @@ function renderWorkspace(){
         form.append(element('h4','Contraintes à prendre en compte'));
         const restrictions=['Genoux','Dos','Épaules','Poignets','Sauts','Passage au sol'].map((name,i)=>[name,makeCheck('taiso-constraint-'+i,name)]);
         const check=element('button','Vérifier les exercices compatibles');check.type='button';
-        const generate=element('button','Proposer une séance — séries classiques');generate.type='button';
+        const generate=element('button','Proposer une séance');generate.type='button';
         const result=element('div');result.id='taiso-candidate-result';result.setAttribute('role','status');
         let requestId=0;
         const live=()=>!busy&&workspaceIdentity===identity&&preparation.isConnected;
         form.addEventListener('change',()=>{requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=generate.disabled=false;});
-        equipment.addEventListener('input',()=>{requestId++;result.replaceChildren();check.disabled=false;});
+        form.addEventListener('input',()=>{requestId++;result.replaceChildren();check.disabled=generate.disabled=false;});
         async function prepareDraft(isDraft){
          if(!live()||check.disabled||generate.disabled)return;
          const run=++requestId;
          const criteria={groupe:group.value,niveau:level.value,mode:mode.value,supervision:supervision.checked,binome:partner.checked,sansMateriel:noEquipment.checked,materiel:noEquipment.checked?[]:equipment.value.split(';').map(x=>x.trim()).filter(Boolean),contraintes:restrictions.filter(([,input])=>input.checked).map(([name])=>name)};
          if(!criteria.sansMateriel&&!criteria.materiel.length){result.textContent='Renseignez le matériel disponible ou choisissez Sans matériel.';return;}
+         let organization;
+         if(isDraft){try{organization=settingsReader();}catch(e){result.textContent=e.message;return;}}
          check.disabled=generate.disabled=true;result.textContent=isDraft?'Préparation en cours…':'Vérification en cours…';
          try{
           const options={version:data.version,generation:data.generation,criteria};
-          const answer=isDraft?await client.taisoDraft({...options,minutes:Number(duration.value),seed:1+crypto.getRandomValues(new Uint32Array(1))[0]%2147483646}):await client.taisoCandidates(options);
+          const answer=isDraft?await client.taisoDraft({...options,minutes:Number(duration.value),format:format.value,organization,seed:1+crypto.getRandomValues(new Uint32Array(1))[0]%2147483646}):await client.taisoCandidates(options);
           const accountNow=await client.session();
           if(!live()||run!==requestId)return;
           if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
           if(answer.state==='version-changed'){result.textContent='Le référentiel a changé. Revenez à l’accueil puis rouvrez le Taïso.';return;}
           if(answer.state==='rate-limited'){result.textContent='Trop de vérifications. Réessayez plus tard.';return;}
           if(isDraft){
-           result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p','Séries classiques · '+answer.mode+' · catalogue '+answer.version));
+           result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p',answer.format+' · '+answer.mode+' · catalogue '+answer.version));
            if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
            for(const phase of answer.phases){
             const section=element('section');section.className='exercise-group';
             section.append(element('h4',phase.name+' · '+phase.minutes+' min'));
+            for(const block of phase.blocks){
+             const o=block.organization;
+             section.append(element('h5',block.name+' · '+block.references.length+' exercice(s)'),element('p','Budget : '+o.budgetSeconds+' s'));
+             if(o.plannedSeconds!==null)section.append(element('p','Organisation prévue : '+o.plannedSeconds+' s · '+(o.remainingSeconds<0?'Dépassement : '+(-o.remainingSeconds):'Temps restant : '+o.remainingSeconds)+' s'));
+             const messages={'organization-not-configured':'Paramètres à renseigner','insufficient-stations':'Nombre de stations insuffisant','incompatible-tabata-prescription':'Prescription Tabata incompatible','budget-exceeded':'Budget du bloc dépassé'};
+             for(const issue of o.issues)section.append(element('p',messages[issue]||'Organisation à vérifier'));
+            }
             for(const e of phase.exercises){
              section.append(element('h5',e.name),element('p','Budget indicatif : '+e.allocationMinutes+' min'),element('p','Prescription sélectionnée : '+(answer.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions')),element('p','Dosage source : '+e.dosage),element('p','Sécurité : '+e.safety));
             }
             if(phase.unallocatedMinutes)section.append(element('p',phase.unallocatedMinutes+' min non attribuées — à organiser.'));
             result.append(section);
            }
+           if(answer.organizationPending)result.append(element('p','Organisation incomplète : ajustez les paramètres ou la sélection.'));
            result.append(element('p','Les budgets ne sont pas des chronomètres. Vérifiez la cohérence des séries, récupérations et adaptations avant utilisation. Aucune séance n’est encore enregistrée.'));
            return;
           }
