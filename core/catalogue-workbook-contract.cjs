@@ -1,5 +1,6 @@
 'use strict';
 // Versioned workbook contract. Exact column labels; no guesses from row number.
+const CONTRACT_VERSION='JSB-EXCEL-1';
 const COMMON=[
  ['Référence','reference'],['Nom (exercice)','name'],['Exécution','executionDescription'],
  ['Discipline','discipline'],['Type de fiche','sheetType'],['Point de sécurité','safety'],
@@ -68,4 +69,4 @@ function validateWorkbookRow(discipline,record){
  }
  return errors;
 }
-module.exports=Object.freeze({CONTRACTS,AGE,ROLES,OPPOSITION,LEVELS,SUBGROUPS,MODES,TAISO_MODES,OPTIONAL,NUMBER_FIELDS,validateWorkbookRow});
+module.exports=Object.freeze({CONTRACT_VERSION,CONTRACTS,AGE,ROLES,OPPOSITION,LEVELS,SUBGROUPS,MODES,TAISO_MODES,OPTIONAL,NUMBER_FIELDS,validateWorkbookRow});
