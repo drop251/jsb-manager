@@ -25,6 +25,7 @@ const {createCatalogueHistory}=require('./db/catalogue-history.cjs');
 const {createGeneratorSource}=require('./catalogue-generator-source.cjs');
 const {planFromCandidates}=require('../core/taiso-versioned-planner.cjs');
 const {createTaisoDraftStore}=require('./db/taiso-draft-store.cjs');
+const {renderTaisoSavedPdf}=require('./taiso-saved-pdf.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
@@ -77,10 +78,17 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  }
  const drafts=createTaisoDraftStore(pool),draftLimiter=limiter('taiso-private-drafts',60,120);
  async function privateTaisoDrafts(actor,action,body,source,sessionHash){
-  const permission=action==='save'?'write':action==='delete'?'delete':'read';
+  const permission=['save','validate'].includes(action)?'write':action==='delete'?'delete':'read';
   if(!authorize(actor,'privateSessions',permission,{ownerId:actor.id}))return {ok:false,status:403};
   if(body.expectedAccount!==actor.id)return {ok:false,status:409};
   if(!await draftLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  if(action==='pdf'){
+   if(!['detaille','synthetique'].includes(body.mode)||!Number.isSafeInteger(body.revision))return {ok:false,status:400};
+   const result=await drafts.execute(actor,sessionHash,'read',body);
+   if(!result.ok)return result;
+   if(result.draft.revision!==body.revision)return {ok:false,status:409};
+   return {ok:true,status:200,pdf:await renderTaisoSavedPdf(result.draft,body.mode),revision:result.draft.revision};
+  }
   let prepared;
   if(action==='save'){
    const settings=body.settings;
