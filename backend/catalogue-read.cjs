@@ -7,14 +7,15 @@ function createCatalogueReadService(pool){
   if(!authorize(actor,'catalogue','read'))return {ok:false,status:403};
   if(!['judo','taiso'].includes(discipline))return {ok:false,status:400};
   // One SQL statement: a consistent published revision, never unpublished content.
-  const r=await pool.query(`SELECT r.version,r.published_at,
+  const r=await pool.query(`SELECT r.version,r.published_at,c.generation::text AS generation,
+   EXISTS(SELECT 1 FROM jsb_catalogue.publications p WHERE p.discipline=r.discipline AND p.version=r.version) AS journaled,
    (SELECT count(*)::integer FROM jsb_catalogue.exercises e WHERE e.discipline=r.discipline AND e.version=r.version) AS count,
    COALESCE((SELECT json_agg(row_to_json(f) ORDER BY f.family) FROM
      (SELECT e.family,count(*)::integer AS count FROM jsb_catalogue.exercises e WHERE e.discipline=r.discipline AND e.version=r.version GROUP BY e.family) f),'[]'::json) AS families
    FROM jsb_catalogue.current_release c JOIN jsb_catalogue.releases r USING(discipline,version)
    WHERE c.discipline=$1`,[discipline]);
   const row=r.rows[0];
-  return {ok:true,status:200,catalogue:row?{discipline,state:'published',version:row.version,publishedAt:Number(row.published_at),count:row.count,families:row.families}:{discipline,state:'unpublished',version:null,publishedAt:null,count:0,families:[]}};
+  return {ok:true,status:200,catalogue:row?{discipline,state:'published',version:row.version,generation:row.generation,journaled:row.journaled,publishedAt:Number(row.published_at),count:row.count,families:row.families}:{discipline,state:'unpublished',version:null,publishedAt:null,count:0,families:[]}};
  }
  async function search(actor,discipline,{version,query='',family='',offset=0}={}){
   if(!authorize(actor,'catalogue','read'))return {ok:false,status:403};
