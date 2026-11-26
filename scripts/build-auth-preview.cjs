@@ -7,7 +7,7 @@ const {createHash}=require('node:crypto');
 const sourceRoot=path.resolve(__dirname,'../apps');
 const filesFor=app=>{
  if(!['public','admin'].includes(app))throw TypeError('Application invalide');
- return [app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs'];
+ return [app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-sw.js']:[])];
 };
 async function build(app,destination){
  const files=filesFor(app),target=path.resolve(destination);
