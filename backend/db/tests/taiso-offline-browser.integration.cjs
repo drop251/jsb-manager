@@ -34,7 +34,7 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/public/offline.html');
   await page.evaluate(async()=>{
-   await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/public/'});
+   await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
    await navigator.serviceWorker.ready;
   });
   const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v1');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
@@ -45,7 +45,7 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   await page.goto(origin+'/public/offline.html');
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));server=null;
   await context.setOffline(true);
-  await page.goto(origin+'/public/auth.html',{timeout:15000});
+  await page.goto(origin+'/',{timeout:15000});
   await page.getByRole('heading',{name:'Consultation hors connexion'}).waitFor({state:'visible'});
   await page.locator('#offline-file').setInputFiles({name:'fixture.jsb-session.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
   await page.locator('#offline-content').filter({hasText:'Fixture exercice'}).waitFor({state:'visible'});
