@@ -22,6 +22,7 @@ const {authorize}=require('../core/platform-permissions.cjs');
 const {createXlsxRecipeAnalyzer}=require('./xlsx-recipe-analyzer.cjs');
 const {createPublicationFlow}=require('./catalogue-publication-flow.cjs');
 const {createCatalogueHistory}=require('./db/catalogue-history.cjs');
+const {createGeneratorSource}=require('./catalogue-generator-source.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
@@ -48,7 +49,17 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  const resend=createVerificationResend({limiter:limiter('resend',3,20),replacePendingVerification:registrationStore.replacePendingVerification,now});
  const passwordReset=createPasswordResetService({requestLimiter:limiter('reset-request',3,20),confirmLimiter:limiter('reset-confirm',5,40),...resetStore,now});
  const catalogue=createCatalogueReadService(pool);
- const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,now});
+ const generatorSource=createGeneratorSource(pool),candidateLimiter=limiter('taiso-candidates',30,60);
+ async function taisoCandidates(actor,body,source){
+  if(!authorize(actor,'generator','run',{ownerId:actor.id}))return {ok:false,status:403};
+  if(!await candidateLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  const result=await generatorSource.taisoCandidates(actor,{version:body.version,generation:body.generation},body.criteria);
+  if(!result.ok)return result;
+  const selection={discipline:'taiso',version:result.version,generation:result.generation,total:result.candidates.length,excluded:result.excluded.length,
+   items:result.candidates.slice(0,30).map(({canonical:e})=>({reference:e.reference,name:e.name,family:e.family,dosage:e.details.dosage}))};
+  return {ok:true,status:200,selection};
+ }
+ const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,now});
  const importLimiter=limiter('catalogue-analysis',20,40);
  const xlsxAnalyzer=xlsxPython===undefined?null:createXlsxRecipeAnalyzer({pythonExecutable:xlsxPython});
  if(typeof enableCataloguePublication!=='boolean')throw TypeError('Configuration publication invalide');
