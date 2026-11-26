@@ -4,6 +4,7 @@ import importlib.util
 import json
 import sys
 from io import BytesIO
+from zipfile import BadZipFile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -28,7 +29,7 @@ def main():
             return 2
         sys.stdout.buffer.write(output)
         return 0
-    except (ValueError, OSError):
+    except (ValueError, BadZipFile, KeyError, OSError):
         return 2
     except Exception:
         return 3
