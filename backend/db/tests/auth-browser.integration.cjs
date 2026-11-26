@@ -96,7 +96,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
    ].join('\n'),filename],{input:JSON.stringify(rows),stdio:['pipe','ignore','pipe']});
    finalWorkbooks[discipline]=filename;
   }
-  runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys,xlsxPython});
+  runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys,xlsxPython,enableCataloguePublication:true});
   assert.equal(await runtime.checkReady(),true);
   for(const [app,origin,authHandler] of [['public',publicOrigin,runtime.publicHandler],['admin',adminOrigin,runtime.adminHandler]]){
    const directory=path.join(dir,app);
@@ -215,9 +215,31 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
      const report=await admin.locator('#import-report').textContent();
      assert.match(report,/JSB-EXCEL-1/);
      assert.match(report,new RegExp((discipline==='taiso'?27:35)+' colonnes'));
-     assert.match(report,/publication interdite/);
+     assert.match(report,/confirmation distincte requise/);
+     assert.ok(await admin.getByRole('button',{name:'Publier le catalogue'}).isDisabled());
     }
     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='browser-contract-v1'")).rows[0].n,'0');
+    // Explicit publication of a synthetic Judo fixture only, in jsb_ci.
+    const publicationVersion='browser-publish-'+name.toLowerCase();
+    await admin.locator('#import-discipline').selectOption('judo');
+    await admin.locator('#import-version').fill(publicationVersion);
+    await admin.locator('#import-file').setInputFiles(finalWorkbooks.judo);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#publication-attestation').waitFor({state:'visible',timeout:30000});
+    const publishButton=admin.getByRole('button',{name:'Publier le catalogue'});
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-attestation').check();
+    await admin.locator('#publication-version').fill('incorrect');
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-version').fill(publicationVersion);
+    assert.ok(await publishButton.isEnabled());
+    await publishButton.click();
+    await admin.locator('#import-report').filter({hasText:'Catalogue publié'}).waitFor({state:'visible',timeout:30000});
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,publicationVersion);
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo' AND version=$1",[publicationVersion])).rows[0].n,'1');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal(await admin.locator('#workspace').textContent(),'');
@@ -312,7 +334,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
