@@ -16,7 +16,8 @@ const {hashPassword}=require('../../passwords.cjs');
 const password='Phrase de passe JSB navigateur CI !';
 const emails={coach:'browser-coach@example.test',individual:'browser-individual@example.test',admin:'browser-admin@example.test'};
 const keyset=(name,byte)=>({activeKeyId:name,loadKey:async id=>id===name?Buffer.alloc(32,byte):undefined});
-const apps=path.resolve(__dirname,'../../../apps');
+const {build}=require('../../../scripts/build-auth-preview.cjs');
+const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 // Use native locator waiting: waitForFunction compiles a string in the page,
 // which is correctly rejected by the production CSP (no unsafe-eval).
 const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
@@ -34,15 +35,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   const key=path.join(dir,'key.pem'),cert=path.join(dir,'cert.pem');
   execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=JSB CI','-addext','subjectAltName=IP:127.0.0.1,IP:127.0.0.2','-keyout',key,'-out',cert],{stdio:'ignore'});
   const tls={key:readFileSync(key),cert:readFileSync(cert)};
+  const handlers=new Map();
   async function start(app,host){
-   // Strict test-only allowlist: never serve the repository or opposite app.
-   const files=new Map([['/'+app+'/auth.html',[app+'/auth.html','text/html; charset=utf-8']],['/'+app+'/auth-page.mjs',[app+'/auth-page.mjs','text/javascript; charset=utf-8']],['/shared/auth-client.mjs',['shared/auth-client.mjs','text/javascript; charset=utf-8']]]);
    const server=https.createServer(tls,(req,res)=>{
-    if(req.url.startsWith('/api/'))return (app==='admin'?runtime.adminHandler:runtime.publicHandler)(req,res);
-    const entry=req.method==='GET'?files.get(req.url):null;
-    if(!entry){res.writeHead(404,{'Cache-Control':'no-store'});res.end();return;}
-    res.writeHead(200,{'Content-Type':entry[1],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
-    res.end(readFileSync(path.join(apps,entry[0])));
+    const handler=handlers.get(app);
+    if(!handler){res.writeHead(503);res.end();return;}
+    return handler(req,res);
    });servers.push(server);
    await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,host,resolve);});
    return 'https://'+host+':'+server.address().port;
@@ -51,6 +49,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   const mfaKeys=keyset('browser-mfa-ci',23),secret=randomBytes(20),factorVersion='browser-ci-v1';
   runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys});
   assert.equal(await runtime.checkReady(),true);
+  for(const [app,origin,authHandler] of [['public',publicOrigin,runtime.publicHandler],['admin',adminOrigin,runtime.adminHandler]]){
+   const directory=path.join(dir,app);
+   await build(app,directory);
+   // Synthetic access gateway, only on the isolated loopback CI listeners.
+   handlers.set(app,await createPreproductionHandler({app,origin,directory,authHandler,authorizeAccess:req=>['127.0.0.1','127.0.0.2'].includes(req.socket.remoteAddress)}));
+  }
   const ids={};const hash=await hashPassword(password);
   for(const role of Object.keys(emails)){
    ids[role]=randomBytes(16).toString('hex');
@@ -67,7 +71,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     const page=await ctx.newPage(),admin=await ctx.newPage(),errors=[];
     for(const p of [page,admin])p.on('pageerror',e=>errors.push(e.message));
     await page.bringToFront();
-    await page.goto(publicOrigin+'/public/auth.html');
+    await page.goto(publicOrigin+'/');
+    assert.equal(new URL(page.url()).pathname,'/public/auth.html');
     await waitStatus(page,'Connectez-vous');
     assert.ok(await page.locator('#password').isEnabled(),name);
     await signIn(page,emails.coach);await waitStatus(page,'Session vérifiée : Coach');
@@ -84,7 +89,9 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
     await admin.bringToFront();
-    await admin.goto(adminOrigin+'/admin/auth.html');await waitStatus(admin,'Connectez-vous');
+    await admin.goto(adminOrigin+'/');
+    assert.equal(new URL(admin.url()).pathname,'/admin/auth.html');
+    await waitStatus(admin,'Connectez-vous');
     assert.equal((await ctx.cookies(adminOrigin)).some(c=>c.name==='__Host-jsb-public'),false);
     assert.equal((await admin.evaluate(async()=> (await fetch('/public/auth.html')).status)),404);
     assert.equal((await page.evaluate(async()=> (await fetch('/admin/auth.html')).status)),404);
@@ -96,12 +103,18 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
-    await page.bringToFront();await waitStatus(page,'Session vérifiée : Particulier');
+    // A failed login can leave its error message visible even though the previous
+    // session is valid. Headless bringToFront does not guarantee visibilitychange.
+    // The preceding API assertion proves isolation without a reload; then verify
+    // the actual page restores the same identity on a fresh navigation.
+    await page.bringToFront();
+    await page.reload();
+    await waitStatus(page,'Session vérifiée : Particulier');
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     assert.deepEqual(errors,[]);
     await ctx.close();
-   }finally{await browser.close();}
+   }catch(e){throw new Error('Recette '+name+' : '+e.message,{cause:e});}finally{await browser.close();}
   }
  }finally{
   try{
