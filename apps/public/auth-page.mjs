@@ -39,9 +39,24 @@ function renderWorkspace(){
  if(workspaceIdentity===identity)return;
  workspaceIdentity=identity;
  const items=[...workspacePages.common,workspacePages[account.role]];
+ function navigation(current){
+  const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
+  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance'};
+  for(const key of ['home',...items.map(item=>item[0])]){
+   const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
+   if(current===key)button.setAttribute('aria-current','page');
+   button.addEventListener('click',()=>{
+    if(busy||workspaceIdentity!==identity||key===current)return;
+    home(key==='home');
+    if(key!=='home')workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();
+   });
+   nav.append(button);
+  }
+  return nav;
+ }
  function home(focus=false){
   if(busy||workspaceIdentity!==identity)return;
-  workspace.replaceChildren();
+  workspace.replaceChildren(navigation('home'));
   const heading=element('h2','Mon espace '+label(account.role));heading.tabIndex=-1;
   workspace.append(heading,element('p','Navigation de préproduction. Catalogue en lecture seule ; autres fonctions à raccorder.'));
   const grid=element('div');grid.className='workspace-grid';
@@ -55,7 +70,7 @@ function renderWorkspace(){
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Catalogue en lecture seule lorsque publié. Autres fonctionnalités à raccorder.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(detail);h.focus({preventScroll:true});
+    workspace.replaceChildren(navigation(key),detail);h.focus({preventScroll:true});
     if(key==='judo'||key==='taiso'){
      const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
      void client.catalogue(key).then(async data=>{
