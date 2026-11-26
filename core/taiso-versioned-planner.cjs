@@ -70,7 +70,7 @@ function planFromCandidates(selection,criteria,{minutes,seed,objective='',format
   const exercises=p.exercices.map(x=>{
    const e=byReference.get(x.e.id);
    const prescription=criteria.mode==='Durée'?{mode:'Durée',effortSeconds:Number(e.details.effortSeconds)}:{mode:'Répétitions',repetitions:Number(e.details.repetitions)};
-   return {reference:e.reference,name:e.name,family:e.family,allocationMinutes:x.duree,dosage:e.details.dosage,prescription,safety:e.details.safety};
+   return {reference:e.reference,name:e.name,family:e.family,allocationMinutes:x.duree,dosage:e.details.dosage,prescription,safety:e.details.safety,description:e.details.executionDescription,successCriteria:e.details.successCriteria,easier:e.details.easier,harder:e.details.harder,equipment:e.details.equipment,accessibility:e.details.accessibility};
   });
   return {name:p.nom,minutes:p.minutes,exercises,blocks:(p.blocs||[]).map(b=>{const references=b.items.map(x=>x.e.id);const blockSettings=format==='Mixte'?(b.nom==='Circuit'?settings?.circuit:settings?.pilates):settings;return {name:b.nom,minutes:b.minutes,references,organization:blockOrganization(b.nom,criteria.mode,blockSettings,exercises.filter(e=>references.includes(e.reference)),b.minutes)};}),unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
  });
@@ -99,7 +99,7 @@ function planFromCandidates(selection,criteria,{minutes,seed,objective='',format
    if(!block||allUsed().has(op.replacement)||!replacementAllowed(itemMap.get(op.replacement),block))return null;
    const source=byReference.get(op.replacement),old=phase.exercises[i];
    const prescription=criteria.mode==='Durée'?{mode:'Durée',effortSeconds:Number(source.details.effortSeconds)}:{mode:'Répétitions',repetitions:Number(source.details.repetitions)};
-   phase.exercises[i]={reference:source.reference,name:source.name,family:source.family,allocationMinutes:old.allocationMinutes,dosage:source.details.dosage,prescription,safety:source.details.safety};
+   phase.exercises[i]={reference:source.reference,name:source.name,family:source.family,allocationMinutes:old.allocationMinutes,dosage:source.details.dosage,prescription,safety:source.details.safety,description:source.details.executionDescription,successCriteria:source.details.successCriteria,easier:source.details.easier,harder:source.details.harder,equipment:source.details.equipment,accessibility:source.details.accessibility};
    block.references[block.references.indexOf(op.reference)]=op.replacement;
   }else if(op.action==='remove'){
    phase.exercises.splice(i,1);
