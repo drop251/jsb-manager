@@ -24,6 +24,16 @@ const clearSecrets=()=>{for(const input of document.querySelectorAll('input[type
 const label=role=>({coach:'Coach',individual:'Particulier',admin:'Administrateur'}[role]||'');
 
 const workspace=document.querySelector('#workspace');
+const accountTools=document.querySelector('.account-tools');
+let settingsOpen=false,changeOpen=false;
+const changeButton=document.createElement('button');
+changeButton.type='button';changeButton.id='change-account';changeButton.textContent='Changer de compte';changeButton.hidden=true;
+form.before(changeButton);
+changeButton.addEventListener('click',()=>{
+ if(busy||session?.state!=='signed-in'||!settingsOpen||panel)return;
+ changeOpen=!changeOpen;clearSecrets();paint(status.textContent);
+ if(changeOpen)document.querySelector('#email').focus({preventScroll:true});
+});
 const workspacePages={"common":[["judo","Judo","Préparation pédagogique",["Catalogue Judo — base en construction","Préparer une séance Judo","Mes séances Judo"]],["taiso","Taïso","Renforcement et préparation physique",["Catalogue Taïso — référentiel à raccorder","Préparer une séance Taïso","Mes séances Taïso"]]],"coach":["club","Gestion du club","Licenciés, présences et planning",["Licenciés","Présences","Bilans","Planning"]],"individual":["personal","Suivi personnel","Mon activité et mes entraînements",["Historique personnel","Progression personnelle"]]};
 let workspaceIdentity=null;
 const element=(tag,txt)=>{const node=document.createElement(tag);if(txt)node.textContent=txt;return node;};
@@ -41,12 +51,13 @@ function renderWorkspace(){
  const items=[...workspacePages.common,workspacePages[account.role]];
  function navigation(current){
   const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
-  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance'};
-  for(const key of ['home',...items.map(item=>item[0])]){
+  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance',settings:'Réglages'};
+  for(const key of ['home',...items.map(item=>item[0]),'settings']){
    const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
    if(current===key)button.setAttribute('aria-current','page');
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity||key===current)return;
+    if(key==='settings'){settings();return;}
     home(key==='home');
     if(key!=='home')workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();
    });
@@ -54,8 +65,19 @@ function renderWorkspace(){
   }
   return nav;
  }
+ function settings(){
+  if(busy||workspaceIdentity!==identity)return;
+  settingsOpen=true;changeOpen=false;
+  clearSecrets();
+  const heading=element('h2','Réglages');heading.tabIndex=-1;
+  workspace.replaceChildren(navigation('settings'),heading);
+  accountTools.hidden=false;paint(status.textContent);
+  window.scrollTo(0,0);heading.focus({preventScroll:true});
+ }
  function home(focus=false){
   if(busy||workspaceIdentity!==identity)return;
+  settingsOpen=false;changeOpen=false;
+  accountTools.hidden=true;
   workspace.replaceChildren(navigation('home'));
   const heading=element('h2','Mon espace '+label(account.role));heading.tabIndex=-1;
   workspace.append(heading,element('p','Navigation de préproduction. Catalogue en lecture seule ; autres fonctions à raccorder.'));
@@ -535,13 +557,21 @@ function renderWorkspace(){
     }
    });grid.append(button);
   }
-  workspace.append(grid);if(focus)heading.focus({preventScroll:true});
+  workspace.append(grid);window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
  }
  home();
 }
 
 function paint(message){
  renderWorkspace();
+ const signedIn=session?.state==='signed-in';
+ if(!signedIn&&!busy){settingsOpen=false;changeOpen=false;}
+ accountTools.hidden=Boolean(signedIn&&!settingsOpen&&!panel)||Boolean(busy&&!session&&!settingsOpen);
+ form.hidden=Boolean(panel)||Boolean(signedIn&&(!settingsOpen||!changeOpen));
+ changeButton.hidden=!signedIn||!settingsOpen||Boolean(panel);
+ changeButton.disabled=busy;
+ changeButton.textContent=changeOpen?'Annuler le changement de compte':'Changer de compte';
+
  fields.disabled=busy||!session||Boolean(panel);
  actions.hidden=Boolean(panel)||!client;
  for(const button of actions.querySelectorAll('button'))button.disabled=busy||!session;
