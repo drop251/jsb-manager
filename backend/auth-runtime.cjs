@@ -24,6 +24,7 @@ const {createPublicationFlow}=require('./catalogue-publication-flow.cjs');
 const {createCatalogueHistory}=require('./db/catalogue-history.cjs');
 const {createGeneratorSource}=require('./catalogue-generator-source.cjs');
 const {planFromCandidates}=require('../core/taiso-versioned-planner.cjs');
+const {createTaisoDraftStore}=require('./db/taiso-draft-store.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
@@ -74,7 +75,25 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!current.ok||current.catalogue.version!==result.version||current.catalogue.generation!==result.generation)return {ok:false,status:409};
   return {ok:true,status:200,draft:{discipline:'taiso',version:result.version,generation:result.generation,...draft}};
  }
- const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,taisoDraft,now});
+ const drafts=createTaisoDraftStore(pool),draftLimiter=limiter('taiso-private-drafts',60,120);
+ async function privateTaisoDrafts(actor,action,body,source,sessionHash){
+  const permission=action==='save'?'write':action==='delete'?'delete':'read';
+  if(!authorize(actor,'privateSessions',permission,{ownerId:actor.id}))return {ok:false,status:403};
+  if(body.expectedAccount!==actor.id)return {ok:false,status:409};
+  if(!await draftLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  let prepared;
+  if(action==='save'){
+   const settings=body.settings;
+   if(!settings||typeof settings!=='object'||Array.isArray(settings)||Object.keys(settings).some(k=>!['version','generation','criteria','minutes','seed','objective','format','organization'].includes(k)))return {ok:false,status:400};
+   // Recompute the snapshot from the current server-side catalogue. Never
+   // accept a client-edited exercise, prescription or owner as authoritative.
+   const result=await taisoDraft(actor,settings,source);
+   if(!result.ok)return result;
+   prepared={settings,draft:result.draft};
+  }
+  return drafts.execute(actor,sessionHash,action,body,prepared);
+ }
+ const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,taisoDraft,privateTaisoDrafts,now});
  const importLimiter=limiter('catalogue-analysis',20,40);
  const xlsxAnalyzer=xlsxPython===undefined?null:createXlsxRecipeAnalyzer({pythonExecutable:xlsxPython});
  if(typeof enableCataloguePublication!=='boolean')throw TypeError('Configuration publication invalide');
@@ -136,6 +155,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   await pool.query("SELECT a.id FROM jsb_auth.accounts a, jsb_auth.sessions s, jsb_auth.action_tokens t, jsb_auth.delivery_outbox o, jsb_auth.quota_events q, jsb_auth.mfa_factors f WHERE false");
   await pool.query('SELECT r.version,e.pedagogical_details FROM jsb_catalogue.releases r, jsb_catalogue.exercises e, jsb_catalogue.current_release c WHERE false');
   await pool.query('SELECT p.version,c.generation,r.generation FROM jsb_catalogue.publications p, jsb_catalogue.current_release c, jsb_catalogue.restorations r WHERE false');
+  await pool.query('SELECT owner_id,revision,settings,snapshot FROM jsb_private.taiso_drafts WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});
