@@ -5,10 +5,16 @@ const {createHash}=require('node:crypto');
 // Serve only the files from the independently built authentication distribution.
 // Access control for the entire preproduction host must be supplied by the
 // deployment gateway. This module deliberately does not start a listener.
-async function createPreproductionHandler({app,origin,directory,authHandler,authorizeAccess}={}){
+async function createPreproductionHandler({app,origin,directory,authHandler,authorizeAccess,otherOrigin}={}){
  if(!['public','admin'].includes(app)||typeof authHandler!=='function'||typeof authorizeAccess!=='function'||typeof directory!=='string')throw TypeError('Configuration de préproduction requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin)throw TypeError('Origine HTTPS exacte requise');
+ let otherEntry=null;
+ if(otherOrigin!==undefined){
+  const other=new URL(otherOrigin);
+  if(other.protocol!=='https:'||other.origin!==otherOrigin||other.hostname===u.hostname)throw TypeError('Origine HTTPS distincte requise');
+  otherEntry=other.origin+(app==='admin'?'/public/auth.html':'/admin/auth.html');
+ }
  const root=await realpath(resolve(directory));
  const manifest=JSON.parse(await readFile(join(root,'manifest.json'),'utf8'));
  const entry='/'+app+'/auth.html';
@@ -32,6 +38,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
    if(typeof req.url!=='string')return empty(res,400);
    if(req.url.startsWith('/api/'))return await authHandler(req,res);
    if(req.method!=='GET'&&req.method!=='HEAD')return empty(res,405,{Allow:'GET, HEAD'});
+   if(req.url==='/switch-workspace'&&otherEntry)return empty(res,302,{Location:otherEntry});
    if(req.url==='/')return empty(res,302,{Location:entry});
    const asset=assets.get(req.url);
    if(!asset)return empty(res,404);
