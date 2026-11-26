@@ -295,6 +295,36 @@ function renderWorkspace(){
            });
            tools.append(button);
           }
+
+          const offline=element('button','Préparer hors connexion');offline.type='button';
+          offline.addEventListener('click',async()=>{
+           if(!live()||run!==requestId||offline.disabled)return;
+           offline.disabled=true;
+           try{
+            const response=await client.privateTaisoDraft('read',account.id,{id:stored.id});
+            if(!live()||run!==requestId)return;
+            if(response.state!=='ready'||response.draft.revision!==stored.revision){message.textContent='Révision modifiée. Rechargez la séance.';return;}
+            const q=response.draft,d=q.snapshot;
+            const copy={schema:'JSB-TAISO-OFFLINE-1',title:q.title,version:q.version,revision:q.revision,minutes:d.minutes,format:d.format,mode:d.mode,status:q.stale?'Catalogue ancien à revérifier':q.validatedAt?'Validation déclarée à l’export':'Brouillon non validé',missing:d.missing,
+             phases:d.phases.map(p=>({name:p.name,minutes:p.minutes,unallocatedMinutes:p.unallocatedMinutes,exercises:p.exercises.map(e=>({reference:e.reference,name:e.name,allocationMinutes:e.allocationMinutes,dosage:e.dosage,safety:e.safety,prescription:e.prescription})),blocks:p.blocks.map(b=>({name:b.name,budgetSeconds:b.organization.budgetSeconds,plannedSeconds:b.organization.plannedSeconds,issues:b.organization.issues}))}))};
+            const data=new Blob([JSON.stringify(copy)],{type:'application/json'});
+            if(data.size>524288)throw Error('Copie trop volumineuse');
+            if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
+            await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/public/'});
+            await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
+            const cache=await caches.open('jsb-manager-offline-reader-v1');
+            if(!await cache.match('/public/offline.html')||!await cache.match('/public/offline.mjs'))throw Error('Lecteur non disponible');
+            if(!live()||run!==requestId)return;
+            const accountNow=await client.session();
+            if(!live()||run!==requestId)return;
+            if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
+            downloadFile(data,'JSB-Taiso-r'+q.revision+'.jsb-session.json');
+            message.textContent='Lecteur hors ligne préparé. Vérifiez le téléchargement, puis ouvrez le lecteur et choisissez le fichier.';
+           }catch{if(live()&&run===requestId)message.textContent='Préparation hors connexion non confirmée. Utilisez le PDF téléchargé ou réessayez en ligne.';}
+           finally{if(live()&&run===requestId)offline.disabled=false;}
+          });
+          const local=element('a','Ouvrir le lecteur hors connexion');local.href='/public/offline.html';
+          tools.append(element('p','La copie hors ligne est un fichier local non chiffré, volontairement exporté. Ne mettez pas de données de pratiquants dans le titre. Protégez le fichier sur votre appareil, y compris après déconnexion.'),offline,local);
           tools.append(element('p','Le PDF est une copie de la révision enregistrée. Il reste lisible hors ligne mais ne s’actualise pas automatiquement.'),message);
           result.append(tools);
          }
