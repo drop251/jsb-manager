@@ -5,7 +5,7 @@
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -18,6 +18,11 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  const catalogueSearchPaths=new Map([['/api/catalogue/judo/search','judo'],['/api/catalogue/taiso/search','taiso']]);
  const catalogueDetailPaths=new Map([['/api/catalogue/judo/detail','judo'],['/api/catalogue/taiso/detail','taiso']]);
  if(catalogue!==undefined){if(typeof catalogue?.read!=='function'||typeof catalogue?.search!=='function'||typeof catalogue?.detail!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');for(const path of catalogueSearchPaths.keys())paths.set(path,'POST');for(const path of catalogueDetailPaths.keys())paths.set(path,'POST');}
+ const importPath='/api/admin/catalogue/analyze';
+ if(catalogueImport!==undefined){
+  if(app!=='admin'||typeof catalogueImport!=='function')throw TypeError('Analyse de catalogue réservée à l’administration');
+  paths.set(importPath,'POST');
+ }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
   const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(cookieName+'='));
@@ -30,14 +35,14 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
   const a=await sessions.resolveSession(token);
   return a&&a.authenticated===true&&a.status==='active'&&typeof a.id==='string'&&a.id&&roles.has(a.role)?a:null;
  }
- async function json(req){
+ async function json(req,maxBody=MAX_BODY){
   if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers['content-type']||''))throw new HttpError(415);
   const length=req.headers['content-length'];
-  if(length!==undefined&&(!/^\d+$/.test(length)||Number(length)>MAX_BODY))throw new HttpError(413);
+  if(length!==undefined&&(!/^\d+$/.test(length)||Number(length)>maxBody))throw new HttpError(413);
   let n=0;const chunks=[];
   // Do not destroy the request on overflow before a response can be sent.
   for await(const chunk of req.iterator({destroyOnReturn:false})){
-   n+=chunk.length;if(n>MAX_BODY)throw new HttpError(413);chunks.push(chunk);
+   n+=chunk.length;if(n>maxBody)throw new HttpError(413);chunks.push(chunk);
   }
   let value;
   try{value=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch(_){throw new HttpError(400);}
@@ -74,6 +79,16 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     const result=await catalogue.read(actor,cataloguePaths.get(req.url));
     if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
     return send(res,200,{ok:true,catalogue:result.catalogue});
+   }
+   if(req.url===importPath){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const source=await sourceId(req);
+    if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
+    const body=await json(req,8*1024*1024);
+    const result=await catalogueImport(actor,body,source);
+    if(result.status!==200)return serviceResult(res,result);
+    return send(res,200,{ok:true,analysis:result.analysis});
    }
    const body=await json(req);
    if(catalogueDetailPaths.has(req.url)){
