@@ -56,10 +56,10 @@ function construireBlocs(format,pool,minutes,doux,choisir,niveau,settings){
 const createEngine=settings=>creerMoteur({hasard,melanger,...rules,sg:e=>e.sousGroupes||[],estMobilite,illustre:()=>false,momentsDe,
  formatsDe:groupe=>FORMATS.filter(f=>groupe!=='Gym douce'||!['Tabata','AMRAP'].includes(f)),formatParDefaut:()=>FORMAT,construireBlocs:(f,p,m,d,c,n)=>construireBlocs(f,p,m,d,c,n,settings),zonesTravaillees,cibleZones,
  MOTS_CALME:/respir|relax|savasana|calme|meteo|doudou|dort|boule|recuperation|jambes au mur/,sa,repartirDurees});
-function planFromCandidates(selection,criteria,{minutes,seed,objective='',format=FORMAT,organization}={}){
+function planFromCandidates(selection,criteria,{minutes,seed,objective='',format=FORMAT,organization,edits=[]}={}){
  if(!selection||!Array.isArray(selection.candidates)||!Array.isArray(selection.excluded)||
  ![45,60,75,90].includes(minutes)||!Number.isSafeInteger(seed)||seed<1||seed>2147483646||
- typeof objective!=='string'||objective.length>120||!formatsFor(criteria).includes(format))return null;
+ typeof objective!=='string'||objective.length>120||!formatsFor(criteria).includes(format)||!Array.isArray(edits)||edits.length>60)return null;
  const settings=validateOrganization(format,criteria.mode,organization);
  if(settings===false)return null;
  const engine=createEngine(settings);
@@ -74,10 +74,59 @@ function planFromCandidates(selection,criteria,{minutes,seed,objective='',format
   });
   return {name:p.nom,minutes:p.minutes,exercises,blocks:(p.blocs||[]).map(b=>{const references=b.items.map(x=>x.e.id);const blockSettings=format==='Mixte'?(b.nom==='Circuit'?settings?.circuit:settings?.pilates):settings;return {name:b.nom,minutes:b.minutes,references,organization:blockOrganization(b.nom,criteria.mode,blockSettings,exercises.filter(e=>references.includes(e.reference)),b.minutes)};}),unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
  });
+ // Edits are replayed from the original seed on the server. They never
+ // carry exercise text, prescriptions, or private data from the client.
+ const removedPhases=new Set();
+ const allUsed=()=>new Set(phases.flatMap(p=>p.exercises.map(e=>e.reference)));
+ function replacementAllowed(e,block){
+  return e&&momentsDe(e).includes('Corps de séance')&&compatibleFormat(e,block.name);
+ }
+ const itemMap=new Map(items.map(e=>[e.id,e]));
+ for(const op of edits){
+  if(!op||typeof op!=='object'||Array.isArray(op)||!['remove','up','down','replace'].includes(op.action)||
+   Object.keys(op).some(k=>!['action','phase','reference','replacement'].includes(k))||
+   typeof op.phase!=='string'||typeof op.reference!=='string'||
+   (op.action==='replace'?typeof op.replacement!=='string':Object.hasOwn(op,'replacement')))return null;
+  const phase=phases.find(p=>p.name===op.phase);
+  if(!phase)return null;
+  const i=phase.exercises.findIndex(e=>e.reference===op.reference);
+  if(i<0)return null;
+  const block=phase.blocks.find(b=>b.references.includes(op.reference));
+  if(phase.name==='Corps de séance'&&!block)return null;
+  if(op.action==='replace'){
+   // Only the body blocks support replacement at this stage. No guessing
+   // of a warm-up, mobility or recovery role from an arbitrary reference.
+   if(!block||allUsed().has(op.replacement)||!replacementAllowed(itemMap.get(op.replacement),block))return null;
+   const source=byReference.get(op.replacement),old=phase.exercises[i];
+   const prescription=criteria.mode==='Durée'?{mode:'Durée',effortSeconds:Number(source.details.effortSeconds)}:{mode:'Répétitions',repetitions:Number(source.details.repetitions)};
+   phase.exercises[i]={reference:source.reference,name:source.name,family:source.family,allocationMinutes:old.allocationMinutes,dosage:source.details.dosage,prescription,safety:source.details.safety};
+   block.references[block.references.indexOf(op.reference)]=op.replacement;
+  }else if(op.action==='remove'){
+   phase.exercises.splice(i,1);
+   if(block)block.references.splice(block.references.indexOf(op.reference),1);
+   removedPhases.add(phase.name);
+  }else{
+   const j=i+(op.action==='up'?-1:1);
+   if(j<0||j>=phase.exercises.length||(block&&!block.references.includes(phase.exercises[j].reference)))return null;
+   const other=phase.exercises[j].reference;
+   [phase.exercises[i],phase.exercises[j]]=[phase.exercises[j],phase.exercises[i]];
+   if(block){const a=block.references.indexOf(op.reference),b=block.references.indexOf(other);[block.references[a],block.references[b]]=[block.references[b],block.references[a]];}
+  }
+ }
+ for(const phase of phases){
+  phase.unallocatedMinutes=phase.minutes-phase.exercises.reduce((n,e)=>n+e.allocationMinutes,0);
+  for(const block of phase.blocks){
+   const blockSettings=format==='Mixte'?(block.name==='Circuit'?settings?.circuit:settings?.pilates):settings;
+   block.organization=blockOrganization(block.name,criteria.mode,blockSettings,phase.exercises.filter(e=>block.references.includes(e.reference)),block.minutes);
+   // Choices are bounded, are not prescriptions, and are rechecked on use.
+   block.alternatives=items.filter(e=>!allUsed().has(e.id)&&replacementAllowed(e,block)).slice(0,12).map(e=>({reference:e.id,name:e.nom}));
+  }
+ }
  const missing=[...proposal.manques];
+ for(const name of removedPhases)if(!missing.includes(name))missing.push(name);
  const body=phases.find(p=>p.name==='Corps de séance');
  if(body&&(!body.blocks.length||(!settings&&body.exercises.length<Math.max(3,Math.round(body.minutes/5)))||body.blocks.some(b=>b.organization.state==='incomplete')||(format==='Mixte'&&body.blocks.length!==2))&&!missing.includes(body.name))missing.push(body.name);
- return {format,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true,organizationPending:!settings||!body?.blocks.length||body.blocks.some(b=>b.organization.state!=='budgeted')||(format==='Mixte'&&body.blocks.length!==2)};
+ return {format,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true,editCount:edits.length,organizationPending:!settings||!body?.blocks.length||body.blocks.some(b=>b.organization.state!=='budgeted')||(format==='Mixte'&&body.blocks.length!==2)};
 }
 function generateTaisoDraft(items,criteria,options){
  const selection=selectTaisoCandidates(items,criteria);
