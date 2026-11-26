@@ -14,7 +14,7 @@ function fixture(){
 test('Confirmation administrative : intégrité, session, expiration et validation explicite',async()=>{
  let time=1000000,existing=false;
  const calls=[];
- const pool={query:async sql=>sql.includes('current_release')?{rows:[{version:'previous'}],rowCount:1}:{rows:existing?[{}]:[],rowCount:existing?1:0}};
+ const pool={query:async sql=>sql.includes('current_release')?{rows:[{version:'previous',generation:'7'}],rowCount:1}:{rows:existing?[{}]:[],rowCount:existing?1:0}};
  const flow=createPublicationFlow({pool,key:Buffer.alloc(32,7),now:()=>time,publisher:{publish:async(...args)=>{calls.push(args);return {ok:true,status:200};}}});
  const canonical=fixture();
  const draft=await flow.prepare(actor,session,canonical);
@@ -30,7 +30,7 @@ test('Confirmation administrative : intégrité, session, expiration et validati
  assert.equal((await flow.publish(actor,session,{...body,canonical:changed})).status,409);
  assert.equal(calls.length,0);
  assert.equal((await flow.publish(actor,session,body)).status,200);
- assert.equal(calls.length,1);assert.equal(calls[0][2].expectedPreviousVersion,'previous');
+ assert.equal(calls.length,1);assert.equal(calls[0][2].expectedPreviousVersion,'previous');assert.equal(calls[0][2].expectedGeneration,'7');
  time=draft.expiresAt;
  assert.equal((await flow.publish(actor,session,body)).status,409);
  existing=true;assert.equal(await flow.prepare(actor,session,canonical),null);
