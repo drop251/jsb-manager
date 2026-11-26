@@ -75,6 +75,27 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
    '    sheet.append(row)',
    'book.save(sys.argv[1])'
   ].join('\n'),fixtureWorkbook],{input:JSON.stringify(HEADERS),stdio:['pipe','ignore','pipe']});
+  const {CONTRACTS}=require('../../../core/catalogue-workbook-contract.cjs');
+  const finalWorkbooks={};
+  for(const discipline of ['taiso','judo']){
+   const spec=CONTRACTS[discipline],record=Object.fromEntries(spec.map(([,key])=>[key,'Fixture '+key]));
+   Object.assign(record,{reference:discipline==='taiso'?'JSB-TAISO-FIXTURE-1':'JSB-JUDO-FIXTURE-1',discipline:discipline==='taiso'?'Taïso':'Judo',sheetType:'Exercice',dosageMode:discipline==='taiso'?'Durée et répétitions':'Durée + répétitions max',effortSeconds:30,repetitions:discipline==='taiso'?8:null,tagsText:null,restrictions:null});
+   if(discipline==='taiso')Object.assign(record,{level:'Intermédiaire',subgroup:'Gym douce, Training'});
+   else Object.assign(record,{ageCategory:'Benjamins; Minimes',pedagogicalRole:'Acquisition',opposition:'Coopération',blockDuration:10,repetitionsMax:5});
+   const rows=[spec.map(([label])=>label),spec.map(([,key])=>record[key])];
+   const filename=path.join(dir,discipline+'-contract-fixture.xlsx');
+   execFileSync(xlsxPython,['-c',[
+    'from openpyxl import Workbook',
+    'import json, sys',
+    'book = Workbook()',
+    'sheet = book.active',
+    'sheet.title = "Exercices"',
+    'for row in json.loads(sys.stdin.read()): sheet.append(row)',
+    'sheet.cell(301,1).number_format = "@"',
+    'book.save(sys.argv[1])'
+   ].join('\n'),filename],{input:JSON.stringify(rows),stdio:['pipe','ignore','pipe']});
+   finalWorkbooks[discipline]=filename;
+  }
   runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys,xlsxPython});
   assert.equal(await runtime.checkReady(),true);
   for(const [app,origin,authHandler] of [['public',publicOrigin,runtime.publicHandler],['admin',adminOrigin,runtime.adminHandler]]){
@@ -185,6 +206,18 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await admin.getByRole('button',{name:'Analyser sans importer'}).click();
     await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible',timeout:30000});
 
+    for(const discipline of ['taiso','judo']){
+     await admin.locator('#import-discipline').selectOption(discipline);
+     await admin.locator('#import-version').fill('browser-contract-v1');
+     await admin.locator('#import-file').setInputFiles(finalWorkbooks[discipline]);
+     await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+     await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+     const report=await admin.locator('#import-report').textContent();
+     assert.match(report,/JSB-EXCEL-1/);
+     assert.match(report,new RegExp((discipline==='taiso'?27:35)+' colonnes'));
+     assert.match(report,/publication interdite/);
+    }
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='browser-contract-v1'")).rows[0].n,'0');
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal(await admin.locator('#workspace').textContent(),'');
