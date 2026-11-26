@@ -1,5 +1,6 @@
 'use strict';
 const {authorize}=require('../core/platform-permissions.cjs');
+const {validatePedagogicalDetails}=require('../core/catalogue-details.cjs');
 function createCatalogueReadService(pool){
  if(typeof pool?.query!=='function')throw TypeError('Pool requis');
  async function read(actor,discipline){
@@ -37,6 +38,20 @@ function createCatalogueReadService(pool){
   if(!row)return {ok:false,status:409};
   return {ok:true,status:200,results:{discipline,version:row.version,offset,total:row.total,items:row.items}};
  }
- return Object.freeze({read,search});
+ async function detail(actor,discipline,{version,reference}={}){
+  if(!authorize(actor,'catalogue','read'))return {ok:false,status:403};
+  if(!['judo','taiso'].includes(discipline)||typeof version!=='string'||!/^[A-Za-z0-9_.-]{1,80}$/.test(version)||typeof reference!=='string'||!reference.trim()||reference.length>80)return {ok:false,status:400};
+  const r=await pool.query(`SELECT c.version,e.reference,e.name,e.family,e.pedagogical_details
+   FROM jsb_catalogue.current_release c LEFT JOIN jsb_catalogue.exercises e
+   ON e.discipline=c.discipline AND e.version=c.version AND e.reference=$3
+   WHERE c.discipline=$1 AND c.version=$2`,[discipline,version,reference]);
+  const row=r.rows[0];
+  if(!row)return {ok:false,status:409};
+  if(row.reference===null)return {ok:false,status:404};
+  const details=row.pedagogical_details===null?null:validatePedagogicalDetails(discipline,row.pedagogical_details);
+  if(row.pedagogical_details!==null&&!details)return {ok:false,status:503};
+  return {ok:true,status:200,exercise:{discipline,version:row.version,reference:row.reference,name:row.name,family:row.family,state:details?'complete':'summary',details}};
+ }
+ return Object.freeze({read,search,detail});
 }
 module.exports=Object.freeze({createCatalogueReadService});
