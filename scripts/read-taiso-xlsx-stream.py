@@ -22,7 +22,7 @@ def read_workbook_rows(payload):
         if book.sheetnames != ["Exercices"]:
             raise ValueError("Onglet unique Exercices requis.")
         sheet = book["Exercices"]
-        if sheet.sheet_state != "visible" or sheet.max_row is None or sheet.max_column is None or sheet.max_row > 2001 or sheet.max_column > 40:
+        if sheet.sheet_state != "visible" or (sheet.max_row is not None and sheet.max_row > 2001) or (sheet.max_column is not None and sheet.max_column > 40):
             raise ValueError("Dimensions ou onglet non conformes.")
         sheet.reset_dimensions()
         rows = []
