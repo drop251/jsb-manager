@@ -49,7 +49,9 @@ test('Publication catalogue : transaction, empreinte, concurrence et conservatio
   assert.equal(analyzeCatalogueImport(JSON.stringify(recipe),'taiso').ok,false);
   // Only here, in the ephemeral test database, unwrap synthetic exercises
   // to exercise the real publication transaction at the observed volume.
-  const text=JSON.stringify({discipline:'taiso',version:'publish-fixture-volume',exercises:recipe.items.map(i=>i.exercise)});
+  const forbidden=JSON.stringify({discipline:'taiso',version:'publish-fixture-volume',exercises:recipe.items.map(i=>i.exercise)});
+  assert.equal((await publisher.publish(actor,digest,{discipline:'taiso',text:forbidden,expectedHash:analyzeCatalogueImport(forbidden,'taiso').report.hash,expectedPreviousVersion:winning,confirmed:true})).status,400);
+  const text=JSON.stringify({discipline:'taiso',version:'publish-fixture-volume',exercises:recipe.items.map(i=>({...i.exercise,reference:'SYNTHETIC-'+String(i.sourceRow).padStart(4,'0')}))});
   const large=await publisher.publish(actor,digest,{discipline:'taiso',text,expectedHash:analyzeCatalogueImport(text,'taiso').report.hash,expectedPreviousVersion:winning,confirmed:true});
   assert.equal(large.status,200);assert.equal(large.publication.count,228);
   const stored=await pool.query("SELECT reference,name,family,pedagogical_details AS details FROM jsb_catalogue.exercises WHERE discipline='taiso' AND version='publish-fixture-volume' ORDER BY reference");
