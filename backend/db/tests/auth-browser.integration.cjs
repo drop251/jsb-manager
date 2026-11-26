@@ -26,7 +26,15 @@ const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 // Use native locator waiting: waitForFunction compiles a string in the page,
 // which is correctly rejected by the production CSP (no unsafe-eval).
 const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
+async function openSettings(page){
+ if(!await page.locator('.account-tools').isVisible())await page.locator('[data-nav-page="settings"]').click();
+ await page.locator('.account-tools').waitFor({state:'visible'});
+}
 async function signIn(page,email,code){
+ if(!await page.locator('#login').isVisible()){
+  await openSettings(page);
+  await page.locator('#change-account').click();
+ }
  await page.locator('#email').fill(email);await page.locator('#password').fill(password);
  if(code!==undefined)await page.locator('#mfa').fill(code);
  await page.locator('#login button[type=submit]').click();
@@ -141,6 +149,13 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(page,emails.coach);await waitStatus(page,'Session vérifiée : Coach');
     assert.equal(await page.locator('#password').inputValue(),'');
     assert.ok(await page.locator('#workspace').isVisible());
+    assert.equal(await page.locator('.account-tools').isVisible(),false);
+    assert.equal(await page.locator('#login').isVisible(),false);
+    await openSettings(page);
+    assert.equal(await page.locator('#login').isVisible(),false);
+    assert.ok(await page.locator('#change-account').isVisible());
+    await page.locator('[data-nav-page="home"]').click();
+    assert.equal(await page.locator('.account-tools').isVisible(),false);
     assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
     assert.equal(await page.locator('[data-workspace-page="personal"]').count(),0);
     assert.ok(await page.locator('.jsb-nav').isVisible());
@@ -262,11 +277,15 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
     await waitStatus(admin,'Session vérifiée : Administrateur');
     assert.ok(await admin.locator('#mfa').isDisabled());
+    assert.equal(await admin.locator('#login').isVisible(),false);
+    assert.equal(await admin.locator('.account-tools').isVisible(),false);
     // Switch through the actual links, without logging out either origin.
+    await openSettings(admin);
     const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
     await publicTab.waitForURL(publicOrigin+'/public/auth.html');
     await waitStatus(publicTab,'Session vérifiée : Particulier');
     assert.equal((await publicTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await openSettings(publicTab);
     const [adminTab]=await Promise.all([ctx.waitForEvent('page'),publicTab.locator('a[href="/switch-workspace"]').click()]);
     await adminTab.waitForURL(adminOrigin+'/admin/auth.html');
     await waitStatus(adminTab,'Session vérifiée : Administrateur');
@@ -276,6 +295,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await adminTab.close();
     await signIn(publicTab,emails.coach);
     await waitStatus(publicTab,'Session vérifiée : Coach');
+    await openSettings(admin);
     const [coachTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
     await coachTab.waitForURL(publicOrigin+'/public/auth.html');
     await waitStatus(coachTab,'Session vérifiée : Coach');
@@ -289,6 +309,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await publicTab.close();await admin.bringToFront();
     assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
 
+    if(!await admin.locator('[data-workspace-page="accounts"]').isVisible())await admin.locator('[data-nav-page="home"]').click();
     assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
     assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
     assert.equal(await admin.locator('[data-nav-page="club"]').count(),0);
@@ -377,6 +398,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
 
 
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await openSettings(admin);
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal(await admin.locator('#workspace').textContent(),'');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
@@ -385,6 +407,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     // The preceding API assertion proves isolation without a reload; then verify
     // the actual page restores the same identity on a fresh navigation.
     await page.bringToFront();
+    await openSettings(page);
     await page.locator('#refresh-session').click();
     await waitStatus(page,'Session vérifiée : Particulier');
     assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
@@ -393,10 +416,13 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await second.goto(publicOrigin+'/');
     await waitStatus(second,'Session vérifiée : Particulier');
     await page.bringToFront();
+    await openSettings(page);
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
     await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
     assert.equal(await second.locator('#workspace').textContent(),'');
     assert.equal(await page.locator('#workspace').textContent(),'');
+    assert.ok(await page.locator('#login').isVisible());
+    assert.ok(await second.locator('#login').isVisible());
     await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     // Complete registration and recovery with an in-memory mail provider only.
@@ -441,6 +467,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#verify-form button[type=submit]').click();
     await waitStatus(page,'Adresse confirmée');
     await signIn(page,address);await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
     await page.locator('[data-panel="reset-request-panel"]').click();
     await page.locator('#reset-email').fill(address);
     await page.locator('#reset-request-form button[type=submit]').click();
@@ -458,6 +485,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#password').fill(newPassword);
     await page.locator('#login button[type=submit]').click();
     await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
     assert.equal(await worker.runOnce(),'idle');
     assert.equal(await admin.locator('#account-actions').count(),0);
