@@ -1,0 +1,40 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {Pool}=require('pg');
+const {randomBytes}=require('node:crypto');
+const {hashPassword,verifyPassword}=require('../../passwords.cjs');
+const {createMfaVault}=require('../../mfa-vault.cjs');
+const {createAdminMfa,codeForStep}=require('../../admin-mfa.cjs');
+const {initializeTestPair}=require('../../render-test-pair.cjs');
+test('Render : amorçage unique des comptes distincts et MFA, sans HTTP',async()=>{
+ assert.equal(process.env.PGDATABASE,'jsb_preprod');
+ const pool=new Pool({max:4});let safe=false;
+ try{
+  assert.equal((await pool.query('SELECT current_database() AS name')).rows[0].name,'jsb_preprod');safe=true;
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM jsb_auth.accounts')).rows[0].n,0);
+  await pool.query('CREATE SCHEMA IF NOT EXISTS jsb_deploy');
+  const mfaKeys={activeKeyId:'ci-v1',loadKey:async id=>id==='ci-v1'?Buffer.alloc(32,7):undefined};
+  const secret=randomBytes(20),a='synthetic-admin-password',c='synthetic-coach-password';
+  const data={schema:'JSB-PREPROD-PAIR-1',attestation:'TEST_EMAILS_CONTROLLED',adminEmail:'admin-pair@example.test',coachEmail:'coach-pair@example.test',adminHash:await hashPassword(a),coachHash:await hashPassword(c),totpSecret:secret.toString('base64url')};
+  const run=value=>initializeTestPair({pool,mfaKeys,bundle:JSON.stringify(value)});
+  await assert.rejects(run({...data,coachEmail:data.adminEmail}));
+  await assert.rejects(run({...data,attestation:'wrong'}));
+  const results=await Promise.all([run(data),run(data)]);
+  assert.deepEqual(results.sort(),['already-consumed','created']);
+  const rows=(await pool.query('SELECT * FROM jsb_auth.accounts ORDER BY role')).rows;
+  assert.deepEqual(rows.map(x=>x.role),['admin','coach']);
+  assert.ok(await verifyPassword(a,rows[0].password_hash));
+  assert.ok(await verifyPassword(c,rows[1].password_hash));
+  assert.equal(await verifyPassword(a,rows[1].password_hash),false);
+  const factor=(await pool.query('SELECT * FROM jsb_auth.mfa_factors')).rows[0];
+  const opened=await createMfaVault(mfaKeys).open({accountId:rows[0].id,factorVersion:factor.factor_version,envelope:factor.encrypted_secret});
+  assert.deepEqual(opened,secret);
+  assert.equal(factor.enabled,true);
+  assert.equal(Number(factor.last_step),-1);
+  const mfa=createAdminMfa({loadFactor:async()=>({enabled:true,version:factor.factor_version,secret:opened}),consumeStep:async()=>true});
+  assert.ok(await mfa.verifyMfa(rows[0].id,codeForStep(secret,Math.floor(Date.now()/30000))));
+  await assert.rejects(run({...data,coachEmail:'other-pair@example.test'}),/déjà consommé/);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM jsb_auth.accounts')).rows[0].n,2);
+ }finally{try{if(safe){await pool.query("DELETE FROM jsb_auth.accounts WHERE email IN ('admin-pair@example.test','coach-pair@example.test')");await pool.query('DROP TABLE IF EXISTS jsb_deploy.test_pair_receipt');}}finally{await pool.end();}}
+});

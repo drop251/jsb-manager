@@ -1,0 +1,40 @@
+name: JSB V36 - recette HTTPS externe
+on:
+  pull_request:
+    branches: [ui/administration-v36]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external-https:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Vérifier TLS, disponibilité et refus sans authentification
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in jsb-manager-v36-preprod-w571.onrender.com jsb-admin-v36-preprod-w571.onrender.com; do
+            echo "Vérification de $host"
+            tmp=$(mktemp -d)
+            healthy=false
+            for attempt in 1 2 3; do
+              status=$(curl --silent --show-error --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 100 --output "$tmp/body" --write-out '%{http_code}' "https://$host/healthz") || status=000
+              if [ "$status" = 200 ] && [ "$(cat "$tmp/body")" = OK ]; then
+                healthy=true
+                break
+              fi
+              echo "Healthcheck HTTP $status — tentative $attempt"
+              sleep 5
+            done
+            test "$healthy" = true
+            for route in / /api/session /switch-workspace; do
+              status=$(curl --silent --show-error --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 30 --dump-header "$tmp/headers" --output "$tmp/body" --write-out '%{http_code}' "https://$host$route")
+              test "$status" = 401
+              grep -qi '^www-authenticate: Basic ' "$tmp/headers"
+              grep -qi '^cache-control: no-store' "$tmp/headers"
+              echo "$route : accès anonyme refusé (401)"
+            done
+            rm -rf "$tmp"
+            echo "HTTPS et contrôle d’accès : réussis pour $host"
+          done
