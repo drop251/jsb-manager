@@ -14,7 +14,10 @@ function adaptExercise(discipline,item){
  if(!noRestriction(d.restrictions))return {ok:false,code:'restriction-review-required'};
  const base={id:item.reference,reference:item.reference,nom:item.name,description:d.executionDescription,
   typeFiche:d.sheetType,public:[discipline==='taiso'?'Taïso':'Judo'],famillePrincipale:item.family,
-  sousFamille:d.subfamily,categorie:d.classification,niveau:d.level,equipement:d.equipment,
+  sousFamille:d.subfamily,categorie:d.classification,niveau:d.level,
+  // The actual Taïso V1 workbook uses « Aucun » for bodyweight-only fiches.
+  // Normalize this exact value for the legacy filter, never the canonical cell.
+  equipement:discipline==='taiso'&&d.equipment==='Aucun'?'Poids du corps':d.equipment,
   vigilance:d.safety,critere:d.successCriteria,dosage:d.dosage,moment:d.moment,format:d.format,
   accessibilite:d.accessibility,inspiration:d.inspiration,varianteFacile:d.easier,varianteDifficile:d.harder,
   tags:d.tagsText??'',objectif:d.objective,modeDosage:d.dosageMode,
