@@ -270,7 +270,20 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal((await adminTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
     assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
-    await adminTab.close();await publicTab.close();await admin.bringToFront();
+    await adminTab.close();
+    await signIn(publicTab,emails.coach);
+    await waitStatus(publicTab,'Session vérifiée : Coach');
+    const [coachTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await coachTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(coachTab,'Session vérifiée : Coach');
+    assert.ok(await coachTab.locator('[data-workspace-page="club"]').isVisible());
+    assert.equal((await coachTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.coach);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    await coachTab.close();
+    // Restore the public identity expected by the remaining existing scenario.
+    await signIn(publicTab,emails.individual);
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    await publicTab.close();await admin.bringToFront();
     assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
 
     assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
