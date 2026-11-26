@@ -49,3 +49,18 @@ Restent à vérifier en environnement hébergé : acceptation réelle du message
 Le diagnostic `node backend/preproduction-mail-health.cjs`, avec la configuration serveur de préproduction, interroge uniquement la base dédiée et renvoie quatre compteurs anonymes : ready (messages disponibles), processing (réservations actives non expirées), delayed (messages différés), discardable (messages expirés ou tentatives épuisées hors réservation active). Ces compteurs décrivent l'état de la file, pas les remises effectives en boîte de réception ; l'éligibilité du destinataire et du jeton est contrôlée séparément par le processus d'envoi. Le diagnostic ne transmet aucun e-mail et ne modifie aucune donnée. Ne pas publier ce diagnostic sur une route publique.
 
 Recette réelle à effectuer par un opérateur habilité : configurer Resend et l'expéditeur vérifié, autoriser une adresse de test contrôlée, démarrer le service séparé, inscrire un compte de test depuis l'interface HTTPS, constater la réception du code, confirmer l'adresse, puis refaire le parcours de récupération et vérifier la révocation des sessions. Contrôler également la file et les événements de remise/rebond du prestataire sans conserver de codes ni d'identifiants dans les journaux. Arrêter le service et traiter tout message résiduel selon la procédure de préproduction en cas d'échec. Les tests simulés ne remplacent pas cette recette.
+
+
+## Préparation de l'import Excel
+L'analyse JSON administrative ne constitue pas encore une prise en charge directe du format XLSX. Pour identifier le contrat du classeur source avant conversion, utiliser dans un environnement de recette local :
+
+```sh
+python -m venv .venv-xlsx
+source .venv-xlsx/bin/activate
+python -m pip install openpyxl==3.1.5 defusedxml==0.7.1
+python scripts/inspect-catalogue-xlsx.py /chemin/vers/catalogue.xlsx
+```
+
+L'inspection ne modifie pas le classeur, ne calcule pas les formules et n'accède pas à la base. Elle indique les onglets visibles et masqués, les lignes peuplées (qui ne constituent pas un décompte d'exercices), les formules présentes et au maximum trois lignes candidates d'en-têtes parmi les douze premières lignes. Ces candidates peuvent contenir des données ; le rapport reste local, à examiner par l'opérateur. Aucun onglet ou en-tête n'est présumé correct. Limites de recette : 4 Mio compressés, 32 Mio décompressés, 512 entrées ZIP, 32 feuilles, 2 500 lignes et 128 colonnes par feuille.
+
+Le format canonique JSON actuel ne couvre pas encore toutes les colonnes historiques d'un classeur réel : notamment description d'exécution, sous-famille, classification et tags restent à rapprocher du modèle métier avant conversion. Ne pas déduire de référence depuis un index, ni supprimer des colonnes non reconnues. Ne pas convertir les fichiers d'audit ou d'exclusions en catalogue. Identifier le classeur définitif et confirmer les onglets, en-têtes, identifiants et restrictions à partir de ses octets ; enrichir le schéma et tester la conversion sans perte avant raccordement de l'import XLSX dans JSB Admin. Aucun fichier utilisateur ni exercice réel n'est ajouté à la recette.
