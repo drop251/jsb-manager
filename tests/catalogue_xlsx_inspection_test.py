@@ -1,6 +1,9 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import json
+import subprocess
+import sys
 import unittest
 from zipfile import ZipFile
 
@@ -91,6 +94,22 @@ class WorkbookConversionTests(unittest.TestCase):
             self.assertEqual(recipe["items"][-1]["sourceRow"], 229)
             self.assertEqual(recipe["items"][0]["exercise"]["details"]["tagsText"], "tag A, tag B, tag A")
             self.assertEqual(path.read_bytes(), before)
+
+    def test_stream_reader_accepts_workbook_and_refuses_invalid_zip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "fixture.xlsx"
+            self.make_workbook(path)
+            script = Path(__file__).resolve().parents[1] / "scripts/read-taiso-xlsx-stream.py"
+            command = [sys.executable, "-I", "-B", str(script)]
+            result = subprocess.run(command, input=path.read_bytes(), capture_output=True, timeout=20)
+            self.assertEqual(result.returncode, 0)
+            rows = json.loads(result.stdout)
+            self.assertEqual(len(rows), 229)
+            self.assertEqual(rows[0], HEADERS)
+            self.assertEqual(rows[1][20], "tag A, tag B, tag A")
+            invalid = subprocess.run(command, input=b"not an XLSX", capture_output=True, timeout=20)
+            self.assertEqual(invalid.returncode, 2)
+            self.assertEqual(invalid.stdout, b"")
 
     def test_refuse_wrong_sheet_formula_extra_column_missing_value(self):
         with tempfile.TemporaryDirectory() as tmp:
