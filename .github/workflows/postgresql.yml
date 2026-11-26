@@ -91,3 +91,14 @@ jobs:
           for table in accounts sessions action_tokens delivery_outbox; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
+
+      - name: Tester le runtime HTTP et MFA avec PostgreSQL réel
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          node --test backend/db/tests/auth-runtime.integration.cjs
+          for table in accounts sessions action_tokens delivery_outbox quota_events mfa_factors recovery_codes; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
+          done
