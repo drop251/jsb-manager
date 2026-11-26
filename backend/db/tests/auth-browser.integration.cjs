@@ -57,7 +57,25 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   }
   const publicOrigin=await start('public','127.0.0.1'),adminOrigin=await start('admin','127.0.0.2');
   const mfaKeys=keyset('browser-mfa-ci',23),secret=randomBytes(20),factorVersion='browser-ci-v1';
-  runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys});
+  const xlsxPython=process.env.JSB_XLSX_PYTHON;
+  assert.ok(xlsxPython&&path.isAbsolute(xlsxPython),'Interpréteur XLSX de recette requis');
+  const {HEADERS}=require('../../../core/taiso-xlsx-recipe.cjs');
+  const fixtureWorkbook=path.join(dir,'catalogue-fixture.xlsx');
+  execFileSync(xlsxPython,['-c',[
+   'from openpyxl import Workbook',
+   'import json, sys',
+   'book = Workbook()',
+   'sheet = book.active',
+   'sheet.title = "Exercices"',
+   'sheet.append(json.loads(sys.stdin.read()))',
+   'for i in range(228):',
+   '    row = ["Fixture %d / %d" % (i, j) for j in range(22)]',
+   '    row[2:4] = ["Taïso", "Exercice"]',
+   '    row[7] = "Famille recette"',
+   '    sheet.append(row)',
+   'book.save(sys.argv[1])'
+  ].join('\n'),fixtureWorkbook],{input:JSON.stringify(HEADERS),stdio:['pipe','ignore','pipe']});
+  runtime=createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId:req=>req.socket.remoteAddress,quotaSecret:Buffer.alloc(32,21),deliveryKeys:keyset('browser-mail-ci',22),mfaKeys,xlsxPython});
   assert.equal(await runtime.checkReady(),true);
   for(const [app,origin,authHandler] of [['public',publicOrigin,runtime.publicHandler],['admin',adminOrigin,runtime.adminHandler]]){
    const directory=path.join(dir,app);
@@ -156,6 +174,17 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await admin.locator('#import-report').filter({hasText:'Structure conforme'}).waitFor({state:'visible'});
     assert.match(await admin.locator('#import-report').textContent(),/analysis-fixture/);
     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='analysis-fixture'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles(fixtureWorkbook);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+    assert.match(await admin.locator('#import-report').textContent(),/228 fiche/);
+    assert.match(await admin.locator('#import-report').textContent(),/22 colonnes · 5016 cellules/);
+    assert.match(await admin.locator('#import-report').textContent(),/publication interdite/);
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='recette-provisoire'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles({name:'invalid.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('not an XLSX')});
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible',timeout:30000});
+
     assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
     await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
     assert.equal(await admin.locator('#workspace').textContent(),'');
