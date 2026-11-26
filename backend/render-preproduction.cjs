@@ -46,6 +46,12 @@ async function main(){
  let instance,gateway;
  try{
   await migrate(pool);
+  if(process.env.JSB_TEST_PAIR_BUNDLE!==undefined){
+   if(process.env.JSB_APP!=='admin')throw Error('Amorçage réservé au serveur Admin');
+   const {initializeTestPair}=require('./render-test-pair.cjs');
+   const state=await initializeTestPair({pool,mfaKeys:opts.config.mfaKeys,bundle:process.env.JSB_TEST_PAIR_BUNDLE});
+   console.log(state==='created'?'JSB : deux comptes de test initialisés.':'JSB : amorçage déjà consommé.');
+  }
   instance=await createServer({config:opts.config,pool});
   await new Promise((ok,ko)=>{instance.server.once('error',ko);instance.server.listen(opts.config.port,'127.0.0.1',ok);});
   gateway=createGateway(opts);
