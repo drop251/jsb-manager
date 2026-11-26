@@ -24,3 +24,15 @@ test('Import catalogue : discipline, doublons, données incomplètes et limites'
  assert.equal(many.errorCount,120);assert.equal(many.errors.length,100);
  assert.equal(analyzeCatalogueImport('{','taiso').errors[0].code,'invalid-json');
 });
+
+test('Import : les champs complémentaires sont inclus dans les données et l’empreinte',()=>{
+ const extended={...details,executionDescription:'Fixture execution',subfamily:'Fixture subfamily',classification:'Fixture classification',tags:['Fixture A','Fixture B']};
+ const result=analyze({...input,exercises:[{...exercise,details:extended}]});
+ assert.equal(result.ok,true);
+ assert.deepEqual(result.canonical.exercises[0].details,extended);
+ assert.notEqual(result.report.hash,analyze(input).report.hash);
+ assert.equal(analyze({...input,exercises:[{...exercise,details:{...extended,unknownColumn:'Fixture'}}]}).ok,false);
+});
+test('Le module de publication peut être chargé depuis son emplacement serveur',()=>{
+ assert.equal(typeof require('../backend/db/catalogue-publisher.cjs').createCataloguePublisher,'function');
+});
