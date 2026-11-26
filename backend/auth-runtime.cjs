@@ -67,7 +67,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!await planLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   const result=await generatorSource.taisoCandidates(actor,{version:body.version,generation:body.generation},body.criteria);
   if(!result.ok)return result;
-  const draft=planFromCandidates(result,body.criteria,{minutes:body.minutes,seed:body.seed,objective:body.objective,format:body.format,organization:body.organization});
+  const draft=planFromCandidates(result,body.criteria,{minutes:body.minutes,seed:body.seed,objective:body.objective,format:body.format,organization:body.organization,edits:body.edits});
   if(!draft)return {ok:false,status:400};
   // Recheck the active pointer after planning so a concurrent withdrawal
   // cannot silently return an already superseded catalogue.
@@ -84,7 +84,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   let prepared;
   if(action==='save'){
    const settings=body.settings;
-   if(!settings||typeof settings!=='object'||Array.isArray(settings)||Object.keys(settings).some(k=>!['version','generation','criteria','minutes','seed','objective','format','organization'].includes(k)))return {ok:false,status:400};
+   if(!settings||typeof settings!=='object'||Array.isArray(settings)||Object.keys(settings).some(k=>!['version','generation','criteria','minutes','seed','objective','format','organization','edits'].includes(k)))return {ok:false,status:400};
    // Recompute the snapshot from the current server-side catalogue. Never
    // accept a client-edited exercise, prescription or owner as authoritative.
    const result=await taisoDraft(actor,settings,source);
