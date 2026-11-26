@@ -109,3 +109,53 @@ test('Proposition Taïso : référentiel vide ou entièrement exclu, aucune fich
   assert.ok(draft.missing.length>=5);
  }
 });
+
+test('Formats Taïso : paramètres explicites, sélection des stations et budget exact',()=>{
+ const {generateTaisoDraft,formatsFor}=require('../core/taiso-versioned-planner.cjs');
+ const items=Array.from({length:16},(_,i)=>fixture('taiso',{
+  reference:'JSB-TAISO-FORMAT-'+i,classification:i<8?'Renforcement':'Gainage',
+  moment:'Corps de séance',dosageMode:'Durée et répétitions',effortSeconds:'20',repetitions:'8',
+  dosage:'8 répétitions ou 20 s, récupération 45 s',inspiration:i<8?'Fixture':'Pilates',level:'Débutant'
+ }));
+ const original=JSON.stringify(items),options={minutes:60,seed:42},timed={...criteria,mode:'Durée'};
+ const circuit={stations:4,rounds:3,recoverySeconds:20,repWindowSeconds:null,roundRestSeconds:60};
+ const series={series:2,recoverySeconds:30,repWindowSeconds:null};
+ const cases=[
+  ['Circuit',timed,circuit,600],
+  ['EMOM',criteria,{stations:3,rounds:4},720],
+  ['Tabata',timed,{pairs:2},480],
+  ['AMRAP',criteria,{stations:4,limitMinutes:10},600],
+  ['Pilates / yoga',timed,series,null],
+  ['Séries classiques',timed,series,null],
+  ['Mixte',timed,{circuit,pilates:series},null]
+ ];
+ for(const [format,profile,organization,expected] of cases){
+  const plan=generateTaisoDraft(items,profile,{...options,format,organization});
+  assert.ok(plan,format);
+  const body=plan.phases.find(p=>p.name==='Corps de séance');
+  assert.equal(body.blocks.length,format==='Mixte'?2:1,format);
+  assert.equal(plan.requiresCoachReview,true);
+  assert.equal(plan.organizationPending,false,JSON.stringify(body.blocks));
+  assert.equal(body.blocks[0].organization.state,'budgeted');
+  if(expected!==null)assert.equal(body.blocks[0].organization.plannedSeconds,expected,format);
+  assert.ok(body.blocks.every(b=>b.organization.remainingSeconds===b.minutes*60-b.organization.plannedSeconds));
+  assert.equal(new Set(body.exercises.map(x=>x.reference)).size,body.exercises.length);
+  assert.ok(body.exercises.every(e=>e.dosage==='8 répétitions ou 20 s, récupération 45 s'));
+  assert.ok(body.exercises.every(e=>profile.mode==='Durée'?e.prescription.effortSeconds===20:e.prescription.repetitions===8));
+ }
+ assert.equal(JSON.stringify(items),original);
+ assert.equal(generateTaisoDraft(items,criteria,{...options,format:'Tabata',organization:{pairs:1}}),null);
+ assert.equal(generateTaisoDraft(items,timed,{...options,format:'EMOM',organization:{stations:3,rounds:4}}),null);
+ assert.ok(!formatsFor({...timed,groupe:'Gym douce'}).includes('Tabata'));
+ const tooLong=generateTaisoDraft(items,timed,{...options,format:'Circuit',organization:{...circuit,rounds:6,recoverySeconds:180}});
+ assert.equal(tooLong.organizationPending,true);
+ assert.ok(tooLong.phases[2].blocks[0].organization.issues.includes('budget-exceeded'));
+ assert.ok(tooLong.missing.includes('Corps de séance'));
+ const tooFew=generateTaisoDraft(items.slice(0,1),timed,{...options,format:'Circuit',organization:circuit});
+ assert.equal(tooFew.organizationPending,true);
+ assert.ok(tooFew.phases[2].blocks[0].organization.issues.includes('insufficient-stations'));
+ assert.equal(generateTaisoDraft(items,timed,{...options,format:'Circuit',organization:{...circuit,stations:9}}),null);
+ const pending=generateTaisoDraft(items,timed,{...options,format:'Circuit'});
+ assert.equal(pending.organizationPending,true);
+ assert.equal(pending.phases[2].blocks[0].organization.plannedSeconds,null);
+});
