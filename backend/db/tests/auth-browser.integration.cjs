@@ -113,6 +113,14 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   await pool.query('INSERT INTO jsb_auth.mfa_factors(account_id,factor_version,encrypted_secret,enabled) VALUES ($1,$2,$3,true)',[ids.admin,factorVersion,envelope]);
   await pool.query("INSERT INTO jsb_catalogue.releases(discipline,version,source_hash,published_at) VALUES ('taiso','browser-fixture',$1,$2)",['b'.repeat(64),Date.now()]);
   await pool.query("INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family) VALUES ('taiso','browser-fixture','fixture-a','Fixture Alpha','Famille A'),('taiso','browser-fixture','fixture-b','Fixture Beta','Famille B')");
+  // Explicit synthetic fixture for the candidate endpoint. Two older summary-only
+  // entries remain browsable but cannot enter automatic preparation.
+  const rec=Object.fromEntries(CONTRACTS.taiso.map(([,key])=>[key,'Fixture '+key]));
+  Object.assign(rec,{reference:'JSB-TAISO-CANDIDATE-CI',name:'Fixture compatible',family:'Famille C',discipline:'Taïso',sheetType:'Exercice',level:'Intermédiaire',subgroup:'Gym douce, Training',equipment:'Poids du corps',format:'Solo',dosageMode:'Répétitions',repetitions:'8',effortSeconds:null,tagsText:null,restrictions:null});
+  const {reference,name:fixtureName,family,discipline:ignored,...fields}=rec;
+  const details={contractVersion:'JSB-EXCEL-1',...Object.fromEntries(Object.entries(fields).filter(([,value])=>value!==null))};
+  await pool.query("INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family,pedagogical_details) VALUES ('taiso','browser-fixture',$1,$2,$3,$4)",[reference,fixtureName,family,JSON.stringify(details)]);
+  await pool.query("INSERT INTO jsb_catalogue.publications(discipline,version,actor_id,published_at,exercise_count) VALUES ('taiso','browser-fixture',$1,$2,3)",[ids.admin,Date.now()]);
   await pool.query("INSERT INTO jsb_catalogue.current_release(discipline,version) VALUES ('taiso','browser-fixture')");
   for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]]){
    network.length=0;
@@ -140,6 +148,13 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#workspace-back').click();
     await page.locator('[data-workspace-page="taiso"]').click();
     await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
+    await page.locator('#taiso-mode').selectOption('Durée');
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'0 exercice(s) compatible(s) · 3 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+
     await page.locator('#catalogue-family').selectOption('Famille B');
     await page.locator('#catalogue-results summary').filter({hasText:'Fixture Beta'}).waitFor({state:'visible'});
     assert.equal(await page.locator('#catalogue-results summary').count(),1);
@@ -353,7 +368,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE discipline='taiso' AND version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
