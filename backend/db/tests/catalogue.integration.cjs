@@ -27,6 +27,19 @@ test('Catalogues : séparation des disciplines, publication explicite et permiss
    assert.equal((await service.read(actor(role),'judo')).catalogue.state,'unpublished');
   }
 
+  const ref={version:'ci-fixture',reference:'ci-1'};
+  assert.equal((await service.detail(actor('coach'),'taiso',ref)).exercise.state,'summary');
+  assert.equal((await service.detail(actor('coach'),'judo',ref)).status,409);
+  assert.equal((await service.detail(null,'taiso',ref)).status,403);
+  assert.equal((await service.detail(actor('coach'),'taiso',{...ref,reference:'missing'})).status,404);
+  const details=Object.fromEntries(['safety','dosage','successCriteria','level','subgroup','equipment','moment','easier','harder','accessibility','inspiration','format','targetMuscles'].map(k=>[k,'Synthetic '+k]));
+  await pool.query("UPDATE jsb_catalogue.exercises SET pedagogical_details=$1 WHERE discipline='taiso' AND version='ci-fixture' AND reference='ci-1'",[JSON.stringify(details)]);
+  for(const role of ['coach','individual','admin']){
+   const result=await service.detail(actor(role),'taiso',ref);
+   assert.equal(result.exercise.state,'complete');assert.deepEqual(result.exercise.details,details);
+  }
+  await pool.query("UPDATE jsb_catalogue.exercises SET pedagogical_details=$1 WHERE discipline='taiso' AND version='ci-fixture' AND reference='ci-1'",[JSON.stringify({safety:'Incomplete fixture'})]);
+  assert.equal((await service.detail(actor('coach'),'taiso',ref)).status,503);
   const base={version:'ci-fixture'};
   assert.equal((await service.search(actor('coach'),'judo',base)).status,409);
   assert.equal((await service.search(null,'taiso',base)).status,403);
