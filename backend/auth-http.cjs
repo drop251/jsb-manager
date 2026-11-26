@@ -6,7 +6,7 @@ const {createHash}=require('node:crypto');
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,privateTaisoDrafts,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -47,6 +47,13 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(taisoDraft!==undefined){
   if(app!=='public'||typeof taisoDraft!=='function')throw TypeError('Service de proposition public invalide');
   paths.set(draftPath,'POST');
+ }
+ const privateDraftPaths=new Map();
+ if(privateTaisoDrafts!==undefined){
+  if(app!=='public'||typeof privateTaisoDrafts!=='function')throw TypeError('Service privé Taïso invalide');
+  for(const action of ['list','read','save','delete']){
+   const path='/api/private/taiso/drafts/'+action;privateDraftPaths.set(path,action);paths.set(path,'POST');
+  }
  }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
@@ -104,6 +111,22 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     const result=await catalogue.read(actor,cataloguePaths.get(req.url));
     if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
     return send(res,200,{ok:true,catalogue:result.catalogue});
+   }
+   if(privateDraftPaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const body=await json(req);
+    const source=await sourceId(req);
+    if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
+    const action=privateDraftPaths.get(req.url);
+    const result=await privateTaisoDrafts(actor,action,body,source,createHash('sha256').update(oldToken,'utf8').digest('hex'));
+    if(result.status!==200)return serviceResult(res,result);
+    if(action==='list'||action==='read'){
+     const confirmed=await actorFor(oldToken);
+     if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
+    }
+    const {status,...payload}=result;
+    return send(res,200,payload);
    }
    if(req.url===candidatesPath||req.url===draftPath){
     const actor=await actorFor(oldToken);
