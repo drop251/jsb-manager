@@ -36,15 +36,30 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   await page.evaluate(async()=>{
    await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
    await navigator.serviceWorker.ready;
+   if(!navigator.serviceWorker.controller)await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(Error('Worker non contrôlant')),10000);
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{clearTimeout(timer);resolve();},{once:true});
+   });
   });
+  assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
   const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v1');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
   assert.deepEqual(cache,['/public/offline.html','/public/offline.mjs']);
   assert.equal((await context.request.get(origin+'/api/session')).status(),401);
   // No fallback on a deliberate gateway denial while online.
-  allowed=false;assert.equal((await page.goto(origin+'/public/offline.html')).status(),403);allowed=true;
+  allowed=false;
+  assert.equal((await context.request.get(origin+'/public/offline.html')).status(),403);
+  // Some engines reject a top-level empty 403 as an invalid response.
+  // In either case it must not display the cached offline reader.
+  let denied=false;
+  try{const response=await page.goto(origin+'/public/offline.html');denied=response?.status()===403;}
+  catch(e){denied=/ERR_INVALID_RESPONSE|internal error|navigation|load/i.test(e.message);}
+  assert.ok(denied,'La navigation refusée ne doit pas servir la page en cache');
+  allowed=true;
   await page.goto(origin+'/public/offline.html');
+  assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));server=null;
-  await context.setOffline(true);
+  // The actual listener has been closed. Do not combine this with the
+  // Playwright offline emulator, which can suppress worker navigations.
   await page.goto(origin+'/',{timeout:15000});
   await page.getByRole('heading',{name:'Consultation hors connexion'}).waitFor({state:'visible'});
   await page.locator('#offline-file').setInputFiles({name:'fixture.jsb-session.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
