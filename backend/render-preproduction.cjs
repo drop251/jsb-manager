@@ -1,6 +1,6 @@
 'use strict';
 const http=require('node:http');
-const {timingSafeEqual,createHash,createHmac}=require('node:crypto');
+const {timingSafeEqual,createHash,createHmac,randomBytes}=require('node:crypto');
 const {readConfig,createServer}=require('./preproduction-server.cjs');
 const {migrate}=require('../scripts/render-preprod-migrate.cjs');
 const MAX=6*1024*1024;
@@ -26,8 +26,25 @@ function validAccessCookie(req,key,host){
  const expires=Number(m[1]),now=Math.floor(Date.now()/1000);
  return expires>now&&expires<=now+ACCESS_TTL&&timingSafeEqual(Buffer.from(m[2]),Buffer.from(accessProof(key,host,expires)));
 }
-function accessPage(failed=false,notice=''){
- return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accès privé JSB</title><style>body{margin:0;background:#f5f4f0;color:#242321;font:16px system-ui,-apple-system,sans-serif;min-height:100vh;display:grid;place-items:center}main{box-sizing:border-box;width:min(92vw,420px);background:white;border:1px solid #dedbd4;border-radius:20px;padding:28px}h1{font-size:25px;margin:0 0 12px}p{line-height:1.5}label{display:block;font-weight:600;margin:24px 0 8px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:14px;border:1px solid #b6b1a7;border-radius:10px}button{margin-top:16px;background:#252321;color:white;font-weight:600}small{display:block;margin-top:18px;color:#625f58}</style></head><body><main><h1>JSB — Accès privé</h1><p>Préproduction réservée aux testeurs. Saisis le mot de passe d’accès Render avant de te connecter à ton compte JSB.</p>'+(failed?'<p role="alert">Mot de passe incorrect.</p>':'')+(notice?'<p role="alert">'+notice+'</p>':'')+'<form method="post" action="/access"><label for="password">Mot de passe de préproduction</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required><button type="submit">Accéder à JSB</button></form><small>Ce mot de passe est différent de ton mot de passe Coach ou Administrateur.</small></main></body></html>';
+const FORM_COOKIE='__Host-jsb-preview-form';
+const FORM_TTL=10*60;
+function formProof(key,host,payload){return createHmac('sha256',key).update('jsb-preview-form-v1\0'+host+'\0'+payload).digest('base64url');}
+function formToken(key,host){
+ const payload=Math.floor(Date.now()/1000)+FORM_TTL+'.'+randomBytes(24).toString('base64url');
+ return payload+'.'+formProof(key,host,payload);
+}
+function validForm(req,params,key,host){
+ const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(FORM_COOKIE+'='));
+ const tokens=params.getAll('csrf');
+ if(values.length!==1||tokens.length!==1)return false;
+ const cookie=values[0].slice(FORM_COOKIE.length+1),token=tokens[0];
+ const m=/^(\d{10})\.([A-Za-z0-9_-]{32})\.([A-Za-z0-9_-]{43})$/.exec(token);
+ if(!m||cookie.length!==token.length||!timingSafeEqual(Buffer.from(cookie),Buffer.from(token)))return false;
+ const expires=Number(m[1]),now=Math.floor(Date.now()/1000);
+ return expires>now&&expires<=now+FORM_TTL&&timingSafeEqual(Buffer.from(m[3]),Buffer.from(formProof(key,host,m[1]+'.'+m[2])));
+}
+function accessPage(failed=false,notice='',csrf=''){
+ return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accès privé JSB</title><style>body{margin:0;background:#f5f4f0;color:#242321;font:16px system-ui,-apple-system,sans-serif;min-height:100vh;display:grid;place-items:center}main{box-sizing:border-box;width:min(92vw,420px);background:white;border:1px solid #dedbd4;border-radius:20px;padding:28px}h1{font-size:25px;margin:0 0 12px}p{line-height:1.5}label{display:block;font-weight:600;margin:24px 0 8px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:14px;border:1px solid #b6b1a7;border-radius:10px}button{margin-top:16px;background:#252321;color:white;font-weight:600}small{display:block;margin-top:18px;color:#625f58}</style></head><body><main><h1>JSB — Accès privé</h1><p>Préproduction réservée aux testeurs. Saisis le mot de passe d’accès Render avant de te connecter à ton compte JSB.</p>'+(failed?'<p role="alert">Mot de passe incorrect.</p>':'')+(notice?'<p role="alert">'+notice+'</p>':'')+'<form method="post" action="/access"><input type="hidden" name="csrf" value="'+csrf+'"><label for="password">Mot de passe de préproduction</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required><button type="submit">Accéder à JSB</button></form><small>Ce mot de passe est différent de ton mot de passe Coach ou Administrateur.</small></main></body></html>';
 }
 function createGateway({config,host,gateDigest}){
  return http.createServer({requestTimeout:20000,headersTimeout:10000,maxHeaderSize:8192,keepAliveTimeout:5000},(req,res)=>{
@@ -35,12 +52,15 @@ function createGateway({config,host,gateDigest}){
   if(req.url==='/healthz'&&(req.method==='GET'||req.method==='HEAD'))return reply(200,'OK');
   if(req.headers.host!==host)return reply(421);
   if(!['GET','HEAD','POST'].includes(req.method)||typeof req.url!=='string'||!req.url.startsWith('/')||req.url.startsWith('//'))return reply(400);
-  function page(status,failed=false,extra={},notice=''){return reply(status,accessPage(failed,notice),{'Content-Type':'text/html; charset=utf-8','Content-Disposition':'inline','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",'X-Frame-Options':'DENY','Referrer-Policy':'same-origin','X-Robots-Tag':'noindex, nofollow',...extra});}
+  function page(status,failed=false,extra={},notice=''){const csrf=formToken(gateDigest,host);return reply(status,accessPage(failed,notice,csrf),{'Set-Cookie':FORM_COOKIE+'='+csrf+'; Path=/; Max-Age='+FORM_TTL+'; Secure; HttpOnly; SameSite=Strict','Content-Type':'text/html; charset=utf-8','Content-Disposition':'inline','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",'X-Frame-Options':'DENY','Referrer-Policy':'same-origin','X-Robots-Tag':'noindex, nofollow',...extra});}
   const authorization=typeof req.headers.authorization==='string'?req.headers.authorization:'';
   const authorized=timingSafeEqual(createHash('sha256').update(authorization).digest(),gateDigest)||validAccessCookie(req,gateDigest,host);
-  if(req.url==='/access'){
+  if(req.url==='/access'||((req.method==='GET'||req.method==='HEAD')&&req.url.startsWith('/access?'))){
    if(req.method==='GET'||req.method==='HEAD')return authorized?reply(303,'',{'Location':(host===new URL(config.adminOrigin).host?'/admin/auth.html':'/public/auth.html'),'Content-Type':'text/html; charset=utf-8'}):page(200);
-   if(req.method!=='POST'||req.headers.origin!=='https://'+host||(req.headers['sec-fetch-site']&&req.headers['sec-fetch-site']!=='same-origin')){console.warn('JSB accès privé : origine refusée.');return page(403,false,{},'La validation du formulaire a été refusée. Ouvre la page dans Safari et réessaie.');}
+   const origin=req.headers.origin,site=req.headers['sec-fetch-site'];
+   // An absent or opaque Origin is accepted only with the host-bound, signed
+   // form token and matching HttpOnly cookie. Explicit foreign origins remain denied.
+   if(req.method!=='POST'||(origin!==undefined&&origin!=='null'&&origin!=='https://'+host)||(site!==undefined&&!['same-origin','none'].includes(site))){console.warn('JSB accès privé : origine externe refusée.');return page(403,false,{},'La validation du formulaire a été refusée. Ouvre la page dans Safari et réessaie.');}
    if(!/^application\/x-www-form-urlencoded(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type']||''))return page(415,false,{},'Format de formulaire non accepté. Réessaie depuis Safari.');
    const length=req.headers['content-length'];
    if(typeof length!=='string'||!/^\d+$/.test(length)||Number(length)>1024)return page(413,false,{},'Formulaire trop volumineux ou incomplet. Réessaie.');
@@ -49,12 +69,13 @@ function createGateway({config,host,gateDigest}){
    req.on('end',()=>{
     if(size>1024)return;
     const params=new URLSearchParams(Buffer.concat(chunks).toString('utf8')),password=params.get('password');
+    if(!validForm(req,params,gateDigest,host)){console.warn('JSB accès privé : jeton de formulaire refusé.');return page(403,false,{},'Le formulaire a expiré ou les cookies sont bloqués. Réessaie depuis cette page.');}
     if(params.getAll('password').length!==1||typeof password!=='string'||password.length>256)return page(403,true);
     const digest=createHash('sha256').update('Basic '+Buffer.from('jsb-testeur:'+password).toString('base64')).digest();
     if(!timingSafeEqual(digest,gateDigest))return page(403,true);
     const expires=Math.floor(Date.now()/1000)+ACCESS_TTL;
     console.log('JSB accès privé : validation réussie.');
-    return reply(303,'',{'Content-Type':'text/html; charset=utf-8','Location':(host===new URL(config.adminOrigin).host?'/admin/auth.html':'/public/auth.html'),'Set-Cookie':ACCESS_COOKIE+'='+expires+'.'+accessProof(gateDigest,host,expires)+'; Path=/; Max-Age='+ACCESS_TTL+'; Secure; HttpOnly; SameSite=Lax'});
+    return reply(303,'',{'Content-Type':'text/html; charset=utf-8','Location':(host===new URL(config.adminOrigin).host?'/admin/auth.html':'/public/auth.html'),'Set-Cookie':[ACCESS_COOKIE+'='+expires+'.'+accessProof(gateDigest,host,expires)+'; Path=/; Max-Age='+ACCESS_TTL+'; Secure; HttpOnly; SameSite=Lax',FORM_COOKIE+'=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Strict']});
    });
    return;
   }
