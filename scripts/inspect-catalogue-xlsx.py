@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only XLSX inventory for catalogue mapping. No conversion or publication."""
 import argparse
+from io import BytesIO
 import json
 import re
 import sys
@@ -21,9 +22,15 @@ class InspectionError(ValueError):
 
 
 def check_archive(path):
-    p = Path(path)
-    if p.suffix.lower() != ".xlsx" or not p.is_file() or p.stat().st_size > MAX_FILE:
-        raise InspectionError("Fichier XLSX de 4 Mio maximum requis.")
+    if isinstance(path, BytesIO):
+        p = path
+        if p.getbuffer().nbytes > MAX_FILE:
+            raise InspectionError("Fichier XLSX de 4 Mio maximum requis.")
+        p.seek(0)
+    else:
+        p = Path(path)
+        if p.suffix.lower() != ".xlsx" or not p.is_file() or p.stat().st_size > MAX_FILE:
+            raise InspectionError("Fichier XLSX de 4 Mio maximum requis.")
     with ZipFile(p) as archive:
         parts = archive.infolist()
         names = set()
@@ -43,6 +50,8 @@ def check_archive(path):
                 xml = archive.read(part)
                 if re.search(br"<!\s*(?:DOCTYPE|ENTITY)", xml.replace(b"\x00", b""), re.I):
                     raise InspectionError("Déclaration XML interdite.")
+    if isinstance(p, BytesIO):
+        p.seek(0)
     return p
 
 
