@@ -104,7 +104,9 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    if(r.status===409)return {state:'version-changed'};
    if(r.status===429)return {state:'rate-limited'};
    if(r.status!==200)throw Error('Proposition indisponible');
-   const d=r.data.draft;
+   return checkedDraft(r.data.draft,{version,generation,criteria,minutes,seed,format});
+  }
+  function checkedDraft(d,{version,generation,criteria,minutes,seed,format='Séries classiques'}={}){
    const integer=n=>Number.isSafeInteger(n)&&n>=0;
    if(!d||d.discipline!=='taiso'||d.version!==version||d.generation!==generation||d.minutes!==minutes||d.mode!==criteria.mode||d.seed!==seed||d.format!==format||typeof d.organizationPending!=='boolean'||d.requiresCoachReview!==true||
     !integer(d.candidateCount)||!integer(d.excludedCount)||d.candidateCount+d.excludedCount>2000||
@@ -116,6 +118,39 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
     d.phases.reduce((n,p)=>n+p.minutes,0)!==minutes)throw Error('Proposition invalide');
    return {state:'ready',...d};
   }
+  function draftMetadata(d){
+   if(!d||typeof d.id!=='string'||!/^[a-f0-9]{32}$/.test(d.id)||!Number.isSafeInteger(d.revision)||d.revision<1||typeof d.title!=='string'||!d.title.trim()||d.title.length>120||typeof d.version!=='string'||typeof d.generation!=='string'||!Number.isSafeInteger(Number(d.createdAt))||!Number.isSafeInteger(Number(d.updatedAt)))throw Error('Brouillon invalide');
+   return d;
+  }
+  async function privateTaisoDraft(action,expectedAccount,body={}){
+   if(!['list','read','save','delete'].includes(action)||typeof expectedAccount!=='string'||!expectedAccount)throw TypeError('Opération privée invalide');
+   return exclusive(async()=>{
+    const before=await session();
+    if(before.state!=='signed-in'||before.account.id!==expectedAccount)return {state:'account-changed'};
+    const r=await request('/api/private/taiso/drafts/'+action,{...body,expectedAccount});
+    const after=await session();
+    if(after.state!=='signed-in'||after.account.id!==expectedAccount||after.account.role!==before.account.role)return {state:'account-changed'};
+    if(r.status===409)return {state:'conflict'};
+    if(r.status===429)return {state:'rate-limited'};
+    if(r.status!==200)throw Error('Brouillon indisponible');
+    if(action==='list'){
+     if(!Array.isArray(r.data.items)||r.data.items.length>30||!Number.isSafeInteger(r.data.total)||r.data.total<0||r.data.offset!==(body.offset??0))throw Error('Liste invalide');
+     return {state:'ready',items:r.data.items.map(draftMetadata),total:r.data.total,offset:r.data.offset};
+    }
+    if(action==='read'){
+     const d=draftMetadata(r.data.draft),q=d.settings;
+     if(d.id!==body.id||typeof d.stale!=='boolean'||!q||!q.criteria||q.version!==d.version||q.generation!==d.generation)throw Error('Brouillon invalide');
+     return {state:'ready',draft:{...d,snapshot:checkedDraft(d.snapshot,q)}};
+    }
+    if(action==='save'){
+     const saved=draftMetadata(r.data.saved);
+     if(body.id&&(saved.id!==body.id||saved.revision!==body.revision+1))throw Error('Sauvegarde incohérente');
+     return {state:'ready',saved};
+    }
+    if(r.data.deleted!==body.id)throw Error('Suppression incohérente');
+    return {state:'ready',deleted:r.data.deleted};
+   });
+  }
   async function action(path,body,expected){
    return exclusive(async()=>{
     const r=await request(path,body);
@@ -125,7 +160,7 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    });
   }
   Object.assign(api,{
-   taisoCandidates,taisoDraft,
+   taisoCandidates,taisoDraft,privateTaisoDraft,
    register:({email,password,role}={})=>{
     if(!roles.has(role))return Promise.resolve(Object.freeze({ok:false,status:400}));
     return action('/api/register',{email,password,role},202);
