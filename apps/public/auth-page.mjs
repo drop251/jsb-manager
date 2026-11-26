@@ -65,6 +65,62 @@ function renderWorkspace(){
       if(busy||workspaceIdentity!==identity||!detail.isConnected)return;
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
+      if(key==='taiso'&&data.state==='published'){
+       const preparation=element('section');preparation.className='workspace-detail';preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
+       preparation.append(element('h3','Préparer une séance Taïso'),element('p','Contrôle préalable des exercices compatibles. Ce contrôle ne constitue pas encore une séance complète.'));
+       if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
+       else{
+        const form=element('div');
+        const makeSelect=(id,label,options,initial)=>{
+         const l=element('label',label),s=element('select');s.id=id;l.htmlFor=id;
+         for(const name of options){const option=element('option',name);option.value=name;s.append(option);}
+         s.value=initial;form.append(l,s);return s;
+        };
+        const group=makeSelect('taiso-group','Groupe',['Gym douce','Training'],'Training');
+        const level=makeSelect('taiso-level','Niveau maximal',['Débutant','Intermédiaire','Expert'],'Intermédiaire');
+        const mode=makeSelect('taiso-mode','Mode de dosage',['Répétitions','Durée'],'Répétitions');
+        function makeCheck(id,label,checked=false){
+         const row=element('div'),input=element('input'),l=element('label',label);input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
+        }
+        const noEquipment=makeCheck('taiso-no-equipment','Sans matériel (poids du corps et tatami)',true);
+        const equipmentLabel=element('label','Matériel disponible (séparer par des points-virgules)'),equipment=element('input');equipment.id='taiso-equipment';equipmentLabel.htmlFor=equipment.id;equipment.maxLength=1000;equipment.disabled=true;
+        form.append(equipmentLabel,equipment);
+        const partner=makeCheck('taiso-partner','Travail en binôme autorisé');
+        const supervision=makeCheck('taiso-supervision','Encadrement présent');
+        form.append(element('h4','Contraintes à prendre en compte'));
+        const restrictions=['Genoux','Dos','Épaules','Poignets','Sauts','Passage au sol'].map((name,i)=>[name,makeCheck('taiso-constraint-'+i,name)]);
+        const check=element('button','Vérifier les exercices compatibles');check.type='button';
+        const result=element('div');result.id='taiso-candidate-result';result.setAttribute('role','status');
+        let requestId=0;
+        const live=()=>!busy&&workspaceIdentity===identity&&preparation.isConnected;
+        form.addEventListener('change',()=>{requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=false;});
+        equipment.addEventListener('input',()=>{requestId++;result.replaceChildren();check.disabled=false;});
+        check.addEventListener('click',async()=>{
+         if(!live()||check.disabled)return;
+         const run=++requestId;
+         const criteria={groupe:group.value,niveau:level.value,mode:mode.value,supervision:supervision.checked,binome:partner.checked,sansMateriel:noEquipment.checked,materiel:noEquipment.checked?[]:equipment.value.split(';').map(x=>x.trim()).filter(Boolean),contraintes:restrictions.filter(([,input])=>input.checked).map(([name])=>name)};
+         if(!criteria.sansMateriel&&!criteria.materiel.length){result.textContent='Renseignez le matériel disponible ou choisissez Sans matériel.';return;}
+         check.disabled=true;result.textContent='Vérification en cours…';
+         try{
+          const answer=await client.taisoCandidates({version:data.version,generation:data.generation,criteria});
+          const accountNow=await client.session();
+          if(!live()||run!==requestId)return;
+          if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
+          if(answer.state==='version-changed'){result.textContent='Le référentiel a changé. Revenez à l’accueil puis rouvrez le Taïso.';return;}
+          if(answer.state==='rate-limited'){result.textContent='Trop de vérifications. Réessayez plus tard.';return;}
+          result.replaceChildren(element('p',answer.total+' exercice(s) compatible(s) · '+answer.excluded+' non retenu(s).'));
+          if(answer.items.length){
+           const ul=element('ul');for(const item of answer.items)ul.append(element('li',item.name+' · '+item.dosage));result.append(ul);
+           if(answer.total>answer.items.length)result.append(element('p','Aperçu limité aux 30 premières fiches compatibles.'));
+          }
+          result.append(element('p','La compatibilité technique ne remplace pas l’appréciation pédagogique du coach.'));
+         }catch{if(live()&&run===requestId)result.textContent='Vérification indisponible. Contrôlez votre session et le référentiel.';}
+         finally{if(live()&&run===requestId)check.disabled=false;}
+        });
+        form.append(check,result);preparation.append(form);
+       }
+       detail.insertBefore(preparation,list);
+      }
       if(data.state==='published'){
        const browser=element('section');browser.className='workspace-detail';browser.setAttribute('aria-label','Catalogue '+title);
        const heading=element('h3','Exercices');browser.append(heading);
