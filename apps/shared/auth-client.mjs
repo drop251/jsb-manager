@@ -69,7 +69,22 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
   if(!v||v.discipline!==discipline||v.version!==version||v.offset!==offset||!Number.isSafeInteger(v.total)||v.total<0||!Array.isArray(v.items)||v.items.length!==Math.min(30,Math.max(0,v.total-offset))||v.items.some(i=>!i||typeof i.reference!=='string'||typeof i.name!=='string'||typeof i.family!=='string'))throw Error('Résultats invalides');
   return {state:'ready',...v};
  }
- const api={session,login,logout,catalogue,searchCatalogue};
+ async function exerciseDetail(discipline,{version,reference}={}){
+  if(!['judo','taiso'].includes(discipline))throw TypeError('Discipline invalide');
+  const r=await request('/api/catalogue/'+discipline+'/detail',{version,reference});
+  if(r.status===409)return {state:'version-changed'};
+  if(r.status===404)return {state:'not-found'};
+  if(r.status!==200)throw Error('Fiche indisponible');
+  const e=r.data.exercise;
+  if(!e||e.discipline!==discipline||e.version!==version||e.reference!==reference||typeof e.name!=='string'||typeof e.family!=='string'||!['complete','summary'].includes(e.state))throw Error('Fiche invalide');
+  if(e.state==='summary'&&e.details!==null)throw Error('Fiche invalide');
+  if(e.state==='complete'){
+   const keys=['safety','dosage','successCriteria','level','subgroup','equipment','moment','easier','harder','accessibility','inspiration','format',...(discipline==='judo'?['competence','pedagogicalRole','prerequisites','opposition','organization','blockDuration']:['targetMuscles'])];
+   if(!e.details||typeof e.details!=='object'||Array.isArray(e.details)||Object.keys(e.details).length!==keys.length||keys.some(k=>!Object.hasOwn(e.details,k)||typeof e.details[k]!=='string'||!e.details[k].trim()||e.details[k].length>1800))throw Error('Contenu pédagogique invalide');
+  }
+  return e;
+ }
+ const api={session,login,logout,catalogue,searchCatalogue,exerciseDetail};
  if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
   async function action(path,body,expected){
    return exclusive(async()=>{
