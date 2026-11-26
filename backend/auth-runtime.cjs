@@ -23,6 +23,7 @@ const {createXlsxRecipeAnalyzer}=require('./xlsx-recipe-analyzer.cjs');
 const {createPublicationFlow}=require('./catalogue-publication-flow.cjs');
 const {createCatalogueHistory}=require('./db/catalogue-history.cjs');
 const {createGeneratorSource}=require('./catalogue-generator-source.cjs');
+const {planFromCandidates}=require('../core/taiso-versioned-planner.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
 function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
@@ -59,7 +60,21 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
    items:result.candidates.slice(0,30).map(({canonical:e})=>({reference:e.reference,name:e.name,family:e.family,dosage:e.details.dosage}))};
   return {ok:true,status:200,selection};
  }
- const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,now});
+ const planLimiter=limiter('taiso-draft',20,40);
+ async function taisoDraft(actor,body,source){
+  if(!authorize(actor,'generator','run',{ownerId:actor.id}))return {ok:false,status:403};
+  if(!await planLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  const result=await generatorSource.taisoCandidates(actor,{version:body.version,generation:body.generation},body.criteria);
+  if(!result.ok)return result;
+  const draft=planFromCandidates(result,body.criteria,{minutes:body.minutes,seed:body.seed,objective:body.objective});
+  if(!draft)return {ok:false,status:400};
+  // Recheck the active pointer after planning so a concurrent withdrawal
+  // cannot silently return an already superseded catalogue.
+  const current=await catalogue.read(actor,'taiso');
+  if(!current.ok||current.catalogue.version!==result.version||current.catalogue.generation!==result.generation)return {ok:false,status:409};
+  return {ok:true,status:200,draft:{discipline:'taiso',version:result.version,generation:result.generation,...draft}};
+ }
+ const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,taisoDraft,now});
  const importLimiter=limiter('catalogue-analysis',20,40);
  const xlsxAnalyzer=xlsxPython===undefined?null:createXlsxRecipeAnalyzer({pythonExecutable:xlsxPython});
  if(typeof enableCataloguePublication!=='boolean')throw TypeError('Configuration publication invalide');
