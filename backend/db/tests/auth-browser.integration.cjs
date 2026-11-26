@@ -24,7 +24,7 @@ const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expect
 async function signIn(page,email,code){
  await page.locator('#email').fill(email);await page.locator('#password').fill(password);
  if(code!==undefined)await page.locator('#mfa').fill(code);
- await page.locator('button[type=submit]').click();
+ await page.locator('#login button[type=submit]').click();
 }
 test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et cloisonnement',async()=>{
  assert.equal(process.env.PGDATABASE,'jsb_ci');
@@ -127,6 +127,30 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
     await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    // Public account forms use real endpoints; no external mail delivery.
+    await page.locator('[data-panel="register-panel"]').click();
+    assert.ok(await page.locator('#register-role').isEnabled());
+    assert.deepEqual(await page.locator('#register-role option').evaluateAll(opts=>opts.map(o=>o.value)),['','coach','individual']);
+    await page.locator('#register-role').selectOption('coach');
+    await page.locator('#register-email').fill(emails.coach);
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password+' mismatch');
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Les deux mots de passe doivent être identiques');
+    assert.equal(await page.locator('#register-password').inputValue(),'');
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password);
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#verify-panel').isVisible());
+    await page.locator('#verify-panel [data-close-panel]').click();
+    await page.locator('[data-panel="reset-request-panel"]').click();
+    await page.locator('#reset-email').fill(emails.coach);
+    await page.locator('#reset-request-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#reset-confirm-panel').isVisible());
+    await page.locator('#reset-confirm-panel [data-close-panel]').click();
+    assert.equal(await admin.locator('#account-actions').count(),0);
     assert.deepEqual(errors,[]);
     assert.ok(network.filter(x=>x.path==='/api/login'||x.path==='/api/logout').every(x=>x.origin==='same-origin'),name+' : Origin des mutations');
     console.log('Recette '+name+' : parcours et isolation réussis.');
