@@ -91,7 +91,36 @@ function renderWorkspace(){
          offset=page;info.textContent=result.total?((page+1)+'–'+(page+result.items.length)+' sur '+result.total+' exercice(s)'):'Aucun exercice correspondant.';
          for(const item of result.items){
           const card=element('details');card.className='catalogue-item';
-          card.append(element('summary',item.name),element('p','Référence : '+item.reference),element('p','Famille : '+item.family),element('p','Fiche pédagogique complète non encore raccordée.'));
+          card.append(element('summary',item.name),element('p','Référence : '+item.reference),element('p','Famille : '+item.family));
+          const sheet=element('div');sheet.className='exercise-sheet';card.append(sheet);
+          let detailRun=0;
+          card.addEventListener('toggle',async()=>{
+           const requestId=++detailRun;sheet.replaceChildren();
+           if(!card.open||!live()||run!==generation)return;
+           const valid=()=>live()&&run===generation&&requestId===detailRun&&card.open&&card.isConnected;
+           const message=element('p','Chargement de la fiche…');message.setAttribute('role','status');sheet.append(message);
+           try{
+            const exercise=await client.exerciseDetail(key,{version:data.version,reference:item.reference});
+            const checked=await client.session();
+            if(!valid())return;
+            if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
+            if(exercise.state==='version-changed'){message.textContent='Version modifiée. Rouvrez le catalogue.';return;}
+            if(exercise.state==='not-found'){message.textContent='Fiche indisponible.';return;}
+            if(exercise.state==='summary'){message.textContent='Fiche synthétique uniquement. Contenu pédagogique complet non disponible.';return;}
+            sheet.replaceChildren();
+            const groups=[
+             ['Sécurité et dosage',[['safety','Point de sécurité'],['dosage','Dosage de base'],['successCriteria','Critère de réussite']]],
+             ...(key==='judo'?[['Pédagogie Judo',[['competence','Compétence ciblée'],['pedagogicalRole','Rôle pédagogique'],['prerequisites','Prérequis'],['opposition','Niveau d’opposition'],['organization','Organisation Tori / Uke, rotations et récupération'],['blockDuration','Durée du bloc']]]]:[]),
+             ['Caractéristiques',[['level','Niveau'],['subgroup','Sous-groupe'],['equipment','Matériel'],...(key==='taiso'?[['targetMuscles','Muscles cibles']]:[]),['moment','Moment de la séance'],['format','Format']]],
+             ['Adaptations',[['easier','Variante −'],['harder','Variante +'],['accessibility','Accessibilité'],['inspiration','Inspiration']]]
+            ];
+            for(const [name,fields] of groups){
+             const group=element('section');group.className='exercise-group';group.append(element('h4',name));
+             const dl=element('dl');for(const [field,label] of fields){dl.append(element('dt',label),element('dd',exercise.details[field]));}
+             group.append(dl);sheet.append(group);
+            }
+           }catch{if(valid())message.textContent='Fiche indisponible. Fermez puis rouvrez la fiche pour réessayer.';}
+          });
           results.append(card);
          }
          previous.hidden=offset===0;next.hidden=offset+30>=result.total;
