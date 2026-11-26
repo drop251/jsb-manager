@@ -166,6 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           JSB_XLSX_PYTHON="$(command -v python)" node --test backend/db/tests/auth-browser.integration.cjs
+          node --test backend/db/tests/taiso-offline-browser.integration.cjs
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_private.taiso_drafts')" = 0
           for table in restorations publications releases exercises current_release; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_catalogue.$table")" = 0
