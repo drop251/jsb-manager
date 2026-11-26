@@ -155,6 +155,35 @@ function renderWorkspace(){
          if(response.state==='rate-limited')return 'Trop de demandes. Réessayez plus tard.';
          return 'Opération non confirmée. Rechargez la liste.';
         }
+        async function editProposal(answer,planSettings,operation){
+         if(!live()||!result.isConnected)return;
+         const edits=[...(planSettings.edits||[]),operation];
+         if(edits.length>60)return;
+         const run=++requestId;
+         const titleBefore=result.querySelector('#taiso-draft-title')?.value??'';
+         const controls=[...result.querySelectorAll('button,input,select')];
+         controls.forEach(c=>c.disabled=true);
+         check.disabled=generate.disabled=true;
+         const notice=element('p','Vérification de la modification…');notice.setAttribute('role','status');result.append(notice);
+         try{
+          const nextSettings={...planSettings,edits};
+          const next=await client.taisoDraft(nextSettings);
+          const current=await client.session();
+          if(!live()||run!==requestId)return;
+          if(current.state!=='signed-in'||current.account.id!==account.id||current.account.role!==account.role){void refresh();return;}
+          if(next.state!=='ready'){renderProposal(answer,planSettings,false);result.append(element('p','Modification non appliquée. Vérifiez le catalogue et réessayez.'));return;}
+          renderProposal(next,nextSettings,false);
+          result.append(element('p','Modification appliquée au brouillon en cours. Enregistrez pour la conserver.'));
+         }catch{
+          if(live()&&run===requestId){renderProposal(answer,planSettings,false);result.append(element('p','Modification refusée ou indisponible. La proposition précédente est conservée.'));}
+         }finally{
+          if(live()&&run===requestId){
+           check.disabled=generate.disabled=false;
+           const title=result.querySelector('#taiso-draft-title');
+           if(title){title.value=titleBefore;title.dispatchEvent(new Event('input',{bubbles:true}));}
+          }
+         }
+        }
         function renderProposal(answer,planSettings,loaded){
            result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p',answer.format+' · '+answer.mode+' · catalogue '+answer.version));
            if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
@@ -170,6 +199,26 @@ function renderWorkspace(){
             }
             for(const e of phase.exercises){
              section.append(element('h5',e.name),element('p','Budget indicatif : '+e.allocationMinutes+' min'),element('p','Prescription sélectionnée : '+(answer.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions')),element('p','Dosage source : '+e.dosage),element('p','Sécurité : '+e.safety));
+             const actions=element('div');actions.className='exercise-group';
+             const block=phase.blocks.find(b=>b.references.includes(e.reference));
+             const order=block?block.references:phase.exercises.map(x=>x.reference),position=order.indexOf(e.reference);
+             const limit=(planSettings.edits||[]).length>=60;
+             const modify=(action,replacement)=>void editProposal(answer,planSettings,{action,phase:phase.name,reference:e.reference,...(replacement?{replacement}:{})});
+             const up=element('button','Monter');up.type='button';up.disabled=limit||position<=0;up.setAttribute('aria-label','Monter '+e.name);
+             const down=element('button','Descendre');down.type='button';down.disabled=limit||position<0||position>=order.length-1;down.setAttribute('aria-label','Descendre '+e.name);
+             const remove=element('button','Retirer');remove.type='button';remove.disabled=limit;remove.setAttribute('aria-label','Retirer '+e.name);
+             up.addEventListener('click',()=>modify('up'));down.addEventListener('click',()=>modify('down'));remove.addEventListener('click',()=>modify('remove'));
+             actions.append(up,down,remove);
+             if(block?.alternatives?.length){
+              const chooser=element('select');chooser.setAttribute('aria-label','Remplacement de '+e.name);
+              const placeholder=element('option','Choisir une alternative');placeholder.value='';chooser.append(placeholder);
+              for(const candidate of block.alternatives){const option=element('option',candidate.name);option.value=candidate.reference;chooser.append(option);}
+              const replace=element('button','Remplacer');replace.type='button';replace.disabled=true;chooser.disabled=limit;
+              chooser.addEventListener('change',()=>{replace.disabled=limit||!chooser.value;});
+              replace.addEventListener('click',()=>{if(chooser.value)modify('replace',chooser.value);});
+              actions.append(chooser,replace);
+             }
+             section.append(actions);
             }
             if(phase.unallocatedMinutes)section.append(element('p',phase.unallocatedMinutes+' min non attribuées — à organiser.'));
             result.append(section);
