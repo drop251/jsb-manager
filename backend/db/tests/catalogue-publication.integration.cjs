@@ -39,8 +39,25 @@ test('Publication catalogue : transaction, empreinte, concurrence et conservatio
   assert.equal((await pool.query("SELECT previous_version FROM jsb_catalogue.publications WHERE discipline='taiso' AND version=$1",[winning])).rows[0].previous_version,'publish-fixture-1');
   assert.equal((await publisher.publish(actor,digest,payload('publish-fixture-j',null,'judo'))).status,200);
   assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,'publish-fixture-j');
+  // Workbook-shaped synthetic data only: never commit the real provisional catalogue.
+  const {HEADERS,mapTaisoRecipe,restoreSourceRow}=require('../../../core/taiso-xlsx-recipe.cjs');
+  const sourceRows=Array.from({length:228},(_,i)=>{
+   const row=HEADERS.map((_,j)=>'Fixture '+i+' / '+j);
+   row[2]='Taïso';row[3]='Exercice';row[7]='Renforcement';row[20]='a, b, a';return row;
+  });
+  const recipe=mapTaisoRecipe([[...HEADERS],...sourceRows]);
+  assert.equal(analyzeCatalogueImport(JSON.stringify(recipe),'taiso').ok,false);
+  // Only here, in the ephemeral test database, unwrap synthetic exercises
+  // to exercise the real publication transaction at the observed volume.
+  const text=JSON.stringify({discipline:'taiso',version:'publish-fixture-volume',exercises:recipe.items.map(i=>i.exercise)});
+  const large=await publisher.publish(actor,digest,{discipline:'taiso',text,expectedHash:analyzeCatalogueImport(text,'taiso').report.hash,expectedPreviousVersion:winning,confirmed:true});
+  assert.equal(large.status,200);assert.equal(large.publication.count,228);
+  const stored=await pool.query("SELECT reference,name,family,pedagogical_details AS details FROM jsb_catalogue.exercises WHERE discipline='taiso' AND version='publish-fixture-volume' ORDER BY reference");
+  assert.equal(stored.rowCount,228);
+  assert.deepEqual(stored.rows.map(exercise=>restoreSourceRow({exercise})),sourceRows);
+  assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.exercises WHERE discipline='taiso' AND version=$1",[winning])).rows[0].n,'1');
   await pool.query("UPDATE jsb_auth.accounts SET status='suspended' WHERE id=$1",[id]);
-  assert.equal((await publisher.publish(actor,digest,payload('publish-fixture-4',winning))).status,403);
+  assert.equal((await publisher.publish(actor,digest,payload('publish-fixture-4','publish-fixture-volume'))).status,403);
  }finally{try{if(safe){
   await pool.query("DELETE FROM jsb_catalogue.publications WHERE actor_id=$1",[id]);
   await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version LIKE 'publish-fixture-%'");
