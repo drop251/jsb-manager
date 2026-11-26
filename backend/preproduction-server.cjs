@@ -50,7 +50,7 @@ async function createServer({config,pool}){
   const handlers=new Map();
   for(const [app,origin,authHandler] of [['public',config.publicOrigin,runtime.publicHandler],['admin',config.adminOrigin,runtime.adminHandler]]){
    const directory=join(dir,app);await build(app,directory);
-   handlers.set(new URL(origin).host,await createPreproductionHandler({app,origin,directory,authHandler,authorizeAccess:req=>gatewayAccess(config.gateway,req)!==null}));
+   handlers.set(new URL(origin).host,await createPreproductionHandler({app,origin,directory,authHandler,otherOrigin:app==='admin'?config.publicOrigin:config.adminOrigin,authorizeAccess:req=>gatewayAccess(config.gateway,req)!==null}));
   }
   const server=http.createServer({requestTimeout:15000,headersTimeout:10000,maxHeaderSize:8192,keepAliveTimeout:5000},(req,res)=>{
    const handler=handlers.get(req.headers.host);
