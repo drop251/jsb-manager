@@ -51,3 +51,20 @@ test('Client : session administrateur et code MFA, refus des profils publics',as
  assert.equal(JSON.parse(f.calls[0].options.body).mfaCode,'123456');
  await assert.rejects(c.session(),/Identité/);
 });
+
+test('Client : cycle de compte disponible seulement dans le périmètre grand public',async()=>{
+ const {createAuthClient}=await load();
+ const accepted={status:202,body:{ok:true}},confirmed={status:200,body:{ok:true}},invalid={status:400,body:{ok:false}};
+ const f=fixture([accepted,confirmed,accepted,accepted,invalid]),c=createAuthClient(f.options);
+ assert.deepEqual(await c.register({email:'test@example.test',password:'fixture',role:'admin'}),{ok:false,status:400});
+ assert.equal(f.calls.length,0);
+ assert.deepEqual(await c.register({email:'test@example.test',password:'fixture',role:'coach'}),{ok:true,status:202});
+ assert.deepEqual(await c.verifyEmail('fixture-code'),{ok:true,status:200});
+ assert.deepEqual(await c.resendVerification('test@example.test'),{ok:true,status:202});
+ assert.deepEqual(await c.requestReset('test@example.test'),{ok:true,status:202});
+ assert.deepEqual(await c.confirmReset({token:'fixture-code',password:'fixture'}),{ok:false,status:400});
+ assert.deepEqual(f.calls.map(x=>new URL(x.url).pathname),['/api/register','/api/verify-email','/api/resend-verification','/api/password-reset/request','/api/password-reset/confirm']);
+ assert.equal(f.transitions.length,5);
+ const admin=createAuthClient(fixture([],{allowedRoles:['admin']}).options);
+ for(const name of ['register','verifyEmail','resendVerification','requestReset','confirmReset'])assert.equal(admin[name],undefined);
+});
