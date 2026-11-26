@@ -10,8 +10,8 @@ permissions:
 
 jobs:
   postgres:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -61,7 +61,7 @@ jobs:
         with:
           node-version: '22'
       - name: Installer le pilote PostgreSQL de recette
-        run: npm install --no-save --no-package-lock --ignore-scripts --prefix "$RUNNER_TEMP/jsb-db-ci" pg@8.16.3
+        run: npm install --no-save --no-package-lock --ignore-scripts --prefix "$RUNNER_TEMP/jsb-db-ci" pg@8.16.3 playwright@1.51.1
       - name: Tester les sessions avec PostgreSQL réel
         env:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
@@ -99,6 +99,20 @@ jobs:
         run: |
           set -euo pipefail
           node --test backend/db/tests/auth-runtime.integration.cjs
+          for table in accounts sessions action_tokens delivery_outbox quota_events mfa_factors recovery_codes; do
+            test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
+          done
+
+      - name: Installer Chromium et WebKit pour la recette HTTPS
+        run: '"$RUNNER_TEMP/jsb-db-ci/node_modules/.bin/playwright" install --with-deps chromium webkit'
+
+      - name: Tester les écrans de connexion en HTTPS sur PostgreSQL
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
+        run: |
+          set -euo pipefail
+          node --test backend/db/tests/auth-browser.integration.cjs
           for table in accounts sessions action_tokens delivery_outbox quota_events mfa_factors recovery_codes; do
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
