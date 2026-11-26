@@ -6,7 +6,7 @@ const taiso=Object.freeze([...common,'targetMuscles']);
 const judo=Object.freeze([...common,'competence','pedagogicalRole','prerequisites','opposition','organization','blockDuration']);
 // Extension canonique facultative tant que le classeur de référence n'a pas
 // été rapproché du modèle. L'absence d'une valeur reste une absence.
-const optionalText=Object.freeze(['executionDescription','subfamily','classification']);
+const optionalText=Object.freeze(['executionDescription','subfamily','classification','sheetType','objective','tagsText']);
 const optionalFields=new Set([...optionalText,'tags']);
 function validatePedagogicalDetails(discipline,input){
  const fields=discipline==='taiso'?taiso:discipline==='judo'?judo:null;
