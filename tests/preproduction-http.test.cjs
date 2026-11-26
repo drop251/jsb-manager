@@ -18,7 +18,8 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
    const host='127.0.0.1:'+server.address().port,origin='https://'+host;
    let apiCalls=0,access=true;
-   const options={app,origin,directory,authorizeAccess:async()=>access,authHandler:async(req,res)=>{apiCalls++;res.writeHead(401,{'Cache-Control':'no-store'});res.end();}};
+   const otherOrigin=app==='admin'?'https://coach.example.test':'https://admin.example.test';
+   const options={app,origin,otherOrigin,directory,authorizeAccess:async()=>access,authHandler:async(req,res)=>{apiCalls++;res.writeHead(401,{'Cache-Control':'no-store'});res.end();}};
    const handler=await createPreproductionHandler(options);
    function request(url,{method='GET',headers={}}={}){
     return new Promise((resolve,reject)=>{
@@ -29,15 +30,32 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    }
    const entry='/'+app+'/auth.html',other=app==='public'?'admin':'public';
    access=false;
-   for(const url of ['/',entry,'/api/session'])assert.equal((await request(url)).status,403);
+   for(const url of ['/',entry,'/api/session','/switch-workspace'])assert.equal((await request(url)).status,403);
+   const refusal=await request(entry);
+   assert.equal(refusal.body,'Accès refusé.');
+   assert.match(refusal.headers['content-type'],/^text\/plain/);
+   assert.match(refusal.headers['cache-control'],/no-store/);
+   assert.equal((await request(entry,{method:'HEAD'})).body,'');
+   assert.equal((await request('/api/session')).body,'');
    assert.equal(apiCalls,0);
    access=true;
    assert.equal((await request(entry,{headers:{Host:'wrong.test'}})).status,421);
    const redirect=await request('/');assert.equal(redirect.status,302);assert.equal(redirect.headers.location,entry);
+   const switched=await request('/switch-workspace');
+   assert.equal(switched.status,302);
+   assert.equal(switched.headers.location,otherOrigin+'/'+other+'/auth.html');
+   assert.equal(switched.headers['set-cookie'],undefined);
+   assert.match(switched.headers['cache-control'],/no-store/);
+   assert.equal(switched.headers['referrer-policy'],'no-referrer');
+   assert.equal((await request('/switch-workspace?next=https://evil.test')).status,404);
+   assert.equal((await request('/switch-workspace',{method:'POST'})).status,405);
+   assert.equal(apiCalls,0);
+   for(const invalid of ['http://other.test','https://other.test/path',origin])await assert.rejects(createPreproductionHandler({...options,otherOrigin:invalid}),TypeError);
    const html=await request(entry);assert.equal(html.status,200);assert.match(html.headers['cache-control'],/no-store/);
    assert.match(html.headers['content-security-policy'],/frame-ancestors 'none'/);
    assert.doesNotMatch(html.headers['content-security-policy'],/unsafe-eval/);
    assert.equal(html.body.includes('id="mfa"'),app==='admin');
+   assert.match(html.body,/href="\/switch-workspace" target="_blank" rel="noopener noreferrer"/);
    assert.equal((await request(entry,{method:'HEAD'})).body,'');
    assert.equal((await request('/shared/auth-client.mjs')).status,200);
    for(const url of ['/public/offline.html','/public/offline.mjs','/public/offline-sw.js'])assert.equal((await request(url)).status,app==='public'?200:404);
