@@ -310,7 +310,7 @@ function renderWorkspace(){
             const data=new Blob([JSON.stringify(copy)],{type:'application/json'});
             if(data.size>524288)throw Error('Copie trop volumineuse');
             if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
-            await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/public/'});
+            await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
             await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
             const cache=await caches.open('jsb-manager-offline-reader-v1');
             if(!await cache.match('/public/offline.html')||!await cache.match('/public/offline.mjs'))throw Error('Lecteur non disponible');
