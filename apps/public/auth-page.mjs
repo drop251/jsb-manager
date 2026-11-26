@@ -67,7 +67,7 @@ function renderWorkspace(){
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
        const preparation=element('section');preparation.className='workspace-detail';preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
-       preparation.append(element('h3','Préparer une séance Taïso'),element('p','Contrôle préalable des exercices compatibles. Ce contrôle ne constitue pas encore une séance complète.'));
+       preparation.append(element('h3','Préparer une séance Taïso'),element('p','Vérifiez les exercices compatibles ou construisez une proposition en séries classiques, à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
         const form=element('div');
@@ -79,6 +79,7 @@ function renderWorkspace(){
         const group=makeSelect('taiso-group','Groupe',['Gym douce','Training'],'Training');
         const level=makeSelect('taiso-level','Niveau maximal',['Débutant','Intermédiaire','Expert'],'Intermédiaire');
         const mode=makeSelect('taiso-mode','Mode de dosage',['Répétitions','Durée'],'Répétitions');
+        const duration=makeSelect('taiso-duration','Durée totale (minutes)',['45','60','75','90'],'60');
         function makeCheck(id,label,checked=false){
          const row=element('div'),input=element('input'),l=element('label',label);input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
         }
@@ -90,24 +91,41 @@ function renderWorkspace(){
         form.append(element('h4','Contraintes à prendre en compte'));
         const restrictions=['Genoux','Dos','Épaules','Poignets','Sauts','Passage au sol'].map((name,i)=>[name,makeCheck('taiso-constraint-'+i,name)]);
         const check=element('button','Vérifier les exercices compatibles');check.type='button';
+        const generate=element('button','Proposer une séance — séries classiques');generate.type='button';
         const result=element('div');result.id='taiso-candidate-result';result.setAttribute('role','status');
         let requestId=0;
         const live=()=>!busy&&workspaceIdentity===identity&&preparation.isConnected;
-        form.addEventListener('change',()=>{requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=false;});
+        form.addEventListener('change',()=>{requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=generate.disabled=false;});
         equipment.addEventListener('input',()=>{requestId++;result.replaceChildren();check.disabled=false;});
-        check.addEventListener('click',async()=>{
-         if(!live()||check.disabled)return;
+        async function prepareDraft(isDraft){
+         if(!live()||check.disabled||generate.disabled)return;
          const run=++requestId;
          const criteria={groupe:group.value,niveau:level.value,mode:mode.value,supervision:supervision.checked,binome:partner.checked,sansMateriel:noEquipment.checked,materiel:noEquipment.checked?[]:equipment.value.split(';').map(x=>x.trim()).filter(Boolean),contraintes:restrictions.filter(([,input])=>input.checked).map(([name])=>name)};
          if(!criteria.sansMateriel&&!criteria.materiel.length){result.textContent='Renseignez le matériel disponible ou choisissez Sans matériel.';return;}
-         check.disabled=true;result.textContent='Vérification en cours…';
+         check.disabled=generate.disabled=true;result.textContent=isDraft?'Préparation en cours…':'Vérification en cours…';
          try{
-          const answer=await client.taisoCandidates({version:data.version,generation:data.generation,criteria});
+          const options={version:data.version,generation:data.generation,criteria};
+          const answer=isDraft?await client.taisoDraft({...options,minutes:Number(duration.value),seed:1+crypto.getRandomValues(new Uint32Array(1))[0]%2147483646}):await client.taisoCandidates(options);
           const accountNow=await client.session();
           if(!live()||run!==requestId)return;
           if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
           if(answer.state==='version-changed'){result.textContent='Le référentiel a changé. Revenez à l’accueil puis rouvrez le Taïso.';return;}
           if(answer.state==='rate-limited'){result.textContent='Trop de vérifications. Réessayez plus tard.';return;}
+          if(isDraft){
+           result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p','Séries classiques · '+answer.mode+' · catalogue '+answer.version));
+           if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
+           for(const phase of answer.phases){
+            const section=element('section');section.className='exercise-group';
+            section.append(element('h4',phase.name+' · '+phase.minutes+' min'));
+            for(const e of phase.exercises){
+             section.append(element('h5',e.name),element('p','Budget indicatif : '+e.allocationMinutes+' min'),element('p','Prescription sélectionnée : '+(answer.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions')),element('p','Dosage source : '+e.dosage),element('p','Sécurité : '+e.safety));
+            }
+            if(phase.unallocatedMinutes)section.append(element('p',phase.unallocatedMinutes+' min non attribuées — à organiser.'));
+            result.append(section);
+           }
+           result.append(element('p','Les budgets ne sont pas des chronomètres. Vérifiez la cohérence des séries, récupérations et adaptations avant utilisation. Aucune séance n’est encore enregistrée.'));
+           return;
+          }
           result.replaceChildren(element('p',answer.total+' exercice(s) compatible(s) · '+answer.excluded+' non retenu(s).'));
           if(answer.items.length){
            const ul=element('ul');for(const item of answer.items)ul.append(element('li',item.name+' · '+item.dosage));result.append(ul);
@@ -115,9 +133,11 @@ function renderWorkspace(){
           }
           result.append(element('p','La compatibilité technique ne remplace pas l’appréciation pédagogique du coach.'));
          }catch{if(live()&&run===requestId)result.textContent='Vérification indisponible. Contrôlez votre session et le référentiel.';}
-         finally{if(live()&&run===requestId)check.disabled=false;}
-        });
-        form.append(check,result);preparation.append(form);
+         finally{if(live()&&run===requestId)check.disabled=generate.disabled=false;}
+        }
+        check.addEventListener('click',()=>void prepareDraft(false));
+        generate.addEventListener('click',()=>void prepareDraft(true));
+        form.append(check,generate,result);preparation.append(form);
        }
        detail.insertBefore(preparation,list);
       }
