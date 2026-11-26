@@ -26,9 +26,24 @@ function renderWorkspace(){
  if(workspaceIdentity===identity)return;
  workspaceIdentity=identity;
  const items=[...workspacePages.common];
+ function navigation(current){
+  const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
+  const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance'};
+  for(const key of ['home',...items.map(item=>item[0])]){
+   const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
+   if(current===key)button.setAttribute('aria-current','page');
+   button.addEventListener('click',()=>{
+    if(busy||workspaceIdentity!==identity||key===current)return;
+    home(key==='home');
+    if(key!=='home')workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();
+   });
+   nav.append(button);
+  }
+  return nav;
+ }
  function home(focus=false){
   if(busy||workspaceIdentity!==identity)return;
-  workspace.replaceChildren();
+  workspace.replaceChildren(navigation('home'));
   const heading=element('h2','Tableau de bord Administrateur');heading.tabIndex=-1;
   workspace.append(heading,element('p','Navigation de préproduction. Les données et actions métier restent indisponibles.'));
   const grid=element('div');grid.className='workspace-grid';
@@ -42,7 +57,7 @@ function renderWorkspace(){
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Fonctionnalités prévues — API métier non raccordée.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(detail);h.focus({preventScroll:true});
+    workspace.replaceChildren(navigation(key),detail);h.focus({preventScroll:true});
     if(key==='catalogue'){
      const block=element('section');block.className='workspace-detail';
      block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Toute publication nécessite une confirmation distincte.'));
