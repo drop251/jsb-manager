@@ -2,10 +2,11 @@
 // Separate HTTPS origins, same-origin API, no CORS. Deploy behind a trusted
 // TLS terminator which enforces host and request size/time limits. The source
 // address resolver must be configured for that proxy; never trust client headers.
+const {createHash}=require('node:crypto');
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -22,6 +23,11 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(catalogueImport!==undefined){
   if(app!=='admin'||typeof catalogueImport!=='function')throw TypeError('Analyse de catalogue réservée à l’administration');
   paths.set(importPath,'POST');
+ }
+ const publishPath='/api/admin/catalogue/publish';
+ if(cataloguePublish!==undefined){
+  if(app!=='admin'||typeof cataloguePublish!=='function')throw TypeError('Publication administrative uniquement');
+  paths.set(publishPath,'POST');
  }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
@@ -80,13 +86,20 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
     return send(res,200,{ok:true,catalogue:result.catalogue});
    }
-   if(req.url===importPath){
+   if(req.url===importPath||req.url===publishPath){
     const actor=await actorFor(oldToken);
     if(!actor)return send(res,401,{ok:false});
     const source=await sourceId(req);
     if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
     const body=await json(req,8*1024*1024);
-    const result=await catalogueImport(actor,body,source);
+    const sessionHash=createHash('sha256').update(oldToken,'utf8').digest('hex');
+    const result=await (req.url===publishPath?cataloguePublish:catalogueImport)(actor,body,source,sessionHash);
+    // Publication is already committed atomically if successful. Do not mask
+    // an acknowledged commit by checking a subsequently expired session.
+    if(req.url===publishPath){
+     if(result.status!==200)return serviceResult(res,result);
+     return send(res,200,{ok:true,publication:result.publication});
+    }
     const confirmed=await actorFor(oldToken);
     if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
     if(result.status!==200)return serviceResult(res,result);
