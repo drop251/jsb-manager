@@ -169,6 +169,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(pdf.suggestedFilename(),'JSB-Taiso-r1-detaille.pdf');
     assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
     await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
+    const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
+
 
     await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
     await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
