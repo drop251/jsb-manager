@@ -15,7 +15,8 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  const paths=new Map([['/api/session','GET'],['/api/login','POST'],['/api/logout','POST']]);
  if(app==='public')for(const p of ['/api/register','/api/verify-email','/api/resend-verification','/api/password-reset/request','/api/password-reset/confirm'])paths.set(p,'POST');
  const cataloguePaths=new Map([['/api/catalogue/judo','judo'],['/api/catalogue/taiso','taiso']]);
- if(catalogue!==undefined){if(typeof catalogue?.read!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');}
+ const catalogueSearchPaths=new Map([['/api/catalogue/judo/search','judo'],['/api/catalogue/taiso/search','taiso']]);
+ if(catalogue!==undefined){if(typeof catalogue?.read!=='function'||typeof catalogue?.search!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');for(const path of catalogueSearchPaths.keys())paths.set(path,'POST');}
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
   const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(cookieName+'='));
@@ -74,6 +75,13 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     return send(res,200,{ok:true,catalogue:result.catalogue});
    }
    const body=await json(req);
+   if(catalogueSearchPaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const result=await catalogue.search(actor,catalogueSearchPaths.get(req.url),{version:body.version,query:body.query,family:body.family,offset:body.offset});
+    if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
+    return send(res,200,{ok:true,results:result.results});
+   }
    if(req.url==='/api/logout'){
     if(await actorFor(oldToken))await sessions.revoke(oldToken);
     return send(res,200,{ok:true},{'Set-Cookie':cookie('',0)});
