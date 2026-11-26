@@ -87,6 +87,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     const current=await page.evaluate(async()=>await (await fetch('/api/session',{cache:'no-store'})).json());
     assert.deepEqual(current.account,{id:ids.individual,role:'individual'});
     await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
     assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
     await admin.bringToFront();
     await admin.goto(adminOrigin+'/');
@@ -108,9 +109,17 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     // The preceding API assertion proves isolation without a reload; then verify
     // the actual page restores the same identity on a fresh navigation.
     await page.bringToFront();
-    await page.reload();
+    await page.locator('#refresh-session').click();
     await waitStatus(page,'Session vérifiée : Particulier');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
+    const second=await ctx.newPage();
+    second.on('pageerror',e=>errors.push(e.message));
+    await second.goto(publicOrigin+'/');
+    await waitStatus(second,'Session vérifiée : Particulier');
+    await page.bringToFront();
     await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
+    await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     assert.deepEqual(errors,[]);
     await ctx.close();
