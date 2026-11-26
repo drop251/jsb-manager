@@ -31,6 +31,12 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    const entry='/'+app+'/auth.html',other=app==='public'?'admin':'public';
    access=false;
    for(const url of ['/',entry,'/api/session','/switch-workspace'])assert.equal((await request(url)).status,403);
+   const refusal=await request(entry);
+   assert.equal(refusal.body,'Accès refusé.');
+   assert.match(refusal.headers['content-type'],/^text\/plain/);
+   assert.match(refusal.headers['cache-control'],/no-store/);
+   assert.equal((await request(entry,{method:'HEAD'})).body,'');
+   assert.equal((await request('/api/session')).body,'');
    assert.equal(apiCalls,0);
    access=true;
    assert.equal((await request(entry,{headers:{Host:'wrong.test'}})).status,421);
