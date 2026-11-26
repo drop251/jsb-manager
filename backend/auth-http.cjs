@@ -6,7 +6,7 @@ const {createHash}=require('node:crypto');
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -42,6 +42,11 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(taisoCandidates!==undefined){
   if(app!=='public'||typeof taisoCandidates!=='function')throw TypeError('Service de préparation public invalide');
   paths.set(candidatesPath,'POST');
+ }
+ const draftPath='/api/generator/taiso/draft';
+ if(taisoDraft!==undefined){
+  if(app!=='public'||typeof taisoDraft!=='function')throw TypeError('Service de proposition public invalide');
+  paths.set(draftPath,'POST');
  }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
@@ -100,17 +105,17 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
     return send(res,200,{ok:true,catalogue:result.catalogue});
    }
-   if(req.url===candidatesPath){
+   if(req.url===candidatesPath||req.url===draftPath){
     const actor=await actorFor(oldToken);
     if(!actor)return send(res,401,{ok:false});
     const body=await json(req);
     const source=await sourceId(req);
     if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
-    const result=await taisoCandidates(actor,body,source);
+    const result=await (req.url===draftPath?taisoDraft:taisoCandidates)(actor,body,source);
     const confirmed=await actorFor(oldToken);
     if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
     if(result.status!==200)return serviceResult(res,result);
-    return send(res,200,{ok:true,selection:result.selection});
+    return send(res,200,req.url===draftPath?{ok:true,draft:result.draft}:{ok:true,selection:result.selection});
    }
    if(req.url===historyPath||req.url===restorePath){
     const actor=await actorFor(oldToken);
