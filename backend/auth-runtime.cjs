@@ -163,7 +163,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   await pool.query("SELECT a.id FROM jsb_auth.accounts a, jsb_auth.sessions s, jsb_auth.action_tokens t, jsb_auth.delivery_outbox o, jsb_auth.quota_events q, jsb_auth.mfa_factors f WHERE false");
   await pool.query('SELECT r.version,e.pedagogical_details FROM jsb_catalogue.releases r, jsb_catalogue.exercises e, jsb_catalogue.current_release c WHERE false');
   await pool.query('SELECT p.version,c.generation,r.generation FROM jsb_catalogue.publications p, jsb_catalogue.current_release c, jsb_catalogue.restorations r WHERE false');
-  await pool.query('SELECT owner_id,revision,settings,snapshot FROM jsb_private.taiso_drafts WHERE false');
+  await pool.query('SELECT owner_id,revision,settings,snapshot,validated_at FROM jsb_private.taiso_drafts WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});
