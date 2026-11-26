@@ -9,6 +9,7 @@ function check(v){
  const seen=new Set();
  return v.phases.every(p=>p&&str(p.name,100)&&int(p.minutes,1,90)&&int(p.unallocatedMinutes,0,p.minutes)&&Array.isArray(p.exercises)&&p.exercises.length<=90&&p.exercises.every(e=>{
   if(!e||!str(e.reference,80)||seen.has(e.reference)||!str(e.name,250)||!str(e.dosage,1800)||!str(e.safety,1800)||!int(e.allocationMinutes,1,p.minutes)||!e.prescription||e.prescription.mode!==v.mode||!(v.mode==='Durée'?int(e.prescription.effortSeconds,1,7200):int(e.prescription.repetitions,1,10000)))return false;
+  if(['description','successCriteria','easier','harder','equipment','accessibility'].some(k=>e[k]!==undefined&&!str(e[k],1800)))return false;
   seen.add(e.reference);return true;
  })&&p.exercises.reduce((n,e)=>n+e.allocationMinutes,0)+p.unallocatedMinutes===p.minutes&&Array.isArray(p.blocks)&&p.blocks.length<=8&&p.blocks.every(b=>b&&str(b.name,40)&&int(b.budgetSeconds,0,p.minutes*60)&&(b.plannedSeconds===null||int(b.plannedSeconds,0,10000000))&&Array.isArray(b.issues)&&b.issues.length<=10&&b.issues.every(x=>str(x,100))))&&v.phases.reduce((n,p)=>n+p.minutes,0)===v.minutes;
 }
@@ -28,7 +29,7 @@ file.addEventListener('change',async()=>{
    const section=el('section');section.append(el('h3',p.name+' · '+p.minutes+' min'));
    for(const b of p.blocks)section.append(el('p',b.name+' : '+(b.plannedSeconds===null?'organisation à préciser':b.plannedSeconds+' s prévues / '+b.budgetSeconds+' s disponibles')+(b.issues.length?' — organisation à vérifier':'')));
    for(const e of p.exercises){
-    const row=el('article');row.append(el('h3',e.name),el('p',e.prescription.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions'),el('p','Dosage : '+e.dosage),el('p','Sécurité : '+e.safety),el('p','Budget indicatif : '+e.allocationMinutes+' min'));section.append(row);
+    const row=el('article');row.append(el('h3',e.name),el('p',e.prescription.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions'),el('p','Dosage : '+e.dosage),el('p','Sécurité : '+e.safety),el('p','Budget indicatif : '+e.allocationMinutes+' min'));for(const [key,label] of [['description','Exécution'],['successCriteria','Critère de réussite'],['equipment','Matériel'],['easier','Variante plus facile'],['harder','Variante plus difficile'],['accessibility','Accessibilité']])if(e[key])row.append(el('p',label+' : '+e[key]));section.append(row);
    }
    if(p.unallocatedMinutes)section.append(el('p',p.unallocatedMinutes+' min à organiser.'));
    content.append(section);
