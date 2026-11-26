@@ -109,9 +109,9 @@ function renderWorkspace(){
             if(exercise.state==='summary'){message.textContent='Fiche synthétique uniquement. Contenu pédagogique complet non disponible.';return;}
             sheet.replaceChildren();
             const groups=[
-             ['Sécurité et dosage',[['safety','Point de sécurité'],['dosage','Dosage de base'],['successCriteria','Critère de réussite']]],
+             ['Sécurité et dosage',[['safety','Point de sécurité'],['dosage','Dosage de base'],['successCriteria','Critère de réussite'],...([['dosageMode','Mode de dosage'],['effortSeconds','Durée d’effort (s)'],['repetitions','Répétitions'],['repetitionsMax','Répétitions max par judoka'],['restrictions','Restrictions d’utilisation']].filter(([field])=>Object.hasOwn(exercise.details,field)))]],
              ...(Object.hasOwn(exercise.details,'executionDescription')?[['Exécution',[['executionDescription','Description du mouvement'],...([['objective','Objectif']].filter(([field])=>Object.hasOwn(exercise.details,field)))]]]:[]),
-             ...(key==='judo'?[['Pédagogie Judo',[['competence','Compétence ciblée'],['pedagogicalRole','Rôle pédagogique'],['prerequisites','Prérequis'],['opposition','Niveau d’opposition'],['organization','Organisation Tori / Uke, rotations et récupération'],['blockDuration','Durée du bloc']]]]:[]),
+             ...(key==='judo'?[['Pédagogie Judo',[['competence','Compétence ciblée'],['pedagogicalRole','Rôle pédagogique'],['prerequisites','Prérequis'],['opposition','Niveau d’opposition'],['organization','Organisation Tori / Uke, rotations et récupération'],['blockDuration','Durée du bloc'],...([['ageCategory','Catégories d’âge'],['grade','Grade']].filter(([field])=>Object.hasOwn(exercise.details,field)))]]]:[]),
              ['Caractéristiques',[['level','Niveau'],['subgroup','Sous-groupe'],['equipment','Matériel'],...(key==='taiso'?[['targetMuscles','Muscles cibles']]:[]),['moment','Moment de la séance'],['format','Format'],...([['subfamily','Sous-famille'],['classification','Catégorie'],['sheetType','Type de fiche'],['tagsText','Tags (source)'],['tags','Tags']].filter(([field])=>Object.hasOwn(exercise.details,field)))]],
              ['Adaptations',[['easier','Variante −'],['harder','Variante +'],['accessibility','Accessibilité'],['inspiration','Inspiration']]]
             ];
