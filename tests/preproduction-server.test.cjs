@@ -35,3 +35,11 @@ test('Serveur : démarrage fermé et séparation des hôtes et API',async()=>{
   assert.equal((await call('unknown.example.test','/')).status,421);
  }finally{await instance.dispose();}
 });
+
+test('Prévol des deux distributions : séparation, accès fermé, aucune publication',async()=>{
+ const {preflight}=require('../scripts/preflight-preproduction.cjs');
+ const pool={query:async sql=>({rows:sql.includes('current_database')?[{name:'jsb_preprod'}]:[]}),connect:async()=>{throw Error('Unexpected SQL');}};
+ const result=await preflight({config:readConfig(env),pool});
+ assert.deepEqual(result,{readyForPrivatePreview:true,excelReader:false,checks:23,externalHttpsVerified:false,productionReady:false});
+ await assert.rejects(preflight({config:readConfig(env),pool:{...pool,query:async()=>({rows:[{name:'wrong'}]})}}),/Base dédiée/);
+});
