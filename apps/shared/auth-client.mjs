@@ -99,6 +99,23 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
      v.items.some(i=>!i||['reference','name','family','dosage'].some(k=>typeof i[k]!=='string'||!i[k].trim())))throw Error('Sélection invalide');
    return {state:'ready',...v};
   }
+  async function taisoDraft({version,generation,criteria,minutes,seed,objective=''}={}){
+   const r=await request('/api/generator/taiso/draft',{version,generation,criteria,minutes,seed,objective});
+   if(r.status===409)return {state:'version-changed'};
+   if(r.status===429)return {state:'rate-limited'};
+   if(r.status!==200)throw Error('Proposition indisponible');
+   const d=r.data.draft;
+   const integer=n=>Number.isSafeInteger(n)&&n>=0;
+   if(!d||d.discipline!=='taiso'||d.version!==version||d.generation!==generation||d.minutes!==minutes||d.mode!==criteria.mode||d.seed!==seed||d.format!=='Séries classiques'||d.requiresCoachReview!==true||
+    !integer(d.candidateCount)||!integer(d.excludedCount)||d.candidateCount+d.excludedCount>2000||
+    !Array.isArray(d.missing)||d.missing.some(x=>typeof x!=='string')||!Array.isArray(d.phases)||d.phases.length!==5||
+    d.phases.some(p=>!p||typeof p.name!=='string'||!integer(p.minutes)||!integer(p.unallocatedMinutes)||!Array.isArray(p.exercises)||
+     p.exercises.some(e=>!e||['reference','name','family','dosage','safety'].some(k=>typeof e[k]!=='string'||!e[k].trim())||!integer(e.allocationMinutes)||e.allocationMinutes<1||e.prescription?.mode!==d.mode||
+      (d.mode==='Durée'?(!integer(e.prescription.effortSeconds)||e.prescription.effortSeconds<1||e.prescription.effortSeconds>7200):(!integer(e.prescription.repetitions)||e.prescription.repetitions<1||e.prescription.repetitions>10000)))||
+     p.exercises.reduce((n,e)=>n+e.allocationMinutes,0)+p.unallocatedMinutes!==p.minutes)||
+    d.phases.reduce((n,p)=>n+p.minutes,0)!==minutes)throw Error('Proposition invalide');
+   return {state:'ready',...d};
+  }
   async function action(path,body,expected){
    return exclusive(async()=>{
     const r=await request(path,body);
@@ -108,7 +125,7 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    });
   }
   Object.assign(api,{
-   taisoCandidates,
+   taisoCandidates,taisoDraft,
    register:({email,password,role}={})=>{
     if(!roles.has(role))return Promise.resolve(Object.freeze({ok:false,status:400}));
     return action('/api/register',{email,password,role},202);
