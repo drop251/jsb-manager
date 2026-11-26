@@ -43,7 +43,7 @@ function renderWorkspace(){
   if(busy||workspaceIdentity!==identity)return;
   workspace.replaceChildren();
   const heading=element('h2','Mon espace '+label(account.role));heading.tabIndex=-1;
-  workspace.append(heading,element('p','Navigation de préproduction. Les données et actions métier restent indisponibles.'));
+  workspace.append(heading,element('p','Navigation de préproduction. Catalogue en lecture seule ; autres fonctions à raccorder.'));
   const grid=element('div');grid.className='workspace-grid';
   for(const [key,title,description,sections] of items){
    const button=element('button');button.type='button';button.dataset.workspacePage=key;
@@ -52,7 +52,7 @@ function renderWorkspace(){
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity)return;
     const detail=element('div');detail.className='workspace-detail';
-    const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Fonctionnalités prévues — API métier non raccordée.'));
+    const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Catalogue en lecture seule lorsque publié. Autres fonctionnalités à raccorder.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
     workspace.replaceChildren(detail);h.focus({preventScroll:true});
@@ -65,9 +65,41 @@ function renderWorkspace(){
       if(busy||workspaceIdentity!==identity||!detail.isConnected)return;
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
-      if(data.families.length){
-       const families=element('ul');for(const family of data.families)families.append(element('li',family.family+' : '+family.count));
-       detail.insertBefore(families,list);
+      if(data.state==='published'){
+       const browser=element('section');browser.className='workspace-detail';browser.setAttribute('aria-label','Catalogue '+title);
+       const heading=element('h3','Exercices');browser.append(heading);
+       const queryLabel=element('label','Rechercher par nom ou référence'),query=element('input');query.id='catalogue-query';query.type='search';query.maxLength=120;queryLabel.htmlFor=query.id;
+       const familyLabel=element('label','Famille'),family=element('select');family.id='catalogue-family';familyLabel.htmlFor=family.id;
+       const all=element('option','Toutes les familles');all.value='';family.append(all);
+       for(const f of data.families){const opt=element('option',f.family+' ('+f.count+')');opt.value=f.family;family.append(opt);}
+       const search=element('button','Rechercher');search.type='button';
+       const results=element('div');results.id='catalogue-results';
+       const info=element('p');info.setAttribute('role','status');
+       const previous=element('button','Précédent'),next=element('button','Suivant');previous.type=next.type='button';previous.hidden=next.hidden=true;
+       browser.append(queryLabel,query,familyLabel,family,search,info,results,previous,next);detail.insertBefore(browser,list);
+       let generation=0,offset=0,criteria={query:'',family:''};
+       const live=()=>!busy&&workspaceIdentity===identity&&browser.isConnected;
+       async function load(page){
+        if(!live())return;
+        const run=++generation;results.replaceChildren();info.textContent='Recherche…';previous.hidden=next.hidden=true;
+        try{
+         const result=await client.searchCatalogue(key,{version:data.version,...criteria,offset:page});
+         const confirmed=await client.session();
+         if(!live()||run!==generation)return;
+         if(confirmed.state!=='signed-in'||confirmed.account.id!==account.id||confirmed.account.role!==account.role){void refresh();return;}
+         if(result.state==='version-changed'){info.textContent='Le catalogue a changé. Revenez à l’accueil et ouvrez à nouveau la discipline.';search.disabled=true;query.disabled=true;family.disabled=true;return;}
+         offset=page;info.textContent=result.total?((page+1)+'–'+(page+result.items.length)+' sur '+result.total+' exercice(s)'):'Aucun exercice correspondant.';
+         for(const item of result.items){
+          const card=element('details');card.className='catalogue-item';
+          card.append(element('summary',item.name),element('p','Référence : '+item.reference),element('p','Famille : '+item.family),element('p','Fiche pédagogique complète non encore raccordée.'));
+          results.append(card);
+         }
+         previous.hidden=offset===0;next.hidden=offset+30>=result.total;
+        }catch{if(live()&&run===generation)info.textContent='Recherche indisponible. Réessayez ou vérifiez votre session.';}
+       }
+       function filter(){criteria={query:query.value.trim(),family:family.value};void load(0);}
+       search.addEventListener('click',filter);family.addEventListener('change',filter);query.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();filter();}});
+       previous.addEventListener('click',()=>void load(Math.max(0,offset-30)));next.addEventListener('click',()=>void load(offset+30));void load(0);
       }
      }).catch(()=>{if(!busy&&workspaceIdentity===identity&&detail.isConnected)catalogue.textContent='Référentiel indisponible. Vérifiez votre session.';});
     }
