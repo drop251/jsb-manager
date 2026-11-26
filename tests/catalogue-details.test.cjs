@@ -16,3 +16,16 @@ test('Fiches : les champs Judo et Taïso sont distincts et obligatoires',()=>{
  assert.equal(validatePedagogicalDetails('taiso',{...common,targetMuscles:'Fixture',extra:'Fixture'}),null);
  assert.equal(validatePedagogicalDetails('other',common),null);
 });
+
+test('Fiches enrichies : préservation des champs facultatifs sans déduction',()=>{
+ const base={...common,targetMuscles:'Fixture'};
+ const extra={executionDescription:'Fixture\nÉtape suivante',subfamily:'Sous-famille fixture',classification:'Classification fixture',tags:['Équilibre','éQUILIBRE','Équilibre']};
+ const result=validatePedagogicalDetails('taiso',{...base,...extra});
+ assert.deepEqual(result,{...base,...extra});
+ assert.ok(Object.isFrozen(result.tags));
+ assert.equal(Object.hasOwn(validatePedagogicalDetails('taiso',base),'executionDescription'),false);
+ for(const invalid of [{tags:'Fixture'},{tags:['']},{tags:[null]},{tags:Array(51).fill('Fixture')},{executionDescription:''},{classification:2},{subfamily:'x'.repeat(1801)}]){
+  assert.equal(validatePedagogicalDetails('taiso',{...base,...invalid}),null);
+ }
+ assert.deepEqual(validatePedagogicalDetails('judo',{...common,...judo,tags:[]}).tags,[]);
+});
