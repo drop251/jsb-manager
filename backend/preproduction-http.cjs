@@ -35,7 +35,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
    if(req.url==='/')return empty(res,302,{Location:entry});
    const asset=assets.get(req.url);
    if(!asset)return empty(res,404);
-   res.writeHead(200,{...headers,'Content-Type':asset.type,'Content-Length':asset.bytes.length});
+   res.writeHead(200,{...headers,'Content-Type':asset.type,'Content-Length':asset.bytes.length,...(app==='public'&&req.url==='/public/offline-sw.js'?{'Service-Worker-Allowed':'/'}:{})});
    res.end(req.method==='HEAD'?undefined:asset.bytes);
   }catch(_){if(!res.headersSent)empty(res,503);else res.destroy();}
  };
