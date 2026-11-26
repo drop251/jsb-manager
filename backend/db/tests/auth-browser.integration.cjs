@@ -151,11 +151,24 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
-    await page.getByRole('button',{name:'Proposer une séance — séries classiques'}).click();
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 60 min'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
+    await page.locator('#taiso-format').selectOption('Circuit');
+    await page.locator('#taiso-configure').check();
+    await page.locator('#taiso-org-stations').fill('4');
+    await page.locator('#taiso-org-rounds').fill('3');
+    await page.locator('#taiso-org-recoverySeconds').fill('20');
+    await page.locator('#taiso-org-repWindowSeconds').fill('30');
+    await page.locator('#taiso-org-roundRestSeconds').fill('60');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Nombre de stations insuffisant'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Organisation incomplète/);
+    await page.locator('#taiso-configure').uncheck();
+    await page.locator('#taiso-format').selectOption('Séries classiques');
+
     await page.locator('#taiso-mode').selectOption('Durée');
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'0 exercice(s) compatible(s) · 3 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
