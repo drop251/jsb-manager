@@ -1,0 +1,43 @@
+name: JSB V36 - diagnostic Safari Render réel
+on:
+  pull_request:
+    branches: [ui/administration-v36]
+    paths: ['.github/workflows/render-safari-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safari-http:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Examiner les réponses HTTPS publiques sans aucun secret
+        shell: bash
+        run: |
+          set -uo pipefail
+          ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'
+          errors=0
+          for host in jsb-manager-v36-preprod-w571.onrender.com jsb-admin-v36-preprod-w571.onrender.com; do
+            tmp=$(mktemp -d)
+            for proto in --http1.1 --http2; do
+              for route in /healthz /access /; do
+                echo "=== $host $proto $route ==="
+                if ! curl "$proto" --silent --show-error --proto '=https' --tlsv1.2 --connect-timeout 20 --max-time 100 -A "$ua" -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' --dump-header "$tmp/headers" --output "$tmp/body" --write-out 'HTTP %{http_code}; MIME %{content_type}; HTTP version %{http_version}; bytes %{size_download}\n' "https://$host$route"; then
+                  errors=1
+                  continue
+                fi
+                grep -Ei '^(HTTP/|content-type:|content-disposition:|content-length:|location:|x-content-type-options:|server:|www-authenticate:)' "$tmp/headers" || true
+                case "$route" in
+                  /healthz) test "$(cat "$tmp/body")" = OK || errors=1 ;;
+                  /access)
+                    grep -qi '^content-type: text/html' "$tmp/headers" || errors=1
+                    grep -qi '^content-disposition: inline' "$tmp/headers" || errors=1
+                    grep -q '<title>Accès privé JSB</title>' "$tmp/body" && echo 'Page HTML JSB confirmée' || errors=1
+                    ;;
+                  /) grep -qi '^location: /access' "$tmp/headers" || errors=1 ;;
+                esac
+              done
+            done
+            rm -rf "$tmp"
+          done
+          exit "$errors"
