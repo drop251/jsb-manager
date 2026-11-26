@@ -143,9 +143,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await page.locator('#workspace').isVisible());
     assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
     assert.equal(await page.locator('[data-workspace-page="personal"]').count(),0);
-    await page.locator('[data-workspace-page="judo"]').click();
+    assert.ok(await page.locator('.jsb-nav').isVisible());
+    assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'home');
+    await page.locator('[data-nav-page="judo"]').click();
+    assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
     assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
-    await page.locator('#workspace-back').click();
+    await page.locator('[data-nav-page="home"]').click();
     await page.locator('[data-workspace-page="taiso"]').click();
     await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
@@ -288,7 +291,9 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
 
     assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
     assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
-    await admin.locator('[data-workspace-page="maintenance"]').click();
+    assert.equal(await admin.locator('[data-nav-page="club"]').count(),0);
+    await admin.locator('[data-nav-page="maintenance"]').click();
+    assert.equal(await admin.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'maintenance');
     assert.match(await admin.locator('#workspace').textContent(),/Diagnostic e-mail/);
     assert.doesNotMatch(await admin.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
     assert.equal(await admin.locator('#mfa').inputValue(),'');
