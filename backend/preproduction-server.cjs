@@ -4,7 +4,7 @@ const {isIP}=require('node:net');
 const {timingSafeEqual}=require('node:crypto');
 const {mkdtemp,rm}=require('node:fs/promises');
 const {tmpdir}=require('node:os');
-const {join}=require('node:path');
+const {join,isAbsolute}=require('node:path');
 const {createAuthRuntime}=require('./auth-runtime.cjs');
 const {createPreproductionHandler}=require('./preproduction-http.cjs');
 const {build}=require('../scripts/build-auth-preview.cjs');
@@ -26,7 +26,9 @@ function readConfig(env){
  const keys=[quotaSecret,delivery,mfa,gateway];for(let i=0;i<keys.length;i++)for(let j=0;j<i;j++)if(timingSafeEqual(keys[i],keys[j]))throw Error('Clés indépendantes requises');
  function keyset(name,key){const id=env[name];if(typeof id!=='string'||!(/^[A-Za-z0-9_-]{1,64}$/).test(id))throw Error('Version de clé requise');return {activeKeyId:id,loadKey:async k=>k===id?key:undefined};}
  const port=Number(env.JSB_PORT||'8080');if(!Number.isInteger(port)||port<1||port>65535)throw Error('Port invalide');
- return {publicOrigin:pub.origin,adminOrigin:adm.origin,databaseUrl:env.DATABASE_URL,quotaSecret,deliveryKeys:keyset('JSB_DELIVERY_KEY_ID',delivery),mfaKeys:keyset('JSB_MFA_KEY_ID',mfa),gateway,port};
+ const xlsxPython=env.JSB_XLSX_PYTHON;
+ if(xlsxPython!==undefined&&(typeof xlsxPython!=='string'||!isAbsolute(xlsxPython)))throw Error('Interpréteur Python XLSX absolu requis');
+ return {xlsxPython,publicOrigin:pub.origin,adminOrigin:adm.origin,databaseUrl:env.DATABASE_URL,quotaSecret,deliveryKeys:keyset('JSB_DELIVERY_KEY_ID',delivery),mfaKeys:keyset('JSB_MFA_KEY_ID',mfa),gateway,port};
 }
 // A trusted local TLS gateway must authenticate the tester, strip these headers
 // from untrusted input and inject its own proof and verified client IP.
