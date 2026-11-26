@@ -56,6 +56,21 @@ function renderWorkspace(){
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
     workspace.replaceChildren(detail);h.focus({preventScroll:true});
+    if(key==='judo'||key==='taiso'){
+     const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
+     void client.catalogue(key).then(async data=>{
+      // Revalidate the identity after the asynchronous read. Never append a
+      // previous account's response to a new workspace.
+      const checked=await client.session();
+      if(busy||workspaceIdentity!==identity||!detail.isConnected)return;
+      if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
+      catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
+      if(data.families.length){
+       const families=element('ul');for(const family of data.families)families.append(element('li',family.family+' : '+family.count));
+       detail.insertBefore(families,list);
+      }
+     }).catch(()=>{if(!busy&&workspaceIdentity===identity&&detail.isConnected)catalogue.textContent='Référentiel indisponible. Vérifiez votre session.';});
+    }
    });grid.append(button);
   }
   workspace.append(grid);if(focus)heading.focus({preventScroll:true});
