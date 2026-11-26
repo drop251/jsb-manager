@@ -45,7 +45,7 @@ function renderWorkspace(){
     workspace.replaceChildren(detail);h.focus({preventScroll:true});
     if(key==='catalogue'){
      const block=element('section');block.className='workspace-detail';
-     block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Aucune publication ne sera effectuée.'));
+     block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Toute publication nécessite une confirmation distincte.'));
      const dl=element('label','Discipline');dl.htmlFor='import-discipline';
      const select=element('select');select.id='import-discipline';
      for(const [value,name] of [['taiso','Taïso'],['judo','Judo']]){const option=element('option',name);option.value=value;select.append(option);}
@@ -98,10 +98,47 @@ function renderWorkspace(){
        }else{
         if(a.discipline!==discipline||(excel&&(a.publishable!==false||!((a.mode==='xlsx-recipe'&&discipline==='taiso'&&a.columns===22)||(a.mode==='xlsx-contract'&&a.contractVersion==='JSB-EXCEL-1'&&a.columns===(discipline==='taiso'?27:35))))))throw Error('Discipline ou rapport incohérent.');
         report.append(element('h4',excel?'Structure Excel conforme':'Structure conforme'),element('p','Version '+a.version+' · '+a.count+' fiche(s)'),element('p','Empreinte SHA-256 : '+a.hash));
-        if(excel)report.append(element('p',a.columns+' colonnes · '+(a.columns*a.count)+' cellules'+(a.mode==='xlsx-recipe'?' restituées sans perte. Références temporaires — publication interdite.':' contrôlées. Contrat '+a.contractVersion+' — analyse uniquement, publication interdite à ce stade.')));
+        if(excel)report.append(element('p',a.columns+' colonnes · '+(a.columns*a.count)+' cellules'+(a.mode==='xlsx-recipe'?' restituées sans perte. Références temporaires — publication interdite.':' contrôlées. Contrat '+a.contractVersion+' — '+(a.confirmation?'confirmation distincte requise.':'analyse uniquement, publication interdite à ce stade.'))));
         const families=element('ul');for(const f of a.families)families.append(element('li',f.family+' : '+f.count));report.append(families);
         const sample=element('ul');for(const e of a.sample)sample.append(element('li',e.reference+' · '+e.name+' · '+e.family));
         report.append(element('h4','Aperçu des cinq premières fiches au maximum'),sample,element('p','Contrôle structurel uniquement. La validation pédagogique et la publication restent distinctes.'));
+        const confirmation=a.confirmation;
+        if(confirmation&&typeof confirmation.receipt==='string'&&Number.isSafeInteger(confirmation.expiresAt)&&(confirmation.previousVersion===null||typeof confirmation.previousVersion==='string')){
+         const panel=element('section');panel.className='workspace-detail';
+         panel.append(element('h4','Confirmer la publication'),element('p','Discipline : '+discipline+' · Version active : '+(confirmation.previousVersion??'Aucune')+' · Nouvelle version : '+a.version),element('p','Cette opération rend le nouveau catalogue accessible. Les anciennes versions sont conservées. La confirmation expire après 10 minutes.'));
+         const attest=element('input');attest.type='checkbox';attest.id='publication-attestation';
+         const attestLabel=element('label','Je confirme avoir vérifié pédagogiquement toutes les fiches et leurs conditions de sécurité.');attestLabel.htmlFor=attest.id;
+         const line=element('div');line.append(attest,attestLabel);
+         const typed=element('input');typed.id='publication-version';typed.type='text';typed.maxLength=80;
+         const typedLabel=element('label','Saisir exactement la nouvelle version : '+a.version);typedLabel.htmlFor=typed.id;
+         const publish=element('button','Publier le catalogue');publish.type='button';publish.disabled=true;
+         function eligible(){publish.disabled=!attest.checked||typed.value!==a.version;}
+         attest.addEventListener('change',eligible);typed.addEventListener('input',eligible);
+         publish.addEventListener('click',async()=>{
+          if(!live()||run!==generation||publish.disabled)return;
+          publish.disabled=true;attest.disabled=true;typed.disabled=true;
+          select.disabled=true;version.disabled=true;file.disabled=true;check.disabled=true;
+          const state=element('p','Publication en cours…');panel.append(state);
+          try{
+           const before=await client.session();
+           if(!live()||run!==generation)return;
+           if(before.state!=='signed-in'||before.account.id!==account.id||before.account.role!=='admin'){void refresh();return;}
+           const response=await fetch(location.origin+'/api/admin/catalogue/publish',{method:'POST',credentials:'same-origin',mode:'same-origin',referrer:location.origin+'/',referrerPolicy:'same-origin',cache:'no-store',redirect:'error',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify({...body,receipt:confirmation.receipt,confirmed:attest.checked,confirmationVersion:typed.value})});
+           if(!live()||run!==generation)return;
+           if(response.status===401||response.status===403){void refresh();return;}
+           if(response.status===409){state.textContent='Confirmation expirée ou catalogue modifié. Relancez l’analyse.';return;}
+           if(response.status===400||response.status===429){state.textContent='Publication refusée. Relancez l’analyse avant toute nouvelle tentative.';return;}
+           if(!response.ok)throw Error('Publication non confirmée');
+           const result=await response.json(),p=result.publication;
+           if(!live()||run!==generation)return;
+           if(result.ok!==true||p?.discipline!==discipline||p.version!==a.version||p.hash!==a.hash||p.count!==a.count)throw Error('Confirmation incohérente');
+           panel.replaceChildren(element('h4','Catalogue publié'),element('p',p.version+' · '+p.count+' fiches. Version précédente conservée.'));
+          }catch{if(live()&&run===generation)state.textContent='Résultat non confirmé. Vérifiez le catalogue actif avant toute nouvelle tentative.';}
+          finally{if(live()&&run===generation){select.disabled=false;version.disabled=false;file.disabled=false;check.disabled=!file.files?.length;}}
+         });
+         panel.append(line,typedLabel,typed,publish);report.append(panel);
+        }
+
        }
       }catch(e){if(live()&&run===generation)report.replaceChildren(element('p',['Fichier trop volumineux (4 Mio maximum).','Trop d’analyses. Réessayez plus tard.','Le format Excel provisoire est réservé au Taïso.','Sélectionnez un fichier JSON ou XLSX.','Analyse Excel indisponible : vérifiez la configuration serveur.'].includes(e.message)?e.message:'Analyse indisponible. Vérifiez votre fichier et votre session.'));}
       finally{if(live()&&run===generation)check.disabled=!file.files?.length;}
