@@ -51,7 +51,7 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  const privateDraftPaths=new Map();
  if(privateTaisoDrafts!==undefined){
   if(app!=='public'||typeof privateTaisoDrafts!=='function')throw TypeError('Service privé Taïso invalide');
-  for(const action of ['list','read','save','delete']){
+  for(const action of ['list','read','save','delete','validate','pdf']){
    const path='/api/private/taiso/drafts/'+action;privateDraftPaths.set(path,action);paths.set(path,'POST');
   }
  }
@@ -121,7 +121,7 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     const action=privateDraftPaths.get(req.url);
     const result=await privateTaisoDrafts(actor,action,body,source,createHash('sha256').update(oldToken,'utf8').digest('hex'));
     if(result.status!==200)return serviceResult(res,result);
-    if(action==='list'||action==='read'){
+    if(action==='list'||action==='read'||action==='pdf'){
      const confirmed=await actorFor(oldToken);
      if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
     }
