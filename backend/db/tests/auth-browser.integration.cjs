@@ -174,6 +174,20 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
     await page.locator('#taiso-save-status').filter({hasText:'Révision 2'}).waitFor({state:'visible',timeout:15000});
     assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,2);
+    await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Modification appliquée au brouillon en cours'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 3'}).waitFor({state:'visible',timeout:15000});
+    const editedRow=(await pool.query('SELECT revision,settings,snapshot FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0];
+    assert.equal(editedRow.revision,3);assert.equal(editedRow.settings.edits.length,1);
+    assert.ok(editedRow.snapshot.phases.every(p=>p.exercises.length===0));
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 3'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+
     await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
     await page.locator('#taiso-duration').selectOption('60');
 
