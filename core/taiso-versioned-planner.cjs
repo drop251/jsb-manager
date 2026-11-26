@@ -4,6 +4,7 @@
 // conversion, a number of series or a recovery from free-form text.
 const {creerMoteur,creerSelection}=require('../modules/taiso.js');
 const {selectTaisoCandidates}=require('./catalogue-generator-adapter.cjs');
+const {validateOrganization,requestedCount,blockOrganization}=require('./taiso-organization.cjs');
 const sa=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const rules=creerSelection({sansA:sa,NIVEAUX_TAISO:['Débutant','Intermédiaire','Confirmé','Expert']});
 function hasard(graine){let x=graine%2147483647;if(x<=0)x+=2147483646;return ()=>{x=x*16807%2147483647;return (x-1)/2147483646;};}
@@ -40,25 +41,28 @@ function compatibleFormat(e,format){
  if(format==='Circuit')return !/^Équilibre/.test(c)||!iso;
  return false;
 }
-function construireBlocs(format,pool,minutes,doux,choisir,niveau){
+function construireBlocs(format,pool,minutes,doux,choisir,niveau,settings){
  if(minutes<8)return [];
  if(format==='Mixte'){
   const first=Math.round(minutes*.6);
-  return [...construireBlocs('Circuit',pool,first,doux,choisir,niveau),...construireBlocs('Pilates / yoga',pool,minutes-first,doux,choisir,niveau)];
+  return [...construireBlocs('Circuit',pool,first,doux,choisir,niveau,settings?.circuit),...construireBlocs('Pilates / yoga',pool,minutes-first,doux,choisir,niveau,settings?.pilates)];
  }
  const eligible=pool.filter(e=>compatibleFormat(e,format)&&rules.niveauOk(e,niveau));
- const count=Math.max(3,Math.round(minutes/5)),chosen=choisir(eligible,count,true);
+ const count=Math.min(minutes,requestedCount(format,settings)??Math.max(3,Math.round(minutes/5))),chosen=choisir(eligible,count,true);
  if(!chosen.length)return [];
  const allocations=repartirDurees(minutes,chosen.length);
  return [{nom:format,minutes,items:chosen.map((e,i)=>({e,duree:allocations[i]}))}];
 }
-const engine=creerMoteur({hasard,melanger,...rules,sg:e=>e.sousGroupes||[],estMobilite,illustre:()=>false,momentsDe,
- formatsDe:groupe=>FORMATS.filter(f=>groupe!=='Gym douce'||!['Tabata','AMRAP'].includes(f)),formatParDefaut:()=>FORMAT,construireBlocs,zonesTravaillees,cibleZones,
+const createEngine=settings=>creerMoteur({hasard,melanger,...rules,sg:e=>e.sousGroupes||[],estMobilite,illustre:()=>false,momentsDe,
+ formatsDe:groupe=>FORMATS.filter(f=>groupe!=='Gym douce'||!['Tabata','AMRAP'].includes(f)),formatParDefaut:()=>FORMAT,construireBlocs:(f,p,m,d,c,n)=>construireBlocs(f,p,m,d,c,n,settings),zonesTravaillees,cibleZones,
  MOTS_CALME:/respir|relax|savasana|calme|meteo|doudou|dort|boule|recuperation|jambes au mur/,sa,repartirDurees});
-function planFromCandidates(selection,criteria,{minutes,seed,objective='',format=FORMAT}={}){
+function planFromCandidates(selection,criteria,{minutes,seed,objective='',format=FORMAT,organization}={}){
  if(!selection||!Array.isArray(selection.candidates)||!Array.isArray(selection.excluded)||
  ![45,60,75,90].includes(minutes)||!Number.isSafeInteger(seed)||seed<1||seed>2147483646||
  typeof objective!=='string'||objective.length>120||!formatsFor(criteria).includes(format))return null;
+ const settings=validateOrganization(format,criteria.mode,organization);
+ if(settings===false)return null;
+ const engine=createEngine(settings);
  const items=selection.candidates.map(x=>x.exercise),byReference=new Map(selection.candidates.map(x=>[x.exercise.id,x.canonical]));
  const routine=items.filter(estMobilite).slice(0,3).map(e=>e.id);
  const proposal=engine.genererSeanceTaiso({...criteria,duree:minutes,format,routine,objectif:objective},items,items,seed);
@@ -68,12 +72,12 @@ function planFromCandidates(selection,criteria,{minutes,seed,objective='',format
    const prescription=criteria.mode==='Durée'?{mode:'Durée',effortSeconds:Number(e.details.effortSeconds)}:{mode:'Répétitions',repetitions:Number(e.details.repetitions)};
    return {reference:e.reference,name:e.name,family:e.family,allocationMinutes:x.duree,dosage:e.details.dosage,prescription,safety:e.details.safety};
   });
-  return {name:p.nom,minutes:p.minutes,exercises,blocks:(p.blocs||[]).map(b=>({name:b.nom,minutes:b.minutes,references:b.items.map(x=>x.e.id)})),unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
+  return {name:p.nom,minutes:p.minutes,exercises,blocks:(p.blocs||[]).map(b=>{const references=b.items.map(x=>x.e.id);const blockSettings=format==='Mixte'?(b.nom==='Circuit'?settings?.circuit:settings?.pilates):settings;return {name:b.nom,minutes:b.minutes,references,organization:blockOrganization(b.nom,criteria.mode,blockSettings,exercises.filter(e=>references.includes(e.reference)),b.minutes)};}),unallocatedMinutes:Math.max(0,p.minutes-exercises.reduce((n,x)=>n+x.allocationMinutes,0))};
  });
  const missing=[...proposal.manques];
  const body=phases.find(p=>p.name==='Corps de séance');
- if(body&&body.exercises.length<Math.max(3,Math.round(body.minutes/5))&&!missing.includes(body.name))missing.push(body.name);
- return {format,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true,organizationPending:format!==FORMAT};
+ if(body&&(!body.blocks.length||(!settings&&body.exercises.length<Math.max(3,Math.round(body.minutes/5)))||body.blocks.some(b=>b.organization.state==='incomplete')||(format==='Mixte'&&body.blocks.length!==2))&&!missing.includes(body.name))missing.push(body.name);
+ return {format,minutes,seed,mode:criteria.mode,phases,missing,candidateCount:items.length,excludedCount:selection.excluded.length,requiresCoachReview:true,organizationPending:!settings||!body?.blocks.length||body.blocks.some(b=>b.organization.state!=='budgeted')||(format==='Mixte'&&body.blocks.length!==2)};
 }
 function generateTaisoDraft(items,criteria,options){
  const selection=selectTaisoCandidates(items,criteria);
