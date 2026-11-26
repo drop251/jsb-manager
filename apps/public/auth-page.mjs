@@ -22,7 +22,49 @@ refreshButton.type='button';refreshButton.id='refresh-session';refreshButton.tex
 logout.after(refreshButton);
 const clearSecrets=()=>{for(const input of document.querySelectorAll('input[type=password],#verify-code,#reset-code'))input.value='';};
 const label=role=>({coach:'Coach',individual:'Particulier',admin:'Administrateur'}[role]||'');
+
+const workspace=document.querySelector('#workspace');
+const workspacePages={"common":[["judo","Judo","Préparation pédagogique",["Catalogue Judo — base en construction","Préparer une séance Judo","Mes séances Judo"]],["taiso","Taïso","Renforcement et préparation physique",["Catalogue Taïso — référentiel à raccorder","Préparer une séance Taïso","Mes séances Taïso"]]],"coach":["club","Gestion du club","Licenciés, présences et planning",["Licenciés","Présences","Bilans","Planning"]],"individual":["personal","Suivi personnel","Mon activité et mes entraînements",["Historique personnel","Progression personnelle"]]};
+let workspaceIdentity=null;
+const element=(tag,txt)=>{const node=document.createElement(tag);if(txt)node.textContent=txt;return node;};
+function renderWorkspace(){
+ const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
+ const permitted=account&&['coach','individual'].includes(account.role);
+ if(!permitted){
+  workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
+  document.querySelector('main').classList.remove('has-session');return;
+ }
+ const identity=account.id+':'+account.role;
+ workspace.hidden=false;document.querySelector('main').classList.add('has-session');
+ if(workspaceIdentity===identity)return;
+ workspaceIdentity=identity;
+ const items=[...workspacePages.common,workspacePages[account.role]];
+ function home(focus=false){
+  if(busy||workspaceIdentity!==identity)return;
+  workspace.replaceChildren();
+  const heading=element('h2','Mon espace '+label(account.role));heading.tabIndex=-1;
+  workspace.append(heading,element('p','Navigation de préproduction. Les données et actions métier restent indisponibles.'));
+  const grid=element('div');grid.className='workspace-grid';
+  for(const [key,title,description,sections] of items){
+   const button=element('button');button.type='button';button.dataset.workspacePage=key;
+   if(key==='judo'||key==='taiso')button.dataset.discipline=key;
+   button.append(element('strong',title),element('small',description));
+   button.addEventListener('click',()=>{
+    if(busy||workspaceIdentity!==identity)return;
+    const detail=element('div');detail.className='workspace-detail';
+    const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Fonctionnalités prévues — API métier non raccordée.'));
+    const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
+    const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
+    workspace.replaceChildren(detail);h.focus({preventScroll:true});
+   });grid.append(button);
+  }
+  workspace.append(grid);if(focus)heading.focus({preventScroll:true});
+ }
+ home();
+}
+
 function paint(message){
+ renderWorkspace();
  fields.disabled=busy||!session||Boolean(panel);
  actions.hidden=Boolean(panel)||!client;
  for(const button of actions.querySelectorAll('button'))button.disabled=busy||!session;
