@@ -27,6 +27,7 @@ const OPPOSITION=Object.freeze(['Sans opposition','Coopération','Opposition dir
 const LEVELS=Object.freeze(['Débutant','Intermédiaire','Expert']);
 const SUBGROUPS=Object.freeze(['Gym douce','Training','Gym douce, Training']);
 const MODES=Object.freeze(['Répétitions','Durée','Durée + répétitions max']);
+const TAISO_MODES=Object.freeze(['Répétitions','Durée','Durée et répétitions']);
 const OPTIONAL=new Set(['tagsText','restrictions','effortSeconds','repetitions','repetitionsMax']);
 const NUMBER_FIELDS=new Set(['effortSeconds','repetitions','repetitionsMax','blockDuration']);
 const integer=(s,max)=>typeof s==='string'&&/^[1-9][0-9]*$/.test(s)&&Number(s)<=max;
@@ -51,9 +52,10 @@ function validateWorkbookRow(discipline,record){
   if(!SUBGROUPS.includes(record.subgroup))add('subgroup','invalid-subgroup');
  }
  const mode=record.dosageMode,has=k=>record[k]!==null&&record[k]!==undefined&&record[k]!=='';
- if(!MODES.slice(0,discipline==='taiso'?2:3).includes(mode))add('dosageMode','invalid-mode');
+ if(!(discipline==='taiso'?TAISO_MODES:MODES).includes(mode))add('dosageMode','invalid-mode');
  if(mode==='Répétitions'&&(!has('repetitions')||has('effortSeconds')||has('repetitionsMax')))add('dosageMode','repetition-fields');
  if(mode==='Durée'&&(!has('effortSeconds')||has('repetitions')||has('repetitionsMax')))add('dosageMode','duration-fields');
+ if(mode==='Durée et répétitions'&&(!has('effortSeconds')||!has('repetitions')||has('repetitionsMax')))add('dosageMode','alternative-fields');
  if(mode==='Durée + répétitions max'&&(!has('effortSeconds')||!has('repetitionsMax')||has('repetitions')))add('dosageMode','combined-fields');
  if(discipline==='judo'){
   const ages=typeof record.ageCategory==='string'?record.ageCategory.split(';').map(x=>x.trim()):[];
@@ -66,4 +68,4 @@ function validateWorkbookRow(discipline,record){
  }
  return errors;
 }
-module.exports=Object.freeze({CONTRACTS,AGE,ROLES,OPPOSITION,LEVELS,SUBGROUPS,MODES,OPTIONAL,NUMBER_FIELDS,validateWorkbookRow});
+module.exports=Object.freeze({CONTRACTS,AGE,ROLES,OPPOSITION,LEVELS,SUBGROUPS,MODES,TAISO_MODES,OPTIONAL,NUMBER_FIELDS,validateWorkbookRow});
