@@ -162,6 +162,14 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#taiso-save-status').filter({hasText:'Révision 1'}).waitFor({state:'visible',timeout:15000});
     const savedRow=(await pool.query('SELECT id,revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND title=$2',[ids.coach,draftTitle])).rows[0];
     assert.equal(savedRow.revision,1);
+    assert.ok(await page.getByText('Validation indisponible : complétez les phases et l’organisation.',{exact:true}).isVisible());
+    const pdfDownload=page.waitForEvent('download',{timeout:15000});
+    await page.getByRole('button',{name:'Télécharger le PDF détaillé',exact:true}).click();
+    const pdf=await pdfDownload;
+    assert.equal(pdf.suggestedFilename(),'JSB-Taiso-r1-detaille.pdf');
+    assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
+    await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
+
     await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
     await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
     await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
