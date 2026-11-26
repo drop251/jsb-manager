@@ -5,7 +5,7 @@
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -14,6 +14,8 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  const roles=new Set(app==='public'?['coach','individual']:['admin']);
  const paths=new Map([['/api/session','GET'],['/api/login','POST'],['/api/logout','POST']]);
  if(app==='public')for(const p of ['/api/register','/api/verify-email','/api/resend-verification','/api/password-reset/request','/api/password-reset/confirm'])paths.set(p,'POST');
+ const cataloguePaths=new Map([['/api/catalogue/judo','judo'],['/api/catalogue/taiso','taiso']]);
+ if(catalogue!==undefined){if(typeof catalogue?.read!=='function')throw TypeError('Service catalogue invalide');for(const path of cataloguePaths.keys())paths.set(path,'GET');}
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
   const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(cookieName+'='));
@@ -63,6 +65,13 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
    if(req.url==='/api/session'){
     const actor=await actorFor(oldToken);
     return actor?send(res,200,{ok:true,account:{id:actor.id,role:actor.role}}):send(res,401,{ok:false});
+   }
+   if(cataloguePaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const result=await catalogue.read(actor,cataloguePaths.get(req.url));
+    if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
+    return send(res,200,{ok:true,catalogue:result.catalogue});
    }
    const body=await json(req);
    if(req.url==='/api/logout'){
