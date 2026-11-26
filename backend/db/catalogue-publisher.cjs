@@ -7,11 +7,12 @@ function createCataloguePublisher(pool){
  if(typeof pool?.connect!=='function')throw TypeError('Pool requis');
  // Trusted internal call only; sessionHash is derived server-side from the
  // authenticated session cookie. There is no HTTP publication route yet.
- async function publish(actor,sessionHash,{discipline,text,expectedHash,expectedPreviousVersion,confirmed}={}){
+ async function publish(actor,sessionHash,{discipline,text,expectedHash,expectedPreviousVersion,expectedGeneration,confirmed}={}){
   if(!authorize(actor,'catalogue','import')||!/^[a-f0-9]{32}$/.test(actor.id))return fail(403);
   if(typeof sessionHash!=='string'||!/^[a-f0-9]{64}$/.test(sessionHash))return fail(401);
   if(confirmed!==true||typeof expectedHash!=='string'||!/^[a-f0-9]{64}$/.test(expectedHash)||
     !(expectedPreviousVersion===null||(typeof expectedPreviousVersion==='string'&&versionPattern.test(expectedPreviousVersion))))return fail(400);
+  if(expectedGeneration!==undefined&&(typeof expectedGeneration!=='string'||!/^(0|[1-9][0-9]{0,18})$/.test(expectedGeneration)))return fail(400);
   const analyzed=analyzeCatalogueImport(text,discipline);
   if(!analyzed.ok)return fail(400);
   if(analyzed.report.hash!==expectedHash)return fail(409);
@@ -29,16 +30,16 @@ function createCataloguePublisher(pool){
    if(a.rowCount!==1){await client.query('ROLLBACK');return fail(403);}
    const s=await client.query("SELECT hash FROM jsb_auth.sessions WHERE hash=$1 AND account_id=$2 AND role_at_issue='admin' AND credential_version=$3 AND issued_at<=floor(extract(epoch FROM clock_timestamp())*1000)::bigint AND expires_at>floor(extract(epoch FROM clock_timestamp())*1000)::bigint FOR UPDATE",[sessionHash,actor.id,a.rows[0].credential_version]);
    if(s.rowCount!==1){await client.query('ROLLBACK');return fail(401);}
-   const current=await client.query('SELECT version FROM jsb_catalogue.current_release WHERE discipline=$1',[discipline]);
+   const current=await client.query('SELECT version,generation::text AS generation FROM jsb_catalogue.current_release WHERE discipline=$1',[discipline]);
    const previous=current.rows[0]?.version??null;
-   if(previous!==expectedPreviousVersion){await client.query('ROLLBACK');return fail(409);}
+   if(previous!==expectedPreviousVersion||(expectedGeneration!==undefined&&(current.rows[0]?.generation??'0')!==expectedGeneration)){await client.query('ROLLBACK');return fail(409);}
    const release=await client.query("INSERT INTO jsb_catalogue.releases(discipline,version,source_hash,published_at) VALUES ($1,$2,$3,floor(extract(epoch FROM clock_timestamp())*1000)::bigint) ON CONFLICT DO NOTHING RETURNING published_at",[discipline,version,expectedHash]);
    if(release.rowCount!==1){await client.query('ROLLBACK');return fail(409);}
    // One bounded parameterized insert, no interpolation of file contents.
    await client.query(`INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family,pedagogical_details)
    SELECT $1,$2,x.reference,x.name,x.family,x.details
    FROM jsonb_to_recordset($3::jsonb) AS x(reference text,name text,family text,details jsonb)`,[discipline,version,JSON.stringify(exercises)]);
-   await client.query('INSERT INTO jsb_catalogue.current_release(discipline,version) VALUES ($1,$2) ON CONFLICT (discipline) DO UPDATE SET version=EXCLUDED.version',[discipline,version]);
+   await client.query('INSERT INTO jsb_catalogue.current_release(discipline,version) VALUES ($1,$2) ON CONFLICT (discipline) DO UPDATE SET version=EXCLUDED.version,generation=jsb_catalogue.current_release.generation+1',[discipline,version]);
    await client.query('INSERT INTO jsb_catalogue.publications(discipline,version,previous_version,actor_id,published_at,exercise_count) VALUES ($1,$2,$3,$4,$5,$6)',[discipline,version,previous,actor.id,release.rows[0].published_at,exercises.length]);
    const alive=await client.query("SELECT 1 FROM jsb_auth.sessions WHERE hash=$1 AND expires_at>floor(extract(epoch FROM clock_timestamp())*1000)::bigint",[sessionHash]);
    if(alive.rowCount!==1){await client.query('ROLLBACK');return fail(401);}
