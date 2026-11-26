@@ -116,7 +116,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   // Explicit synthetic fixture for the candidate endpoint. Two older summary-only
   // entries remain browsable but cannot enter automatic preparation.
   const rec=Object.fromEntries(CONTRACTS.taiso.map(([,key])=>[key,'Fixture '+key]));
-  Object.assign(rec,{reference:'JSB-TAISO-CANDIDATE-CI',name:'Fixture compatible',family:'Famille C',discipline:'Taïso',sheetType:'Exercice',level:'Intermédiaire',subgroup:'Gym douce, Training',equipment:'Poids du corps',format:'Solo',dosageMode:'Répétitions',repetitions:'8',effortSeconds:null,tagsText:null,restrictions:null});
+  Object.assign(rec,{reference:'JSB-TAISO-CANDIDATE-CI',name:'Fixture compatible',family:'Famille C',moment:'Corps de séance',discipline:'Taïso',sheetType:'Exercice',level:'Intermédiaire',subgroup:'Gym douce, Training',equipment:'Poids du corps',format:'Solo',dosageMode:'Répétitions',repetitions:'8',effortSeconds:null,tagsText:null,restrictions:null});
   const {reference,name:fixtureName,family,discipline:ignored,...fields}=rec;
   const details={contractVersion:'JSB-EXCEL-1',...Object.fromEntries(Object.entries(fields).filter(([,value])=>value!==null))};
   await pool.query("INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family,pedagogical_details) VALUES ('taiso','browser-fixture',$1,$2,$3,$4)",[reference,fixtureName,family,JSON.stringify(details)]);
@@ -151,6 +151,11 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
+    await page.getByRole('button',{name:'Proposer une séance — séries classiques'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 60 min'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
     await page.locator('#taiso-mode').selectOption('Durée');
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'0 exercice(s) compatible(s) · 3 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
