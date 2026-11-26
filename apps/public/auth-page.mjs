@@ -249,6 +249,55 @@ function renderWorkspace(){
           finally{if(live()&&run===requestId&&save.isConnected)eligible();}
          });
          result.append(titleLabel,title,save,feedback);
+         if(loaded&&savedDraft){
+          const stored=savedDraft,tools=element('section');tools.className='exercise-group';
+          tools.append(element('h4','Séance enregistrée'),element('p',stored.validatedAt?'Validation déclarée — révision '+stored.revision:'Brouillon non validé — révision '+stored.revision));
+          const complete=answer.missing.length===0&&answer.organizationPending===false&&answer.phases.every(p=>p.exercises.length>0&&p.unallocatedMinutes===0)&&answer.phases[2].blocks.length>0&&answer.phases[2].blocks.every(b=>b.organization.state==='budgeted');
+          const message=element('p');message.id='taiso-validation-status';message.setAttribute('role','status');
+          if(!complete)tools.append(element('p','Validation indisponible : complétez les phases et l’organisation.'));
+          else if(!stored.validatedAt){
+           const att=element('input');att.type='checkbox';att.id='taiso-review-confirm';
+           const label=element('label','Je confirme avoir contrôlé les exercices, les prescriptions, la sécurité et l’organisation.');label.htmlFor=att.id;
+           const validate=element('button','Valider la séance');validate.type='button';validate.disabled=true;
+           att.addEventListener('change',()=>{validate.disabled=!att.checked;});
+           validate.addEventListener('click',async()=>{
+            if(!live()||run!==requestId||!att.checked||validate.disabled)return;
+            validate.disabled=att.disabled=true;
+            try{
+             const response=await client.privateTaisoDraft('validate',account.id,{id:stored.id,revision:stored.revision,confirmed:true});
+             if(!live()||run!==requestId)return;
+             if(response.state!=='ready'){message.textContent=draftError(response);return;}
+             savedDraft={...response.saved,settings:planSettings};editing.textContent='Séance : '+savedDraft.title+' · révision '+savedDraft.revision;
+             renderProposal(answer,planSettings,true);
+            }catch{if(live()&&run===requestId)message.textContent='Validation non confirmée. Rechargez la séance.';}
+            finally{if(live()&&run===requestId&&validate.isConnected){att.disabled=false;validate.disabled=!att.checked;}}
+           });
+           tools.append(att,label,validate);
+          }
+          function downloadFile(blob,filename){
+           const url=URL.createObjectURL(blob),link=element('a');link.href=url;link.download=filename;
+           document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+          }
+          for(const [mode,label] of [['detaille','Télécharger le PDF détaillé'],['synthetique','Télécharger le PDF synthétique']]){
+           const button=element('button',label);button.type='button';
+           button.addEventListener('click',async()=>{
+            if(!live()||run!==requestId||button.disabled)return;
+            button.disabled=true;
+            try{
+             const response=await client.privateTaisoDraft('pdf',account.id,{id:stored.id,revision:stored.revision,mode});
+             if(!live()||run!==requestId)return;
+             if(response.state!=='ready'){message.textContent=draftError(response);return;}
+             const bytes=Uint8Array.from(atob(response.pdf),c=>c.charCodeAt(0));
+             downloadFile(new Blob([bytes],{type:'application/pdf'}),'JSB-Taiso-r'+stored.revision+'-'+mode+'.pdf');
+             message.textContent='Téléchargement lancé. Conservez le PDF sur cet appareil pour le consulter hors connexion.';
+            }catch{if(live()&&run===requestId)message.textContent='Export non confirmé. Réessayez en ligne.';}
+            finally{if(live()&&run===requestId)button.disabled=false;}
+           });
+           tools.append(button);
+          }
+          tools.append(element('p','Le PDF est une copie de la révision enregistrée. Il reste lisible hors ligne mais ne s’actualise pas automatiquement.'),message);
+          result.append(tools);
+         }
         }
         function restoreSettings(q){
          const c=q.criteria;
