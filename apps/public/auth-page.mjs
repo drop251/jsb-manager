@@ -110,13 +110,14 @@ function renderWorkspace(){
             sheet.replaceChildren();
             const groups=[
              ['Sécurité et dosage',[['safety','Point de sécurité'],['dosage','Dosage de base'],['successCriteria','Critère de réussite']]],
+             ...(Object.hasOwn(exercise.details,'executionDescription')?[['Exécution',[['executionDescription','Description du mouvement']]]]:[]),
              ...(key==='judo'?[['Pédagogie Judo',[['competence','Compétence ciblée'],['pedagogicalRole','Rôle pédagogique'],['prerequisites','Prérequis'],['opposition','Niveau d’opposition'],['organization','Organisation Tori / Uke, rotations et récupération'],['blockDuration','Durée du bloc']]]]:[]),
-             ['Caractéristiques',[['level','Niveau'],['subgroup','Sous-groupe'],['equipment','Matériel'],...(key==='taiso'?[['targetMuscles','Muscles cibles']]:[]),['moment','Moment de la séance'],['format','Format']]],
+             ['Caractéristiques',[['level','Niveau'],['subgroup','Sous-groupe'],['equipment','Matériel'],...(key==='taiso'?[['targetMuscles','Muscles cibles']]:[]),['moment','Moment de la séance'],['format','Format'],...([['subfamily','Sous-famille'],['classification','Classification'],['tags','Tags']].filter(([field])=>Object.hasOwn(exercise.details,field)))]],
              ['Adaptations',[['easier','Variante −'],['harder','Variante +'],['accessibility','Accessibilité'],['inspiration','Inspiration']]]
             ];
             for(const [name,fields] of groups){
              const group=element('section');group.className='exercise-group';group.append(element('h4',name));
-             const dl=element('dl');for(const [field,label] of fields){dl.append(element('dt',label),element('dd',exercise.details[field]));}
+             const dl=element('dl');for(const [field,label] of fields){dl.append(element('dt',label),element('dd',Array.isArray(exercise.details[field])?(exercise.details[field].length?exercise.details[field].join(' · '):'Aucun tag'):exercise.details[field]));}
              group.append(dl);sheet.append(group);
             }
            }catch{if(valid())message.textContent='Fiche indisponible. Fermez puis rouvrez la fiche pour réessayer.';}
