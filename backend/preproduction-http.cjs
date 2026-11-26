@@ -34,7 +34,17 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
  return async function handle(req,res){
   try{
    if(req.headers.host!==u.host)return empty(res,421);
-   if(await authorizeAccess(req)!==true)return empty(res,403);
+   if(await authorizeAccess(req)!==true){
+    // Give document navigations a real error document rather than an empty
+    // HTTP 403 (Chromium may otherwise commit an internal error page).
+    // No application content, credentials, or cached private data is exposed.
+    if(typeof req.url==='string'&&!req.url.startsWith('/api/')&&(req.method==='GET'||req.method==='HEAD')){
+     const body=Buffer.from('Accès refusé.','utf8');
+     res.writeHead(403,{...headers,'Content-Type':'text/plain; charset=utf-8','Content-Length':body.length});
+     return res.end(req.method==='HEAD'?undefined:body);
+    }
+    return empty(res,403);
+   }
    if(typeof req.url!=='string')return empty(res,400);
    if(req.url.startsWith('/api/'))return await authHandler(req,res);
    if(req.method!=='GET'&&req.method!=='HEAD')return empty(res,405,{Allow:'GET, HEAD'});
