@@ -2,18 +2,18 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
-const {mkdtempSync,rmSync}=require('node:fs');
+const {mkdtempSync,rmSync,readFileSync}=require('node:fs');
 const {tmpdir}=require('node:os');
 const path=require('node:path');
 const {chromium,webkit}=require('playwright');
 const {build}=require('../../../scripts/build-auth-preview.cjs');
 const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 const fixture={
- schema:'JSB-TAISO-OFFLINE-1',title:'Fixture hors connexion',version:'fixture-v1',revision:1,minutes:60,format:'Séries classiques',mode:'Répétitions',
+ schema:'JSB-TAISO-OFFLINE-1',draftId:'a'.repeat(32),generation:'1',baseEditCount:0,title:'Fixture hors connexion',version:'fixture-v1',revision:1,minutes:60,format:'Séries classiques',mode:'Répétitions',
  status:'Brouillon non validé',missing:['Échauffement'],phases:[
  {name:'Mobilité',minutes:5,unallocatedMinutes:5,exercises:[],blocks:[]},
  {name:'Échauffement',minutes:8,unallocatedMinutes:8,exercises:[],blocks:[]},
- {name:'Corps de séance',minutes:35,unallocatedMinutes:30,exercises:[{reference:'JSB-TAISO-FIXTURE',name:'Fixture exercice',allocationMinutes:5,dosage:'8 répétitions',safety:'Fixture sécurité',prescription:{mode:'Répétitions',repetitions:8}}],blocks:[{name:'Séries classiques',budgetSeconds:2100,plannedSeconds:null,issues:['organization-not-configured']}]},
+ {name:'Corps de séance',minutes:35,unallocatedMinutes:30,exercises:[{reference:'JSB-TAISO-FIXTURE',name:'Fixture exercice',allocationMinutes:5,dosage:'8 répétitions',safety:'Fixture sécurité',prescription:{mode:'Répétitions',repetitions:8}}],blocks:[{name:'Séries classiques',references:['JSB-TAISO-FIXTURE'],budgetSeconds:2100,plannedSeconds:null,issues:['organization-not-configured']}]},
  {name:'Retour au calme',minutes:4,unallocatedMinutes:4,exercises:[],blocks:[]},
  {name:'Étirements',minutes:8,unallocatedMinutes:8,exercises:[],blocks:[]}
  ]
@@ -53,6 +53,15 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   assert.match(await page.locator('#offline-content').textContent(),/Fixture sécurité/);
   assert.match(await page.locator('#offline-content').textContent(),/Brouillon non validé/);
   assert.equal(await page.evaluate(async()=>{try{await fetch('/api/session');return false;}catch{return true;}}),true);
+  await page.getByRole('button',{name:'Retirer Fixture exercice',exact:true}).click();
+  assert.match(await page.locator('#offline-content').textContent(),/Brouillon modifié localement/);
+  assert.match(await page.locator('#offline-content').textContent(),/35 min à organiser/);
+  const event=page.waitForEvent('download',{timeout:15000});
+  await page.getByRole('button',{name:'Exporter les modifications locales'}).click();
+  const download=await event;
+  const patch=JSON.parse(readFileSync(await download.path(),'utf8'));
+  assert.deepEqual(patch,{schema:'JSB-TAISO-EDITS-1',draftId:'a'.repeat(32),revision:1,version:'fixture-v1',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-FIXTURE'}]});
+
   await page.getByRole('button',{name:'Fermer la fiche'}).click();assert.equal(await page.locator('#offline-content').textContent(),'');
   await page.locator('#offline-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"schema":"wrong"}')});
   await page.locator('#offline-status').filter({hasText:'Fichier de séance non conforme'}).waitFor({state:'visible'});
