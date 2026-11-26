@@ -138,27 +138,24 @@ function renderWorkspace(){
         const check=element('button','Vérifier les exercices compatibles');check.type='button';
         const generate=element('button','Proposer une séance');generate.type='button';
         const result=element('div');result.id='taiso-candidate-result';result.setAttribute('role','status');
-        let requestId=0;
+        let requestId=0,savedDraft=null;
         const live=()=>!busy&&workspaceIdentity===identity&&preparation.isConnected;
-        form.addEventListener('change',()=>{requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=generate.disabled=false;});
-        form.addEventListener('input',()=>{requestId++;result.replaceChildren();check.disabled=generate.disabled=false;});
-        async function prepareDraft(isDraft){
-         if(!live()||check.disabled||generate.disabled)return;
-         const run=++requestId;
-         const criteria={groupe:group.value,niveau:level.value,mode:mode.value,supervision:supervision.checked,binome:partner.checked,sansMateriel:noEquipment.checked,materiel:noEquipment.checked?[]:equipment.value.split(';').map(x=>x.trim()).filter(Boolean),contraintes:restrictions.filter(([,input])=>input.checked).map(([name])=>name)};
-         if(!criteria.sansMateriel&&!criteria.materiel.length){result.textContent='Renseignez le matériel disponible ou choisissez Sans matériel.';return;}
-         let organization;
-         if(isDraft){try{organization=settingsReader();}catch(e){result.textContent=e.message;return;}}
-         check.disabled=generate.disabled=true;result.textContent=isDraft?'Préparation en cours…':'Vérification en cours…';
-         try{
-          const options={version:data.version,generation:data.generation,criteria};
-          const answer=isDraft?await client.taisoDraft({...options,minutes:Number(duration.value),format:format.value,organization,seed:1+crypto.getRandomValues(new Uint32Array(1))[0]%2147483646}):await client.taisoCandidates(options);
-          const accountNow=await client.session();
-          if(!live()||run!==requestId)return;
-          if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
-          if(answer.state==='version-changed'){result.textContent='Le référentiel a changé. Revenez à l’accueil puis rouvrez le Taïso.';return;}
-          if(answer.state==='rate-limited'){result.textContent='Trop de vérifications. Réessayez plus tard.';return;}
-          if(isDraft){
+        form.addEventListener('change',event=>{if(result.contains(event.target))return;requestId++;equipment.disabled=noEquipment.checked;if(noEquipment.checked)equipment.value='';level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';result.replaceChildren();check.disabled=generate.disabled=false;});
+        form.addEventListener('input',event=>{if(result.contains(event.target))return;requestId++;result.replaceChildren();check.disabled=generate.disabled=false;});
+
+        const library=element('section');library.className='workspace-detail';
+        const libraryStatus=element('div');libraryStatus.setAttribute('role','status');libraryStatus.id='taiso-saved-list';
+        const showSaved=element('button','Mes brouillons Taïso');showSaved.type='button';
+        const newDraft=element('button','Nouvelle séance');newDraft.type='button';
+        const editing=element('p','Nouvelle séance');editing.id='taiso-editing';
+        let libraryRun=0;
+        function draftError(response){
+         if(response.state==='account-changed'){void refresh();return 'Compte modifié.';}
+         if(response.state==='conflict')return 'Brouillon ou catalogue modifié. Rechargez la liste avant de réessayer.';
+         if(response.state==='rate-limited')return 'Trop de demandes. Réessayez plus tard.';
+         return 'Opération non confirmée. Rechargez la liste.';
+        }
+        function renderProposal(answer,planSettings,loaded){
            result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p',answer.format+' · '+answer.mode+' · catalogue '+answer.version));
            if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
            for(const phase of answer.phases){
@@ -178,7 +175,103 @@ function renderWorkspace(){
             result.append(section);
            }
            if(answer.organizationPending)result.append(element('p','Organisation incomplète : ajustez les paramètres ou la sélection.'));
-           result.append(element('p','Les budgets ne sont pas des chronomètres. Vérifiez la cohérence des séries, récupérations et adaptations avant utilisation. Aucune séance n’est encore enregistrée.'));
+           result.append(element('p','Les budgets ne sont pas des chronomètres. Vérifiez les séries, récupérations et adaptations avant utilisation. '+(loaded?'Brouillon enregistré, non validé.':'Aucune séance n’est encore enregistrée.')));
+         const titleLabel=element('label','Nom du brouillon'),title=element('input');title.id='taiso-draft-title';titleLabel.htmlFor=title.id;title.maxLength=120;title.value=savedDraft?.title??'';
+         const save=element('button',savedDraft?'Enregistrer les modifications':'Enregistrer le brouillon');save.type='button';
+         const feedback=element('p');feedback.id='taiso-save-status';
+         const run=requestId,target=savedDraft;
+         const eligible=()=>{save.disabled=!title.value.trim()||title.value.trim().length>120;};
+         eligible();title.addEventListener('input',eligible);
+         save.addEventListener('click',async()=>{
+          if(!live()||run!==requestId||save.disabled||!save.isConnected)return;
+          save.disabled=true;
+          try{
+           const response=await client.privateTaisoDraft('save',account.id,{title:title.value.trim(),settings:planSettings,...(target?{id:target.id,revision:savedDraft?.revision??target.revision}:{})});
+           if(!live()||run!==requestId)return;
+           if(response.state!=='ready'){feedback.textContent=draftError(response);return;}
+           savedDraft={...response.saved,settings:planSettings};editing.textContent='Brouillon : '+savedDraft.title+' · révision '+savedDraft.revision;
+           feedback.textContent='Brouillon enregistré. Révision '+savedDraft.revision+'.';
+           save.textContent='Enregistrer les modifications';
+           // Re-render so a subsequent save updates the same new id.
+           renderProposal(answer,planSettings,true);
+           const status=result.querySelector('#taiso-save-status');if(status)status.textContent='Brouillon enregistré. Révision '+savedDraft.revision+'.';
+           libraryRun++;libraryStatus.replaceChildren();
+          }catch{if(live()&&run===requestId)feedback.textContent='Sauvegarde non confirmée. Consultez la liste avant de réessayer.';}
+          finally{if(live()&&run===requestId&&save.isConnected)eligible();}
+         });
+         result.append(titleLabel,title,save,feedback);
+        }
+        function restoreSettings(q){
+         const c=q.criteria;
+         group.value=c.groupe;mode.value=c.mode;refreshFormats();
+         level.value=c.niveau;level.disabled=group.value==='Gym douce';if(level.disabled)level.value='Débutant';
+         duration.value=String(q.minutes);format.value=q.format??'Séries classiques';
+         noEquipment.checked=c.sansMateriel;equipment.disabled=c.sansMateriel;equipment.value=c.materiel.join('; ');
+         partner.checked=c.binome;supervision.checked=c.supervision;
+         for(const [name,input] of restrictions)input.checked=c.contraintes.includes(name);
+         configure.checked=!!q.organization;rebuildOrganization();
+         const fill=(prefix,values)=>{for(const [key,value] of Object.entries(values||{})){const input=org.querySelector('#'+prefix+key);if(input&&value!==null)input.value=String(value);}};
+         if(format.value==='Mixte'){fill('taiso-circuit-',q.organization?.circuit);fill('taiso-pilates-',q.organization?.pilates);}
+         else fill('taiso-org-',q.organization);
+        }
+        async function listDrafts(offset=0){
+         if(!live())return;
+         const run=++libraryRun;showSaved.disabled=true;libraryStatus.textContent='Chargement…';
+         try{
+          const response=await client.privateTaisoDraft('list',account.id,{offset});
+          if(!live()||run!==libraryRun)return;
+          if(response.state!=='ready'){libraryStatus.textContent=draftError(response);return;}
+          libraryStatus.replaceChildren(element('p',response.total+' brouillon(s) privé(s)'));
+          for(const d of response.items){
+           const entry=element('section');entry.className='exercise-group';
+           const open=element('button','Reprendre '+d.title);open.type='button';
+           entry.append(element('h4',d.title),element('p','Révision '+d.revision+' · catalogue '+d.version),open);
+           open.addEventListener('click',async()=>{
+            if(!live()||run!==libraryRun)return;
+            const editingRun=++requestId;open.disabled=true;
+            try{
+             const read=await client.privateTaisoDraft('read',account.id,{id:d.id});
+             if(!live()||run!==libraryRun||editingRun!==requestId)return;
+             if(read.state!=='ready'){libraryStatus.textContent=draftError(read);return;}
+             const q=read.draft;savedDraft=q;restoreSettings(q.settings);editing.textContent='Brouillon : '+q.title+' · révision '+q.revision;
+             if(q.stale||q.version!==data.version||q.generation!==data.generation){
+              result.replaceChildren(element('p','Catalogue modifié depuis l’enregistrement. Les réglages sont repris ; générez une nouvelle proposition avant de sauvegarder.'));
+             }else renderProposal(q.snapshot,q.settings,true);
+             check.disabled=generate.disabled=false;
+            }catch{if(live()&&editingRun===requestId)result.textContent='Reprise indisponible.';}
+            finally{if(live()&&open.isConnected)open.disabled=false;}
+           });
+           libraryStatus.append(entry);
+          }
+          if(offset>0||offset+30<response.total){
+           const prev=element('button','Précédent'),next=element('button','Suivant');prev.type=next.type='button';prev.disabled=offset===0;next.disabled=offset+30>=response.total;
+           prev.addEventListener('click',()=>void listDrafts(Math.max(0,offset-30)));next.addEventListener('click',()=>void listDrafts(offset+30));libraryStatus.append(prev,next);
+          }
+         }catch{if(live()&&run===libraryRun)libraryStatus.textContent='Liste indisponible.';}
+         finally{if(live()&&run===libraryRun)showSaved.disabled=false;}
+        }
+        showSaved.addEventListener('click',()=>void listDrafts());
+        newDraft.addEventListener('click',()=>{if(!live())return;requestId++;libraryRun++;savedDraft=null;editing.textContent='Nouvelle séance';result.replaceChildren();libraryStatus.replaceChildren();check.disabled=generate.disabled=showSaved.disabled=false;});
+        library.append(element('h3','Suivi et reprise'),showSaved,newDraft,editing,libraryStatus);
+        async function prepareDraft(isDraft){
+         if(!live()||check.disabled||generate.disabled)return;
+         const run=++requestId;
+         const criteria={groupe:group.value,niveau:level.value,mode:mode.value,supervision:supervision.checked,binome:partner.checked,sansMateriel:noEquipment.checked,materiel:noEquipment.checked?[]:equipment.value.split(';').map(x=>x.trim()).filter(Boolean),contraintes:restrictions.filter(([,input])=>input.checked).map(([name])=>name)};
+         if(!criteria.sansMateriel&&!criteria.materiel.length){result.textContent='Renseignez le matériel disponible ou choisissez Sans matériel.';return;}
+         let organization;
+         if(isDraft){try{organization=settingsReader();}catch(e){result.textContent=e.message;return;}}
+         check.disabled=generate.disabled=true;result.textContent=isDraft?'Préparation en cours…':'Vérification en cours…';
+         try{
+          const options={version:data.version,generation:data.generation,criteria};
+          const planSettings={...options,minutes:Number(duration.value),format:format.value,organization,seed:savedDraft?.settings?.seed??(1+crypto.getRandomValues(new Uint32Array(1))[0]%2147483646)};
+          const answer=isDraft?await client.taisoDraft(planSettings):await client.taisoCandidates(options);
+          const accountNow=await client.session();
+          if(!live()||run!==requestId)return;
+          if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
+          if(answer.state==='version-changed'){result.textContent='Le référentiel a changé. Revenez à l’accueil puis rouvrez le Taïso.';return;}
+          if(answer.state==='rate-limited'){result.textContent='Trop de vérifications. Réessayez plus tard.';return;}
+          if(isDraft){
+           renderProposal(answer,planSettings,false);
            return;
           }
           result.replaceChildren(element('p',answer.total+' exercice(s) compatible(s) · '+answer.excluded+' non retenu(s).'));
@@ -192,7 +285,7 @@ function renderWorkspace(){
         }
         check.addEventListener('click',()=>void prepareDraft(false));
         generate.addEventListener('click',()=>void prepareDraft(true));
-        form.append(check,generate,result);preparation.append(form);
+        form.append(check,generate,result);preparation.append(library,form);
        }
        detail.insertBefore(preparation,list);
       }
