@@ -21,6 +21,9 @@ test('Client : session confirmée après connexion, transport même origine et s
  assert.deepEqual(f.calls.map(x=>x.url),[origin+'/api/login',origin+'/api/session']);
  assert.deepEqual(JSON.parse(f.calls[0].options.body),{email:'a@example.test',password:'secret'});
  for(const {options} of f.calls){assert.equal(options.credentials,'same-origin');assert.equal(options.mode,'same-origin');assert.equal(options.cache,'no-store');assert.equal(options.redirect,'error');}
+ assert.equal(f.calls[0].options.referrerPolicy,'same-origin');
+ assert.equal(f.calls[0].options.referrer,origin+'/');
+ assert.equal(f.calls[1].options.referrerPolicy,'no-referrer');
  assert.deepEqual(f.transitions,[['jsb-auth-transition-v1',{mode:'exclusive'}]]);
 });
 test('Client : refus de connexion, quota, déconnexion confirmée',async()=>{
