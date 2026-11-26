@@ -26,5 +26,20 @@ test('Catalogues : séparation des disciplines, publication explicite et permiss
    assert.deepEqual(r.catalogue.families,[{family:'Fixture T',count:1}]);
    assert.equal((await service.read(actor(role),'judo')).catalogue.state,'unpublished');
   }
+
+  const base={version:'ci-fixture'};
+  assert.equal((await service.search(actor('coach'),'judo',base)).status,409);
+  assert.equal((await service.search(null,'taiso',base)).status,403);
+  assert.equal((await service.search(actor('coach'),'taiso',{...base,offset:-1})).status,400);
+  assert.equal((await service.search(actor('coach'),'taiso',{...base,query:'%'})).results.total,0);
+  const exact=await service.search(actor('individual'),'taiso',{...base,query:'CI-1',family:'Fixture T'});
+  assert.deepEqual(exact.results.items,[{reference:'ci-1',name:'Synthetic fixture',family:'Fixture T'}]);
+  assert.equal((await service.search(actor('admin'),'taiso',{...base,family:'Fixture J'})).results.total,0);
+  for(let i=0;i<32;i++)await pool.query("INSERT INTO jsb_catalogue.exercises(discipline,version,reference,name,family) VALUES ('taiso','ci-fixture',$1,$2,'Fixture T')",['ci-page-'+i,'Page '+String(i).padStart(2,'0')]);
+  const page1=(await service.search(actor('coach'),'taiso',base)).results;
+  const page2=(await service.search(actor('coach'),'taiso',{...base,offset:30})).results;
+  assert.equal(page1.total,33);assert.equal(page1.items.length,30);assert.equal(page2.items.length,3);
+  assert.equal(new Set([...page1.items,...page2.items].map(i=>i.reference)).size,33);
+  assert.equal((await service.search(actor('coach'),'taiso',{...base,version:'old'})).status,409);
  }finally{try{if(safe){await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='ci-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='ci-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='ci-fixture'");}}finally{await pool.end();}}
 });
