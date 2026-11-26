@@ -35,11 +35,16 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   const key=path.join(dir,'key.pem'),cert=path.join(dir,'cert.pem');
   execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=JSB CI','-addext','subjectAltName=IP:127.0.0.1,IP:127.0.0.2','-keyout',key,'-out',cert],{stdio:'ignore'});
   const tls={key:readFileSync(key),cert:readFileSync(cert)};
-  const handlers=new Map();
+  const handlers=new Map(),network=[];
   async function start(app,host){
    const server=https.createServer(tls,(req,res)=>{
     const handler=handlers.get(app);
     if(!handler){res.writeHead(503);res.end();return;}
+    if(['/api/login','/api/logout','/api/session'].includes(req.url)){
+     const origin=req.headers.origin,expected='https://'+req.headers.host;
+     const item={app,path:req.url,origin:origin===expected?'same-origin':origin===undefined?'absent':origin==='null'?'null':'other',site:req.headers['sec-fetch-site']||'absent',cookiePresent:typeof req.headers.cookie==='string'};
+     res.once('finish',()=>{network.push({...item,status:res.statusCode,setCookie:res.hasHeader('set-cookie')});});
+    }
     return handler(req,res);
    });servers.push(server);
    await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,host,resolve);});
@@ -63,6 +68,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
   const envelope=await createMfaVault(mfaKeys).seal({accountId:ids.admin,factorVersion,secret});
   await pool.query('INSERT INTO jsb_auth.mfa_factors(account_id,factor_version,encrypted_secret,enabled) VALUES ($1,$2,$3,true)',[ids.admin,factorVersion,envelope]);
   for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]]){
+   network.length=0;
    // Reset only the synthetic factor between engines; production never resets replay counters.
    await pool.query('UPDATE jsb_auth.mfa_factors SET last_step=-1 WHERE account_id=$1',[ids.admin]);
    const browser=await launcher.launch();
@@ -122,8 +128,10 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await second.close();
     assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
     assert.deepEqual(errors,[]);
+    assert.ok(network.filter(x=>x.path==='/api/login'||x.path==='/api/logout').every(x=>x.origin==='same-origin'),name+' : Origin des mutations');
+    console.log('Recette '+name+' : parcours et isolation réussis.');
     await ctx.close();
-   }catch(e){throw new Error('Recette '+name+' : '+e.message,{cause:e});}finally{await browser.close();}
+   }catch(e){console.error('Diagnostic HTTP '+name+': '+JSON.stringify(network));throw new Error('Recette '+name+' : '+e.message,{cause:e});}finally{await browser.close();}
   }
  }finally{
   try{
