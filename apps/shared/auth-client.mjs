@@ -123,7 +123,7 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
    return d;
   }
   async function privateTaisoDraft(action,expectedAccount,body={}){
-   if(!['list','read','save','delete'].includes(action)||typeof expectedAccount!=='string'||!expectedAccount)throw TypeError('Opération privée invalide');
+   if(!['list','read','save','delete','validate','pdf'].includes(action)||typeof expectedAccount!=='string'||!expectedAccount)throw TypeError('Opération privée invalide');
    return exclusive(async()=>{
     const before=await session();
     if(before.state!=='signed-in'||before.account.id!==expectedAccount)return {state:'account-changed'};
@@ -142,10 +142,14 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
      if(d.id!==body.id||typeof d.stale!=='boolean'||!q||!q.criteria||q.version!==d.version||q.generation!==d.generation)throw Error('Brouillon invalide');
      return {state:'ready',draft:{...d,snapshot:checkedDraft(d.snapshot,q)}};
     }
-    if(action==='save'){
+    if(action==='save'||action==='validate'){
      const saved=draftMetadata(r.data.saved);
      if(body.id&&(saved.id!==body.id||saved.revision!==body.revision+1))throw Error('Sauvegarde incohérente');
      return {state:'ready',saved};
+    }
+    if(action==='pdf'){
+     if(r.data.revision!==body.revision||typeof r.data.pdf!=='string'||r.data.pdf.length>5600000||!r.data.pdf.startsWith('JVBERi0'))throw Error('PDF invalide');
+     return {state:'ready',pdf:r.data.pdf};
     }
     if(r.data.deleted!==body.id)throw Error('Suppression incohérente');
     return {state:'ready',deleted:r.data.deleted};
