@@ -68,3 +68,17 @@ test('Client : cycle de compte disponible seulement dans le périmètre grand pu
  const admin=createAuthClient(fixture([],{allowedRoles:['admin']}).options);
  for(const name of ['register','verifyEmail','resendVerification','requestReset','confirmReset'])assert.equal(admin[name],undefined);
 });
+
+test('Catalogue : filtre borné, version et discipline confirmées par le serveur',async()=>{
+ const {createAuthClient}=await load();
+ const items=[{reference:'fixture-1',name:'Exercice de recette',family:'Famille de recette'}];
+ const result={discipline:'taiso',version:'fixture-v1',offset:0,total:1,items};
+ const f=fixture([{status:200,body:{ok:true,results:result}},{status:409,body:{ok:false}},{status:200,body:{ok:true,results:{...result,discipline:'judo'}}}]);
+ const c=createAuthClient(f.options),criteria={version:'fixture-v1',query:'recette',family:'Famille de recette'};
+ assert.deepEqual(await c.searchCatalogue('taiso',criteria),{state:'ready',...result});
+ assert.equal(f.calls[0].url,origin+'/api/catalogue/taiso/search');
+ assert.deepEqual(JSON.parse(f.calls[0].options.body),{...criteria,offset:0});
+ assert.deepEqual(await c.searchCatalogue('taiso',criteria),{state:'version-changed'});
+ await assert.rejects(c.searchCatalogue('taiso',criteria),/Résultats invalides/);
+ await assert.rejects(c.searchCatalogue('unknown',criteria),TypeError);
+});
