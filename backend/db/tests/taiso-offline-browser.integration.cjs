@@ -50,12 +50,22 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   assert.equal((await context.request.get(origin+'/public/offline.html')).status(),403);
   // Some engines reject a top-level empty 403 as an invalid response.
   // In either case it must not display the cached offline reader.
+  // Keep the controlled reader tab intact: Chromium can commit its
+  // chrome-error page asynchronously after a rejected navigation.
+  const deniedPage=await context.newPage();
   let denied=false;
-  try{const response=await page.goto(origin+'/public/offline.html');denied=response?.status()===403;}
-  catch(e){denied=/ERR_INVALID_RESPONSE|internal error|navigation|load/i.test(e.message);}
+  try{
+   const response=await deniedPage.goto(origin+'/public/offline.html');
+   denied=response?.status()===403;
+  }catch(e){denied=/ERR_INVALID_RESPONSE|internal error|navigation|load/i.test(e.message);}
   assert.ok(denied,'La navigation refusée ne doit pas servir la page en cache');
+  assert.equal(await deniedPage.getByRole('heading',{name:'Consultation hors connexion'}).count(),0);
+  await deniedPage.close();
   allowed=true;
-  await page.goto(origin+'/public/offline.html');
+  // Verify a fresh successful navigation and worker control before
+  // actually shutting down the listener for the offline scenario.
+  const restored=await page.goto(origin+'/public/offline.html');
+  assert.equal(restored?.status(),200);
   assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));server=null;
   // The actual listener has been closed. Do not combine this with the
