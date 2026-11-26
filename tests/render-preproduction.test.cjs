@@ -20,12 +20,12 @@ test('Render : passerelle privée, refus des preuves injectées, hôte unique',a
  await new Promise(ok=>upstream.listen(0,'127.0.0.1',ok));opts.config.port=upstream.address().port;
  const gate=createGateway(opts);await new Promise(ok=>gate.listen(0,'127.0.0.1',ok));
  // Use an actual HTTP request: Fetch/Undici may normalize or replace Host.
- const request=(path,headers={})=>new Promise((resolve,reject)=>{
-  const req=http.request({hostname:'127.0.0.1',port:gate.address().port,path,headers:{Host:opts.host,...headers}},res=>{
+ const request=(path,headers={},method='GET',body)=>new Promise((resolve,reject)=>{
+  const req=http.request({hostname:'127.0.0.1',port:gate.address().port,path,method,headers:{Host:opts.host,...headers}},res=>{
    let body='';res.setEncoding('utf8');res.on('data',chunk=>body+=chunk);
-   res.on('end',()=>resolve({status:res.statusCode,text:async()=>body}));res.on('error',reject);
+   res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,text:async()=>body}));res.on('error',reject);
   });
-  req.on('error',reject);req.end();
+  req.on('error',reject);req.end(body);
  });
  const auth='Basic '+Buffer.from('jsb-testeur:'+env.JSB_TESTER_SECRET).toString('base64');
  try{
@@ -36,5 +36,19 @@ test('Render : passerelle privée, refus des preuves injectées, hôte unique',a
   assert.equal(calls,0);
   assert.equal(await (await request('/admin/auth.html',{Authorization:auth,'x-jsb-gateway-proof':'fake','x-jsb-client-ip':'8.8.8.8'})).text(),'proxy');
   assert.equal(calls,1);
+  const nav=await request('/admin/auth.html',{Accept:'text/html'});
+  assert.equal(nav.status,303);assert.equal(nav.headers.location,'/access');
+  const login=await request('/access',{Accept:'text/html'});
+  assert.equal(login.status,200);assert.match(login.headers['content-type'],/^text\/html/);assert.equal(login.headers['content-disposition'],'inline');
+  assert.match(await login.text(),/<form method="post" action="\/access">/);
+  const post=(password,origin='https://'+opts.host)=>{const body=new URLSearchParams({password}).toString();return request('/access',{Origin:origin,'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)},'POST',body);};
+  assert.equal((await post('incorrect')).status,403);
+  assert.equal((await post(env.JSB_TESTER_SECRET,'https://coach.onrender.com')).status,403);
+  const success=await post(env.JSB_TESTER_SECRET);assert.equal(success.status,303);
+  const setCookie=success.headers['set-cookie'][0];assert.match(setCookie,/; Secure; HttpOnly; SameSite=Lax/);
+  const cookie=setCookie.split(';')[0];
+  assert.equal((await request('/admin/auth.html',{Cookie:cookie+'x',Accept:'text/html'})).status,303);
+  assert.equal(await (await request('/admin/auth.html',{Cookie:cookie})).text(),'proxy');
+  assert.equal(calls,2);
  }finally{gate.closeAllConnections();upstream.closeAllConnections();await Promise.all([new Promise(ok=>gate.close(ok)),new Promise(ok=>upstream.close(ok))]);}
 });
