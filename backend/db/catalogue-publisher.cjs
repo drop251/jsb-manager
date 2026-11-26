@@ -1,6 +1,6 @@
 'use strict';
-const {authorize}=require('../core/platform-permissions.cjs');
-const {analyzeCatalogueImport}=require('../core/catalogue-import.cjs');
+const {authorize}=require('../../core/platform-permissions.cjs');
+const {analyzeCatalogueImport}=require('../../core/catalogue-import.cjs');
 const fail=status=>({ok:false,status});
 const versionPattern=/^[A-Za-z0-9_.-]{1,80}$/;
 function createCataloguePublisher(pool){
