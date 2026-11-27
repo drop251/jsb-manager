@@ -30,7 +30,7 @@ const {createLegalStore}=require('./db/legal-store.cjs');
 const {renderTaisoSavedPdf}=require('./taiso-saved-pdf.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
-function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
+function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,legalApprovedHashes={},now=Date.now}={}){
  function origin(value){
   if(typeof value!=='string')throw TypeError('Origine requise');
   const u=new URL(value);if(u.protocol!=='https:'||u.origin!==value)throw TypeError('Origine HTTPS exacte requise');return u;
@@ -110,7 +110,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!await attendanceLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   return attendance.execute(actor,sessionHash,action,body);
  }
- const legalStore=createLegalStore(pool),legalLimiter=limiter('legal-actions',30,60);
+ const legalStore=createLegalStore(pool,{approvedHashes:legalApprovedHashes}),legalLimiter=limiter('legal-actions',30,60);
  const legal={documents:legalStore.documents,async execute(actor,sessionHash,action,body,source){
   if(!await legalLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   return legalStore.execute(actor,sessionHash,action,body);
