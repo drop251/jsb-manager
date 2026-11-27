@@ -59,5 +59,38 @@ h1{font-size:1.75rem}label{font-size:.875rem}
 :root[data-texte-grand] .jsb-nav{overflow-x:auto;position:static;flex-wrap:wrap}
 :root[data-texte-grand] .jsb-nav button{flex:1 0 90px}
 :root[data-texte-grand] main.has-session{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+
+/* Pictogrammes et raccourcis repris de l'enveloppe historique. */
+.jsb-nav button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;min-height:54px}
+.jsb-nav svg{width:21px;height:21px;flex:none}
+.jsb-nav .onglet-txt{font-size:.75rem;line-height:1.25}
+.jsb-nav button[aria-current=page]{background:var(--selected);color:var(--accent)}
+.workspace-hero{margin:4px 0 16px}
+.workspace-hero h2{margin:0 0 4px}
+.workspace-hero p{margin:0;color:var(--muted)}
+.workspace-overview{padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin:0 0 20px}
+.workspace-overview p{margin:6px 0 0;color:var(--muted);font-size:.875rem}
+.workspace>h3{font-size:1.125rem;margin:0 0 12px}
+.workspace-grid.blocs .bloc{display:grid;grid-template-columns:38px minmax(0,1fr);grid-template-areas:"ico nom" "ico txt";align-content:center;align-items:center;gap:3px 10px;text-align:left;min-height:92px}
+.bloc-ico{grid-area:ico;width:38px;height:38px;display:grid;place-items:center;background:var(--chip);color:var(--ink);border-radius:10px}
+.bloc-ico svg{width:26px;height:26px}
+.bloc-nom{grid-area:nom;overflow-wrap:anywhere}
+.bloc-txt{grid-area:txt;overflow-wrap:anywhere}
+.workspace-return{display:flex;align-items:center;justify-content:center;gap:6px}
+.workspace-return svg{width:20px;height:20px;flex:none}
+@media(min-width:760px){.workspace-grid.blocs{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}}
+@media(max-width:759px){main.has-session{padding-bottom:calc(94px + env(safe-area-inset-bottom,0px))}.jsb-nav button{flex:1 0 64px}}
+@media(max-width:430px){.workspace-grid.blocs .bloc{grid-template-columns:1fr;grid-template-areas:"ico" "nom" "txt";align-content:start;gap:6px}}
+:root[data-texte-grand] .workspace-grid.blocs{grid-template-columns:1fr}
+:root[data-texte-grand] main.has-session{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+
+/* Retour tactile : les onglets fixes restent immobiles et les préférences de mouvement sont respectées. */
+html[data-jsb-swipe-active]{overflow-x:clip}
+.workspace[data-swipe-moving] > :not(.jsb-nav){transform:translateX(var(--jsb-swipe-x,0));transition:none}
+.workspace.swipe-returned > :not(.jsb-nav){animation:jsb-swipe-return .18s ease-out both}
+@keyframes jsb-swipe-return{from{transform:translateX(-18px);opacity:.85}to{transform:translateX(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.workspace.swipe-returned > :not(.jsb-nav){animation:none}.workspace[data-swipe-moving] > :not(.jsb-nav){transform:none}}
+:root[data-anim] .workspace.swipe-returned > :not(.jsb-nav){animation:none}
+:root[data-anim] .workspace[data-swipe-moving] > :not(.jsb-nav){transform:none}
 </style></head>
 <body><header><strong>JSB Admin</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion administrateur</h1><p class="login-intro">Accès réservé à l’administration de la plateforme. Double authentification obligatoire.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Tableau de bord authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><label for="mfa">Code de double authentification</label><input id="mfa" name="mfa" autocomplete="one-time-code" required maxlength="128"><button type="submit">Se connecter</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir mon espace Coach ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><p class="note">Page de développement. N’utilisez pas vos identifiants réels avant la mise en service sur l’adresse officielle JSB. La navigation authentifiée est disponible ; les données et actions métier ne sont pas encore raccordées.</p></section></section></main><script type="module" src="./auth-page.mjs"></script></body></html>
