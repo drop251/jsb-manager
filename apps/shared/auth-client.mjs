@@ -163,8 +163,21 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
     throw Error('Service indisponible');
    });
   }
+  async function privateAttendance(action,expectedAccount,body={}){
+   if(!['read','save'].includes(action)||typeof expectedAccount!=='string'||!expectedAccount)throw TypeError('Opération Présences invalide');
+   return exclusive(async()=>{
+    const before=await session();
+    if(before.state!=='signed-in'||before.account.id!==expectedAccount||before.account.role!=='coach')return {state:'account-changed'};
+    const r=await request('/api/private/attendance/'+action,{...body,expectedAccount});
+    const after=await session();
+    if(after.state!=='signed-in'||after.account.id!==expectedAccount||after.account.role!=='coach')return {state:'account-changed'};
+    if(r.status===429)return {state:'rate-limited'};
+    if(![200,409].includes(r.status)||!r.data.register||!Number.isSafeInteger(r.data.register.revision)||r.data.register.revision<0)throw Error('Registre indisponible');
+    return {state:r.status===409?'conflict':'ready',register:r.data.register};
+   });
+  }
   Object.assign(api,{
-   taisoCandidates,taisoDraft,privateTaisoDraft,
+   privateAttendance,taisoCandidates,taisoDraft,privateTaisoDraft,
    register:({email,password,role}={})=>{
     if(!roles.has(role))return Promise.resolve(Object.freeze({ok:false,status:400}));
     return action('/api/register',{email,password,role},202);

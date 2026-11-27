@@ -1,3 +1,5 @@
+import {mountAttendance} from './attendance-ui.mjs';
+import {hasVault,createVault,openVault,vaultPatch} from './offline-vault.mjs';
 import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
 // Safari iOS peut ignorer les limites du viewport : annuler uniquement le zoom multipoint.
@@ -105,9 +107,9 @@ function versionSettings(){
  const status=element('p');status.id='version-status';status.setAttribute('role','status');
  const check=element('button','Rechercher une mise à jour');check.type='button';check.id='version-check';check.disabled=!valid(installed);
  const reload=element('button','Actualiser l’application');reload.type='button';reload.id='version-reload';reload.hidden=true;
- reload.addEventListener('click',()=>{if(!busy&&settingsOpen&&section.isConnected)location.reload();});
+ reload.addEventListener('click',()=>{if(!busy&&section.isConnected)location.reload();});
  check.addEventListener('click',async()=>{
-  if(check.disabled||busy||!settingsOpen)return;
+  if(check.disabled||busy||!section.isConnected)return;
   check.disabled=true;reload.hidden=true;status.textContent='Vérification en cours…';
   try{
    const response=await fetch(location.pathname,{method:'HEAD',credentials:'same-origin',mode:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'text/html'}});
@@ -187,12 +189,26 @@ function setWorkspaceView(...nodes){
   onCommit:()=>{
    resetSwipe();
    if(!valid()||blocked())return;
-   nav.querySelector('[data-nav-page="home"]')?.click();
+   const back=workspace.querySelector('#settings-back');if(back)back.click();else nav.querySelector('[data-nav-page="home"]')?.click();
    if(!reduced())workspace.classList.add('swipe-returned');
   }
  });
 }
 
+async function ensureOfflineReader(){
+ if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
+ await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
+ await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
+ const paths=["/public/offline.html","/public/offline.mjs","/public/offline-vault.mjs","/public/attendance-vault.mjs","/public/attendance-ui.mjs","/shared/attendance-sync.js"],deadline=Date.now()+10000;
+ while(Date.now()<deadline){
+  if(await caches.has('jsb-manager-offline-reader-v3')){
+   const cache=await caches.open('jsb-manager-offline-reader-v3');
+   if((await Promise.all(paths.map(path=>cache.match(path)))).every(Boolean))return;
+  }
+  await new Promise(resolve=>setTimeout(resolve,200));
+ }
+ throw Error('Lecteur hors connexion non confirmé');
+}
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
  const permitted=account&&['coach','individual'].includes(account.role);
@@ -221,13 +237,40 @@ function renderWorkspace(){
   }
   return nav;
  }
- function settings(){
+ function settings(section='menu'){
   if(busy||workspaceIdentity!==identity)return;
-  settingsOpen=true;changeOpen=false;
+  settingsOpen=section==='account';changeOpen=false;
   clearSecrets();
-  const heading=element('h2','Réglages');heading.tabIndex=-1;
-  setWorkspaceView(navigation('settings'),heading,displaySettings(),versionSettings());
-  accountTools.hidden=false;paint(status.textContent);
+  const groups=[['Général',[['general','Général','settings'],['display','Affichage et accessibilité','suivi'],['version','Version et mises à jour','seance']]],['Application',[['application','Réglages de l’application','settings'],['offline','Hors connexion','seance']]],['Compte',[['account','Compte et sécurité','accounts'],['legal','Conditions générales et confidentialité','legal']]]];
+  const titles=Object.fromEntries(groups.flatMap(([,items])=>items.map(([id,title])=>[id,title])));
+  const heading=element('h2',titles[section]||'Réglages');heading.tabIndex=-1;
+  if(section==='menu'){
+   const menu=element('div');menu.className='settings-menu';
+   for(const [name,items] of groups){
+    const group=element('section');group.className='settings-group';group.setAttribute('aria-label',name);
+    const label=element('h3',name),list=element('div');list.className='settings-list';
+    for(const [id,title,icon] of items){
+     const button=element('button');button.type='button';button.className='settings-row';button.dataset.settingsPage=id;
+     const tile=element('span');tile.className='settings-icon';tile.append(navIcon(icon));
+     const text=element('span',title);text.className='settings-label';
+     const chevron=element('span');chevron.className='settings-chevron';chevron.append(navIcon('retour'));
+     button.append(tile,text,chevron);button.addEventListener('click',()=>settings(id));list.append(button);
+    }
+    group.append(label,list);menu.append(group);
+   }
+   setWorkspaceView(navigation('settings'),heading,menu);
+  }else{
+   const back=element('button','Réglages');back.type='button';back.id='settings-back';back.className='workspace-return settings-back';back.prepend(navIcon('retour'));back.addEventListener('click',()=>settings());
+   const nodes=[navigation('settings'),back,heading];
+   if(section==='display')nodes.push(displaySettings());
+   else if(section==='version')nodes.push(versionSettings());
+   else if(section==='general'){const panel=element('section');panel.append(element('p','Application V36 · préproduction privée.'),element('p','Interface à échelle fixe, navigation tactile et réglages d’affichage propres à cet appareil.'));nodes.push(panel);}
+   else if(section==='application'){const panel=element('section');panel.append(element('p',"Les préférences de séance se règlent dans chaque discipline. Les fonctions métier disponibles dépendent du référentiel publié."));nodes.push(panel);}
+   else if(section==='offline'){const panel=element('section'),link=element('a','Ouvrir le lecteur hors connexion');link.href='/public/offline.html';panel.append(element('p',hasVault()?'Un coffre chiffré est présent sur cet appareil.':'Aucun coffre chiffré enregistré.'),element('p','Pour préparer une séance hors ligne, utilisez la commande de la séance Taïso enregistrée. Le lecteur ne valide pas les droits de session.'),link);nodes.push(panel);}
+   else if(section==='legal'){const panel=element('section');panel.append(element('p','Conditions générales d’utilisation et politique de confidentialité : documents définitifs à publier avant ouverture au public.'),element('p','Préproduction privée : n’utilisez pas de données réelles de pratiquants.'));nodes.push(panel);}
+   setWorkspaceView(...nodes);
+  }
+  accountTools.hidden=section!=='account';paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
  function home(focus=false){
@@ -252,6 +295,13 @@ function renderWorkspace(){
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
     setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
+    if(key==='club'&&account.role==='coach'){
+     const section=element('section');section.className='workspace-detail';section.setAttribute('aria-label','Présences');protectSwipeEditor(section);
+     section.append(element('h3','Présences'),element('p','Registre privé du compte Coach. Préproduction : utilisez uniquement des données fictives.'));
+     detail.insertBefore(section,list);
+     const offline=element('a','Ouvrir le lecteur hors connexion');offline.href='/public/offline.html';section.append(offline);
+     mountAttendance(section,{client,account,live:()=>!busy&&workspaceIdentity===identity&&section.isConnected,prepareOffline:ensureOfflineReader});
+    }
     if(key==='judo'||key==='taiso'){
      const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
      void client.catalogue(key).then(async data=>{
@@ -492,11 +542,16 @@ function renderWorkspace(){
            tools.append(button);
           }
 
+          const offlinePassword=element('input');offlinePassword.type='password';offlinePassword.id='taiso-offline-password';offlinePassword.minLength=12;offlinePassword.maxLength=256;offlinePassword.autocomplete='new-password';
+          const offlineLabel=element('label','Phrase secrète du coffre local (12 caractères minimum)');offlineLabel.htmlFor=offlinePassword.id;
           const offline=element('button','Préparer hors connexion');offline.type='button';
           offline.addEventListener('click',async()=>{
            if(!live()||run!==requestId||offline.disabled)return;
            offline.disabled=true;
+           const phrase=offlinePassword.value;offlinePassword.value='';
            try{
+            if(phrase.length<12)throw Error('Phrase secrète trop courte.');
+            if(hasVault()){message.textContent='Un coffre existe déjà sur cet appareil. Ouvrez le lecteur pour le reprendre ou l’effacer.';return;}
             const response=await client.privateTaisoDraft('read',account.id,{id:stored.id});
             if(!live()||run!==requestId)return;
             if(response.state!=='ready'||response.draft.revision!==stored.revision){message.textContent='Révision modifiée. Rechargez la séance.';return;}
@@ -505,22 +560,18 @@ function renderWorkspace(){
              phases:d.phases.map(p=>({name:p.name,minutes:p.minutes,unallocatedMinutes:p.unallocatedMinutes,exercises:p.exercises.map(e=>({reference:e.reference,name:e.name,allocationMinutes:e.allocationMinutes,dosage:e.dosage,safety:e.safety,prescription:e.prescription,...Object.fromEntries(['description','successCriteria','easier','harder','equipment','accessibility'].filter(k=>typeof e[k]==='string').map(k=>[k,e[k]]))})),blocks:p.blocks.map(b=>({name:b.name,references:b.references,budgetSeconds:b.organization.budgetSeconds,plannedSeconds:b.organization.plannedSeconds,issues:b.organization.issues}))}))};
             const data=new Blob([JSON.stringify(copy)],{type:'application/json'});
             if(data.size>524288)throw Error('Copie trop volumineuse');
-            if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
-            await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
-            await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
-            const cache=await caches.open('jsb-manager-offline-reader-v1');
-            if(!await cache.match('/public/offline.html')||!await cache.match('/public/offline.mjs'))throw Error('Lecteur non disponible');
+            await ensureOfflineReader();
             if(!live()||run!==requestId)return;
             const accountNow=await client.session();
             if(!live()||run!==requestId)return;
             if(accountNow.state!=='signed-in'||accountNow.account.id!==account.id||accountNow.account.role!==account.role){void refresh();return;}
-            downloadFile(data,'JSB-Taiso-r'+q.revision+'.jsb-session.json');
-            message.textContent='Lecteur hors ligne préparé. Vérifiez le téléchargement, puis ouvrez le lecteur et choisissez le fichier.';
+            await createVault(phrase,String(account.id),copy,()=>live()&&run===requestId);
+            if(live()&&run===requestId)message.textContent='Séance chiffrée enregistrée sur cet appareil. Ouvrez le lecteur hors connexion avec votre phrase secrète.';
            }catch{if(live()&&run===requestId)message.textContent='Préparation hors connexion non confirmée. Utilisez le PDF téléchargé ou réessayez en ligne.';}
            finally{if(live()&&run===requestId)offline.disabled=false;}
           });
           const local=element('a','Ouvrir le lecteur hors connexion');local.href='/public/offline.html';
-          tools.append(element('p','La copie hors ligne est un fichier local non chiffré, volontairement exporté. Ne mettez pas de données de pratiquants dans le titre. Protégez le fichier sur votre appareil, y compris après déconnexion.'),offline,local);
+          tools.append(element('p','Une séance par appareil dans le coffre chiffré, accessible hors connexion avec une phrase secrète distincte. Ne mettez pas de données de pratiquants dans le titre. La copie reste disponible après déconnexion et ne constitue pas une session authentifiée.'),offlineLabel,offlinePassword,offline,local);
           tools.append(element('p','Le PDF est une copie de la révision enregistrée. Il reste lisible hors ligne mais ne s’actualise pas automatiquement.'),message);
           result.append(tools);
          }
@@ -579,13 +630,12 @@ function renderWorkspace(){
 
         const importLabel=element('label','Reprendre des modifications hors connexion'),importFile=element('input');importFile.id='taiso-import-offline';importFile.type='file';importFile.accept='.json,application/json';importLabel.htmlFor=importFile.id;
         const importStatus=element('p');importStatus.id='taiso-import-status';importStatus.setAttribute('role','status');
-        importFile.addEventListener('change',async()=>{
-         if(!live()||!importFile.files?.length)return;
-         const file=importFile.files[0],run=++requestId;
+        async function reviewOfflinePatch(load){
+         if(!live()||importFile.disabled)return;
+         const run=++requestId;
          importFile.disabled=true;check.disabled=generate.disabled=true;importStatus.textContent='Contrôle des modifications locales…';
          try{
-          if(file.size>65536)throw Error('Fichier trop volumineux.');
-          const patch=JSON.parse(await file.text());
+          const patch=await load();
           if(!patch||patch.schema!=='JSB-TAISO-EDITS-1'||typeof patch.draftId!=='string'||!/^[a-f0-9]{32}$/.test(patch.draftId)||
            !Number.isSafeInteger(patch.revision)||patch.revision<1||typeof patch.version!=='string'||typeof patch.generation!=='string'||!Number.isSafeInteger(patch.baseEditCount)||patch.baseEditCount<0||
            !Array.isArray(patch.edits)||!patch.edits.length||patch.baseEditCount+patch.edits.length>60||
@@ -608,8 +658,18 @@ function renderWorkspace(){
           importStatus.textContent='Modifications locales vérifiées. Enregistrez les modifications pour les conserver sur le serveur.';
          }catch(e){if(live()&&run===requestId)importStatus.textContent='Import refusé ou indisponible. Aucun changement enregistré.';}
          finally{if(live()){importFile.disabled=false;importFile.value='';if(run===requestId)check.disabled=generate.disabled=false;}}
+        }
+        importFile.addEventListener('change',()=>{const file=importFile.files?.[0];if(file)void reviewOfflinePatch(async()=>{if(file.size>65536)throw Error('Fichier trop volumineux.');return JSON.parse(await file.text());});});
+        const vaultLabel=element('label','Phrase secrète du coffre local'),vaultPassword=element('input');vaultPassword.id='taiso-vault-password';vaultLabel.htmlFor=vaultPassword.id;vaultPassword.type='password';vaultPassword.maxLength=256;vaultPassword.autocomplete='off';
+        const resumeVault=element('button','Reprendre le coffre hors connexion');resumeVault.type='button';
+        resumeVault.addEventListener('click',()=>{
+         const phrase=vaultPassword.value;vaultPassword.value='';
+         void reviewOfflinePatch(async()=>{
+          const vault=await openVault(phrase);
+          try{if(vault.value.owner!==String(account.id))throw Error('Compte différent.');return vaultPatch(vault.value);}finally{vault.close();}
+         });
         });
-        library.append(element('h3','Suivi et reprise'),showSaved,newDraft,editing,libraryStatus,importLabel,importFile,importStatus);
+        library.append(element('h3','Suivi et reprise'),showSaved,newDraft,editing,libraryStatus,importLabel,importFile,vaultLabel,vaultPassword,resumeVault,importStatus);
         async function prepareDraft(isDraft){
          if(!live()||check.disabled||generate.disabled)return;
          const run=++requestId;

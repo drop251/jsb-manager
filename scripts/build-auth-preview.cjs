@@ -7,7 +7,7 @@ const {createHash}=require('node:crypto');
 const sourceRoot=path.resolve(__dirname,'../apps');
 const filesFor=app=>{
  if(!['public','admin'].includes(app))throw TypeError('Application invalide');
- return [app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs','shared/edge-swipe.js',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-sw.js']:[])];
+ return [app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs','shared/edge-swipe.js',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-vault.mjs','public/attendance-vault.mjs','public/attendance-ui.mjs','shared/attendance-sync.js','public/offline-sw.js']:[])];
 };
 async function build(app,destination){
  const files=filesFor(app),target=path.resolve(destination);
@@ -16,7 +16,7 @@ async function build(app,destination){
  await fs.mkdir(target,{recursive:false,mode:0o755});
  const manifest={app,version:'V36',purpose:'preproduction-auth-only',entrypoint:'/'+app+'/auth.html',files:{}};
  for(const name of files){
-  const source=name==='shared/edge-swipe.js'?path.resolve(__dirname,'../jsb-edge-swipe.js'):path.join(sourceRoot,name);
+  const source=name==='shared/attendance-sync.js'?path.resolve(__dirname,'../core/attendance-sync.js'):name==='shared/edge-swipe.js'?path.resolve(__dirname,'../jsb-edge-swipe.js'):path.join(sourceRoot,name);
   const stat=await fs.lstat(source);
   if(!stat.isFile()||await fs.realpath(source)!==source)throw Error('Source non autorisée');
   const bytes=await fs.readFile(source),output=path.join(target,name);

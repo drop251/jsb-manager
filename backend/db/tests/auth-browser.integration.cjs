@@ -59,8 +59,13 @@ async function swipe(page,{dx=135,dy=2,startX=18,target='#workspace h3',cancel=f
   return {moving,active:document.querySelector('.jsb-nav [aria-current="page"]')?.dataset.navPage,reset:!document.querySelector('#workspace').hasAttribute('data-swipe-moving')};
  },{dx,dy,startX,target,cancel});
 }
+async function settingsPage(page,key){
+ if(await page.locator('#settings-back').isVisible())await page.locator('#settings-back').click();
+ if(!await page.locator('[data-settings-page="'+key+'"]').isVisible())await page.locator('[data-nav-page="settings"]').click();
+ await page.locator('[data-settings-page="'+key+'"]').click();
+}
 async function openSettings(page){
- if(!await page.locator('.account-tools').isVisible())await page.locator('[data-nav-page="settings"]').click();
+ if(!await page.locator('.account-tools').isVisible())await settingsPage(page,'account');
  await page.locator('.account-tools').waitFor({state:'visible'});
 }
 async function signIn(page,email,code){
@@ -167,7 +172,10 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
    network.length=0;
    // Reset only the synthetic factor between engines; production never resets replay counters.
    await pool.query('UPDATE jsb_auth.mfa_factors SET last_step=-1 WHERE account_id=$1',[ids.admin]);
-   const browser=await launcher.launch();
+   // The test uses an ephemeral self-signed loopback certificate. Chromium's
+   // service-worker network process does not inherit context-level TLS bypass.
+   // This flag is confined to the isolated CI browser; production stays HTTPS.
+   const browser=await launcher.launch(name==='Chromium'?{args:['--ignore-certificate-errors']}:{});
    try{
     const ctx=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
     const page=await ctx.newPage(),admin=await ctx.newPage(),errors=[];
@@ -188,6 +196,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await openSettings(page);
     assert.equal(await page.locator('#login').isVisible(),false);
     assert.ok(await page.locator('#change-account').isVisible());
+    await settingsPage(page,'display');
     // Explicit light must override dark OS; local preferences survive reload.
     await page.emulateMedia({colorScheme:'dark'});
     await page.locator('input[name="display-theme"][value="light"]').check();
@@ -205,7 +214,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     assert.equal(await page.locator('html').getAttribute('data-texte-grand'),'');
     assert.equal(await page.locator('#login').isVisible(),false);
-    await openSettings(page);
+    await settingsPage(page,'display');
     assert.ok(await page.locator('#display-contraste').isChecked());
     assert.ok(await page.locator('#display-animations').isChecked());
     await page.locator('input[name="display-text"][value="100"]').check();
@@ -216,6 +225,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('input[name="display-theme"][value="system"]').check();
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await page.emulateMedia({colorScheme:'light'});
+    await settingsPage(page,'version');
     const installed=await page.locator('meta[name="jsb-release"]').getAttribute('content');
     assert.match(installed,/^[a-f0-9]{64}$/);
     await page.locator('#version-check').click();
@@ -248,11 +258,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
     assert.deepEqual(await swipe(page,{cancel:true}),{moving:true,active:'judo',reset:true});
     assert.deepEqual(await swipe(page),{moving:true,active:'home',reset:true});
-    await openSettings(page);
+    await settingsPage(page,'display');
     await page.locator('#display-animations').check();
     await page.locator('#display-animations').blur();
-    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'home',reset:true});
-    await openSettings(page);
+    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'settings',reset:true});
+    assert.ok(await page.locator('[data-settings-page="display"]').isVisible());
+    await settingsPage(page,'display');
     await page.locator('#display-animations').uncheck();
     await page.locator('[data-nav-page="home"]').click();
     await page.locator('[data-workspace-page="taiso"]').click();
@@ -280,6 +291,27 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
     await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
     const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    const phrase='Phrase de recette locale uniquement';
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,'other-account',copy);
+     const wrong=await module.openVault(phrase);await wrong.save(patch.edits);wrong.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Import refusé'}).waitFor({state:'visible'});
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const wrong=await module.openVault(phrase);await wrong.remove();
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,owner,copy);
+     const valid=await module.openVault(phrase);await valid.save(patch.edits);valid.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
     await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
     await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
     assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
@@ -340,6 +372,38 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#workspace-back').click();
     await page.locator('[data-workspace-page="club"]').click();
     assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
+    const presence=page.getByRole('region',{name:'Présences',exact:true});
+    const group='1'.repeat(32),member='2'.repeat(32),slot='3'.repeat(32),attendanceDate='2026-11-27';
+    const emptyRegister={groups:[{id:group,name:'Groupe recette'}],members:[{id:member,name:'Licencié recette',groupId:group,active:true}],slots:[{id:slot,groupId:group,label:'18h'}],calls:[]};
+    // A real server register, seeded with synthetic data only. Clear between engines.
+    await pool.query('DELETE FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach]);
+    await pool.query('INSERT INTO jsb_private.attendance_registers(owner_id,revision,snapshot,updated_at) VALUES($1,1,$2,$3)',[ids.coach,JSON.stringify(emptyRegister),Date.now()]);
+    await presence.getByRole('button',{name:'Ouvrir le registre en ligne'}).click();
+    await presence.getByText('Révision 1 · aucune modification en attente',{exact:true}).waitFor();
+    const presencePhrase='Phrase de recette Présences seulement';
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
+    try{await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});}
+    catch(e){throw Error('Activation du coffre Présences : '+await presence.getByRole('status').textContent(),{cause:e});}
+    await presence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await presence.getByRole('button',{name:'Licencié recette : Présent',exact:true}).click();
+    await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    // Simulate the other device committing a contradictory mark.
+    const remoteAttendance={...emptyRegister,calls:[{date:attendanceDate,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=2,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(remoteAttendance)]);
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('heading',{name:'Conflits de synchronisation'}).waitFor();
+    await presence.getByLabel('Version à conserver').selectOption('local');
+    await presence.getByRole('button',{name:'Appliquer les choix'}).click();
+    await presence.getByRole('status').filter({hasText:'Conflits résolus localement'}).waitFor();
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 3'}).waitFor();
+    const savedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(savedAttendance.revision,3);assert.equal(savedAttendance.snapshot.calls[0].marks[0].status,'present');
+    page.once('dialog',dialog=>dialog.accept());
+    await presence.getByRole('button',{name:'Effacer la copie locale'}).click();
+    await presence.getByRole('status').filter({hasText:'Copie locale effacée'}).waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-attendance-vault-v1')),null);
     let cookies=await ctx.cookies(publicOrigin);
     const first=cookies.find(c=>c.name==='__Host-jsb-public');
     assert.ok(first?.secure&&first?.httpOnly&&first?.sameSite==='Strict');
@@ -375,12 +439,13 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await admin.locator('.jsb-nav button svg[aria-hidden="true"]').count(),8);
     assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
     // Switch through the actual links, without logging out either origin.
-    await openSettings(admin);
+    await settingsPage(admin,'display');
     assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
     await admin.locator('input[name="display-theme"][value="dark"]').check();
     assert.equal(await admin.locator('html').getAttribute('data-theme'),'dark');
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await admin.locator('input[name="display-theme"][value="system"]').check();
+    await openSettings(admin);
     const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
     await publicTab.waitForURL(publicOrigin+'/public/auth.html');
     await waitStatus(publicTab,'Session vérifiée : Particulier');

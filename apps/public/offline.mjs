@@ -1,6 +1,9 @@
-// Local-only reader. No network, session, storage or remote write.
+import {mountAttendance} from './attendance-ui.mjs';
+// Local-only reader. No network or remote write; optional encrypted storage.
+import {hasVault,openVault} from './offline-vault.mjs';
 const file=document.querySelector('#offline-file'),status=document.querySelector('#offline-status'),content=document.querySelector('#offline-content');
-let run=0,working=null,operations=[];
+let run=0,working=null,operations=[],vault=null,saving=false;
+const password=document.querySelector('#vault-password'),unlock=document.querySelector('#vault-open'),lock=document.querySelector('#vault-lock'),remove=document.querySelector('#vault-remove'),vaultStatus=document.querySelector('#vault-status');
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const str=(v,max)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
 const int=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
@@ -13,9 +16,33 @@ function check(v){
   seen.add(e.reference);return true;
  })&&p.exercises.reduce((n,e)=>n+e.allocationMinutes,0)+p.unallocatedMinutes===p.minutes&&Array.isArray(p.blocks)&&p.blocks.length<=8&&p.blocks.every(b=>b&&str(b.name,40)&&Array.isArray(b.references)&&b.references.length<=90&&new Set(b.references).size===b.references.length&&b.references.every(r=>p.exercises.some(e=>e.reference===r))&&int(b.budgetSeconds,0,p.minutes*60)&&(b.plannedSeconds===null||int(b.plannedSeconds,0,10000000))&&Array.isArray(b.issues)&&b.issues.length<=10&&b.issues.every(x=>str(x,100))))&&v.phases.reduce((n,p)=>n+p.minutes,0)===v.minutes;
 }
-function clear(){run++;working=null;operations=[];file.value='';content.replaceChildren();status.textContent='Aucune fiche ouverte.';}
+function clear(){run++;vault?.close();vault=null;working=null;operations=[];saving=false;password.value='';file.value='';content.replaceChildren();status.textContent='Aucune fiche ouverte.';lock.hidden=remove.hidden=true;unlock.disabled=!hasVault();password.disabled=false;file.disabled=false;vaultStatus.textContent=hasVault()?'Coffre verrouillé.':'Aucune copie chiffrée sur cet appareil.';}
+clear();
+lock.addEventListener('click',()=>{if(!saving)clear();});
+remove.addEventListener('click',async()=>{
+ if(!vault||saving||!confirm('Effacer définitivement la copie locale et ses modifications ?'))return;
+ const token=run;saving=true;try{await vault.remove();if(token===run)clear();}catch{if(token===run)vaultStatus.textContent='Effacement non confirmé.';}finally{if(token===run)saving=false;}
+});
+unlock.addEventListener('click',async()=>{
+ if(saving||vault)return;
+ const phrase=password.value;clear();const token=run;unlock.disabled=true;password.disabled=true;file.disabled=true;
+ try{
+  const opened=await openVault(phrase);
+  if(token!==run){opened.close();return;}
+  if(!check(opened.value.copy)){opened.close();throw Error('Copie invalide');}
+  const next=structuredClone(opened.value.copy);
+  for(const op of opened.value.edits)if(!applyEdit(next,op)){opened.close();throw Error('Modifications invalides');}
+  vault=opened;working=next;operations=structuredClone(opened.value.edits);lock.hidden=remove.hidden=false;vaultStatus.textContent='Coffre déverrouillé. Les modifications réussies sont conservées sur cet appareil.';render(working);
+ }catch{if(token===run){clear();vaultStatus.textContent='Phrase secrète incorrecte ou coffre indisponible.';}}
+});
+window.addEventListener('storage',event=>{if(event.key==='jsb-offline-vault-v1'){clear();vaultStatus.textContent='Le coffre a changé dans une autre fenêtre. Déverrouillez à nouveau.';}});
+for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>{if(event.cancelable)event.preventDefault();},{passive:false});
+document.addEventListener('touchmove',event=>{if(event.touches.length>1&&event.cancelable)event.preventDefault();},{passive:false});
+try{const preferences=JSON.parse(localStorage.getItem('jsb-affichage-v36')||'{}');if([100,115,130,160,200].includes(preferences.texte))document.documentElement.style.fontSize=preferences.texte+'%';}catch{}
+
 document.querySelector('#offline-clear').addEventListener('click',clear);
 file.addEventListener('change',async()=>{
+ if(vault||saving)return;
  const token=++run,selected=file.files?.[0];working=null;operations=[];content.replaceChildren();
  if(!selected){status.textContent='Aucune fiche ouverte.';return;}
  try{
@@ -26,22 +53,37 @@ file.addEventListener('change',async()=>{
  }catch{if(token===run){content.replaceChildren();status.textContent='Fichier de séance non conforme.';}}
 });
 
-function edit(phase,exercise,action){
- if(!working||working.baseEditCount+operations.length>=60)return;
- const i=phase.exercises.findIndex(e=>e.reference===exercise.reference);if(i<0)return;
+function applyEdit(v,op){
+ const phase=v.phases.find(p=>p.name===op.phase);
+ if(!phase)return false;
+ const i=phase.exercises.findIndex(e=>e.reference===op.reference);if(i<0)return false;
+ const exercise=phase.exercises[i],action=op.action;
  const block=phase.blocks.find(b=>b.references.includes(exercise.reference));
- if(phase.name==='Corps de séance'&&!block)return;
+ if(phase.name==='Corps de séance'&&!block)return false;
  if(action==='remove'){
   phase.exercises.splice(i,1);phase.unallocatedMinutes+=exercise.allocationMinutes;
   if(block)block.references.splice(block.references.indexOf(exercise.reference),1);
-  if(!working.missing.includes(phase.name))working.missing.push(phase.name);
- }else{
-  const j=i+(action==='up'?-1:1);if(j<0||j>=phase.exercises.length||(block&&!block.references.includes(phase.exercises[j].reference)))return;
+  if(!v.missing.includes(phase.name))v.missing.push(phase.name);
+ }else if(action==='up'||action==='down'){
+  const j=i+(action==='up'?-1:1);if(j<0||j>=phase.exercises.length||(block&&!block.references.includes(phase.exercises[j].reference)))return false;
   const other=phase.exercises[j].reference;
   [phase.exercises[i],phase.exercises[j]]=[phase.exercises[j],phase.exercises[i]];
   if(block){const a=block.references.indexOf(exercise.reference),b=block.references.indexOf(other);[block.references[a],block.references[b]]=[block.references[b],block.references[a]];}
+ }else return false;
+ return true;
+}
+async function edit(phase,exercise,action){
+ if(!working||saving||working.baseEditCount+operations.length>=60)return;
+ const next=structuredClone(working),op={action,phase:phase.name,reference:exercise.reference};
+ if(!applyEdit(next,op))return;
+ const edits=[...operations,op],token=run;
+ if(vault){
+  saving=true;for(const button of content.querySelectorAll('button'))button.disabled=true;
+  try{await vault.save(edits);}catch{if(token===run){saving=false;render(working);vaultStatus.textContent='Modification non enregistrée. La version précédente est conservée.';}return;}
+  finally{if(token===run)saving=false;}
+  if(token!==run)return;
  }
- operations.push({action,phase:phase.name,reference:exercise.reference});render(working);
+ working=next;operations=edits;render(working);
 }
 function render(v){
   content.replaceChildren();
@@ -71,7 +113,9 @@ function render(v){
    if(p.unallocatedMinutes)section.append(el('p',p.unallocatedMinutes+' min à organiser.'));
    content.append(section);
   }
-  status.textContent=operations.length?'Modifications en mémoire uniquement. Exportez-les avant de quitter.':'Fiche ouverte localement. Copie non authentifiée, aucune synchronisation.';
+  status.textContent=vault?'Séance chiffrée sur cet appareil. '+operations.length+' modification(s) conservée(s). Reprenez le coffre dans Taïso au retour en ligne.':operations.length?'Modifications en mémoire uniquement. Exportez-les avant de quitter.':'Fiche ouverte localement. Copie non authentifiée, aucune synchronisation.';
 
 }
 window.addEventListener('pagehide',clear);
+
+mountAttendance(document.querySelector('#attendance-offline'));

@@ -21,13 +21,13 @@ test('Deux distributions de préproduction strictement isolées et reproductible
   assert.throws(()=>filesFor('../backend'),TypeError);
   for(const app of ['public','admin']){
    const dest=path.join(tmp,app),m=await build(app,dest);
-   const expected=[app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs','shared/edge-swipe.js',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-sw.js']:[])];
+   const expected=[app+'/auth.html',app+'/auth-page.mjs','shared/auth-client.mjs','shared/edge-swipe.js',...(app==='public'?['public/offline.html','public/offline.mjs','public/offline-vault.mjs','public/attendance-vault.mjs','public/attendance-ui.mjs','shared/attendance-sync.js','public/offline-sw.js']:[])];
    assert.deepEqual(await walk(dest),[...expected,'manifest.json'].sort());
    assert.equal(m.entrypoint,'/'+app+'/auth.html');
    assert.equal(m.purpose,'preproduction-auth-only');
    for(const name of expected){
     const bytes=await fs.readFile(path.join(dest,name));
-    assert.deepEqual(bytes,await fs.readFile(name==='shared/edge-swipe.js'?path.resolve(__dirname,'../jsb-edge-swipe.js'):path.resolve(__dirname,'../apps',name)));
+    assert.deepEqual(bytes,await fs.readFile(name==='shared/attendance-sync.js'?path.resolve(__dirname,'../core/attendance-sync.js'):name==='shared/edge-swipe.js'?path.resolve(__dirname,'../jsb-edge-swipe.js'):path.resolve(__dirname,'../apps',name)));
     assert.equal(m.files[name],createHash('sha256').update(bytes).digest('hex'));
    }
    assert.deepEqual(JSON.parse(await fs.readFile(path.join(dest,'manifest.json'),'utf8')),m);

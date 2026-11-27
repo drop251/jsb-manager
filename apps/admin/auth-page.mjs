@@ -84,9 +84,9 @@ function versionSettings(){
  const status=element('p');status.id='version-status';status.setAttribute('role','status');
  const check=element('button','Rechercher une mise à jour');check.type='button';check.id='version-check';check.disabled=!valid(installed);
  const reload=element('button','Actualiser l’application');reload.type='button';reload.id='version-reload';reload.hidden=true;
- reload.addEventListener('click',()=>{if(!busy&&settingsOpen&&section.isConnected)location.reload();});
+ reload.addEventListener('click',()=>{if(!busy&&section.isConnected)location.reload();});
  check.addEventListener('click',async()=>{
-  if(check.disabled||busy||!settingsOpen)return;
+  if(check.disabled||busy||!section.isConnected)return;
   check.disabled=true;reload.hidden=true;status.textContent='Vérification en cours…';
   try{
    const response=await fetch(location.pathname,{method:'HEAD',credentials:'same-origin',mode:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'text/html'}});
@@ -166,7 +166,7 @@ function setWorkspaceView(...nodes){
   onCommit:()=>{
    resetSwipe();
    if(!valid()||blocked())return;
-   nav.querySelector('[data-nav-page="home"]')?.click();
+   const back=workspace.querySelector('#settings-back');if(back)back.click();else nav.querySelector('[data-nav-page="home"]')?.click();
    if(!reduced())workspace.classList.add('swipe-returned');
   }
  });
@@ -200,13 +200,40 @@ function renderWorkspace(){
   }
   return nav;
  }
- function settings(){
+ function settings(section='menu'){
   if(busy||workspaceIdentity!==identity)return;
-  settingsOpen=true;
+  settingsOpen=section==='account';
   clearSecrets();
-  const heading=element('h2','Réglages');heading.tabIndex=-1;
-  setWorkspaceView(navigation('settings'),heading,displaySettings(),versionSettings());
-  accountTools.hidden=false;paint(status.textContent);
+  const groups=[['Général',[['general','Général','settings'],['display','Affichage et accessibilité','suivi'],['version','Version et mises à jour','seance']]],['Application',[['application','Réglages de l’application','settings']]],['Compte',[['account','Compte et sécurité','accounts'],['legal','Conditions générales et confidentialité','legal']]]];
+  const titles=Object.fromEntries(groups.flatMap(([,items])=>items.map(([id,title])=>[id,title])));
+  const heading=element('h2',titles[section]||'Réglages');heading.tabIndex=-1;
+  if(section==='menu'){
+   const menu=element('div');menu.className='settings-menu';
+   for(const [name,items] of groups){
+    const group=element('section');group.className='settings-group';group.setAttribute('aria-label',name);
+    const label=element('h3',name),list=element('div');list.className='settings-list';
+    for(const [id,title,icon] of items){
+     const button=element('button');button.type='button';button.className='settings-row';button.dataset.settingsPage=id;
+     const tile=element('span');tile.className='settings-icon';tile.append(navIcon(icon));
+     const text=element('span',title);text.className='settings-label';
+     const chevron=element('span');chevron.className='settings-chevron';chevron.append(navIcon('retour'));
+     button.append(tile,text,chevron);button.addEventListener('click',()=>settings(id));list.append(button);
+    }
+    group.append(label,list);menu.append(group);
+   }
+   setWorkspaceView(navigation('settings'),heading,menu);
+  }else{
+   const back=element('button','Réglages');back.type='button';back.id='settings-back';back.className='workspace-return settings-back';back.prepend(navIcon('retour'));back.addEventListener('click',()=>settings());
+   const nodes=[navigation('settings'),back,heading];
+   if(section==='display')nodes.push(displaySettings());
+   else if(section==='version')nodes.push(versionSettings());
+   else if(section==='general'){const panel=element('section');panel.append(element('p','Application V36 · préproduction privée.'),element('p','Interface à échelle fixe, navigation tactile et réglages d’affichage propres à cet appareil.'));nodes.push(panel);}
+   else if(section==='application'){const panel=element('section');panel.append(element('p',"Les actions administratives exigent une connexion et les autorisations du serveur."));nodes.push(panel);}
+   
+   else if(section==='legal'){const panel=element('section');panel.append(element('p','Conditions générales d’utilisation et politique de confidentialité : documents définitifs à publier avant ouverture au public.'),element('p','Préproduction privée : n’utilisez pas de données réelles de pratiquants.'));nodes.push(panel);}
+   setWorkspaceView(...nodes);
+  }
+  accountTools.hidden=section!=='account';paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
  function home(focus=false){
