@@ -96,5 +96,21 @@ html[data-jsb-swipe-active]{overflow-x:clip}
 /* Echelle stable de l'application. Le défilement et la taille de texte restent disponibles. */
 html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:max(16px,1rem)}
+
+/* Réglages en groupes de lignes, inspirés de l'organisation native iOS. */
+.settings-menu{display:grid;gap:22px;margin-top:18px}
+.settings-group{background:none;border:0;padding:0;margin:0}
+.settings-group h3{margin:0 12px 8px;font-size:.875rem;color:var(--muted);font-weight:600}
+.settings-list{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.settings-list .settings-row{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr) 22px;gap:12px;align-items:center;text-align:left;width:100%;margin:0;border:0;border-radius:0;background:transparent;color:var(--ink);padding:12px;min-height:60px;font-weight:500;line-height:1.35}
+.settings-list .settings-row+.settings-row:before{content:'';position:absolute;top:0;left:60px;right:12px;border-top:1px solid var(--line)}
+.settings-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--chip);color:var(--accent)}
+.settings-icon svg,.settings-chevron svg{width:22px;height:22px}
+.settings-chevron{color:var(--muted);display:grid;place-items:center;transform:rotate(180deg)}
+.settings-label{overflow-wrap:anywhere}
+.settings-list .settings-row:focus-visible{outline-offset:-3px}
+.settings-list .settings-row:active{background:var(--selected)}
+.settings-back{width:auto;margin:0 0 12px;background:none;color:var(--accent);padding:6px;min-height:44px}
+:root[data-texte-grand] .settings-list .settings-row{grid-template-columns:36px minmax(0,1fr) 22px}
 </style></head>
 <body><header><strong>JSB Admin</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion administrateur</h1><p class="login-intro">Accès réservé à l’administration de la plateforme. Double authentification obligatoire.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Tableau de bord authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><label for="mfa">Code de double authentification</label><input id="mfa" name="mfa" autocomplete="one-time-code" required maxlength="128"><button type="submit">Se connecter</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir mon espace Coach ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><p class="note">Page de développement. N’utilisez pas vos identifiants réels avant la mise en service sur l’adresse officielle JSB. La navigation authentifiée est disponible ; les données et actions métier ne sont pas encore raccordées.</p></section></section></main><script type="module" src="./auth-page.mjs"></script></body></html>

@@ -59,8 +59,13 @@ async function swipe(page,{dx=135,dy=2,startX=18,target='#workspace h3',cancel=f
   return {moving,active:document.querySelector('.jsb-nav [aria-current="page"]')?.dataset.navPage,reset:!document.querySelector('#workspace').hasAttribute('data-swipe-moving')};
  },{dx,dy,startX,target,cancel});
 }
+async function settingsPage(page,key){
+ if(await page.locator('#settings-back').isVisible())await page.locator('#settings-back').click();
+ if(!await page.locator('[data-settings-page="'+key+'"]').isVisible())await page.locator('[data-nav-page="settings"]').click();
+ await page.locator('[data-settings-page="'+key+'"]').click();
+}
 async function openSettings(page){
- if(!await page.locator('.account-tools').isVisible())await page.locator('[data-nav-page="settings"]').click();
+ if(!await page.locator('.account-tools').isVisible())await settingsPage(page,'account');
  await page.locator('.account-tools').waitFor({state:'visible'});
 }
 async function signIn(page,email,code){
@@ -188,6 +193,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await openSettings(page);
     assert.equal(await page.locator('#login').isVisible(),false);
     assert.ok(await page.locator('#change-account').isVisible());
+    await settingsPage(page,'display');
     // Explicit light must override dark OS; local preferences survive reload.
     await page.emulateMedia({colorScheme:'dark'});
     await page.locator('input[name="display-theme"][value="light"]').check();
@@ -205,7 +211,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     assert.equal(await page.locator('html').getAttribute('data-texte-grand'),'');
     assert.equal(await page.locator('#login').isVisible(),false);
-    await openSettings(page);
+    await settingsPage(page,'display');
     assert.ok(await page.locator('#display-contraste').isChecked());
     assert.ok(await page.locator('#display-animations').isChecked());
     await page.locator('input[name="display-text"][value="100"]').check();
@@ -216,6 +222,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('input[name="display-theme"][value="system"]').check();
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await page.emulateMedia({colorScheme:'light'});
+    await settingsPage(page,'version');
     const installed=await page.locator('meta[name="jsb-release"]').getAttribute('content');
     assert.match(installed,/^[a-f0-9]{64}$/);
     await page.locator('#version-check').click();
@@ -248,11 +255,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
     assert.deepEqual(await swipe(page,{cancel:true}),{moving:true,active:'judo',reset:true});
     assert.deepEqual(await swipe(page),{moving:true,active:'home',reset:true});
-    await openSettings(page);
+    await settingsPage(page,'display');
     await page.locator('#display-animations').check();
     await page.locator('#display-animations').blur();
-    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'home',reset:true});
-    await openSettings(page);
+    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'settings',reset:true});
+    assert.ok(await page.locator('[data-settings-page="display"]').isVisible());
+    await settingsPage(page,'display');
     await page.locator('#display-animations').uncheck();
     await page.locator('[data-nav-page="home"]').click();
     await page.locator('[data-workspace-page="taiso"]').click();
@@ -280,6 +288,27 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
     await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
     const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    const phrase='Phrase de recette locale uniquement';
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,'other-account',copy);
+     const wrong=await module.openVault(phrase);await wrong.save(patch.edits);wrong.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Import refusé'}).waitFor({state:'visible'});
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const wrong=await module.openVault(phrase);await wrong.remove();
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,owner,copy);
+     const valid=await module.openVault(phrase);await valid.save(patch.edits);valid.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
     await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
     await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
     assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
@@ -375,12 +404,13 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await admin.locator('.jsb-nav button svg[aria-hidden="true"]').count(),8);
     assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
     // Switch through the actual links, without logging out either origin.
-    await openSettings(admin);
+    await settingsPage(admin,'display');
     assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
     await admin.locator('input[name="display-theme"][value="dark"]').check();
     assert.equal(await admin.locator('html').getAttribute('data-theme'),'dark');
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await admin.locator('input[name="display-theme"][value="system"]').check();
+    await openSettings(admin);
     const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
     await publicTab.waitForURL(publicOrigin+'/public/auth.html');
     await waitStatus(publicTab,'Session vérifiée : Particulier');
