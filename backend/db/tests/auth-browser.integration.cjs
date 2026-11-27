@@ -172,7 +172,10 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
    network.length=0;
    // Reset only the synthetic factor between engines; production never resets replay counters.
    await pool.query('UPDATE jsb_auth.mfa_factors SET last_step=-1 WHERE account_id=$1',[ids.admin]);
-   const browser=await launcher.launch();
+   // The test uses an ephemeral self-signed loopback certificate. Chromium's
+   // service-worker network process does not inherit context-level TLS bypass.
+   // This flag is confined to the isolated CI browser; production stays HTTPS.
+   const browser=await launcher.launch(name==='Chromium'?{args:['--ignore-certificate-errors']}:{});
    try{
     const ctx=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
     const page=await ctx.newPage(),admin=await ctx.newPage(),errors=[];
@@ -380,7 +383,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     const presencePhrase='Phrase de recette Présences seulement';
     await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
     await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
-    await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});
+    try{await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});}
+    catch(e){throw Error('Activation du coffre Présences : '+await presence.getByRole('status').textContent(),{cause:e});}
     await presence.getByLabel('Date',{exact:true}).fill(attendanceDate);
     await presence.getByRole('button',{name:'Licencié recette : Présent',exact:true}).click();
     await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
