@@ -66,7 +66,8 @@ test('Documents juridiques : droits, brouillon immuable, version effective, preu
   assert.equal((await store.execute(coach,sessions[0],'record',{...ack,kind:'acceptance'})).status,400);
   assert.equal((await store.execute(coach,sessions[0],'record',ack)).record.kind,'acknowledgement');
   const next=await store.execute(admin,sessions[2],'draft',{...draftBody,body:'Nouvelle version fictive.'});
-  await conn.query('INSERT INTO jsb_legal.published(type,version,draft_id,hash,published_at,effective_at,published_by) VALUES($1,2,$2,$3,$4,$4,$5)',['cgu',next.draft.id,next.draft.hash,now+1,admin.id]);
+  const second=createLegalStore(adapter,{approvedHashes:{cgu:next.draft.hash}});
+  assert.equal((await second.execute(admin,sessions[2],'publish',{...publish,draftId:next.draft.id,hash:next.draft.hash,expectedVersion:1})).publication.version,2);
   assert.equal((await store.execute(coach,sessions[0],'record',record)).status,409);
   const effective=(await store.documents(coach)).documents.find(d=>d.type==='cgu');assert.equal(effective.version,2);assert.equal(effective.recordedAt,null);
   const future=await store.execute(admin,sessions[2],'draft',{...draftBody,body:'Future version fictive.'});
