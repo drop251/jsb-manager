@@ -1,3 +1,4 @@
+import {legalView} from '../shared/legal-ui.mjs';
 import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
 // Safari iOS peut ignorer les limites du viewport : annuler uniquement le zoom multipoint.
@@ -230,7 +231,7 @@ function renderWorkspace(){
    else if(section==='general'){const panel=element('section');panel.append(element('p','Application V36 · préproduction privée.'),element('p','Interface à échelle fixe, navigation tactile et réglages d’affichage propres à cet appareil.'));nodes.push(panel);}
    else if(section==='application'){const panel=element('section');panel.append(element('p',"Les actions administratives exigent une connexion et les autorisations du serveur."));nodes.push(panel);}
    
-   else if(section==='legal'){const panel=element('section');panel.append(element('p','Conditions générales d’utilisation et politique de confidentialité : documents définitifs à publier avant ouverture au public.'),element('p','Préproduction privée : n’utilisez pas de données réelles de pratiquants.'));nodes.push(panel);}
+   else if(section==='legal'){const panel=legalView({client,account,admin:true,live:()=>!busy&&workspaceIdentity===identity});protectSwipeEditor(panel);nodes.push(panel);}
    setWorkspaceView(...nodes);
   }
   accountTools.hidden=section!=='account';paint(status.textContent);
@@ -256,6 +257,7 @@ function renderWorkspace(){
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
     setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
+    if(key==='legal'){const panel=legalView({client,account,admin:true,live:()=>!busy&&workspaceIdentity===identity&&detail.isConnected});protectSwipeEditor(panel);list.replaceWith(panel);detail.querySelector('p')?.replaceWith(element('p','Consultation et préparation des documents juridiques. Publication verrouillée.'));}
     if(key==='catalogue'){
      const block=element('section');block.className='workspace-detail';protectSwipeEditor(block);
      block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Toute publication nécessite une confirmation distincte.'));
@@ -435,6 +437,9 @@ function renderWorkspace(){
 
 function paint(message){
  renderWorkspace();
+ const entry=document.querySelector('#legal-entry');
+ const visible=session?.state!=='signed-in';entry.hidden=!visible;
+ if(!visible){entry.open=false;entry.querySelector('.legal-entry-content').replaceChildren();}
  const signedIn=session?.state==='signed-in';
  if(!signedIn&&!busy){settingsOpen=false;}
  accountTools.hidden=Boolean(signedIn&&!settingsOpen)||Boolean(busy&&!session&&!settingsOpen);
@@ -469,3 +474,6 @@ refreshButton.addEventListener('click',()=>{if(client&&!busy)void refresh()});
 if(location.protocol!=='https:'||!navigator.locks){paint('Connexion désactivée : origine HTTPS et navigateur compatible requis.');}
 else{client=createAuthClient({origin:location.origin,fetchImpl:fetch.bind(window),locks:navigator.locks,allowedRoles:["admin"]});if(typeof BroadcastChannel==='function'){try{channel=new BroadcastChannel('jsb-auth-session-v1');channel.onmessage=e=>{if(e.data==='session-changed')void refresh()};}catch{channel=null;}}
 window.addEventListener('pageshow',e=>{if(e.persisted)void refresh()});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void refresh()});void refresh();}
+
+const legalEntry=document.querySelector('#legal-entry');
+legalEntry.addEventListener('toggle',()=>{if(!legalEntry.open||legalEntry.hidden)return;const target=legalEntry.querySelector('.legal-entry-content');if(!target.firstChild)target.append(legalView({client,live:()=>legalEntry.open&&!legalEntry.hidden}));});

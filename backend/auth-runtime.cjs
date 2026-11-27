@@ -26,10 +26,11 @@ const {createGeneratorSource}=require('./catalogue-generator-source.cjs');
 const {planFromCandidates}=require('../core/taiso-versioned-planner.cjs');
 const {createTaisoDraftStore}=require('./db/taiso-draft-store.cjs');
 const {createAttendanceStore}=require('./db/attendance-store.cjs');
+const {createLegalStore}=require('./db/legal-store.cjs');
 const {renderTaisoSavedPdf}=require('./taiso-saved-pdf.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
-function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,now=Date.now}={}){
+function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,deliveryKeys,mfaKeys,xlsxPython,enableCataloguePublication=false,legalApprovedHashes={},now=Date.now}={}){
  function origin(value){
   if(typeof value!=='string')throw TypeError('Origine requise');
   const u=new URL(value);if(u.protocol!=='https:'||u.origin!==value)throw TypeError('Origine HTTPS exacte requise');return u;
@@ -109,7 +110,12 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!await attendanceLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   return attendance.execute(actor,sessionHash,action,body);
  }
- const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,taisoDraft,privateTaisoDrafts,privateAttendance,now});
+ const legalStore=createLegalStore(pool,{approvedHashes:legalApprovedHashes}),legalLimiter=limiter('legal-actions',30,60);
+ const legal={documents:legalStore.documents,async execute(actor,sessionHash,action,body,source){
+  if(!await legalLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
+  return legalStore.execute(actor,sessionHash,action,body);
+ }};
+ const publicHandler=createAuthHttpHandler({app:'public',origin:publicOrigin,sourceId,sessions,loginService:createPublicLoginService({...loginOptions,limiter:limiter('public-login',10,50)}),registration,verification,resend,passwordReset,catalogue,taisoCandidates,taisoDraft,privateTaisoDrafts,privateAttendance,legal,now});
  const importLimiter=limiter('catalogue-analysis',20,40);
  const xlsxAnalyzer=xlsxPython===undefined?null:createXlsxRecipeAnalyzer({pythonExecutable:xlsxPython});
  if(typeof enableCataloguePublication!=='boolean')throw TypeError('Configuration publication invalide');
@@ -163,7 +169,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   if(!result.analysis.valid||!result.canonical)return {ok:false,status:400};
   return publication.publish(actor,sessionHash,{receipt:body.receipt,canonical:result.canonical,confirmed:body.confirmed,confirmationVersion:body.confirmationVersion});
  }
- const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,catalogueImport,catalogueHistory,...(publication?{cataloguePublish,catalogueRestore}:{}),now});
+ const adminHandler=createAuthHttpHandler({app:'admin',origin:adminOrigin,sourceId,sessions,loginService:createAdminLoginService({...loginOptions,limiter:limiter('admin-login',5,20)}),catalogue,catalogueImport,catalogueHistory,legal,...(publication?{cataloguePublish,catalogueRestore}:{}),now});
  async function checkReady(){
   const [delivery,mfa]=await Promise.all([deliveryKeys.loadKey(deliveryKeys.activeKeyId),mfaKeys.loadKey(mfaKeys.activeKeyId)]);
   if(!Buffer.isBuffer(delivery)||delivery.length!==32||!Buffer.isBuffer(mfa)||mfa.length!==32||timingSafeEqual(delivery,mfa)||[delivery,mfa].some(k=>quotaSecret.length===k.length&&timingSafeEqual(k,quotaSecret)))throw Error('Clés serveur absentes ou non distinctes');
@@ -173,6 +179,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   await pool.query('SELECT p.version,c.generation,r.generation FROM jsb_catalogue.publications p, jsb_catalogue.current_release c, jsb_catalogue.restorations r WHERE false');
   await pool.query('SELECT owner_id,revision,settings,snapshot,validated_at FROM jsb_private.taiso_drafts WHERE false');
   await pool.query('SELECT owner_id,revision,snapshot FROM jsb_private.attendance_registers WHERE false');
+  await pool.query('SELECT p.version,d.hash,a.kind FROM jsb_legal.published p,jsb_legal.drafts d,jsb_legal.acceptances a WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});
