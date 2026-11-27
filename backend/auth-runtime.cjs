@@ -27,6 +27,7 @@ const {planFromCandidates}=require('../core/taiso-versioned-planner.cjs');
 const {createTaisoDraftStore}=require('./db/taiso-draft-store.cjs');
 const {createAttendanceStore}=require('./db/attendance-store.cjs');
 const {createLegalStore}=require('./db/legal-store.cjs');
+const {createRightsStore}=require('./db/rights-store.cjs');
 const {renderTaisoSavedPdf}=require('./taiso-saved-pdf.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
@@ -111,7 +112,9 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   return attendance.execute(actor,sessionHash,action,body);
  }
  const legalStore=createLegalStore(pool,{approvedHashes:legalApprovedHashes}),legalLimiter=limiter('legal-actions',30,60);
+ const rightsStore=createRightsStore(pool),rightsLimiter=limiter('privacy-rights',50,100);
  const legal={documents:legalStore.documents,async execute(actor,sessionHash,action,body,source){
+  if(action.startsWith('rights-')){if(!await rightsLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};return rightsStore.execute(actor,sessionHash,action,body);}
   if(!await legalLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   return legalStore.execute(actor,sessionHash,action,body);
  }};
@@ -180,6 +183,7 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
   await pool.query('SELECT owner_id,revision,settings,snapshot,validated_at FROM jsb_private.taiso_drafts WHERE false');
   await pool.query('SELECT owner_id,revision,snapshot FROM jsb_private.attendance_registers WHERE false');
   await pool.query('SELECT p.version,d.hash,a.kind FROM jsb_legal.published p,jsb_legal.drafts d,jsb_legal.acceptances a WHERE false');
+  await pool.query('SELECT id,kind,status,revision FROM jsb_legal.rights_requests WHERE false');
   return true;
  }
  return Object.freeze({publicHandler,adminHandler,checkReady});

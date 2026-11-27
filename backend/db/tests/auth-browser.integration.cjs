@@ -201,6 +201,16 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.getByRole('region',{name:'Documents juridiques'}).locator('summary').filter({hasText:'Politique de confidentialité'}).click();
     assert.match(await page.getByRole('region',{name:'Documents juridiques'}).innerText(),/Durées de conservation et effacement/);
     assert.equal(await page.getByRole('region',{name:'Documents juridiques'}).locator('input[type=checkbox]').count(),0);
+    const rights=page.getByRole('region',{name:'Documents juridiques'}).locator('details').filter({has:page.locator('summary').getByText('Mes données personnelles',{exact:true})});
+    await rights.locator('summary').click();
+    await rights.getByLabel('Type de demande').selectOption('access');
+    await rights.getByRole('button',{name:'Déposer la demande'}).click();
+    await rights.getByRole('status').filter({hasText:'Demande enregistrée'}).waitFor();
+    assert.match(await rights.innerText(),/Statut : Reçue/);
+    await rights.getByRole('button',{name:'Déposer la demande'}).click();
+    await rights.getByRole('status').filter({hasText:'Demande enregistrée'}).waitFor();
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM jsb_legal.rights_requests WHERE account_id=$1 AND status<>'responded'",[ids.coach])).rows[0].n,1);
+
     await page.locator('[data-nav-page="home"]').click();
     assert.equal(await page.locator('#password').inputValue(),'');
     assert.ok(await page.locator('#workspace').isVisible());
@@ -459,6 +469,19 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await legalRegion.getByText('Préparer un brouillon juridique',{exact:true}).first().click();
     await legalRegion.getByRole('button',{name:'Consulter les derniers brouillons'}).first().click();
     await legalRegion.getByText('Aucun brouillon enregistré.',{exact:true}).waitFor();
+    const queue=legalRegion.locator('details').filter({has:admin.locator('summary').getByText('Demandes RGPD à traiter',{exact:true})});
+    await queue.locator('summary').click();
+    await queue.getByRole('button',{name:'Actualiser les demandes ouvertes'}).click();
+    await queue.getByRole('status').filter({hasText:'Demandes ouvertes : 1'}).waitFor();
+    await queue.getByLabel('Je prends cette demande en charge.').check();
+    await queue.getByRole('button',{name:'Prendre en charge'}).click();
+    await queue.getByRole('status').filter({hasText:'État de la demande confirmé.'}).waitFor();
+    assert.match(await queue.innerText(),/Statut : En cours de traitement/);
+    await queue.getByLabel('Je confirme avoir réellement transmis une réponse, et traité ou motivé le refus de la demande.').check();
+    await queue.getByRole('button',{name:'Enregistrer la réponse transmise'}).click();
+    await queue.getByText('Aucune demande.',{exact:true}).waitFor();
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM jsb_legal.rights_requests WHERE account_id=$1 AND status='responded'",[ids.coach])).rows[0].n,name==='Chromium'?1:2);
+
     await admin.locator('#workspace-back').click();
     // Switch through the actual links, without logging out either origin.
     await settingsPage(admin,'display');
@@ -688,7 +711,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
  }finally{
   try{
    for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
-   if(safe){await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE discipline='taiso' AND version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+   if(safe){await pool.query('DELETE FROM jsb_legal.rights_requests WHERE account_id IN (SELECT id FROM jsb_auth.accounts WHERE email=ANY($1::text[]))',[[...Object.values(emails),...registrationEmails]]);await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE discipline='taiso' AND version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
   }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
  }
 });
