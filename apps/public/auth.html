@@ -123,6 +123,24 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:max(16px,
 .legal-document label:has(input[type=checkbox]){display:flex;align-items:flex-start;gap:12px}
 .legal-document input[type=checkbox]{width:22px;height:22px;flex-shrink:0}
 .legal-document button{white-space:normal;overflow-wrap:anywhere;min-height:44px}
+
+/* Retour à la structure graphique historique : accueil, capsule et surfaces JSB.
+   Les contrôleurs métier, les identités et les routes restent inchangés. */
+main.has-session{max-width:1360px}
+main.has-session .workspace-hero{padding:20px;display:grid;gap:6px;border-radius:20px;background:var(--surface);border:1px solid var(--line);margin:0 0 16px}
+.workspace-hero .accueil-date{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;font-weight:650}
+.workspace-hero h2{font-size:clamp(1.75rem,1.4rem + 1.2vw,2.75rem);letter-spacing:-.035em;line-height:1.12}
+.workspace-hero .accueil-sous{color:var(--accent);font-weight:650}
+.workspace-hero .accueil-preparer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.workspace-hero .accueil-preparer button{margin:0;min-height:50px;border-radius:14px}
+.workspace-grid.blocs .bloc{border-radius:16px;min-height:84px}
+.jsb-nav{isolation:isolate;border-radius:22px}
+.jsb-nav button{position:relative;z-index:1;border-radius:16px}
+.jsb-nav button[aria-current=page]{border-color:transparent;background:var(--selected);color:var(--accent)}
+@media(max-width:759px){.jsb-nav{gap:0;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));padding:4px;box-shadow:0 4px 16px rgba(15,20,30,.12)}.jsb-nav button{flex:1 1 0;min-width:0;padding:4px 1px}.jsb-nav .onglet-txt{font-size:.75rem}.workspace-grid.blocs .bloc{min-height:76px}}
+@media(max-width:360px){main.has-session .workspace-hero{padding:14px}}
+:root[data-texte-grand] .workspace-hero .accueil-preparer{grid-template-columns:1fr}
+:root[data-texte-grand] .jsb-nav button{flex:1 0 90px}
 </style></head>
 <body><header><strong>JSB Manager</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion</h1><p class="login-intro">Accédez à votre espace Coach ou Particulier.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Espace authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><button type="submit">Se connecter / Changer de compte</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir JSB Admin (accès réservé) ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><nav class="account-actions" aria-label="Gestion du compte" id="account-actions" hidden>
 <button type="button" data-panel="register-panel" disabled>Créer un compte</button>
