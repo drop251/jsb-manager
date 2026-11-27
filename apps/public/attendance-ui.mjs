@@ -13,7 +13,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
  const controls=el('section'),body=el('div');root.append(controls,status,body);
  const active=()=>!closed&&live()&&root.isConnected;
  const notify=msg=>{if(active())status.textContent=msg;};
- function close(){closed=true;vault?.close();vault=null;working=base=empty();window.removeEventListener('storage',storageChanged);window.removeEventListener('pagehide',close);}
+ function close(){if(closed)return;closed=true;vault?.close();vault=null;working=base=empty();conflict=null;root.replaceChildren();window.removeEventListener('storage',storageChanged);window.removeEventListener('pagehide',close);observer.disconnect();}
  function storageChanged(event){if(event.key===attendanceVaultKey&&vault){vault.close();vault=null;ready=false;base=working=empty();conflict=null;render();notify('Le coffre a changé dans une autre fenêtre. Déverrouillez à nouveau.');}}
  window.addEventListener('storage',storageChanged);window.addEventListener('pagehide',close,{once:true});
  const observer=new MutationObserver(()=>{if(!root.isConnected){observer.disconnect();close();}});observer.observe(document.body,{childList:true,subtree:true});
