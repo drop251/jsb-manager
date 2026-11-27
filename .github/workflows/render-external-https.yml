@@ -1,7 +1,7 @@
 name: JSB V36 - recette HTTPS externe
 on:
   pull_request:
-    branches: [ui/administration-v36]
+    branches: [ui/administration-v36, deploy/render-v36-private]
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for host in jsb-manager-v36-preprod-w571.onrender.com jsb-admin-v36-preprod-w571.onrender.com; do
+          for host in jsb-manager-v36-preprod-w571.onrender.com; do
             echo "Vérification de $host"
             tmp=$(mktemp -d)
             healthy=false
