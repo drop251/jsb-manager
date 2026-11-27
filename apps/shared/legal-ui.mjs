@@ -40,7 +40,7 @@ function rightsView({client,account,admin,live}){
   }
   status.textContent=admin?'Demandes ouvertes : '+r.requests.length+(r.requests.length===100?' (100 premières)':''):'Demandes de votre compte : '+r.requests.length+(r.requests.length===100?' (100 premières)':'');
  }
- async function run(fn){if(busy||!active())return;busy=true;try{await fn();}catch{if(active())status.textContent='Action non confirmée. Actualisez la liste et vérifiez votre session.';}finally{busy=false;}}
+ async function run(fn){if(busy||!active())return;busy=true;status.textContent='Vérification en cours…';try{await fn();}catch{if(active())status.textContent='Action non confirmée. Actualisez la liste et vérifiez votre session.';}finally{busy=false;}}
  if(!admin){
   const label=el('label','Type de demande'),select=el('select');for(const [value,name] of Object.entries(RIGHTS)){const option=el('option',name);option.value=value;select.append(option);}label.append(select);
   panel.append(label,button('Déposer la demande',()=>run(async()=>{const r=await call('rights-submit',{kind:select.value});await load();if(active())status.textContent='Demande enregistrée · '+r.request.id+'.'})));
