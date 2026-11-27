@@ -64,7 +64,7 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(legal!==undefined){
   if(typeof legal.documents!=='function'||typeof legal.execute!=='function')throw TypeError('Service juridique invalide');
   paths.set('/api/legal/documents','GET');
-  for(const action of app==='public'?['record','rights-submit','rights-mine']:['draft','history','publish','rights-queue','rights-update']){
+  for(const action of app==='public'?['record','rights-submit','rights-mine','personal-export']:['draft','history','publish','rights-queue','rights-update']){
    const path=(app==='admin'?'/api/admin/legal/':'/api/legal/')+action;legalPaths.set(path,action);paths.set(path,'POST');
   }
  }
@@ -132,7 +132,7 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
     const result=await legal.execute(actor,createHash('sha256').update(oldToken,'utf8').digest('hex'),action,body,source);
     if(result.status!==200)return serviceResult(res,result);
-    if(action==='history'||action.startsWith('rights-')){const confirmed=await actorFor(oldToken);if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});}
+    if(action==='history'||action.startsWith('rights-')||action==='personal-export'){const confirmed=await actorFor(oldToken);if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});}
     const {status,...payload}=result;return send(res,200,payload);
    }
    if(cataloguePaths.has(req.url)){
