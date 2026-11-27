@@ -189,6 +189,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('#workspace').isVisible(),false);
     assert.equal(await page.locator('#workspace').textContent(),'');
     await page.locator('#legal-entry > summary').click();
+    await page.locator('#legal-entry').getByRole('status').filter({hasText:'Aucune version juridique effective publiée.'}).waitFor();
     await page.locator('#legal-entry .legal-document > summary').filter({hasText:'Conditions générales d’utilisation'}).click();
     assert.match(await page.locator('#legal-entry').innerText(),/Projet de travail — non publié/);
     assert.equal(await page.locator('#legal-entry input[type=checkbox]').count(),0);
@@ -196,6 +197,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await signIn(page,emails.coach);await waitStatus(page,'Session vérifiée : Coach');
     assert.equal(await page.locator('#legal-entry').isVisible(),false);
     await settingsPage(page,'legal');
+    await page.getByRole('region',{name:'Documents juridiques'}).getByRole('status').filter({hasText:'Aucune version juridique effective publiée.'}).waitFor();
     await page.getByRole('region',{name:'Documents juridiques'}).locator('summary').filter({hasText:'Politique de confidentialité'}).click();
     assert.match(await page.getByRole('region',{name:'Documents juridiques'}).innerText(),/Durées de conservation et effacement/);
     assert.equal(await page.getByRole('region',{name:'Documents juridiques'}).locator('input[type=checkbox]').count(),0);
@@ -451,6 +453,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
     await admin.locator('[data-workspace-page="legal"]').click();
     const legalRegion=admin.getByRole('region',{name:'Documents juridiques'});
+    await legalRegion.getByRole('status').filter({hasText:'Aucune version juridique effective publiée.'}).waitFor();
     await legalRegion.getByRole('heading',{name:'Publication verrouillée'}).waitFor();
     await legalRegion.locator('.legal-document > summary').filter({hasText:'Conditions générales d’utilisation'}).click();
     await legalRegion.getByText('Préparer un brouillon juridique',{exact:true}).first().click();
