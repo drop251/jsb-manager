@@ -369,6 +369,37 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('#workspace-back').click();
     await page.locator('[data-workspace-page="club"]').click();
     assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
+    const presence=page.getByRole('region',{name:'Présences',exact:true});
+    const group='1'.repeat(32),member='2'.repeat(32),slot='3'.repeat(32),attendanceDate='2026-11-27';
+    const emptyRegister={groups:[{id:group,name:'Groupe recette'}],members:[{id:member,name:'Licencié recette',groupId:group,active:true}],slots:[{id:slot,groupId:group,label:'18h'}],calls:[]};
+    // A real server register, seeded with synthetic data only. Clear between engines.
+    await pool.query('DELETE FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach]);
+    await pool.query('INSERT INTO jsb_private.attendance_registers(owner_id,revision,snapshot,updated_at) VALUES($1,1,$2,$3)',[ids.coach,JSON.stringify(emptyRegister),Date.now()]);
+    await presence.getByRole('button',{name:'Ouvrir le registre en ligne'}).click();
+    await presence.getByText('Révision 1 · aucune modification en attente',{exact:true}).waitFor();
+    const presencePhrase='Phrase de recette Présences seulement';
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
+    await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});
+    await presence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await presence.getByRole('button',{name:'Licencié recette : Présent',exact:true}).click();
+    await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    // Simulate the other device committing a contradictory mark.
+    const remoteAttendance={...emptyRegister,calls:[{date:attendanceDate,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=2,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(remoteAttendance)]);
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('heading',{name:'Conflits de synchronisation'}).waitFor();
+    await presence.getByLabel('Version à conserver').selectOption('local');
+    await presence.getByRole('button',{name:'Appliquer les choix'}).click();
+    await presence.getByRole('status').filter({hasText:'Conflits résolus localement'}).waitFor();
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 3'}).waitFor();
+    const savedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(savedAttendance.revision,3);assert.equal(savedAttendance.snapshot.calls[0].marks[0].status,'present');
+    page.once('dialog',dialog=>dialog.accept());
+    await presence.getByRole('button',{name:'Effacer la copie locale'}).click();
+    await presence.getByRole('status').filter({hasText:'Copie locale effacée'}).waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-attendance-vault-v1')),null);
     let cookies=await ctx.cookies(publicOrigin);
     const first=cookies.find(c=>c.name==='__Host-jsb-public');
     assert.ok(first?.secure&&first?.httpOnly&&first?.sameSite==='Strict');
