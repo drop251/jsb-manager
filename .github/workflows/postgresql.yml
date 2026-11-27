@@ -170,7 +170,7 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
         run: |
           set -euo pipefail
-          JSB_XLSX_PYTHON="$(command -v python)" node --test backend/db/tests/auth-browser.integration.cjs
+          JSB_VISUAL_ARTIFACTS="$RUNNER_TEMP/jsb-manager-visual" JSB_XLSX_PYTHON="$(command -v python)" node --test backend/db/tests/auth-browser.integration.cjs
           node --test backend/db/tests/taiso-offline-browser.integration.cjs
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_private.taiso_drafts')" = 0
           for table in restorations publications releases exercises current_release; do
@@ -180,6 +180,16 @@ jobs:
             test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM jsb_auth.$table")" = 0
           done
 
+
+
+      - name: Conserver les captures visuelles Manager (données de recette)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JSB-Manager-V36-recette-visuelle
+          path: ${{ runner.temp }}/jsb-manager-visual/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Tester l’initialisation du premier administrateur sur une base éphémère dédiée
         env:
