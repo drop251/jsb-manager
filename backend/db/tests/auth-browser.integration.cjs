@@ -180,6 +180,18 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('input[name="display-theme"][value="system"]').check();
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await page.emulateMedia({colorScheme:'light'});
+    const installed=await page.locator('meta[name="jsb-release"]').getAttribute('content');
+    assert.match(installed,/^[a-f0-9]{64}$/);
+    await page.locator('#version-check').click();
+    await page.locator('#version-status').filter({hasText:'Votre version est à jour.'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#version-reload').isVisible(),false);
+    const versionProbe=async route=>{if(route.request().method()==='HEAD')await route.fulfill({status:200,headers:{'X-JSB-Release':installed==='a'.repeat(64)?'b'.repeat(64):'a'.repeat(64)}});else await route.continue();};
+    await page.route(publicOrigin+'/public/auth.html',versionProbe);
+    await page.locator('#version-check').click();
+    await page.locator('#version-status').filter({hasText:'Nouvelle version disponible'}).waitFor({state:'visible'});
+    assert.ok(await page.locator('#version-reload').isVisible());
+    await page.unroute(publicOrigin+'/public/auth.html',versionProbe);
+    assert.equal(await page.locator('#login').isVisible(),false);
     await page.locator('[data-nav-page="home"]').click();
     assert.equal(await page.locator('.account-tools').isVisible(),false);
     assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
