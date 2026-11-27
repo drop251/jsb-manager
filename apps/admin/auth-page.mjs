@@ -65,6 +65,34 @@ function displaySettings(){
  return section;
 }
 
+
+function versionSettings(){
+ const section=element('section');section.className='display-settings';section.setAttribute('aria-labelledby','version-title');
+ const title=element('h3','Version et mises à jour');title.id='version-title';
+ const installed=document.querySelector('meta[name="jsb-release"]')?.content;
+ const valid=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
+ const current=element('p',valid(installed)?'Version chargée : V36 · '+installed.slice(0,12):'Version chargée : V36 (empreinte indisponible)');
+ const status=element('p');status.id='version-status';status.setAttribute('role','status');
+ const check=element('button','Rechercher une mise à jour');check.type='button';check.id='version-check';check.disabled=!valid(installed);
+ const reload=element('button','Actualiser l’application');reload.type='button';reload.id='version-reload';reload.hidden=true;
+ reload.addEventListener('click',()=>{if(!busy&&settingsOpen&&section.isConnected)location.reload();});
+ check.addEventListener('click',async()=>{
+  if(check.disabled||busy||!settingsOpen)return;
+  check.disabled=true;reload.hidden=true;status.textContent='Vérification en cours…';
+  try{
+   const response=await fetch(location.pathname,{method:'HEAD',credentials:'same-origin',mode:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'text/html'}});
+   const remote=response.headers.get('X-JSB-Release');
+   if(!response.ok||!valid(remote))throw Error('version');
+   if(!section.isConnected)return;
+   if(remote===installed)status.textContent='Votre version est à jour.';
+   else{status.textContent='Nouvelle version disponible : V36 · '+remote.slice(0,12)+'. Actualisez lorsque vous êtes prêt.';reload.hidden=false;}
+  }catch{if(section.isConnected)status.textContent='Vérification indisponible. Vérifiez votre connexion ou votre accès privé et réessayez.';}
+  finally{check.disabled=false;}
+ });
+ section.append(title,current,check,status,reload,element('p','Aucune actualisation automatique pendant la préparation d’une séance.'));
+ return section;
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy?session.account:null;
  const permitted=account&&account.role==='admin';
@@ -98,7 +126,7 @@ function renderWorkspace(){
   settingsOpen=true;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading,displaySettings());
+  workspace.replaceChildren(navigation('settings'),heading,displaySettings(),versionSettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
