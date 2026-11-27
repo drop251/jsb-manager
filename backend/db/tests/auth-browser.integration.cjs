@@ -197,6 +197,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
     assert.equal(await page.locator('[data-workspace-page="personal"]').count(),0);
     assert.ok(await page.locator('.jsb-nav').isVisible());
+    assert.equal(await page.locator('.jsb-nav button svg[aria-hidden="true"]').count(),5);
+    assert.ok(await page.getByRole('heading',{name:'Tableau de bord',exact:true}).isVisible());
+    assert.ok(await page.getByRole('heading',{name:'Catalogue et espaces'}).isVisible());
+    assert.ok(await page.locator('[data-workspace-page="judo"] .bloc-ico svg').isVisible());
+    assert.ok(await page.locator('[data-workspace-page="taiso"] .bloc-ico svg').isVisible());
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'home');
     await page.locator('[data-nav-page="judo"]').click();
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
@@ -317,6 +323,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await admin.locator('#mfa').isDisabled());
     assert.equal(await admin.locator('#login').isVisible(),false);
     assert.equal(await admin.locator('.account-tools').isVisible(),false);
+    assert.equal(await admin.locator('.jsb-nav button svg[aria-hidden="true"]').count(),8);
+    assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
     // Switch through the actual links, without logging out either origin.
     await openSettings(admin);
     assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
