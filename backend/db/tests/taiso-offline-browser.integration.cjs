@@ -42,8 +42,8 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
    });
   });
   assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
-  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v2');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
-  assert.deepEqual(cache,['/public/offline-vault.mjs','/public/offline.html','/public/offline.mjs']);
+  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v3');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
+  assert.deepEqual(cache,['/public/attendance-ui.mjs','/public/attendance-vault.mjs','/public/offline-vault.mjs','/public/offline.html','/public/offline.mjs','/shared/attendance-sync.js']);
   assert.equal((await context.request.get(origin+'/api/session')).status(),401);
   // No fallback on a deliberate gateway denial while online.
   allowed=false;
