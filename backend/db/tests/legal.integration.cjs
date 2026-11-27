@@ -39,9 +39,17 @@ test('Documents juridiques : droits, brouillon immuable, version effective, preu
   assert.deepEqual((await store.documents()).documents,[]);
   const record={expectedAccount:coach.id,type:'cgu',version:1,hash:drafted.draft.hash,kind:'acceptance',confirmed:true};
   assert.equal((await store.execute(coach,sessions[0],'record',record)).status,409);
-  // Only test fixtures are published directly inside the rollback transaction.
-  // The actual application deliberately exposes no publication route.
-  await conn.query('INSERT INTO jsb_legal.published(type,version,draft_id,hash,published_at,effective_at,published_by) VALUES($1,1,$2,$3,$4,$4,$5)',['cgu',drafted.draft.id,drafted.draft.hash,now,admin.id]);
+  // A real publication requires an exact digest approved by trusted runtime
+  // configuration. The actual Render preproduction config has no approvals.
+  const publish={expectedAccount:admin.id,type:'cgu',draftId:drafted.draft.id,hash:drafted.draft.hash,expectedVersion:0,confirmed:true};
+  assert.equal((await store.execute(admin,sessions[2],'publish',publish)).status,403);
+  const approved=createLegalStore(adapter,{approvedHashes:{cgu:drafted.draft.hash}});
+  assert.equal((await approved.execute(coach,sessions[0],'publish',{...publish,expectedAccount:coach.id})).status,403);
+  assert.equal((await approved.execute(admin,sessions[2],'publish',{...publish,confirmed:false})).status,409);
+  assert.equal((await approved.execute(admin,sessions[2],'publish',{...publish,expectedVersion:2})).status,409);
+  assert.equal((await approved.execute(admin,sessions[2],'publish',{...publish,hash:hash()})).status,409);
+  const published=await approved.execute(admin,sessions[2],'publish',publish);assert.equal(published.publication.version,1);
+  assert.deepEqual((await approved.execute(admin,sessions[2],'publish',publish)).publication,published.publication);
   assert.equal((await store.documents()).documents[0].body,draftBody.body);
   assert.equal((await store.execute(admin,sessions[2],'record',{...record,expectedAccount:admin.id})).status,403);
   assert.equal((await store.execute(coach,sessions[0],'record',{...record,confirmed:false})).status,400);
