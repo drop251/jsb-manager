@@ -318,15 +318,15 @@ function renderWorkspace(){
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
-       const preparation=element('section');preparation.className='workspace-detail';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
+       const preparation=element('section');preparation.className='workspace-detail session-preparation';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
        preparation.append(element('h3','Préparer une séance Taïso'),element('p','Choisissez le format et vérifiez les exercices compatibles. Chaque proposition reste à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
-        const form=element('div');
+        const form=element('div');form.className='session-form';
         const makeSelect=(id,label,options,initial)=>{
          const l=element('label',label),s=element('select');s.id=id;l.htmlFor=id;
          for(const name of options){const option=element('option',name);option.value=name;s.append(option);}
-         s.value=initial;form.append(l,s);return s;
+         s.value=initial;const field=element('div');field.className='session-field';field.append(l,s);form.append(field);return s;
         };
         const group=makeSelect('taiso-group','Groupe',['Gym douce','Training'],'Training');
         const level=makeSelect('taiso-level','Niveau maximal',['Débutant','Intermédiaire','Expert'],'Intermédiaire');
@@ -334,10 +334,10 @@ function renderWorkspace(){
         const duration=makeSelect('taiso-duration','Durée totale (minutes)',['45','60','75','90'],'60');
         const format=makeSelect('taiso-format','Format',['Séries classiques','Circuit','EMOM','Tabata','AMRAP','Pilates / yoga','Mixte'],'Séries classiques');
         function makeCheck(id,label,checked=false){
-         const row=element('div'),input=element('input'),l=element('label',label);input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
+         const row=element('div'),input=element('input'),l=element('label',label);row.className='session-check';input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
         }
         const configure=makeCheck('taiso-configure','Préciser l’organisation du corps de séance');
-        const org=element('section');org.className='exercise-group';form.append(org);
+        const org=element('section');org.className='exercise-group session-organization';form.append(org);
         let settingsReader=()=>undefined;
         function rebuildOrganization(){
          org.replaceChildren();
@@ -440,7 +440,7 @@ function renderWorkspace(){
            result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p',answer.format+' · '+answer.mode+' · catalogue '+answer.version));
            if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
            for(const phase of answer.phases){
-            const section=element('section');section.className='exercise-group';
+            const section=element('section');section.className='exercise-group session-phase';
             section.append(element('h4',phase.name+' · '+phase.minutes+' min'));
             for(const block of phase.blocks){
              const o=block.organization;
@@ -451,7 +451,7 @@ function renderWorkspace(){
             }
             for(const e of phase.exercises){
              section.append(element('h5',e.name),element('p','Budget indicatif : '+e.allocationMinutes+' min'),element('p','Prescription sélectionnée : '+(answer.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions')),element('p','Dosage source : '+e.dosage),element('p','Sécurité : '+e.safety));
-             const actions=element('div');actions.className='exercise-group';
+             const actions=element('div');actions.className='exercise-group session-actions';
              const block=phase.blocks.find(b=>b.references.includes(e.reference));
              const order=block?block.references:phase.exercises.map(x=>x.reference),position=order.indexOf(e.reference);
              const limit=(planSettings.edits||[]).length>=60;
