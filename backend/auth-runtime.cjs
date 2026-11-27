@@ -28,6 +28,7 @@ const {createTaisoDraftStore}=require('./db/taiso-draft-store.cjs');
 const {createAttendanceStore}=require('./db/attendance-store.cjs');
 const {createLegalStore}=require('./db/legal-store.cjs');
 const {createRightsStore}=require('./db/rights-store.cjs');
+const {createPersonalExport}=require('./db/personal-export.cjs');
 const {renderTaisoSavedPdf}=require('./taiso-saved-pdf.cjs');
 // Composition only, no listener, no environment defaults, no demo keys.
 // Origins and key loaders must come from trusted deployment configuration.
@@ -113,7 +114,9 @@ function createAuthRuntime({pool,publicOrigin,adminOrigin,sourceId,quotaSecret,d
  }
  const legalStore=createLegalStore(pool,{approvedHashes:legalApprovedHashes}),legalLimiter=limiter('legal-actions',30,60);
  const rightsStore=createRightsStore(pool),rightsLimiter=limiter('privacy-rights',50,100);
+ const personalExport=createPersonalExport(pool),exportLimiter=limiter('personal-export',3,10);
  const legal={documents:legalStore.documents,async execute(actor,sessionHash,action,body,source){
+  if(action==='personal-export'){if(!await exportLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};return personalExport.execute(actor,sessionHash,body);}
   if(action.startsWith('rights-')){if(!await rightsLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};return rightsStore.execute(actor,sessionHash,action,body);}
   if(!await legalLimiter.reserve({accountKey:actor.id,sourceId:source}))return {ok:false,status:429};
   return legalStore.execute(actor,sessionHash,action,body);

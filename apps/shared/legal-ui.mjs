@@ -43,6 +43,17 @@ function rightsView({client,account,admin,live}){
  async function run(fn){if(busy||!active())return;busy=true;status.textContent='Vérification en cours…';try{await fn();}catch{if(active())status.textContent='Action non confirmée. Actualisez la liste et vérifiez votre session.';}finally{busy=false;}}
  if(!admin){
   const label=el('label','Type de demande'),select=el('select');for(const [value,name] of Object.entries(RIGHTS)){const option=el('option',name);option.value=value;select.append(option);}label.append(select);
+  const exportPanel=el('details');exportPanel.append(el('summary','Télécharger mes données serveur'),el('p','Export JSON de vos données de compte, preuves juridiques, demandes et brouillons. Ne comprend pas les licenciés, coffres locaux ni journaux externes. Conservez ce fichier personnel en lieu sûr. Une demande d’accès complémentaire reste possible.'));
+  const passwordLabel=el('label','Confirmer votre mot de passe'),password=el('input');password.type='password';password.autocomplete='current-password';password.maxLength=1024;passwordLabel.append(password);
+  const download=button('Préparer mon export JSON',()=>{if(busy||!active())return;const secret=password.value;password.value='';void run(async()=>{
+   const r=await call('personal-export',{password:secret});
+   if(!active()||!r.export||r.export.schema!=='JSB-PERSONAL-EXPORT-1'||r.export.account?.id!==account.id)throw Error('Export non confirmé');
+   const url=URL.createObjectURL(new Blob([JSON.stringify(r.export,null,2)],{type:'application/json'}));
+   const a=el('a');a.href=url;a.download='JSB-donnees-personnelles.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   status.textContent='Export préparé. Vérifiez le téléchargement sur votre appareil.';
+  });});
+  exportPanel.append(passwordLabel,download);
+  panel.append(exportPanel);
   panel.append(label,button('Déposer la demande',()=>run(async()=>{const r=await call('rights-submit',{kind:select.value});await load();if(active())status.textContent='Demande enregistrée · '+r.request.id+'.'})));
  }
  panel.append(button(admin?'Actualiser les demandes ouvertes':'Consulter mes demandes',()=>run(load)),rows);
