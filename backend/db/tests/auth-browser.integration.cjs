@@ -280,6 +280,27 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
     await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
     const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    const phrase='Phrase de recette locale uniquement';
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,'other-account',copy);
+     const wrong=await module.openVault(phrase);await wrong.save(patch.edits);wrong.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Import refusé'}).waitFor({state:'visible'});
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const wrong=await module.openVault(phrase);await wrong.remove();
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,owner,copy);
+     const valid=await module.openVault(phrase);await valid.save(patch.edits);valid.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
     await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
     await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
     assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
