@@ -29,6 +29,11 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
   if(createHash('sha256').update(bytes).digest('hex')!==manifest.files[name])throw Error('Intégrité de la distribution invalide');
   assets.set(url,{bytes,type});
  }
+ // Fingerprint verified asset hashes, not credentials or deployment metadata.
+ const release=createHash('sha256').update(JSON.stringify([app,...Object.entries(manifest.files).sort(([a],[b])=>a.localeCompare(b))])).digest('hex');
+ const document=assets.get(entry),html=document.bytes.toString('utf8');
+ if(!html.includes('</head>')||html.includes('name="jsb-release"'))throw Error('Document de version incompatible');
+ document.bytes=Buffer.from(html.replace('</head>','<meta name="jsb-release" content="'+release+'"></head>'),'utf8');
  const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"};
  function empty(res,status,extra={}){res.writeHead(status,{...headers,...extra});res.end();}
  return async function handle(req,res){
@@ -52,7 +57,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
    if(req.url==='/')return empty(res,302,{Location:entry});
    const asset=assets.get(req.url);
    if(!asset)return empty(res,404);
-   res.writeHead(200,{...headers,'Content-Type':asset.type,'Content-Length':asset.bytes.length,...(app==='public'&&req.url==='/public/offline-sw.js'?{'Service-Worker-Allowed':'/'}:{})});
+   res.writeHead(200,{...headers,'Content-Type':asset.type,'Content-Length':asset.bytes.length,...(req.url===entry?{'X-JSB-Release':release}:{}),...(app==='public'&&req.url==='/public/offline-sw.js'?{'Service-Worker-Allowed':'/'}:{})});
    res.end(req.method==='HEAD'?undefined:asset.bytes);
   }catch(_){if(!res.headersSent)empty(res,503);else res.destroy();}
  };

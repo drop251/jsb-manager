@@ -9,7 +9,7 @@ const {build}=require('../scripts/build-auth-preview.cjs');
 const {createPreproductionHandler}=require('../backend/preproduction-http.cjs');
 test('Préproduction : origine, contrôle d’accès, intégrité et fichiers strictement isolés',async()=>{
  const temp=await fs.mkdtemp(path.join(os.tmpdir(),'jsb-preprod-'));
- const servers=[];
+ const servers=[],releases=new Set();
  try{
   for(const app of ['public','admin']){
    const directory=path.join(temp,app);
@@ -52,6 +52,13 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    assert.equal(apiCalls,0);
    for(const invalid of ['http://other.test','https://other.test/path',origin])await assert.rejects(createPreproductionHandler({...options,otherOrigin:invalid}),TypeError);
    const html=await request(entry);assert.equal(html.status,200);assert.match(html.headers['cache-control'],/no-store/);
+   assert.match(html.headers['x-jsb-release'],/^[a-f0-9]{64}$/);
+   assert.ok(html.body.includes('<meta name="jsb-release" content="'+html.headers['x-jsb-release']+'">'));
+   const head=await request(entry,{method:'HEAD'});
+   assert.equal(head.headers['x-jsb-release'],html.headers['x-jsb-release']);
+   assert.match(head.headers['cache-control'],/no-store/);
+   releases.add(head.headers['x-jsb-release']);
+   access=false;assert.equal((await request(entry,{method:'HEAD'})).headers['x-jsb-release'],undefined);access=true;
    assert.match(html.headers['content-security-policy'],/frame-ancestors 'none'/);
    assert.doesNotMatch(html.headers['content-security-policy'],/unsafe-eval/);
    assert.equal(html.body.includes('id="mfa"'),app==='admin');
@@ -66,6 +73,7 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    await assert.rejects(createPreproductionHandler(options),/Intégrité/);
    await assert.rejects(createPreproductionHandler({...options,authorizeAccess:undefined}),TypeError);
   }
+  assert.equal(releases.size,2);
  }finally{
   for(const server of servers)await new Promise(resolve=>server.close(resolve));
   await fs.rm(temp,{recursive:true,force:true});
