@@ -1,3 +1,4 @@
+import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
 const form=document.querySelector('#login'),fields=document.querySelector('#fields'),status=document.querySelector('#status'),logout=document.querySelector('#logout');
 let client=null,busy=false,refreshPending=false,session=null,channel=null,panel=null;
@@ -114,11 +115,81 @@ function versionSettings(){
  return section;
 }
 
+const ICONES = {
+    suivi: 'M3 12h4l2.5-6 5 12 2.5-6H21',
+    accueil: 'M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z',
+    taiso: 'M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12',
+    judo: 'M3 10h18v4H3zM10 14l-3 6M14 14l3 6M10 10h4v4h-4z',
+    seance: 'M8 4h8v3H8zM6 5.5H5a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M8 12h8M8 16h5',
+    presences: 'M9 11.5 11 13.5 15 9.5M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
+    retour: 'M15 5l-7 7 7 7'
+  };
+const NAV_ICONS={home:'accueil',club:'presences',personal:'suivi',catalogue:'seance',legal:'seance',tests:'presences',stats:'suivi',accounts:'accounts',maintenance:'settings',settings:'settings'};
+const EXTRA_ICONS={accounts:'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M2 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M22 20v-2a6 6 0 0 0-5-6',settings:'M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M10 16v4'};
+function navIcon(key){
+ const name=NAV_ICONS[key]||key,ns='http://www.w3.org/2000/svg';
+ const svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
+ for(const [k,v] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.8','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'}))svg.setAttribute(k,v);
+ path.setAttribute('d',ICONES[name]||EXTRA_ICONS[name]||ICONES.seance);svg.append(path);return svg;
+}
+function workspaceTile(key,title,description){
+ const icon=element('span');icon.className='bloc-ico';icon.append(navIcon(key));
+ const name=element('strong',title);name.className='bloc-nom';
+ const desc=element('small',description);desc.className='bloc-txt';
+ return [icon,name,desc];
+}
+
+
+let disposeSwipe=null;
+function resetSwipe(){
+ workspace.removeAttribute('data-swipe-moving');
+ workspace.style.removeProperty('--jsb-swipe-x');
+ document.documentElement.removeAttribute('data-jsb-swipe-active');
+}
+function stopSwipe(){
+ if(disposeSwipe){disposeSwipe();disposeSwipe=null;}
+ resetSwipe();workspace.classList.remove('swipe-returned');
+}
+function protectSwipeEditor(editor){
+ editor.dataset.swipeProtected='';
+ for(const name of ['input','change','click'])editor.addEventListener(name,()=>{
+  editor.dataset.swipeDirty='';
+ },true);
+}
+function setWorkspaceView(...nodes){
+ stopSwipe();workspace.replaceChildren(...nodes);
+ const nav=workspace.querySelector('.jsb-nav');
+ if(!nav||nav.querySelector('[aria-current="page"]')?.dataset.navPage==='home')return;
+ const valid=()=>!busy&&session?.state==='signed-in'&&!workspace.hidden&&nav.isConnected&&workspace.contains(nav);
+ const blocked=()=>Boolean(workspace.querySelector('[data-swipe-dirty]')||document.querySelector('[role="dialog"][aria-modal="true"]:not([hidden])')||(!accountTools.hidden&&!form.hidden)||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'));
+ const reduced=()=>display.animations||matchMedia('(prefers-reduced-motion: reduce)').matches;
+ disposeSwipe=window.JSBEdgeSwipe.attach({
+  listenerTarget:document,
+  getRoot:()=>document.querySelector('main'),
+  getEnabled:valid,isBlocked:blocked,
+  canGoBack:()=>Boolean(nav.querySelector('[data-nav-page="home"]')),
+  ignoreSelector:window.JSBEdgeSwipe.IGNORE_SELECTOR+',label,summary,form,.account-tools,.jsb-nav,[data-swipe-protected]',
+  onProgress:({distancePx})=>{
+   if(reduced())return;
+   document.documentElement.dataset.jsbSwipeActive='';
+   workspace.dataset.swipeMoving='';
+   workspace.style.setProperty('--jsb-swipe-x',Math.min(distancePx*.55,64)+'px');
+  },
+  onCancel:resetSwipe,
+  onCommit:()=>{
+   resetSwipe();
+   if(!valid()||blocked())return;
+   nav.querySelector('[data-nav-page="home"]')?.click();
+   if(!reduced())workspace.classList.add('swipe-returned');
+  }
+ });
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
  const permitted=account&&['coach','individual'].includes(account.role);
  if(!permitted){
-  workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
+  stopSwipe();workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
   document.querySelector('main').classList.remove('has-session');return;
  }
  const identity=account.id+':'+account.role;
@@ -130,7 +201,7 @@ function renderWorkspace(){
   const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
   const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance',settings:'Réglages'};
   for(const key of ['home',...items.map(item=>item[0]),'settings']){
-   const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
+   const button=element('button');button.type='button';button.dataset.navPage=key;const text=element('span',shortLabels[key]||key);text.className='onglet-txt';button.append(navIcon(key),text);
    if(current===key)button.setAttribute('aria-current','page');
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity||key===current)return;
@@ -147,7 +218,7 @@ function renderWorkspace(){
   settingsOpen=true;changeOpen=false;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading,displaySettings(),versionSettings());
+  setWorkspaceView(navigation('settings'),heading,displaySettings(),versionSettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
@@ -155,21 +226,24 @@ function renderWorkspace(){
   if(busy||workspaceIdentity!==identity)return;
   settingsOpen=false;changeOpen=false;
   accountTools.hidden=true;
-  workspace.replaceChildren(navigation('home'));
-  const heading=element('h2','Mon espace '+label(account.role));heading.tabIndex=-1;
-  workspace.append(heading,element('p','Navigation de préproduction. Catalogue en lecture seule ; autres fonctions à raccorder.'));
-  const grid=element('div');grid.className='workspace-grid';
+  setWorkspaceView(navigation('home'));
+  const heading=element('h2','Tableau de bord');heading.tabIndex=-1;
+  const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Mon espace '+label(account.role)));workspace.append(intro);
+  const summary=element('section');summary.className='workspace-overview';summary.setAttribute('aria-label','État des fonctionnalités');
+  const heading2=element('h3','Catalogue et espaces');
+  summary.append(element('strong','Préproduction privée'),element('p','Les catalogues publiés et les préparations Taïso sont accessibles selon leur disponibilité. Les autres fonctions restent à raccorder.'));workspace.append(summary,heading2);
+  const grid=element('div');grid.className='workspace-grid blocs raccourcis';
   for(const [key,title,description,sections] of items){
    const button=element('button');button.type='button';button.dataset.workspacePage=key;
    if(key==='judo'||key==='taiso')button.dataset.discipline=key;
-   button.append(element('strong',title),element('small',description));
+   button.className='bloc';button.append(...workspaceTile(key,title,description));
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity)return;
     const detail=element('div');detail.className='workspace-detail';
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Catalogue en lecture seule lorsque publié. Autres fonctionnalités à raccorder.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
-    const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(navigation(key),detail);h.focus({preventScroll:true});
+    const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
+    setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
     if(key==='judo'||key==='taiso'){
      const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
      void client.catalogue(key).then(async data=>{
@@ -180,7 +254,7 @@ function renderWorkspace(){
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
-       const preparation=element('section');preparation.className='workspace-detail';preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
+       const preparation=element('section');preparation.className='workspace-detail';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
        preparation.append(element('h3','Préparer une séance Taïso'),element('p','Choisissez le format et vérifiez les exercices compatibles. Chaque proposition reste à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
