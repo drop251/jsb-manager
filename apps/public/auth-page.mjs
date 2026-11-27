@@ -280,7 +280,12 @@ function renderWorkspace(){
   accountTools.hidden=true;
   setWorkspaceView(navigation('home'));
   const heading=element('h2','Tableau de bord');heading.tabIndex=-1;
-  const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Mon espace '+label(account.role)));workspace.append(intro);
+  const intro=element('div');intro.className='workspace-hero accueil-intro hero';
+  const date=element('p',new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(new Date()));date.className='accueil-date';
+  const subtitle=element('p','Mon espace '+label(account.role));subtitle.className='accueil-sous';
+  const shortcuts=element('div');shortcuts.className='accueil-preparer';shortcuts.setAttribute('aria-label','Accès aux disciplines');
+  for(const [key,title] of workspacePages.common){const shortcut=element('button','Ouvrir '+title);shortcut.type='button';shortcut.addEventListener('click',()=>{if(!busy&&workspaceIdentity===identity)workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();});shortcuts.append(shortcut);}
+  intro.append(date,heading,subtitle,shortcuts);workspace.append(intro);
   const summary=element('section');summary.className='workspace-overview';summary.setAttribute('aria-label','État des fonctionnalités');
   const heading2=element('h3','Catalogue et espaces');
   summary.append(element('strong','Préproduction privée'),element('p','Les catalogues publiés et les préparations Taïso sont accessibles selon leur disponibilité. Les autres fonctions restent à raccorder.'));workspace.append(summary,heading2);
