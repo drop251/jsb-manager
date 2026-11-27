@@ -26,6 +26,24 @@ const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 // Use native locator waiting: waitForFunction compiles a string in the page,
 // which is correctly rejected by the production CSP (no unsafe-eval).
 const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
+// Dispatch the exact touch sequence consumed by the shared historical engine.
+async function swipe(page,{dx=135,dy=2,startX=18,target='#workspace h3',cancel=false}={}){
+ return page.evaluate(({dx,dy,startX,target,cancel})=>{
+  const node=document.querySelector(target);
+  if(!node)throw Error('Cible tactile introuvable : '+target);
+  const point=(x,y)=>({identifier:7,clientX:x,clientY:y});
+  function dispatch(type,touches,changedTouches=[]){
+   const event=new Event(type,{bubbles:true,cancelable:true});
+   Object.defineProperties(event,{touches:{value:touches},changedTouches:{value:changedTouches}});
+   node.dispatchEvent(event);
+  }
+  dispatch('touchstart',[point(startX,180)]);
+  dispatch('touchmove',[point(startX+dx,180+dy)]);
+  const moving=document.querySelector('#workspace').hasAttribute('data-swipe-moving');
+  dispatch(cancel?'touchcancel':'touchend',[],[point(startX+dx,180+dy)]);
+  return {moving,active:document.querySelector('.jsb-nav [aria-current="page"]')?.dataset.navPage,reset:!document.querySelector('#workspace').hasAttribute('data-swipe-moving')};
+ },{dx,dy,startX,target,cancel});
+}
 async function openSettings(page){
  if(!await page.locator('.account-tools').isVisible())await page.locator('[data-nav-page="settings"]').click();
  await page.locator('.account-tools').waitFor({state:'visible'});
@@ -207,12 +225,24 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('[data-nav-page="judo"]').click();
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
     assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    assert.deepEqual(await swipe(page,{dx:135,dy:100}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{startX:90}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{cancel:true}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page),{moving:true,active:'home',reset:true});
+    await openSettings(page);
+    await page.locator('#display-animations').check();
+    await page.locator('#display-animations').blur();
+    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'home',reset:true});
+    await openSettings(page);
+    await page.locator('#display-animations').uncheck();
     await page.locator('[data-nav-page="home"]').click();
     await page.locator('[data-workspace-page="taiso"]').click();
     await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
+    assert.deepEqual(await swipe(page),{moving:false,active:'taiso',reset:true});
     await page.getByRole('button',{name:'Proposer une séance'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 60 min'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
@@ -372,9 +402,12 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
     await admin.locator('#workspace-back').click();
     await admin.locator('[data-workspace-page="catalogue"]').click();
+    assert.deepEqual(await swipe(admin),{moving:true,active:'home',reset:true});
+    await admin.locator('[data-workspace-page="catalogue"]').click();
     const importDetails=Object.fromEntries(['safety','dosage','successCriteria','level','subgroup','equipment','moment','easier','harder','accessibility','inspiration','format','targetMuscles'].map(k=>[k,'Synthetic '+k]));
     const importFixture={discipline:'taiso',version:'analysis-fixture',exercises:[{reference:'fixture-import',name:'Synthetic import',family:'Synthetic family',details:importDetails}]};
     await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
+    assert.deepEqual(await swipe(admin),{moving:false,active:'catalogue',reset:true});
     await admin.locator('#import-discipline').selectOption('judo');
     await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
     await admin.getByRole('button',{name:'Analyser sans importer'}).click();
