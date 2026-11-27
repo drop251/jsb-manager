@@ -199,9 +199,9 @@ async function ensureOfflineReader(){
  if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
  await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
  await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
- const paths=["/public/offline.html","/public/offline.mjs","/public/offline-vault.mjs","/public/attendance-vault.mjs","/public/attendance-ui.mjs","/shared/attendance-sync.js"],deadline=Date.now()+10000;
+ const paths=["/public/offline.html","/public/offline.mjs","/public/offline-vault.mjs","/public/attendance-vault.mjs","/public/attendance-ui.mjs","/shared/attendance-sync.js","/shared/auth-client.mjs"],deadline=Date.now()+10000;
  while(Date.now()<deadline){
-  if(await caches.has('jsb-manager-offline-reader-v3')){
+  if(await caches.has('jsb-manager-offline-reader-v4')){
    const cache=await caches.open('jsb-manager-offline-reader-v3');
    if((await Promise.all(paths.map(path=>cache.match(path)))).every(Boolean))return;
   }
