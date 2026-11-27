@@ -119,5 +119,5 @@ function render(v){
 }
 window.addEventListener('pagehide',clear);
 
-const attendanceClient=location.protocol==='https:'&&navigator.locks?createAuthClient({origin:location.origin,fetchImpl:fetch.bind(window),locks:navigator.locks,allowedRoles:['coach']}):null;
+const attendanceClient=location.protocol==='https:'&&navigator.locks?createAuthClient({origin:location.origin,fetchImpl:fetch.bind(window),locks:navigator.locks,allowedRoles:['coach','individual']}):null;
 mountAttendance(document.querySelector('#attendance-offline'),{client:attendanceClient});
