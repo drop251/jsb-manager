@@ -3,10 +3,10 @@
 // account, legal proof or rights-request records under this technical policy.
 const clock="floor(extract(epoch FROM clock_timestamp())*1000)::bigint";
 const TARGETS=Object.freeze([
- {name:'sessions',where:'expires_at <= $1'},
- {name:'delivery_outbox',where:'(expires_at <= $1 OR attempts >= 10) AND (lease_until IS NULL OR lease_until <= $1)'},
- {name:'action_tokens',where:'expires_at <= $1'},
- {name:'quota_events',where:'occurred_at <= $1 - 86400000'}
+ {name:'sessions',where:'expires_at <= $1::bigint'},
+ {name:'delivery_outbox',where:'(expires_at <= $1::bigint OR attempts >= 10) AND (lease_until IS NULL OR lease_until <= $1::bigint)'},
+ {name:'action_tokens',where:'expires_at <= $1::bigint'},
+ {name:'quota_events',where:'occurred_at <= $1::bigint - 86400000'}
 ]);
 async function technicalRetention(pool,{apply=false,expectedDatabase='jsb_preprod'}={}){
  if(typeof apply!=='boolean'||!['jsb_preprod','jsb_ci'].includes(expectedDatabase))throw TypeError('Configuration de purge invalide');
