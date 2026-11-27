@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const https=require('node:https');
-const {readFileSync,mkdtempSync,rmSync}=require('node:fs');
+const {readFileSync,mkdtempSync,rmSync,mkdirSync}=require('node:fs');
 const {tmpdir}=require('node:os');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
@@ -26,6 +26,20 @@ const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 // Use native locator waiting: waitForFunction compiles a string in the page,
 // which is correctly rejected by the production CSP (no unsafe-eval).
 const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
+// Visual evidence from authenticated distribution, on synthetic data only.
+async function visualCheck(page,engine,screen,viewport,theme='light'){
+ const g=await page.evaluate(()=>{
+  const root=document.documentElement,nav=document.querySelector('.jsb-nav'),buttons=Array.from(nav.querySelectorAll('button')),box=nav.getBoundingClientRect();
+  return {width:innerWidth,scrollWidth:root.scrollWidth,active:buttons.filter(b=>b.getAttribute('aria-current')==='page').length,navWidth:box.width,navLeft:box.left,navRight:box.right,heights:buttons.map(b=>b.getBoundingClientRect().height),background:getComputedStyle(root).getPropertyValue('--bg').trim()};
+ });
+ assert.ok(g.scrollWidth<=g.width+1,engine+' '+screen+' horizontal overflow');
+ assert.equal(g.active,1);
+ assert.ok(g.navWidth>0&&g.navLeft>=-1&&g.navRight<=g.width+1,engine+' '+screen+' navigation bounds');
+ assert.ok(g.heights.every(h=>h>=44),engine+' '+screen+' touch targets');
+ assert.equal(g.background,theme==='dark'?'#151c29':'#f4f5ef');
+ const dir=process.env.JSB_VISUAL_ARTIFACTS;
+ if(dir){mkdirSync(dir,{recursive:true});await page.screenshot({path:path.join(dir,engine+'-'+screen+'-'+viewport+'-'+theme+'.png'),animations:'disabled'});}
+}
 // Dispatch the exact touch sequence consumed by the shared historical engine.
 async function assertFixedScale(page){
  const result=await page.evaluate(()=>{
@@ -284,6 +298,955 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await page.locator('[data-workspace-page="taiso"] .bloc-ico svg').isVisible());
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'home');
+    const counts=await pool.query("SELECT c.discipline,count(e.reference)::int AS count FROM jsb_catalogue.current_release c LEFT JOIN jsb_catalogue.exercises e ON e.discipline=c.discipline AND e.version=c.version GROUP BY c.discipline");
+    const published=Object.fromEntries(counts.rows.map(row=>[row.discipline,row.count]));
+    for(const discipline of ['judo','taiso']){
+     const expected=String(published[discipline]??0);
+     await page.locator('[data-metric="'+discipline+'"]').filter({hasText:new RegExp('^'+expected+'
+    await page.locator('[data-nav-page="judo"]').click();
+    assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
+    assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    assert.deepEqual(await swipe(page,{dx:135,dy:100}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{startX:90}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{cancel:true}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page),{moving:true,active:'home',reset:true});
+    await settingsPage(page,'display');
+    await page.locator('#display-animations').check();
+    await page.locator('#display-animations').blur();
+    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'settings',reset:true});
+    assert.ok(await page.locator('[data-settings-page="display"]').isVisible());
+    await settingsPage(page,'display');
+    await page.locator('#display-animations').uncheck();
+    await page.locator('[data-nav-page="home"]').click();
+    await page.locator('[data-workspace-page="taiso"]').click();
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
+    await visualCheck(page,name,'catalogue-taiso','portrait');
+    await page.emulateMedia({colorScheme:'dark'});await visualCheck(page,name,'catalogue-taiso','portrait','dark');await page.emulateMedia({colorScheme:'light'});
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
+    assert.deepEqual(await swipe(page),{moving:false,active:'taiso',reset:true});
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 60 min'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
+    const draftTitle='Recette privée '+name;
+    await page.locator('#taiso-draft-title').fill(draftTitle);
+    await page.getByRole('button',{name:'Enregistrer le brouillon',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 1'}).waitFor({state:'visible',timeout:15000});
+    const savedRow=(await pool.query('SELECT id,revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND title=$2',[ids.coach,draftTitle])).rows[0];
+    assert.equal(savedRow.revision,1);
+    assert.ok(await page.getByText('Validation indisponible : complétez les phases et l’organisation.',{exact:true}).isVisible());
+    const pdfDownload=page.waitForEvent('download',{timeout:15000});
+    await page.getByRole('button',{name:'Télécharger le PDF détaillé',exact:true}).click();
+    const pdf=await pdfDownload;
+    assert.equal(pdf.suggestedFilename(),'JSB-Taiso-r1-detaille.pdf');
+    assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
+    await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
+    const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    const phrase='Phrase de recette locale uniquement';
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,'other-account',copy);
+     const wrong=await module.openVault(phrase);await wrong.save(patch.edits);wrong.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Import refusé'}).waitFor({state:'visible'});
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const wrong=await module.openVault(phrase);await wrong.remove();
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,owner,copy);
+     const valid=await module.openVault(phrase);await valid.save(patch.edits);valid.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
+    await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
+
+
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 1'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#taiso-duration').inputValue(),'60');
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    await page.locator('#taiso-duration').selectOption('45');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 45 min'}).waitFor({state:'visible',timeout:15000});
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 2'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,2);
+    await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Modification appliquée au brouillon en cours'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 3'}).waitFor({state:'visible',timeout:15000});
+    const editedRow=(await pool.query('SELECT revision,settings,snapshot FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0];
+    assert.equal(editedRow.revision,3);assert.equal(editedRow.settings.edits.length,1);
+    assert.ok(editedRow.snapshot.phases.every(p=>p.exercises.length===0));
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 3'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.locator('#taiso-duration').selectOption('60');
+
+    await page.locator('#taiso-format').selectOption('Circuit');
+    await page.locator('#taiso-configure').check();
+    await page.locator('#taiso-org-stations').fill('4');
+    await page.locator('#taiso-org-rounds').fill('3');
+    await page.locator('#taiso-org-recoverySeconds').fill('20');
+    await page.locator('#taiso-org-repWindowSeconds').fill('30');
+    await page.locator('#taiso-org-roundRestSeconds').fill('60');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Nombre de stations insuffisant'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Organisation incomplète/);
+    await page.locator('#taiso-configure').uncheck();
+    await page.locator('#taiso-format').selectOption('Séries classiques');
+
+    await page.locator('#taiso-mode').selectOption('Durée');
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'0 exercice(s) compatible(s) · 3 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+
+    await page.locator('#catalogue-family').selectOption('Famille B');
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Beta'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#catalogue-results summary').count(),1);
+    await page.locator('#catalogue-results summary').click();
+    assert.match(await page.locator('#catalogue-results').textContent(),/fixture-b/);
+    await page.locator('#workspace-back').click();
+    await page.locator('[data-workspace-page="club"]').click();
+    assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
+    const presence=page.getByRole('region',{name:'Présences',exact:true});
+    const group='1'.repeat(32),member='2'.repeat(32),slot='3'.repeat(32),attendanceDate='2026-11-27';
+    const emptyRegister={groups:[{id:group,name:'Groupe recette'}],members:[{id:member,name:'Licencié recette',groupId:group,active:true}],slots:[{id:slot,groupId:group,label:'18h'}],calls:[]};
+    // A real server register, seeded with synthetic data only. Clear between engines.
+    await pool.query('DELETE FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach]);
+    await pool.query('INSERT INTO jsb_private.attendance_registers(owner_id,revision,snapshot,updated_at) VALUES($1,1,$2,$3)',[ids.coach,JSON.stringify(emptyRegister),Date.now()]);
+    await presence.getByRole('button',{name:'Ouvrir le registre en ligne'}).click();
+    await presence.getByText('Révision 1 · aucune modification en attente',{exact:true}).waitFor();
+    await visualCheck(page,name,'presences','portrait');
+    const presencePhrase='Phrase de recette Présences seulement';
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
+    try{await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});}
+    catch(e){throw Error('Activation du coffre Présences : '+await presence.getByRole('status').textContent(),{cause:e});}
+    await presence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await presence.getByRole('button',{name:'Licencié recette : Présent',exact:true}).click();
+    await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    // Simulate the other device committing a contradictory mark.
+    const remoteAttendance={...emptyRegister,calls:[{date:attendanceDate,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=2,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(remoteAttendance)]);
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await presence.getByRole('heading',{name:'Conflits de synchronisation'}).waitFor();
+    await presence.getByLabel('Version à conserver').selectOption('local');
+    await presence.getByRole('button',{name:'Appliquer les choix'}).click();
+    await presence.getByRole('status').filter({hasText:'Conflits résolus localement'}).waitFor();
+    await presence.getByRole('button',{name:'Verrouiller le registre'}).click();
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+    await presence.getByText('Une revue de synchronisation reste à confirmer manuellement.',{exact:true}).waitFor();
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0].revision,2);
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 3'}).waitFor();
+    const savedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(savedAttendance.revision,3);assert.equal(savedAttendance.snapshot.calls[0].marks[0].status,'present');
+    // Reopen the real offline reader; authenticate through its transport only.
+    await page.goto(publicOrigin+'/public/offline.html');
+    const localPresence=page.locator('#attendance-offline');
+    await localPresence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await localPresence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+    await localPresence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await localPresence.getByRole('button',{name:'Licencié recette : Excusé',exact:true}).click();
+    await localPresence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    const anotherDay='2026-11-28';
+    const independent={...savedAttendance.snapshot,calls:[...savedAttendance.snapshot.calls,{date:anotherDay,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=4,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(independent)]);
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await localPresence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 5'}).waitFor();
+    const mergedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(mergedAttendance.revision,5);assert.deepEqual(mergedAttendance.snapshot.calls.map(c=>[c.date,c.marks[0].status]),[[attendanceDate,'excused'],[anotherDay,'absent']]);
+    page.once('dialog',dialog=>dialog.accept());
+    await localPresence.getByRole('button',{name:'Effacer la copie locale'}).click();
+    await localPresence.getByRole('status').filter({hasText:'Copie locale effacée'}).waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-attendance-vault-v1')),null);
+    await page.goto(publicOrigin+'/public/auth.html');await waitStatus(page,'Session vérifiée : Coach');
+    let cookies=await ctx.cookies(publicOrigin);
+    const first=cookies.find(c=>c.name==='__Host-jsb-public');
+    assert.ok(first?.secure&&first?.httpOnly&&first?.sameSite==='Strict');
+    assert.ok(!(await page.evaluate(()=>document.cookie)).includes('__Host-jsb-public'));
+    await signIn(page,emails.individual);await waitStatus(page,'Session vérifiée : Particulier');
+    assert.ok(await page.locator('[data-workspace-page="personal"]').isVisible());
+    assert.ok(!(await page.locator('#workspace').textContent()).includes(draftTitle),'No previous coach activity after account switch');
+    assert.equal(await page.locator('[data-workspace-page="club"]').count(),0);
+    assert.doesNotMatch(await page.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
+    cookies=await ctx.cookies(publicOrigin);
+    assert.notEqual(cookies.find(c=>c.name==='__Host-jsb-public').value,first.value);
+    const current=await page.evaluate(async()=>await (await fetch('/api/session',{cache:'no-store'})).json());
+    assert.deepEqual(current.account,{id:ids.individual,role:'individual'});
+    const privateProbe=await page.evaluate(async({expectedAccount,id})=>{const r=await fetch('/api/private/taiso/drafts/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccount,id})});return r.status;},{expectedAccount:ids.individual,id:savedRow.id});
+    assert.equal(privateProbe,409);
+
+    await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await admin.bringToFront();
+    await admin.goto(adminOrigin+'/');
+    assert.equal(new URL(admin.url()).pathname,'/admin/auth.html');
+    await waitStatus(admin,'Connectez-vous');
+    await assertFixedScale(admin);
+    assert.equal((await ctx.cookies(adminOrigin)).some(c=>c.name==='__Host-jsb-public'),false);
+    assert.equal((await admin.evaluate(async()=> (await fetch('/public/auth.html')).status)),404);
+    assert.equal((await page.evaluate(async()=> (await fetch('/admin/auth.html')).status)),404);
+    await signIn(admin,emails.coach,'123456');await waitStatus(admin,'Identifiants incorrects');
+    await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
+    await waitStatus(admin,'Session vérifiée : Administrateur');
+    assert.ok(await admin.locator('#mfa').isDisabled());
+    assert.equal(await admin.locator('#login').isVisible(),false);
+    assert.equal(await admin.locator('.account-tools').isVisible(),false);
+    assert.equal(await admin.locator('.jsb-nav button svg[aria-hidden="true"]').count(),8);
+    assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
+    await admin.locator('[data-workspace-page="legal"]').click();
+    const legalRegion=admin.getByRole('region',{name:'Documents juridiques'});
+    await legalRegion.getByRole('status').filter({hasText:'Aucune version juridique effective publiée.'}).waitFor();
+    await legalRegion.getByRole('heading',{name:'Publication verrouillée'}).waitFor();
+    await legalRegion.locator('.legal-document > summary').filter({hasText:'Conditions générales d’utilisation'}).click();
+    await legalRegion.getByText('Préparer un brouillon juridique',{exact:true}).first().click();
+    await legalRegion.getByRole('button',{name:'Consulter les derniers brouillons'}).first().click();
+    await legalRegion.getByText('Aucun brouillon enregistré.',{exact:true}).waitFor();
+    const queue=legalRegion.locator('details').filter({has:admin.locator('summary').getByText('Demandes RGPD à traiter',{exact:true})});
+    await queue.locator('summary').click();
+    await queue.getByRole('button',{name:'Actualiser les demandes ouvertes'}).click();
+    await queue.getByRole('status').filter({hasText:'Demandes ouvertes : 1'}).waitFor();
+    await queue.getByLabel('Je prends cette demande en charge.').check();
+    await queue.getByRole('button',{name:'Prendre en charge'}).click();
+    await queue.getByRole('status').filter({hasText:'État de la demande confirmé.'}).waitFor();
+    assert.match(await queue.innerText(),/Statut : En cours de traitement/);
+    await queue.getByLabel('Je confirme avoir réellement transmis une réponse, et traité ou motivé le refus de la demande.').check();
+    await queue.getByRole('button',{name:'Enregistrer la réponse transmise'}).click();
+    await queue.getByText('Aucune demande.',{exact:true}).waitFor();
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM jsb_legal.rights_requests WHERE account_id=$1 AND status='responded'",[ids.coach])).rows[0].n,name==='Chromium'?1:2);
+
+    await admin.locator('#workspace-back').click();
+    // Switch through the actual links, without logging out either origin.
+    await settingsPage(admin,'display');
+    assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
+    await admin.locator('input[name="display-theme"][value="dark"]').check();
+    assert.equal(await admin.locator('html').getAttribute('data-theme'),'dark');
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    await admin.locator('input[name="display-theme"][value="system"]').check();
+    await openSettings(admin);
+    const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await publicTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    assert.equal((await publicTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await openSettings(publicTab);
+    const [adminTab]=await Promise.all([ctx.waitForEvent('page'),publicTab.locator('a[href="/switch-workspace"]').click()]);
+    await adminTab.waitForURL(adminOrigin+'/admin/auth.html');
+    await waitStatus(adminTab,'Session vérifiée : Administrateur');
+    assert.equal((await adminTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await adminTab.close();
+    await signIn(publicTab,emails.coach);
+    await waitStatus(publicTab,'Session vérifiée : Coach');
+    await openSettings(admin);
+    const [coachTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await coachTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(coachTab,'Session vérifiée : Coach');
+    assert.ok(await coachTab.locator('[data-workspace-page="club"]').isVisible());
+    assert.equal((await coachTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.coach);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    await coachTab.close();
+    // Restore the public identity expected by the remaining existing scenario.
+    await signIn(publicTab,emails.individual);
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    await publicTab.close();await admin.bringToFront();
+    assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
+    if(!await admin.locator('[data-workspace-page="accounts"]').isVisible())await admin.locator('[data-nav-page="home"]').click();
+    assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
+    assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
+    assert.equal(await admin.locator('[data-nav-page="club"]').count(),0);
+    await admin.locator('[data-nav-page="maintenance"]').click();
+    assert.equal(await admin.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'maintenance');
+    assert.match(await admin.locator('#workspace').textContent(),/Diagnostic e-mail/);
+    assert.doesNotMatch(await admin.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
+    assert.equal(await admin.locator('#mfa').inputValue(),'');
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
+    await admin.locator('#workspace-back').click();
+    await admin.locator('[data-workspace-page="catalogue"]').click();
+    assert.deepEqual(await swipe(admin),{moving:true,active:'home',reset:true});
+    await admin.locator('[data-workspace-page="catalogue"]').click();
+    const importDetails=Object.fromEntries(['safety','dosage','successCriteria','level','subgroup','equipment','moment','easier','harder','accessibility','inspiration','format','targetMuscles'].map(k=>[k,'Synthetic '+k]));
+    const importFixture={discipline:'taiso',version:'analysis-fixture',exercises:[{reference:'fixture-import',name:'Synthetic import',family:'Synthetic family',details:importDetails}]};
+    await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
+    assert.deepEqual(await swipe(admin),{moving:false,active:'catalogue',reset:true});
+    await admin.locator('#import-discipline').selectOption('judo');
+    await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible'});
+    await admin.locator('#import-discipline').selectOption('taiso');
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Structure conforme'}).waitFor({state:'visible'});
+    assert.match(await admin.locator('#import-report').textContent(),/analysis-fixture/);
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='analysis-fixture'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles(fixtureWorkbook);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+    assert.match(await admin.locator('#import-report').textContent(),/228 fiche/);
+    assert.match(await admin.locator('#import-report').textContent(),/22 colonnes · 5016 cellules/);
+    assert.match(await admin.locator('#import-report').textContent(),/publication interdite/);
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='recette-provisoire'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles({name:'invalid.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('not an XLSX')});
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible',timeout:30000});
+
+    for(const discipline of ['taiso','judo']){
+     await admin.locator('#import-discipline').selectOption(discipline);
+     await admin.locator('#import-version').fill('browser-contract-v1');
+     await admin.locator('#import-file').setInputFiles(finalWorkbooks[discipline]);
+     await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+     await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+     const report=await admin.locator('#import-report').textContent();
+     assert.match(report,/JSB-EXCEL-1/);
+     assert.match(report,new RegExp((discipline==='taiso'?27:35)+' colonnes'));
+     assert.match(report,/confirmation distincte requise/);
+     assert.ok(await admin.getByRole('button',{name:'Publier le catalogue'}).isDisabled());
+    }
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='browser-contract-v1'")).rows[0].n,'0');
+    // Explicit publication of a synthetic Judo fixture only, in jsb_ci.
+    const publicationVersion='browser-publish-'+name.toLowerCase();
+    await admin.locator('#import-discipline').selectOption('judo');
+    await admin.locator('#import-version').fill(publicationVersion);
+    await admin.locator('#import-file').setInputFiles(finalWorkbooks.judo);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#publication-attestation').waitFor({state:'visible',timeout:30000});
+    const publishButton=admin.getByRole('button',{name:'Publier le catalogue'});
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-attestation').check();
+    await admin.locator('#publication-version').fill('incorrect');
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-version').fill(publicationVersion);
+    assert.ok(await publishButton.isEnabled());
+    await publishButton.click();
+    await admin.locator('#import-report').filter({hasText:'Catalogue publié'}).waitFor({state:'visible',timeout:30000});
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,publicationVersion);
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo' AND version=$1",[publicationVersion])).rows[0].n,'1');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await admin.getByRole('button',{name:'Consulter l’historique'}).click();
+    await admin.locator('#catalogue-history').filter({hasText:'Version active : '+publicationVersion}).waitFor({state:'visible',timeout:15000});
+    if(name==='WebKit'){
+     const archived=admin.locator('#catalogue-history section').filter({hasText:'browser-publish-chromium · Archivée'});
+     await archived.getByRole('button',{name:'Préparer la restauration'}).click();
+     const restore=archived.getByRole('button',{name:'Restaurer cette version'});
+     assert.ok(await restore.isDisabled());
+     await archived.getByRole('textbox',{name:'Motif de restauration'}).fill('Synthetic regression');
+     await archived.getByRole('textbox',{name:'Version à restaurer'}).fill('browser-publish-chromium');
+     assert.ok(await restore.isEnabled());
+     await restore.click();
+     await admin.locator('#catalogue-history').filter({hasText:'Version browser-publish-chromium restaurée'}).waitFor({state:'visible',timeout:15000});
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,'browser-publish-chromium');
+     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo'")).rows[0].n,'2');
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    }
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/history',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
+
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await openSettings(admin);
+    await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
+    assert.equal(await admin.locator('#workspace').textContent(),'');
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    // A failed login can leave its error message visible even though the previous
+    // session is valid. Headless bringToFront does not guarantee visibilitychange.
+    // The preceding API assertion proves isolation without a reload; then verify
+    // the actual page restores the same identity on a fresh navigation.
+    await page.bringToFront();
+    await openSettings(page);
+    await page.locator('#refresh-session').click();
+    await waitStatus(page,'Session vérifiée : Particulier');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
+    const second=await ctx.newPage();
+    second.on('pageerror',e=>errors.push(e.message));
+    await second.goto(publicOrigin+'/');
+    await waitStatus(second,'Session vérifiée : Particulier');
+    await page.bringToFront();
+    await openSettings(page);
+    await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await second.locator('#workspace').textContent(),'');
+    assert.equal(await page.locator('#workspace').textContent(),'');
+    assert.ok(await page.locator('#login').isVisible());
+    assert.ok(await second.locator('#login').isVisible());
+    await second.close();
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    // Complete registration and recovery with an in-memory mail provider only.
+    const address=registrationEmails[name==='Chromium'?0:1];
+    const messages=[];
+    const sendMail=createResendTransport({apiKey:'fixture-only',from:'sender@example.test',namespace:'browser-ci-fixture',fetchImpl:async(url,options)=>{
+     assert.equal(url,'https://api.resend.com/emails');
+     messages.push(JSON.parse(options.body));
+     return new Response(JSON.stringify({id:'simulated-'+messages.length}),{status:200});
+    }});
+    const worker=createDeliveryWorker({store:createDeliveryStore(pool),vault:createDeliveryVault(keyset('browser-mail-ci',22)),allowRecipient:email=>email===address,sendMail});
+    async function deliver(){
+     assert.equal(await worker.runOnce(),'sent');
+     const message=messages.at(-1);assert.deepEqual(message.to,[address]);
+     return message.text.split('\n\n')[1];
+    }
+    await page.locator('[data-panel="register-panel"]').click();
+    assert.ok(await page.locator('#register-role').isEnabled());
+    assert.deepEqual(await page.locator('#register-role option').evaluateAll(opts=>opts.map(o=>o.value)),['','coach','individual']);
+    await page.locator('#register-role').selectOption('coach');
+    await page.locator('#register-email').fill(address);
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password+' mismatch');
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Les deux mots de passe doivent être identiques');
+    assert.equal(await page.locator('#register-password').inputValue(),'');
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password);
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#verify-panel').isVisible());
+    const original=await deliver();
+    await page.locator('#resend-email').fill(address);
+    await page.locator('#resend-form button[type=submit]').click();
+    await waitStatus(page,'nouveau code pourra être envoyé');
+    const replacement=await deliver();
+    assert.notEqual(original,replacement);
+    await page.locator('#verify-code').fill(original);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Code invalide');
+    await page.locator('#verify-code').fill(replacement);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Adresse confirmée');
+    await signIn(page,address);await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
+    await page.locator('[data-panel="reset-request-panel"]').click();
+    await page.locator('#reset-email').fill(address);
+    await page.locator('#reset-request-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#reset-confirm-panel').isVisible());
+    const resetCode=await deliver(),newPassword=password+' nouvelle';
+    await page.locator('#reset-code').fill(resetCode);
+    await page.locator('#reset-password').fill(newPassword);
+    await page.locator('#reset-confirm').fill(newPassword);
+    await page.locator('#reset-confirm-form button[type=submit]').click();
+    await waitStatus(page,'Mot de passe réinitialisé');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    await signIn(page,address);await waitStatus(page,'Identifiants incorrects');
+    await page.locator('#email').fill(address);
+    await page.locator('#password').fill(newPassword);
+    await page.locator('#login button[type=submit]').click();
+    await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
+    await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    assert.equal(await worker.runOnce(),'idle');
+    assert.equal(await admin.locator('#account-actions').count(),0);
+    assert.deepEqual(errors,[]);
+    assert.ok(network.filter(x=>x.path==='/api/login'||x.path==='/api/logout').every(x=>x.origin==='same-origin'),name+' : Origin des mutations');
+    console.log('Recette '+name+' : parcours et isolation réussis.');
+    await ctx.close();
+   }catch(e){console.error('Diagnostic HTTP '+name+': '+JSON.stringify(network));throw new Error('Recette '+name+' : '+e.message,{cause:e});}finally{await browser.close();}
+  }
+ }finally{
+  try{
+   for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
+   if(safe){await pool.query('DELETE FROM jsb_legal.rights_requests WHERE account_id IN (SELECT id FROM jsb_auth.accounts WHERE email=ANY($1::text[]))',[[...Object.values(emails),...registrationEmails]]);await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE discipline='taiso' AND version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+  }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
+ }
+});
+)}).waitFor();
+    }
+    const draftCount=(await pool.query('SELECT count(*)::int AS count FROM jsb_private.taiso_drafts WHERE owner_id=$1',[ids.coach])).rows[0].count;
+    await page.locator('[data-metric="drafts"]').filter({hasText:new RegExp('^'+draftCount+'
+    await page.locator('[data-nav-page="judo"]').click();
+    assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
+    assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    assert.deepEqual(await swipe(page,{dx:135,dy:100}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{startX:90}),{moving:false,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page,{cancel:true}),{moving:true,active:'judo',reset:true});
+    assert.deepEqual(await swipe(page),{moving:true,active:'home',reset:true});
+    await settingsPage(page,'display');
+    await page.locator('#display-animations').check();
+    await page.locator('#display-animations').blur();
+    assert.deepEqual(await swipe(page,{target:'#workspace h2'}),{moving:false,active:'settings',reset:true});
+    assert.ok(await page.locator('[data-settings-page="display"]').isVisible());
+    await settingsPage(page,'display');
+    await page.locator('#display-animations').uncheck();
+    await page.locator('[data-nav-page="home"]').click();
+    await page.locator('[data-workspace-page="taiso"]').click();
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
+    assert.deepEqual(await swipe(page),{moving:false,active:'taiso',reset:true});
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 60 min'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
+    const draftTitle='Recette privée '+name;
+    await page.locator('#taiso-draft-title').fill(draftTitle);
+    await page.getByRole('button',{name:'Enregistrer le brouillon',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 1'}).waitFor({state:'visible',timeout:15000});
+    const savedRow=(await pool.query('SELECT id,revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND title=$2',[ids.coach,draftTitle])).rows[0];
+    assert.equal(savedRow.revision,1);
+    assert.ok(await page.getByText('Validation indisponible : complétez les phases et l’organisation.',{exact:true}).isVisible());
+    const pdfDownload=page.waitForEvent('download',{timeout:15000});
+    await page.getByRole('button',{name:'Télécharger le PDF détaillé',exact:true}).click();
+    const pdf=await pdfDownload;
+    assert.equal(pdf.suggestedFilename(),'JSB-Taiso-r1-detaille.pdf');
+    assert.equal(readFileSync(await pdf.path()).subarray(0,4).toString(),'%PDF');
+    await page.locator('#taiso-validation-status').filter({hasText:'Téléchargement lancé'}).waitFor({state:'visible'});
+    const patch={schema:'JSB-TAISO-EDITS-1',draftId:savedRow.id,revision:1,version:'browser-fixture',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-CANDIDATE-CI'}]};
+    const phrase='Phrase de recette locale uniquement';
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,'other-account',copy);
+     const wrong=await module.openVault(phrase);await wrong.save(patch.edits);wrong.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Import refusé'}).waitFor({state:'visible'});
+    await page.evaluate(async({patch,owner,phrase})=>{
+     const module=await import('/public/offline-vault.mjs');
+     const wrong=await module.openVault(phrase);await wrong.remove();
+     const copy={...patch,schema:'JSB-TAISO-OFFLINE-1'};delete copy.edits;
+     await module.createVault(phrase,owner,copy);
+     const valid=await module.openVault(phrase);await valid.save(patch.edits);valid.close();
+    },{patch,owner:String(ids.coach),phrase});
+    await page.locator('#taiso-vault-password').fill(phrase);
+    await page.getByRole('button',{name:'Reprendre le coffre hors connexion'}).click();
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
+    await page.locator('#taiso-import-offline').setInputFiles({name:'fixture.jsb-edits.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(patch))});
+    await page.locator('#taiso-import-status').filter({hasText:'Modifications locales vérifiées'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,1);
+
+
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 1'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#taiso-duration').inputValue(),'60');
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
+    await page.locator('#taiso-duration').selectOption('45');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Proposition à valider · 45 min'}).waitFor({state:'visible',timeout:15000});
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 2'}).waitFor({state:'visible',timeout:15000});
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0].revision,2);
+    await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Modification appliquée au brouillon en cours'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Enregistrer les modifications',exact:true}).click();
+    await page.locator('#taiso-save-status').filter({hasText:'Révision 3'}).waitFor({state:'visible',timeout:15000});
+    const editedRow=(await pool.query('SELECT revision,settings,snapshot FROM jsb_private.taiso_drafts WHERE owner_id=$1 AND id=$2',[ids.coach,savedRow.id])).rows[0];
+    assert.equal(editedRow.revision,3);assert.equal(editedRow.settings.edits.length,1);
+    assert.ok(editedRow.snapshot.phases.every(p=>p.exercises.length===0));
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.getByRole('button',{name:'Mes brouillons Taïso'}).click();
+    await page.getByRole('button',{name:'Reprendre '+draftTitle,exact:true}).click();
+    await page.locator('#taiso-editing').filter({hasText:'révision 3'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.getByRole('button',{name:'Retirer Fixture compatible',exact:true}).count(),0);
+
+    await page.getByRole('button',{name:'Nouvelle séance',exact:true}).click();
+    await page.locator('#taiso-duration').selectOption('60');
+
+    await page.locator('#taiso-format').selectOption('Circuit');
+    await page.locator('#taiso-configure').check();
+    await page.locator('#taiso-org-stations').fill('4');
+    await page.locator('#taiso-org-rounds').fill('3');
+    await page.locator('#taiso-org-recoverySeconds').fill('20');
+    await page.locator('#taiso-org-repWindowSeconds').fill('30');
+    await page.locator('#taiso-org-roundRestSeconds').fill('60');
+    await page.getByRole('button',{name:'Proposer une séance'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'Nombre de stations insuffisant'}).waitFor({state:'visible',timeout:15000});
+    assert.match(await page.locator('#taiso-candidate-result').textContent(),/Organisation incomplète/);
+    await page.locator('#taiso-configure').uncheck();
+    await page.locator('#taiso-format').selectOption('Séries classiques');
+
+    await page.locator('#taiso-mode').selectOption('Durée');
+    await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
+    await page.locator('#taiso-candidate-result').filter({hasText:'0 exercice(s) compatible(s) · 3 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
+
+    await page.locator('#catalogue-family').selectOption('Famille B');
+    await page.locator('#catalogue-results summary').filter({hasText:'Fixture Beta'}).waitFor({state:'visible'});
+    assert.equal(await page.locator('#catalogue-results summary').count(),1);
+    await page.locator('#catalogue-results summary').click();
+    assert.match(await page.locator('#catalogue-results').textContent(),/fixture-b/);
+    await page.locator('#workspace-back').click();
+    await page.locator('[data-workspace-page="club"]').click();
+    assert.match(await page.locator('#workspace').textContent(),/Licenciés/);
+    const presence=page.getByRole('region',{name:'Présences',exact:true});
+    const group='1'.repeat(32),member='2'.repeat(32),slot='3'.repeat(32),attendanceDate='2026-11-27';
+    const emptyRegister={groups:[{id:group,name:'Groupe recette'}],members:[{id:member,name:'Licencié recette',groupId:group,active:true}],slots:[{id:slot,groupId:group,label:'18h'}],calls:[]};
+    // A real server register, seeded with synthetic data only. Clear between engines.
+    await pool.query('DELETE FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach]);
+    await pool.query('INSERT INTO jsb_private.attendance_registers(owner_id,revision,snapshot,updated_at) VALUES($1,1,$2,$3)',[ids.coach,JSON.stringify(emptyRegister),Date.now()]);
+    await presence.getByRole('button',{name:'Ouvrir le registre en ligne'}).click();
+    await presence.getByText('Révision 1 · aucune modification en attente',{exact:true}).waitFor();
+    const presencePhrase='Phrase de recette Présences seulement';
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
+    try{await presence.getByRole('button',{name:'Verrouiller le registre'}).waitFor({timeout:20000});}
+    catch(e){throw Error('Activation du coffre Présences : '+await presence.getByRole('status').textContent(),{cause:e});}
+    await presence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await presence.getByRole('button',{name:'Licencié recette : Présent',exact:true}).click();
+    await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    // Simulate the other device committing a contradictory mark.
+    const remoteAttendance={...emptyRegister,calls:[{date:attendanceDate,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=2,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(remoteAttendance)]);
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await presence.getByRole('heading',{name:'Conflits de synchronisation'}).waitFor();
+    await presence.getByLabel('Version à conserver').selectOption('local');
+    await presence.getByRole('button',{name:'Appliquer les choix'}).click();
+    await presence.getByRole('status').filter({hasText:'Conflits résolus localement'}).waitFor();
+    await presence.getByRole('button',{name:'Verrouiller le registre'}).click();
+    await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await presence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+    await presence.getByText('Une revue de synchronisation reste à confirmer manuellement.',{exact:true}).waitFor();
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    assert.equal((await pool.query('SELECT revision FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0].revision,2);
+    await presence.getByRole('button',{name:'Synchroniser avec le serveur'}).click();
+    await presence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 3'}).waitFor();
+    const savedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(savedAttendance.revision,3);assert.equal(savedAttendance.snapshot.calls[0].marks[0].status,'present');
+    // Reopen the real offline reader; authenticate through its transport only.
+    await page.goto(publicOrigin+'/public/offline.html');
+    const localPresence=page.locator('#attendance-offline');
+    await localPresence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
+    await localPresence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+    await localPresence.getByLabel('Date',{exact:true}).fill(attendanceDate);
+    await localPresence.getByRole('button',{name:'Licencié recette : Excusé',exact:true}).click();
+    await localPresence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
+    const anotherDay='2026-11-28';
+    const independent={...savedAttendance.snapshot,calls:[...savedAttendance.snapshot.calls,{date:anotherDay,slotId:slot,marks:[{memberId:member,status:'absent'}]}]};
+    await pool.query('UPDATE jsb_private.attendance_registers SET revision=4,snapshot=$2 WHERE owner_id=$1',[ids.coach,JSON.stringify(independent)]);
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await localPresence.getByRole('status').filter({hasText:'Synchronisation confirmée · révision 5'}).waitFor();
+    const mergedAttendance=(await pool.query('SELECT revision,snapshot FROM jsb_private.attendance_registers WHERE owner_id=$1',[ids.coach])).rows[0];
+    assert.equal(mergedAttendance.revision,5);assert.deepEqual(mergedAttendance.snapshot.calls.map(c=>[c.date,c.marks[0].status]),[[attendanceDate,'excused'],[anotherDay,'absent']]);
+    page.once('dialog',dialog=>dialog.accept());
+    await localPresence.getByRole('button',{name:'Effacer la copie locale'}).click();
+    await localPresence.getByRole('status').filter({hasText:'Copie locale effacée'}).waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-attendance-vault-v1')),null);
+    await page.goto(publicOrigin+'/public/auth.html');await waitStatus(page,'Session vérifiée : Coach');
+    let cookies=await ctx.cookies(publicOrigin);
+    const first=cookies.find(c=>c.name==='__Host-jsb-public');
+    assert.ok(first?.secure&&first?.httpOnly&&first?.sameSite==='Strict');
+    assert.ok(!(await page.evaluate(()=>document.cookie)).includes('__Host-jsb-public'));
+    await signIn(page,emails.individual);await waitStatus(page,'Session vérifiée : Particulier');
+    assert.ok(await page.locator('[data-workspace-page="personal"]').isVisible());
+    assert.equal(await page.locator('[data-workspace-page="club"]').count(),0);
+    assert.doesNotMatch(await page.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
+    cookies=await ctx.cookies(publicOrigin);
+    assert.notEqual(cookies.find(c=>c.name==='__Host-jsb-public').value,first.value);
+    const current=await page.evaluate(async()=>await (await fetch('/api/session',{cache:'no-store'})).json());
+    assert.deepEqual(current.account,{id:ids.individual,role:'individual'});
+    const privateProbe=await page.evaluate(async({expectedAccount,id})=>{const r=await fetch('/api/private/taiso/drafts/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccount,id})});return r.status;},{expectedAccount:ids.individual,id:savedRow.id});
+    assert.equal(privateProbe,409);
+
+    await signIn(page,emails.admin);await waitStatus(page,'Identifiants incorrects');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await admin.bringToFront();
+    await admin.goto(adminOrigin+'/');
+    assert.equal(new URL(admin.url()).pathname,'/admin/auth.html');
+    await waitStatus(admin,'Connectez-vous');
+    await assertFixedScale(admin);
+    assert.equal((await ctx.cookies(adminOrigin)).some(c=>c.name==='__Host-jsb-public'),false);
+    assert.equal((await admin.evaluate(async()=> (await fetch('/public/auth.html')).status)),404);
+    assert.equal((await page.evaluate(async()=> (await fetch('/admin/auth.html')).status)),404);
+    await signIn(admin,emails.coach,'123456');await waitStatus(admin,'Identifiants incorrects');
+    await signIn(admin,emails.admin,codeForStep(secret,Math.floor(Date.now()/30000)));
+    await waitStatus(admin,'Session vérifiée : Administrateur');
+    assert.ok(await admin.locator('#mfa').isDisabled());
+    assert.equal(await admin.locator('#login').isVisible(),false);
+    assert.equal(await admin.locator('.account-tools').isVisible(),false);
+    assert.equal(await admin.locator('.jsb-nav button svg[aria-hidden="true"]').count(),8);
+    assert.ok(await admin.getByRole('heading',{name:'Services administratifs'}).isVisible());
+    await admin.locator('[data-workspace-page="legal"]').click();
+    const legalRegion=admin.getByRole('region',{name:'Documents juridiques'});
+    await legalRegion.getByRole('status').filter({hasText:'Aucune version juridique effective publiée.'}).waitFor();
+    await legalRegion.getByRole('heading',{name:'Publication verrouillée'}).waitFor();
+    await legalRegion.locator('.legal-document > summary').filter({hasText:'Conditions générales d’utilisation'}).click();
+    await legalRegion.getByText('Préparer un brouillon juridique',{exact:true}).first().click();
+    await legalRegion.getByRole('button',{name:'Consulter les derniers brouillons'}).first().click();
+    await legalRegion.getByText('Aucun brouillon enregistré.',{exact:true}).waitFor();
+    const queue=legalRegion.locator('details').filter({has:admin.locator('summary').getByText('Demandes RGPD à traiter',{exact:true})});
+    await queue.locator('summary').click();
+    await queue.getByRole('button',{name:'Actualiser les demandes ouvertes'}).click();
+    await queue.getByRole('status').filter({hasText:'Demandes ouvertes : 1'}).waitFor();
+    await queue.getByLabel('Je prends cette demande en charge.').check();
+    await queue.getByRole('button',{name:'Prendre en charge'}).click();
+    await queue.getByRole('status').filter({hasText:'État de la demande confirmé.'}).waitFor();
+    assert.match(await queue.innerText(),/Statut : En cours de traitement/);
+    await queue.getByLabel('Je confirme avoir réellement transmis une réponse, et traité ou motivé le refus de la demande.').check();
+    await queue.getByRole('button',{name:'Enregistrer la réponse transmise'}).click();
+    await queue.getByText('Aucune demande.',{exact:true}).waitFor();
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM jsb_legal.rights_requests WHERE account_id=$1 AND status='responded'",[ids.coach])).rows[0].n,name==='Chromium'?1:2);
+
+    await admin.locator('#workspace-back').click();
+    // Switch through the actual links, without logging out either origin.
+    await settingsPage(admin,'display');
+    assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
+    await admin.locator('input[name="display-theme"][value="dark"]').check();
+    assert.equal(await admin.locator('html').getAttribute('data-theme'),'dark');
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    await admin.locator('input[name="display-theme"][value="system"]').check();
+    await openSettings(admin);
+    const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await publicTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    assert.equal((await publicTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await openSettings(publicTab);
+    const [adminTab]=await Promise.all([ctx.waitForEvent('page'),publicTab.locator('a[href="/switch-workspace"]').click()]);
+    await adminTab.waitForURL(adminOrigin+'/admin/auth.html');
+    await waitStatus(adminTab,'Session vérifiée : Administrateur');
+    assert.equal((await adminTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    await adminTab.close();
+    await signIn(publicTab,emails.coach);
+    await waitStatus(publicTab,'Session vérifiée : Coach');
+    await openSettings(admin);
+    const [coachTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
+    await coachTab.waitForURL(publicOrigin+'/public/auth.html');
+    await waitStatus(coachTab,'Session vérifiée : Coach');
+    assert.ok(await coachTab.locator('[data-workspace-page="club"]').isVisible());
+    assert.equal((await coachTab.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.coach);
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.admin);
+    await coachTab.close();
+    // Restore the public identity expected by the remaining existing scenario.
+    await signIn(publicTab,emails.individual);
+    await waitStatus(publicTab,'Session vérifiée : Particulier');
+    await publicTab.close();await admin.bringToFront();
+    assert.equal(await admin.evaluate(async()=> (await fetch('/api/private/taiso/drafts/list',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
+    if(!await admin.locator('[data-workspace-page="accounts"]').isVisible())await admin.locator('[data-nav-page="home"]').click();
+    assert.ok(await admin.locator('[data-workspace-page="accounts"]').isVisible());
+    assert.equal(await admin.locator('[data-workspace-page="club"]').count(),0);
+    assert.equal(await admin.locator('[data-nav-page="club"]').count(),0);
+    await admin.locator('[data-nav-page="maintenance"]').click();
+    assert.equal(await admin.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'maintenance');
+    assert.match(await admin.locator('#workspace').textContent(),/Diagnostic e-mail/);
+    assert.doesNotMatch(await admin.locator('#workspace').textContent(),/Licenciés|Présences|Planning/);
+    assert.equal(await admin.locator('#mfa').inputValue(),'');
+    assert.equal((await admin.evaluate(async()=>await (await fetch('/api/session')).json())).account.role,'admin');
+    await admin.locator('#workspace-back').click();
+    await admin.locator('[data-workspace-page="catalogue"]').click();
+    assert.deepEqual(await swipe(admin),{moving:true,active:'home',reset:true});
+    await admin.locator('[data-workspace-page="catalogue"]').click();
+    const importDetails=Object.fromEntries(['safety','dosage','successCriteria','level','subgroup','equipment','moment','easier','harder','accessibility','inspiration','format','targetMuscles'].map(k=>[k,'Synthetic '+k]));
+    const importFixture={discipline:'taiso',version:'analysis-fixture',exercises:[{reference:'fixture-import',name:'Synthetic import',family:'Synthetic family',details:importDetails}]};
+    await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
+    assert.deepEqual(await swipe(admin),{moving:false,active:'catalogue',reset:true});
+    await admin.locator('#import-discipline').selectOption('judo');
+    await admin.locator('#import-file').setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(importFixture))});
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible'});
+    await admin.locator('#import-discipline').selectOption('taiso');
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Structure conforme'}).waitFor({state:'visible'});
+    assert.match(await admin.locator('#import-report').textContent(),/analysis-fixture/);
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='analysis-fixture'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles(fixtureWorkbook);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+    assert.match(await admin.locator('#import-report').textContent(),/228 fiche/);
+    assert.match(await admin.locator('#import-report').textContent(),/22 colonnes · 5016 cellules/);
+    assert.match(await admin.locator('#import-report').textContent(),/publication interdite/);
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='recette-provisoire'")).rows[0].n,'0');
+    await admin.locator('#import-file').setInputFiles({name:'invalid.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('not an XLSX')});
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#import-report').filter({hasText:'Fichier refusé'}).waitFor({state:'visible',timeout:30000});
+
+    for(const discipline of ['taiso','judo']){
+     await admin.locator('#import-discipline').selectOption(discipline);
+     await admin.locator('#import-version').fill('browser-contract-v1');
+     await admin.locator('#import-file').setInputFiles(finalWorkbooks[discipline]);
+     await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+     await admin.locator('#import-report').filter({hasText:'Structure Excel conforme'}).waitFor({state:'visible',timeout:30000});
+     const report=await admin.locator('#import-report').textContent();
+     assert.match(report,/JSB-EXCEL-1/);
+     assert.match(report,new RegExp((discipline==='taiso'?27:35)+' colonnes'));
+     assert.match(report,/confirmation distincte requise/);
+     assert.ok(await admin.getByRole('button',{name:'Publier le catalogue'}).isDisabled());
+    }
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.releases WHERE version='browser-contract-v1'")).rows[0].n,'0');
+    // Explicit publication of a synthetic Judo fixture only, in jsb_ci.
+    const publicationVersion='browser-publish-'+name.toLowerCase();
+    await admin.locator('#import-discipline').selectOption('judo');
+    await admin.locator('#import-version').fill(publicationVersion);
+    await admin.locator('#import-file').setInputFiles(finalWorkbooks.judo);
+    await admin.getByRole('button',{name:'Analyser sans importer'}).click();
+    await admin.locator('#publication-attestation').waitFor({state:'visible',timeout:30000});
+    const publishButton=admin.getByRole('button',{name:'Publier le catalogue'});
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-attestation').check();
+    await admin.locator('#publication-version').fill('incorrect');
+    assert.ok(await publishButton.isDisabled());
+    await admin.locator('#publication-version').fill(publicationVersion);
+    assert.ok(await publishButton.isEnabled());
+    await publishButton.click();
+    await admin.locator('#import-report').filter({hasText:'Catalogue publié'}).waitFor({state:'visible',timeout:30000});
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,publicationVersion);
+    assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo' AND version=$1",[publicationVersion])).rows[0].n,'1');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await admin.getByRole('button',{name:'Consulter l’historique'}).click();
+    await admin.locator('#catalogue-history').filter({hasText:'Version active : '+publicationVersion}).waitFor({state:'visible',timeout:15000});
+    if(name==='WebKit'){
+     const archived=admin.locator('#catalogue-history section').filter({hasText:'browser-publish-chromium · Archivée'});
+     await archived.getByRole('button',{name:'Préparer la restauration'}).click();
+     const restore=archived.getByRole('button',{name:'Restaurer cette version'});
+     assert.ok(await restore.isDisabled());
+     await archived.getByRole('textbox',{name:'Motif de restauration'}).fill('Synthetic regression');
+     await archived.getByRole('textbox',{name:'Version à restaurer'}).fill('browser-publish-chromium');
+     assert.ok(await restore.isEnabled());
+     await restore.click();
+     await admin.locator('#catalogue-history').filter({hasText:'Version browser-publish-chromium restaurée'}).waitFor({state:'visible',timeout:15000});
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='judo'")).rows[0].version,'browser-publish-chromium');
+     assert.equal((await pool.query("SELECT count(*) AS n FROM jsb_catalogue.publications WHERE discipline='judo'")).rows[0].n,'2');
+     assert.equal((await pool.query("SELECT version FROM jsb_catalogue.current_release WHERE discipline='taiso'")).rows[0].version,'browser-fixture');
+    }
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/history',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+
+
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/admin/catalogue/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status),404);
+    await openSettings(admin);
+    await admin.locator('#logout').click();await waitStatus(admin,'Vous êtes déconnecté');
+    assert.equal(await admin.locator('#workspace').textContent(),'');
+    assert.equal((await page.evaluate(async()=>await (await fetch('/api/session')).json())).account.id,ids.individual);
+    // A failed login can leave its error message visible even though the previous
+    // session is valid. Headless bringToFront does not guarantee visibilitychange.
+    // The preceding API assertion proves isolation without a reload; then verify
+    // the actual page restores the same identity on a fresh navigation.
+    await page.bringToFront();
+    await openSettings(page);
+    await page.locator('#refresh-session').click();
+    await waitStatus(page,'Session vérifiée : Particulier');
+    assert.equal(await page.locator('#active-session').textContent(),'Compte actif : Particulier');
+    const second=await ctx.newPage();
+    second.on('pageerror',e=>errors.push(e.message));
+    await second.goto(publicOrigin+'/');
+    await waitStatus(second,'Session vérifiée : Particulier');
+    await page.bringToFront();
+    await openSettings(page);
+    await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    await second.locator('#active-session').filter({hasText:'Aucun compte connecté'}).waitFor({state:'visible',timeout:15000});
+    assert.equal(await second.locator('#workspace').textContent(),'');
+    assert.equal(await page.locator('#workspace').textContent(),'');
+    assert.ok(await page.locator('#login').isVisible());
+    assert.ok(await second.locator('#login').isVisible());
+    await second.close();
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    // Complete registration and recovery with an in-memory mail provider only.
+    const address=registrationEmails[name==='Chromium'?0:1];
+    const messages=[];
+    const sendMail=createResendTransport({apiKey:'fixture-only',from:'sender@example.test',namespace:'browser-ci-fixture',fetchImpl:async(url,options)=>{
+     assert.equal(url,'https://api.resend.com/emails');
+     messages.push(JSON.parse(options.body));
+     return new Response(JSON.stringify({id:'simulated-'+messages.length}),{status:200});
+    }});
+    const worker=createDeliveryWorker({store:createDeliveryStore(pool),vault:createDeliveryVault(keyset('browser-mail-ci',22)),allowRecipient:email=>email===address,sendMail});
+    async function deliver(){
+     assert.equal(await worker.runOnce(),'sent');
+     const message=messages.at(-1);assert.deepEqual(message.to,[address]);
+     return message.text.split('\n\n')[1];
+    }
+    await page.locator('[data-panel="register-panel"]').click();
+    assert.ok(await page.locator('#register-role').isEnabled());
+    assert.deepEqual(await page.locator('#register-role option').evaluateAll(opts=>opts.map(o=>o.value)),['','coach','individual']);
+    await page.locator('#register-role').selectOption('coach');
+    await page.locator('#register-email').fill(address);
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password+' mismatch');
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Les deux mots de passe doivent être identiques');
+    assert.equal(await page.locator('#register-password').inputValue(),'');
+    await page.locator('#register-password').fill(password);
+    await page.locator('#register-confirm').fill(password);
+    await page.locator('#register-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#verify-panel').isVisible());
+    const original=await deliver();
+    await page.locator('#resend-email').fill(address);
+    await page.locator('#resend-form button[type=submit]').click();
+    await waitStatus(page,'nouveau code pourra être envoyé');
+    const replacement=await deliver();
+    assert.notEqual(original,replacement);
+    await page.locator('#verify-code').fill(original);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Code invalide');
+    await page.locator('#verify-code').fill(replacement);
+    await page.locator('#verify-form button[type=submit]').click();
+    await waitStatus(page,'Adresse confirmée');
+    await signIn(page,address);await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
+    await page.locator('[data-panel="reset-request-panel"]').click();
+    await page.locator('#reset-email').fill(address);
+    await page.locator('#reset-request-form button[type=submit]').click();
+    await waitStatus(page,'Demande enregistrée');
+    assert.ok(await page.locator('#reset-confirm-panel').isVisible());
+    const resetCode=await deliver(),newPassword=password+' nouvelle';
+    await page.locator('#reset-code').fill(resetCode);
+    await page.locator('#reset-password').fill(newPassword);
+    await page.locator('#reset-confirm').fill(newPassword);
+    await page.locator('#reset-confirm-form button[type=submit]').click();
+    await waitStatus(page,'Mot de passe réinitialisé');
+    assert.equal(await page.evaluate(async()=> (await fetch('/api/session')).status),401);
+    await signIn(page,address);await waitStatus(page,'Identifiants incorrects');
+    await page.locator('#email').fill(address);
+    await page.locator('#password').fill(newPassword);
+    await page.locator('#login button[type=submit]').click();
+    await waitStatus(page,'Session vérifiée : Coach');
+    await openSettings(page);
+    await page.locator('#logout').click();await waitStatus(page,'Vous êtes déconnecté');
+    assert.equal(await worker.runOnce(),'idle');
+    assert.equal(await admin.locator('#account-actions').count(),0);
+    assert.deepEqual(errors,[]);
+    assert.ok(network.filter(x=>x.path==='/api/login'||x.path==='/api/logout').every(x=>x.origin==='same-origin'),name+' : Origin des mutations');
+    console.log('Recette '+name+' : parcours et isolation réussis.');
+    await ctx.close();
+   }catch(e){console.error('Diagnostic HTTP '+name+': '+JSON.stringify(network));throw new Error('Recette '+name+' : '+e.message,{cause:e});}finally{await browser.close();}
+  }
+ }finally{
+  try{
+   for(const server of servers){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
+   if(safe){await pool.query('DELETE FROM jsb_legal.rights_requests WHERE account_id IN (SELECT id FROM jsb_auth.accounts WHERE email=ANY($1::text[]))',[[...Object.values(emails),...registrationEmails]]);await pool.query("DELETE FROM jsb_catalogue.restorations WHERE restored_version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version IN ('browser-publish-chromium','browser-publish-webkit')");await pool.query("DELETE FROM jsb_catalogue.publications WHERE discipline='taiso' AND version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.current_release WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.exercises WHERE version='browser-fixture'");await pool.query("DELETE FROM jsb_catalogue.releases WHERE version='browser-fixture'");await pool.query('DELETE FROM jsb_auth.accounts WHERE email=ANY($1::text[])',[[...Object.values(emails),...registrationEmails]]);await pool.query('DELETE FROM jsb_auth.quota_events');}
+  }finally{await pool.end();rmSync(dir,{recursive:true,force:true});}
+ }
+});
+)}).waitFor();
+    for(const theme of ['light','dark']){
+     await page.emulateMedia({colorScheme:theme});
+     for(const [viewport,width,height] of [['compact',320,740],['portrait',390,844],['landscape',844,390],['desktop',1440,900]]){
+      await page.setViewportSize({width,height});await visualCheck(page,name,'accueil',viewport,theme);
+     }
+    }
+    await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'light'});
     await page.locator('[data-nav-page="judo"]').click();
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
     assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
