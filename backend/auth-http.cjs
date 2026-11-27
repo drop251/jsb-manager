@@ -6,7 +6,7 @@ const {createHash}=require('node:crypto');
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,privateTaisoDrafts,privateAttendance,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,privateTaisoDrafts,privateAttendance,legal,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -60,6 +60,14 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
   if(app!=='public'||typeof privateAttendance!=='function')throw TypeError('Service Présences privé invalide');
   for(const action of ['read','save']){const path='/api/private/attendance/'+action;attendancePaths.set(path,action);paths.set(path,'POST');}
  }
+ const legalPaths=new Map();
+ if(legal!==undefined){
+  if(typeof legal.documents!=='function'||typeof legal.execute!=='function')throw TypeError('Service juridique invalide');
+  paths.set('/api/legal/documents','GET');
+  for(const action of app==='public'?['record']:['draft','history']){
+   const path=(app==='admin'?'/api/admin/legal/':'/api/legal/')+action;legalPaths.set(path,action);paths.set(path,'POST');
+  }
+ }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
   const values=(req.headers.cookie||'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(cookieName+'='));
@@ -109,6 +117,23 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
    if(req.url==='/api/session'){
     const actor=await actorFor(oldToken);
     return actor?send(res,200,{ok:true,account:{id:actor.id,role:actor.role}}):send(res,401,{ok:false});
+   }
+   if(legal&&req.url==='/api/legal/documents'){
+    const actor=await actorFor(oldToken);
+    const result=await legal.documents(actor);
+    if(actor){const confirmed=await actorFor(oldToken);if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});}
+    if(result.status!==200)return serviceResult(res,result);
+    return send(res,200,{ok:true,documents:result.documents});
+   }
+   if(legalPaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    const action=legalPaths.get(req.url),body=await json(req,action==='draft'?280000:MAX_BODY),source=await sourceId(req);
+    if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
+    const result=await legal.execute(actor,createHash('sha256').update(oldToken,'utf8').digest('hex'),action,body,source);
+    if(result.status!==200)return serviceResult(res,result);
+    if(action==='history'){const confirmed=await actorFor(oldToken);if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});}
+    const {status,...payload}=result;return send(res,200,payload);
    }
    if(cataloguePaths.has(req.url)){
     const actor=await actorFor(oldToken);
