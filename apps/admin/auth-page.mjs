@@ -93,6 +93,30 @@ function versionSettings(){
  return section;
 }
 
+const ICONES = {
+    suivi: 'M3 12h4l2.5-6 5 12 2.5-6H21',
+    accueil: 'M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z',
+    taiso: 'M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12',
+    judo: 'M3 10h18v4H3zM10 14l-3 6M14 14l3 6M10 10h4v4h-4z',
+    seance: 'M8 4h8v3H8zM6 5.5H5a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M8 12h8M8 16h5',
+    presences: 'M9 11.5 11 13.5 15 9.5M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
+    retour: 'M15 5l-7 7 7 7'
+  };
+const NAV_ICONS={home:'accueil',club:'presences',personal:'suivi',catalogue:'seance',legal:'seance',tests:'presences',stats:'suivi',accounts:'accounts',maintenance:'settings',settings:'settings'};
+const EXTRA_ICONS={accounts:'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M2 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M22 20v-2a6 6 0 0 0-5-6',settings:'M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M10 16v4'};
+function navIcon(key){
+ const name=NAV_ICONS[key]||key,ns='http://www.w3.org/2000/svg';
+ const svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
+ for(const [k,v] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.8','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'}))svg.setAttribute(k,v);
+ path.setAttribute('d',ICONES[name]||EXTRA_ICONS[name]||ICONES.seance);svg.append(path);return svg;
+}
+function workspaceTile(key,title,description){
+ const icon=element('span');icon.className='bloc-ico';icon.append(navIcon(key));
+ const name=element('strong',title);name.className='bloc-nom';
+ const desc=element('small',description);desc.className='bloc-txt';
+ return [icon,name,desc];
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy?session.account:null;
  const permitted=account&&account.role==='admin';
@@ -109,7 +133,7 @@ function renderWorkspace(){
   const nav=element('nav');nav.className='jsb-nav';nav.setAttribute('aria-label','Navigation principale');
   const shortLabels={home:'Accueil',judo:'Judo',taiso:'Taïso',club:'Club',personal:'Suivi',accounts:'Comptes',stats:'Statistiques',catalogue:'Catalogue',legal:'Documents',tests:'Tests',maintenance:'Maintenance',settings:'Réglages'};
   for(const key of ['home',...items.map(item=>item[0]),'settings']){
-   const button=element('button',shortLabels[key]||key);button.type='button';button.dataset.navPage=key;
+   const button=element('button');button.type='button';button.dataset.navPage=key;const text=element('span',shortLabels[key]||key);text.className='onglet-txt';button.append(navIcon(key),text);
    if(current===key)button.setAttribute('aria-current','page');
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity||key===current)return;
@@ -136,19 +160,20 @@ function renderWorkspace(){
   accountTools.hidden=true;
   workspace.replaceChildren(navigation('home'));
   const heading=element('h2','Tableau de bord Administrateur');heading.tabIndex=-1;
-  workspace.append(heading,element('p','Navigation de préproduction. Les données et actions métier restent indisponibles.'));
-  const grid=element('div');grid.className='workspace-grid';
+  const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Administration de la plateforme'));workspace.append(intro);
+  const summary=element('section');summary.className='workspace-overview';summary.append(element('strong','Préproduction privée'),element('p','Contrôle et publication des catalogues disponibles. Les autres services restent à raccorder.'));workspace.append(summary,element('h3','Services administratifs'));
+  const grid=element('div');grid.className='workspace-grid blocs raccourcis';
   for(const [key,title,description,sections] of items){
    const button=element('button');button.type='button';button.dataset.workspacePage=key;
    if(key==='judo'||key==='taiso')button.dataset.discipline=key;
-   button.append(element('strong',title),element('small',description));
+   button.className='bloc';button.append(...workspaceTile(key,title,description));
    button.addEventListener('click',()=>{
     if(busy||workspaceIdentity!==identity)return;
     const detail=element('div');detail.className='workspace-detail';
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Fonctionnalités prévues — API métier non raccordée.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
-    const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(navigation(key),detail);h.focus({preventScroll:true});
+    const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
+    workspace.replaceChildren(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
     if(key==='catalogue'){
      const block=element('section');block.className='workspace-detail';
      block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Toute publication nécessite une confirmation distincte.'));
