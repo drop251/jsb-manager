@@ -38,18 +38,18 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
  function select(label,values,current){const l=el('label',label),s=el('select');for(const [v,t] of values){const o=el('option',t);o.value=v;s.append(o);}if(values.some(([v])=>v===current))s.value=current;l.append(s);return [l,s];}
  async function task(fn){if(!active()||busy)return;busy=true;render();try{await fn();}catch(e){notify(e?.message||'Action non confirmée.');}finally{busy=false;if(active()){render();scheduleAuto();}}}
  async function readServer(){const r=await client.privateAttendance('read',account.id);if(r.state!=='ready')throw Error('Registre serveur indisponible.');return {revision:r.register.revision,snapshot:normalize(r.register.snapshot)};}
- async function saveLocal(next){if(!vault)return;await vault.save({owner:vault.value.owner,revision,base,working:next},active);}
+ async function saveLocal(next){const opened=vault;if(!opened)throw Error('Coffre verrouillé.');await opened.save({owner:opened.value.owner,revision,base,working:next,reviewRequired:manualReview},()=>active()&&vault===opened);if(vault!==opened)throw Error('Coffre modifié.');}
  async function change(mutator){
   if(!ready||conflict)return;
   if(!vault){notify('Activez le coffre local avant de modifier le registre.');return;}
   await task(async()=>{const next=structuredClone(working);mutator(next);const checked=normalize(next);await saveLocal(checked);if(!active())return;working=checked;notify(vault?'Modification enregistrée dans le coffre local.':'Modification en mémoire. Enregistrez sur le serveur avant de quitter.');});
  }
- async function adopt(remote,next=remote.snapshot){
+ async function adopt(remote,next=remote.snapshot,reviewRequired=false){
   const opened=vault;
-  const v={owner:account?.id||opened?.value.owner,revision:remote.revision,base:remote.snapshot,working:next};
+  const v={owner:account?.id||opened?.value.owner,revision:remote.revision,base:remote.snapshot,working:next,reviewRequired};
   if(opened)await opened.save(v,()=>active()&&vault===opened);
   if(!active()||vault!==opened)return;
-  base=remote.snapshot;working=next;revision=remote.revision;conflict=null;ready=true;
+  base=remote.snapshot;working=next;revision=remote.revision;conflict=null;ready=true;manualReview=reviewRequired;
  }
  async function synchronize(automatic=false){
   if(!canSync()||!ready||conflict)return;
@@ -69,7 +69,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
    if(r.state==='ready'){await adopt(remote);if(still()){manualReview=false;notify('Synchronisation confirmée · révision '+revision+'.');}return;}
    const merged=merge(base,working,remote.snapshot);
    if(merged.state==='ready'){
-    await adopt(remote,merged.snapshot);if(!still())return;
+    await adopt(remote,merged.snapshot,!automatic);if(!still())return;
     if(automatic){
      // Exactly one bounded retry with the newly confirmed revision. A
      // second concurrent update is reviewed rather than looping forever.
@@ -79,9 +79,10 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
      if(next.state==='conflict'){
       const newer={revision:next.register.revision,snapshot:normalize(next.register.snapshot)},review=merge(base,working,newer.snapshot);
       if(review.state!=='ready'){conflict={remote:newer,choices:{},result:review};manualReview=true;notify('Conflit détecté. Aucune donnée serveur écrasée.');return;}
-      await adopt(newer,review.snapshot);
+      await adopt(newer,review.snapshot,true);
      }
     }
+    if(!manualReview)await adopt({revision,snapshot:base},working,true);if(!still())return;
     manualReview=true;notify('Modifications indépendantes fusionnées. Vérifiez le registre et confirmez la synchronisation.');
    }else{conflict={remote,choices:{},result:merged};manualReview=true;notify('Conflit détecté. Aucune donnée serveur écrasée.');}
   });
@@ -92,7 +93,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
   const [pl,p]=field('Phrase secrète du coffre Présences','password');
   if(!ready){
    if(online)controls.append(button('Ouvrir le registre en ligne',()=>task(async()=>{if(hasAttendanceVault())throw Error('Un coffre local existe : déverrouillez-le pour ne pas ignorer les modifications en attente.');const remote=await readServer();await adopt(remote);notify('Registre en ligne ouvert.');})));
-   if(hasAttendanceVault())controls.append(pl,button('Déverrouiller le registre local',()=>{const phrase=p.value;p.value='';return task(async()=>{const opened=await openAttendanceVault(phrase);if(!active()||(online&&opened.value.owner!==account.id)){opened.close();throw Error('Ce coffre appartient à un autre compte.');}vault=opened;({revision,base,working}=vault.value);ready=true;manualReview=false;notify('Registre local déverrouillé. Aucun droit de session hors connexion n’est confirmé.');reconnected();});}));
+   if(hasAttendanceVault())controls.append(pl,button('Déverrouiller le registre local',()=>{const phrase=p.value;p.value='';return task(async()=>{const opened=await openAttendanceVault(phrase);if(!active()||(online&&opened.value.owner!==account.id)){opened.close();throw Error('Ce coffre appartient à un autre compte.');}vault=opened;({revision,base,working}=vault.value);ready=true;manualReview=vault.value.reviewRequired===true;notify('Registre local déverrouillé. Aucun droit de session hors connexion n’est confirmé.');reconnected();});}));
    else if(!online)controls.append(el('p','Aucun registre Présences préparé sur cet appareil. Préparez-le en ligne depuis votre compte Coach.'));
    return;
   }
@@ -105,6 +106,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
    controls.append(button('Effacer la copie locale',()=>{if(!confirm('Effacer le registre local et ses modifications non synchronisées ?'))return;return task(async()=>{stopAuto();await vault.remove();vault=null;ready=false;working=base=empty();conflict=null;manualReview=false;notify('Copie locale effacée.');});}));
   }
   controls.append(el('p','Révision '+revision+(same(base,working)?' · aucune modification en attente':' · modifications à synchroniser')));
+  if(vault&&manualReview)controls.append(el('p','Une revue de synchronisation reste à confirmer manuellement.'));
   if(vault&&client)controls.append(el('p','Synchronisation automatique au retour du réseau si le coffre est déverrouillé et le compte propriétaire connecté. Les conflits exigent votre confirmation.'));
   if(!vault)controls.append(el('p','Lecture seule. Préparez le coffre local avant de modifier les présences afin de conserver chaque modification. Utilisez une phrase secrète distincte de celle du compte.'));
   if(conflict){
@@ -119,7 +121,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
     const row=el('section');row.append(el('h4',displayName(c.key)),el('p','Avant : '+describe(c.base)));
     const [l,s]=select('Version à conserver',[['','Choisir…'],['local','Locale : '+describe(c.local)],['remote','Serveur : '+describe(c.remote)]],choices[c.key]||'');s.addEventListener('change',()=>{choices[c.key]=s.value;});row.append(l);body.append(row);
    }
-   if(result.conflicts.length)body.append(button('Appliquer les choix',()=>task(async()=>{if(result.conflicts.some(c=>!['local','remote'].includes(choices[c.key])))throw Error('Choisissez une version pour chaque conflit.');const m=merge(base,working,remote.snapshot,choices);if(m.state!=='ready')throw Error('Fusion incompatible : les deux versions sont conservées.');await adopt(remote,m.snapshot);manualReview=true;notify('Conflits résolus localement. Confirmez la synchronisation.');})));
+   if(result.conflicts.length)body.append(button('Appliquer les choix',()=>task(async()=>{if(result.conflicts.some(c=>!['local','remote'].includes(choices[c.key])))throw Error('Choisissez une version pour chaque conflit.');const m=merge(base,working,remote.snapshot,choices);if(m.state!=='ready')throw Error('Fusion incompatible : les deux versions sont conservées.');await adopt(remote,m.snapshot,true);notify('Conflits résolus localement. Confirmez la synchronisation.');})));
    body.append(button('Revenir au travail local',()=>{conflict=null;render();notify('Travail local conservé. La synchronisation détectera à nouveau les conflits non résolus.');}));
    body.append(button('Conserver la version serveur',()=>{if(!confirm('Abandonner les modifications locales en conflit ?'))return;return task(async()=>{await adopt(remote);manualReview=false;notify('Version serveur conservée.');});}));
    return;
