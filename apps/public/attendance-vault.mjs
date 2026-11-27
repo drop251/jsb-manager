@@ -8,7 +8,8 @@ const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 function support(){if(!crypto?.subtle||!navigator.locks)throw Error('Coffre indisponible sur cet appareil.');}
 function clean(v){
  if(!v||typeof v.owner!=='string'||!/^[a-f0-9]{32}$/.test(v.owner)||!Number.isSafeInteger(v.revision)||v.revision<0||v.revision>=2147483647)throw Error('Coffre invalide.');
- return {owner:v.owner,revision:v.revision,base:normalize(v.base),working:normalize(v.working)};
+ if(v.reviewRequired!==undefined&&typeof v.reviewRequired!=='boolean')throw Error('État de revue invalide.');
+ return {owner:v.owner,revision:v.revision,base:normalize(v.base),working:normalize(v.working),reviewRequired:v.reviewRequired===true};
 }
 async function derive(phrase,salt){
  if(typeof phrase!=='string'||phrase.length<12||phrase.length>256)throw Error('Phrase secrète de 12 caractères minimum.');
