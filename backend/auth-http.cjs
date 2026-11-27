@@ -64,7 +64,7 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
  if(legal!==undefined){
   if(typeof legal.documents!=='function'||typeof legal.execute!=='function')throw TypeError('Service juridique invalide');
   paths.set('/api/legal/documents','GET');
-  for(const action of app==='public'?['record']:['draft','history']){
+  for(const action of app==='public'?['record']:['draft','history','publish']){
    const path=(app==='admin'?'/api/admin/legal/':'/api/legal/')+action;legalPaths.set(path,action);paths.set(path,'POST');
   }
  }
