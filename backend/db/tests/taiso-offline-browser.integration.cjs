@@ -42,8 +42,8 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
    });
   });
   assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
-  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v1');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
-  assert.deepEqual(cache,['/public/offline.html','/public/offline.mjs']);
+  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v2');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
+  assert.deepEqual(cache,['/public/offline-vault.mjs','/public/offline.html','/public/offline.mjs']);
   assert.equal((await context.request.get(origin+'/api/session')).status(),401);
   // No fallback on a deliberate gateway denial while online.
   allowed=false;
@@ -61,29 +61,54 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   const restored=await page.goto(origin+'/public/offline.html');
   assert.equal(restored?.status(),200);
   assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
+  const phrase='Phrase de recette locale uniquement';
+  await page.evaluate(async({fixture,phrase})=>{
+   const vault=await import('/public/offline-vault.mjs');await vault.createVault(phrase,'fixture-owner',fixture);
+  },{fixture,phrase});
+  assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-offline-vault-v1').includes('Fixture hors connexion')),false);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-offline-vault-v1').includes('fixture-owner')),false);
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));server=null;
   // The actual listener has been closed. Do not combine this with the
   // Playwright offline emulator, which can suppress worker navigations.
   await page.goto(origin+'/',{timeout:15000});
   await page.getByRole('heading',{name:'Consultation hors connexion'}).waitFor({state:'visible'});
-  await page.locator('#offline-file').setInputFiles({name:'fixture.jsb-session.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
+  await page.locator('#vault-password').fill('Phrase incorrecte de recette');
+  await page.locator('#vault-open').click();
+  await page.locator('#vault-status').filter({hasText:'Phrase secrète incorrecte'}).waitFor({state:'visible'});
+  assert.equal(await page.locator('#offline-content').textContent(),'');
+  await page.locator('#vault-password').fill(phrase);await page.locator('#vault-open').click();
   await page.locator('#offline-content').filter({hasText:'Fixture exercice'}).waitFor({state:'visible'});
-  assert.match(await page.locator('#offline-content').textContent(),/8 répétitions/);
-  assert.match(await page.locator('#offline-content').textContent(),/Fixture sécurité/);
-  assert.match(await page.locator('#offline-content').textContent(),/Brouillon non validé/);
-  assert.equal(await page.evaluate(async()=>{try{await fetch('/api/session');return false;}catch{return true;}}),true);
   await page.getByRole('button',{name:'Retirer Fixture exercice',exact:true}).click();
-  assert.match(await page.locator('#offline-content').textContent(),/Brouillon modifié localement/);
-  assert.match(await page.locator('#offline-content').textContent(),/35 min à organiser/);
-  const event=page.waitForEvent('download',{timeout:15000});
-  await page.getByRole('button',{name:'Exporter les modifications locales'}).click();
+  await page.locator('#offline-status').filter({hasText:'1 modification(s) conservée(s)'}).waitFor({state:'visible'});
+  await page.close();
+  const reopened=await context.newPage();reopened.on('pageerror',e=>errors.push(e.message));
+  await reopened.goto(origin+'/',{timeout:15000});
+  assert.equal(await reopened.locator('#offline-content').textContent(),'');
+  await reopened.locator('#vault-password').fill(phrase);await reopened.locator('#vault-open').click();
+  await reopened.locator('#offline-content').filter({hasText:'35 min à organiser'}).waitFor({state:'visible'});
+  assert.equal(await reopened.getByRole('button',{name:'Retirer Fixture exercice',exact:true}).count(),0);
+  reopened.once('dialog',dialog=>dialog.accept());
+  await reopened.locator('#vault-remove').click();
+  await reopened.locator('#vault-status').filter({hasText:'Aucune copie chiffrée'}).waitFor({state:'visible'});
+  assert.equal(await reopened.evaluate(()=>localStorage.getItem('jsb-offline-vault-v1')),null);
+  await reopened.locator('#offline-file').setInputFiles({name:'fixture.jsb-session.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
+  await reopened.locator('#offline-content').filter({hasText:'Fixture exercice'}).waitFor({state:'visible'});
+  assert.match(await reopened.locator('#offline-content').textContent(),/8 répétitions/);
+  assert.match(await reopened.locator('#offline-content').textContent(),/Fixture sécurité/);
+  assert.match(await reopened.locator('#offline-content').textContent(),/Brouillon non validé/);
+  assert.equal(await reopened.evaluate(async()=>{try{await fetch('/api/session');return false;}catch{return true;}}),true);
+  await reopened.getByRole('button',{name:'Retirer Fixture exercice',exact:true}).click();
+  assert.match(await reopened.locator('#offline-content').textContent(),/Brouillon modifié localement/);
+  assert.match(await reopened.locator('#offline-content').textContent(),/35 min à organiser/);
+  const event=reopened.waitForEvent('download',{timeout:15000});
+  await reopened.getByRole('button',{name:'Exporter les modifications locales'}).click();
   const download=await event;
   const patch=JSON.parse(readFileSync(await download.path(),'utf8'));
   assert.deepEqual(patch,{schema:'JSB-TAISO-EDITS-1',draftId:'a'.repeat(32),revision:1,version:'fixture-v1',generation:'1',baseEditCount:0,edits:[{action:'remove',phase:'Corps de séance',reference:'JSB-TAISO-FIXTURE'}]});
 
-  await page.getByRole('button',{name:'Fermer la fiche'}).click();assert.equal(await page.locator('#offline-content').textContent(),'');
-  await page.locator('#offline-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"schema":"wrong"}')});
-  await page.locator('#offline-status').filter({hasText:'Fichier de séance non conforme'}).waitFor({state:'visible'});
+  await reopened.getByRole('button',{name:'Fermer la fiche'}).click();assert.equal(await reopened.locator('#offline-content').textContent(),'');
+  await reopened.locator('#offline-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"schema":"wrong"}')});
+  await reopened.locator('#offline-status').filter({hasText:'Fichier de séance non conforme'}).waitFor({state:'visible'});
   assert.deepEqual(errors,[]);
   await context.close();
  }finally{if(browser)await browser.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}rmSync(tmp,{recursive:true,force:true});}
