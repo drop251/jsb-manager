@@ -37,6 +37,55 @@ changeButton.addEventListener('click',()=>{
 const workspacePages={"common":[["judo","Judo","Préparation pédagogique",["Catalogue Judo — base en construction","Préparer une séance Judo","Mes séances Judo"]],["taiso","Taïso","Renforcement et préparation physique",["Catalogue Taïso — référentiel à raccorder","Préparer une séance Taïso","Mes séances Taïso"]]],"coach":["club","Gestion du club","Licenciés, présences et planning",["Licenciés","Présences","Bilans","Planning"]],"individual":["personal","Suivi personnel","Mon activité et mes entraînements",["Historique personnel","Progression personnelle"]]};
 let workspaceIdentity=null;
 const element=(tag,txt)=>{const node=document.createElement(tag);if(txt)node.textContent=txt;return node;};
+
+// Préférences visuelles propres à l'appareil et à cette origine; aucune donnée de compte.
+const DISPLAY_KEY='jsb-affichage-v36';
+const TEXT_SIZES=[0,100,115,130,160,200];
+function readDisplay(){
+ let stored={};try{stored=JSON.parse(localStorage.getItem(DISPLAY_KEY)||'{}')||{};}catch{}
+ return {theme:['system','light','dark'].includes(stored.theme)?stored.theme:'system',texte:TEXT_SIZES.includes(stored.texte)?stored.texte:100,contraste:stored.contraste===true,animations:stored.animations===true};
+}
+let display=readDisplay();
+function applyDisplay(){
+ const root=document.documentElement;
+ if(display.theme==='system')root.removeAttribute('data-theme');else root.dataset.theme=display.theme;
+ root.style.font='';root.style.fontSize=display.texte?display.texte+'%':'';
+ if(!display.texte&&CSS.supports('font','-apple-system-body'))root.style.font='-apple-system-body';
+ root.toggleAttribute('data-texte-grand',(parseFloat(getComputedStyle(root).fontSize)||16)>=19);
+ root.toggleAttribute('data-contraste',display.contraste);
+ root.toggleAttribute('data-anim',display.animations);
+}
+function setDisplay(patch){
+ display={...display,...patch};
+ applyDisplay();
+ try{localStorage.setItem(DISPLAY_KEY,JSON.stringify(display));return true;}catch{return false;}
+}
+applyDisplay();
+function displaySettings(){
+ const section=element('section');section.className='display-settings';section.setAttribute('aria-labelledby','display-title');
+ const title=element('h3','Affichage et accessibilité');title.id='display-title';
+ const feedback=element('p');feedback.className='note';feedback.setAttribute('role','status');
+ function update(patch){feedback.textContent=setDisplay(patch)?'Préférence enregistrée sur cet appareil.':'Préférence appliquée pour cette ouverture uniquement.';}
+ function choices(id,legend,values,current,key){
+  const fieldset=element('fieldset');fieldset.append(element('legend',legend));
+  const options=element('div');options.className='display-options';
+  for(const [value,name] of values){
+   const label=element('label'),input=element('input');input.type='radio';input.name=id;input.value=String(value);input.checked=value===current;
+   input.addEventListener('change',()=>{if(input.checked)update({[key]:value});});
+   label.append(input,element('span',name));options.append(label);
+  }
+  fieldset.append(options);return fieldset;
+ }
+ function toggle(key,name,description){
+  const label=element('label');label.className='display-toggle';
+  const text=element('span');text.append(element('strong',name),element('small',description));
+  const input=element('input');input.type='checkbox';input.id='display-'+key;input.checked=display[key];input.addEventListener('change',()=>update({[key]:input.checked}));
+  label.append(text,input);return label;
+ }
+ section.append(title,choices('display-theme','Thème',[['light','Clair'],['dark','Sombre'],['system','Système']],display.theme,'theme'),choices('display-text','Taille du texte',[[0,'Système'],[100,'Standard'],[115,'Grand'],[130,'Très grand'],[160,'Énorme'],[200,'Maximal']],display.texte,'texte'),toggle('contraste','Contraste renforcé','Accentue les textes et les bordures.'),toggle('animations','Réduire les animations','Limite les transitions et les effets visuels.'),element('p','Ces préférences sont locales à cet appareil, indépendantes de votre compte.'),feedback);
+ return section;
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
  const permitted=account&&['coach','individual'].includes(account.role);
@@ -70,7 +119,7 @@ function renderWorkspace(){
   settingsOpen=true;changeOpen=false;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading);
+  workspace.replaceChildren(navigation('settings'),heading,displaySettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
