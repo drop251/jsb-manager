@@ -33,3 +33,14 @@ Les CGV ne sont pas actives : aucun abonnement ni paiement.
 - CNIL, cookies et traceurs : https://www.cnil.fr/fr/cookies-et-autres-traceurs/que-dit-la-loi
 - Ministère de l'économie, mentions sur un site : https://www.economie.gouv.fr/entreprises/developper-son-entreprise/innover-et-numeriser-son-entreprise/mentions-sur-votre-site-internet-les-obligations-respecter
 - DGCCRF, informations précontractuelles : https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/les-informations-precontractuelles
+
+## Mise en œuvre V36 — demandes et conservation
+
+- Demandes personnelles : dépôt authentifié d'un type de droit (sans champ libre ni justificatif), référence et date de réception, déduplication d'une demande ouverte de même type, consultation par le propriétaire.
+- Espace Admin : file des demandes ouvertes, contact du compte, prise en charge puis enregistrement explicite de la réponse réellement transmise. Contrôle de révision et autorisation distincte. Aucune réponse envoyée ni donnée supprimée par le simple changement d'état.
+- Délai : objectif interne indicatif d'un mois calendaire ; organiser la réponse dans les meilleurs délais. Vérifier le délai applicable, les cas particuliers et les éventuelles prolongations motivées. Prévoir un canal accessible hors connexion et aux personnes sans compte (contact permanent à renseigner).
+- La procédure doit couvrir aussi les demandes reçues hors de l'application, les personnes dont le compte est fermé et les droits des personnes concernées par les traitements des clubs. Ne pas exiger de compte pour exercer un droit.
+- Purge technique dédiée : `node scripts/render-preprod-retention.cjs` (simulation, compteurs seuls) ; `node scripts/render-preprod-retention.cjs --apply` (exécution explicite après validation, uniquement sur jsb_preprod). Préserve comptes, preuves juridiques, demandes RGPD, registres et brouillons. Expiration des sessions et jetons, envois expirés ou épuisés sans bail actif, quotas âgés de plus de 24 heures. Aucune exécution ni planification automatique activée.
+- Avant ouverture publique : approuver les règles de conservation des demandes et preuves, la procédure d'effacement/anonymisation effective, les réponses sécurisées et le registre de traitements ; vérifier le traitement des sauvegardes et copies locales. Les demandes clôturées restent actuellement conservées et ne sont pas purgées par la commande technique.
+
+Références : https://www.cnil.fr/fr/repondre-une-demande-de-droit-dacces ; https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees ; https://www.cnil.fr/fr/minimiser-les-donnees-collectees.

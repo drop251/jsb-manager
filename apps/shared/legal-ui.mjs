@@ -7,6 +7,49 @@ function prose(text){
  for(const part of text.split(/\n\s*\n/)){const [first,...rest]=part.split('\n');if(/^\d+\. /.test(first)){node.append(el('h4',first));if(rest.length)node.append(el('p',rest.join('\n')));}else node.append(el('p',part));}
  return node;
 }
+const RIGHTS=Object.freeze({access:'Accès à mes données',rectification:'Rectification',erasure:'Effacement',restriction:'Limitation du traitement',objection:'Opposition',portability:'Portabilité',withdrawal:'Retrait du consentement, si applicable'});
+const RIGHT_STATUS=Object.freeze({submitted:'Reçue',in_progress:'En cours de traitement',responded:'Réponse transmise'});
+// Indicative internal target: one calendar month, clamped to the last day
+// of the destination month. No automatic decision or legal extension.
+function targetDate(ms){
+ const d=new Date(ms),day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);
+ const max=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+ d.setUTCDate(Math.min(day,max));return d.toLocaleDateString('fr-FR',{timeZone:'UTC'});
+}
+function rightsView({client,account,admin,live}){
+ const root=el('details');root.className='legal-document';root.append(el('summary',admin?'Demandes RGPD à traiter':'Mes données personnelles'));
+ const panel=el('div'),status=el('p','Aucune demande chargée.'),rows=el('div');status.setAttribute('role','status');
+ panel.append(el('p',admin?'Cette file ne contient que les demandes et les coordonnées nécessaires à leur traitement. Une réponse doit être effectivement transmise par un canal sécurisé avant de clôturer.':'Déposez une demande concernant votre compte. Ne transmettez ici aucun justificatif ni donnée de licencié. Le responsable vous répondra par le canal approprié. Un dépôt ne déclenche pas automatiquement un effacement.'),status);
+ let busy=false;
+ const active=()=>root.isConnected&&live();
+ const call=async(action,body={})=>{const r=await client.legalAction(action,account.id,body);if(r.state!=='ready')throw Error('Demande non confirmée');return r;};
+ async function load(){
+  const r=await call(admin?'rights-queue':'rights-mine');
+  if(!active())return;
+  rows.replaceChildren();
+  if(!r.requests.length)rows.append(el('p','Aucune demande.'));
+  for(const item of r.requests){
+   const row=el('section');row.className='legal-document';
+   row.append(el('h4',RIGHTS[item.kind]||item.kind),el('p','Statut : '+RIGHT_STATUS[item.status]),el('p','Reçue le '+date(item.createdAt)+' · objectif initial de réponse : '+targetDate(item.createdAt)),el('p','Référence : '+item.id));
+   if(admin){row.append(el('p','Contact du compte : '+item.email));const action=item.status==='submitted'?'in_progress':'responded';
+    const label=el('label'),check=el('input');check.type='checkbox';label.append(check,el('span',action==='in_progress'?'Je prends cette demande en charge.':'Je confirme avoir réellement transmis une réponse, et traité ou motivé le refus de la demande.'));
+    const update=button(action==='in_progress'?'Prendre en charge':'Enregistrer la réponse transmise',()=>run(async()=>{if(!check.checked)return;await call('rights-update',{id:item.id,revision:item.revision,status:action,confirmed:true});await load();if(active())status.textContent='État de la demande confirmé.';}));
+    update.disabled=true;check.addEventListener('change',()=>{update.disabled=!check.checked;});row.append(label,update);
+   }
+   rows.append(row);
+  }
+  status.textContent=admin?'Demandes ouvertes : '+r.requests.length+(r.requests.length===100?' (100 premières)':''):'Demandes de votre compte : '+r.requests.length+(r.requests.length===100?' (100 premières)':'');
+ }
+ async function run(fn){if(busy||!active())return;busy=true;status.textContent='Vérification en cours…';try{await fn();}catch{if(active())status.textContent='Action non confirmée. Actualisez la liste et vérifiez votre session.';}finally{busy=false;}}
+ if(!admin){
+  const label=el('label','Type de demande'),select=el('select');for(const [value,name] of Object.entries(RIGHTS)){const option=el('option',name);option.value=value;select.append(option);}label.append(select);
+  panel.append(label,button('Déposer la demande',()=>run(async()=>{const r=await call('rights-submit',{kind:select.value});await load();if(active())status.textContent='Demande enregistrée · '+r.request.id+'.'})));
+ }
+ panel.append(button(admin?'Actualiser les demandes ouvertes':'Consulter mes demandes',()=>run(load)),rows);
+ root.append(panel);
+ return root;
+}
+
 export function legalView({client=null,account=null,admin=false,live=()=>true}={}){
  const root=el('section');root.className='legal-documents';root.setAttribute('aria-label','Documents juridiques');
  const status=el('p');status.setAttribute('role','status');
@@ -70,6 +113,7 @@ export function legalView({client=null,account=null,admin=false,live=()=>true}={
    }
    documents.append(item);
   }
+  if(account&&client&&!loading)documents.append(rightsView({client,account,admin,live:active}));
   if(admin){
    const section=el('section');section.append(el('h3','Publication verrouillée'),el('p','Informations à valider avant ouverture publique : identité de l’éditeur, coordonnées et contact RGPD, durées et procédures d’effacement, sous-traitants et transferts, contrat clubs, conditions commerciales si une offre payante est activée. Aucune acceptation des projets n’est enregistrée.'));documents.append(section);
   }

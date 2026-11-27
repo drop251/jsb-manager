@@ -5,17 +5,17 @@ const RULES = Object.freeze({
   admin: Object.freeze({
     catalogue: ['read','write','import','delete'], generatorTest: ['run'],
     platformAccounts: ['read','suspend','reactivate'], aggregateStats: ['read'],
-    legal: ['read','draft','publish']
+    legal: ['read','draft','publish'], privacyAdministration:['read','write']
   }),
-  coach: Object.freeze({ catalogue:['read'], legal:['read'], legalAcceptance:['read','write'],
+  coach: Object.freeze({ catalogue:['read'], legal:['read'], legalAcceptance:['read','write'], privacyRights:['read','write'],
     clubMembers:['read','write','delete'], attendance:['read','write','delete'],
     privateAttendance:['read','write'], clubReports:['read'], clubPlanning:['read','write','delete'],
     privateSessions:['read','write','delete'], privateBackups:['read','write','delete'], generator:['run'] }),
-  individual: Object.freeze({ catalogue:['read'], legal:['read'], legalAcceptance:['read','write'],
+  individual: Object.freeze({ catalogue:['read'], legal:['read'], legalAcceptance:['read','write'], privacyRights:['read','write'],
     privateSessions:['read','write','delete'], privateBackups:['read','write','delete'], generator:['run'] })
 });
 const CLUB = new Set(['clubMembers','attendance','clubReports','clubPlanning']);
-const PRIVATE = new Set(['privateSessions','privateBackups','legalAcceptance','generator','privateAttendance']);
+const PRIVATE = new Set(['privateSessions','privateBackups','legalAcceptance','generator','privateAttendance','privacyRights']);
 function idValid(id) { return typeof id === 'string' && id.trim().length > 0; }
 function authorize(actor, resource, action, scope) {
   if (!actor || actor.authenticated !== true || actor.status !== 'active' || !idValid(actor.id)) return false;
