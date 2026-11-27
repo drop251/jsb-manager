@@ -1,3 +1,4 @@
+import {legalView} from '../shared/legal-ui.mjs';
 import {mountAttendance} from './attendance-ui.mjs';
 import {hasVault,createVault,openVault,vaultPatch} from './offline-vault.mjs';
 import '../shared/edge-swipe.js';
@@ -267,7 +268,7 @@ function renderWorkspace(){
    else if(section==='general'){const panel=element('section');panel.append(element('p','Application V36 · préproduction privée.'),element('p','Interface à échelle fixe, navigation tactile et réglages d’affichage propres à cet appareil.'));nodes.push(panel);}
    else if(section==='application'){const panel=element('section');panel.append(element('p',"Les préférences de séance se règlent dans chaque discipline. Les fonctions métier disponibles dépendent du référentiel publié."));nodes.push(panel);}
    else if(section==='offline'){const panel=element('section'),link=element('a','Ouvrir le lecteur hors connexion');link.href='/public/offline.html';panel.append(element('p',hasVault()?'Un coffre chiffré est présent sur cet appareil.':'Aucun coffre chiffré enregistré.'),element('p','Pour préparer une séance hors ligne, utilisez la commande de la séance Taïso enregistrée. Le lecteur ne valide pas les droits de session.'),link);nodes.push(panel);}
-   else if(section==='legal'){const panel=element('section');panel.append(element('p','Conditions générales d’utilisation et politique de confidentialité : documents définitifs à publier avant ouverture au public.'),element('p','Préproduction privée : n’utilisez pas de données réelles de pratiquants.'));nodes.push(panel);}
+   else if(section==='legal'){const panel=legalView({client,account,admin:false,live:()=>!busy&&workspaceIdentity===identity});protectSwipeEditor(panel);nodes.push(panel);}
    setWorkspaceView(...nodes);
   }
   accountTools.hidden=section!=='account';paint(status.textContent);
@@ -783,6 +784,9 @@ function renderWorkspace(){
 
 function paint(message){
  renderWorkspace();
+ const entry=document.querySelector('#legal-entry');
+ const visible=session?.state!=='signed-in';entry.hidden=!visible;
+ if(!visible){entry.open=false;entry.querySelector('.legal-entry-content').replaceChildren();}
  const signedIn=session?.state==='signed-in';
  if(!signedIn&&!busy){settingsOpen=false;changeOpen=false;}
  accountTools.hidden=Boolean(signedIn&&!settingsOpen&&!panel)||Boolean(busy&&!session&&!settingsOpen);
@@ -876,3 +880,6 @@ bind('reset-confirm-form',()=>{
 if(location.protocol!=='https:'||!navigator.locks){paint('Connexion désactivée : origine HTTPS et navigateur compatible requis.');}
 else{client=createAuthClient({origin:location.origin,fetchImpl:fetch.bind(window),locks:navigator.locks,allowedRoles:["coach","individual"]});if(typeof BroadcastChannel==='function'){try{channel=new BroadcastChannel('jsb-auth-session-v1');channel.onmessage=e=>{if(e.data==='session-changed')void refresh()};}catch{channel=null;}}
 window.addEventListener('pageshow',e=>{if(e.persisted)void refresh()});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void refresh()});void refresh();}
+
+const legalEntry=document.querySelector('#legal-entry');
+legalEntry.addEventListener('toggle',()=>{if(!legalEntry.open||legalEntry.hidden)return;const target=legalEntry.querySelector('.legal-entry-content');if(!target.firstChild)target.append(legalView({client,live:()=>legalEntry.open&&!legalEntry.hidden}));});
