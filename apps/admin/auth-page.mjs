@@ -84,9 +84,9 @@ function versionSettings(){
  const status=element('p');status.id='version-status';status.setAttribute('role','status');
  const check=element('button','Rechercher une mise à jour');check.type='button';check.id='version-check';check.disabled=!valid(installed);
  const reload=element('button','Actualiser l’application');reload.type='button';reload.id='version-reload';reload.hidden=true;
- reload.addEventListener('click',()=>{if(!busy&&settingsOpen&&section.isConnected)location.reload();});
+ reload.addEventListener('click',()=>{if(!busy&&section.isConnected)location.reload();});
  check.addEventListener('click',async()=>{
-  if(check.disabled||busy||!settingsOpen)return;
+  if(check.disabled||busy||!section.isConnected)return;
   check.disabled=true;reload.hidden=true;status.textContent='Vérification en cours…';
   try{
    const response=await fetch(location.pathname,{method:'HEAD',credentials:'same-origin',mode:'same-origin',cache:'no-store',redirect:'error',headers:{Accept:'text/html'}});
