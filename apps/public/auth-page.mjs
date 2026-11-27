@@ -202,7 +202,7 @@ async function ensureOfflineReader(){
  const paths=["/public/offline.html","/public/offline.mjs","/public/offline-vault.mjs","/public/attendance-vault.mjs","/public/attendance-ui.mjs","/shared/attendance-sync.js","/shared/auth-client.mjs"],deadline=Date.now()+10000;
  while(Date.now()<deadline){
   if(await caches.has('jsb-manager-offline-reader-v4')){
-   const cache=await caches.open('jsb-manager-offline-reader-v3');
+   const cache=await caches.open('jsb-manager-offline-reader-v4');
    if((await Promise.all(paths.map(path=>cache.match(path)))).every(Boolean))return;
   }
   await new Promise(resolve=>setTimeout(resolve,200));
