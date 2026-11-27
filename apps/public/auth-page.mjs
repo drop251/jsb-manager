@@ -1,3 +1,4 @@
+import {mountAttendance} from './attendance-ui.mjs';
 import {hasVault,createVault,openVault,vaultPatch} from './offline-vault.mjs';
 import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
@@ -194,6 +195,20 @@ function setWorkspaceView(...nodes){
  });
 }
 
+async function ensureOfflineReader(){
+ if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
+ await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
+ await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
+ const paths=["/public/offline.html","/public/offline.mjs","/public/offline-vault.mjs","/public/attendance-vault.mjs","/public/attendance-ui.mjs","/shared/attendance-sync.js"],deadline=Date.now()+10000;
+ while(Date.now()<deadline){
+  if(await caches.has('jsb-manager-offline-reader-v3')){
+   const cache=await caches.open('jsb-manager-offline-reader-v3');
+   if((await Promise.all(paths.map(path=>cache.match(path)))).every(Boolean))return;
+  }
+  await new Promise(resolve=>setTimeout(resolve,200));
+ }
+ throw Error('Lecteur hors connexion non confirmé');
+}
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
  const permitted=account&&['coach','individual'].includes(account.role);
@@ -280,6 +295,13 @@ function renderWorkspace(){
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
     setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
+    if(key==='club'&&account.role==='coach'){
+     const section=element('section');section.className='workspace-detail';section.setAttribute('aria-label','Présences');protectSwipeEditor(section);
+     section.append(element('h3','Présences'),element('p','Registre privé du compte Coach. Préproduction : utilisez uniquement des données fictives.'));
+     detail.insertBefore(section,list);
+     const offline=element('a','Ouvrir le lecteur hors connexion');offline.href='/public/offline.html';section.append(offline);
+     mountAttendance(section,{client,account,live:()=>!busy&&workspaceIdentity===identity&&section.isConnected,prepareOffline:ensureOfflineReader});
+    }
     if(key==='judo'||key==='taiso'){
      const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
      void client.catalogue(key).then(async data=>{
@@ -538,11 +560,7 @@ function renderWorkspace(){
              phases:d.phases.map(p=>({name:p.name,minutes:p.minutes,unallocatedMinutes:p.unallocatedMinutes,exercises:p.exercises.map(e=>({reference:e.reference,name:e.name,allocationMinutes:e.allocationMinutes,dosage:e.dosage,safety:e.safety,prescription:e.prescription,...Object.fromEntries(['description','successCriteria','easier','harder','equipment','accessibility'].filter(k=>typeof e[k]==='string').map(k=>[k,e[k]]))})),blocks:p.blocks.map(b=>({name:b.name,references:b.references,budgetSeconds:b.organization.budgetSeconds,plannedSeconds:b.organization.plannedSeconds,issues:b.organization.issues}))}))};
             const data=new Blob([JSON.stringify(copy)],{type:'application/json'});
             if(data.size>524288)throw Error('Copie trop volumineuse');
-            if(!navigator.serviceWorker||!window.caches)throw Error('Lecteur indisponible');
-            await navigator.serviceWorker.register('/public/offline-sw.js',{scope:'/'});
-            await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Lecteur indisponible')),10000))]);
-            const cache=await caches.open('jsb-manager-offline-reader-v2');
-            if(!await cache.match('/public/offline.html')||!await cache.match('/public/offline.mjs')||!await cache.match('/public/offline-vault.mjs'))throw Error('Lecteur non disponible');
+            await ensureOfflineReader();
             if(!live()||run!==requestId)return;
             const accountNow=await client.session();
             if(!live()||run!==requestId)return;
