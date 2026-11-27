@@ -154,6 +154,32 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await openSettings(page);
     assert.equal(await page.locator('#login').isVisible(),false);
     assert.ok(await page.locator('#change-account').isVisible());
+    // Explicit light must override dark OS; local preferences survive reload.
+    await page.emulateMedia({colorScheme:'dark'});
+    await page.locator('input[name="display-theme"][value="light"]').check();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()),'#f4f5ef');
+    await page.locator('input[name="display-text"][value="130"]').check();
+    assert.equal(await page.locator('html').getAttribute('data-texte-grand'),'');
+    await page.locator('#display-contraste').check();
+    await page.locator('#display-animations').check();
+    assert.equal(await page.locator('html').getAttribute('data-contraste'),'');
+    assert.equal(await page.locator('html').getAttribute('data-anim'),'');
+    await page.reload();await waitStatus(page,'Session vérifiée : Coach');
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+    assert.equal(await page.locator('html').getAttribute('data-texte-grand'),'');
+    assert.equal(await page.locator('#login').isVisible(),false);
+    await openSettings(page);
+    assert.ok(await page.locator('#display-contraste').isChecked());
+    assert.ok(await page.locator('#display-animations').isChecked());
+    await page.locator('input[name="display-text"][value="100"]').check();
+    await page.locator('#display-contraste').uncheck();
+    await page.locator('#display-animations').uncheck();
+    await page.locator('input[name="display-theme"][value="dark"]').check();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
+    await page.locator('input[name="display-theme"][value="system"]').check();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    await page.emulateMedia({colorScheme:'light'});
     await page.locator('[data-nav-page="home"]').click();
     assert.equal(await page.locator('.account-tools').isVisible(),false);
     assert.ok(await page.locator('[data-workspace-page="club"]').isVisible());
@@ -281,6 +307,11 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await admin.locator('.account-tools').isVisible(),false);
     // Switch through the actual links, without logging out either origin.
     await openSettings(admin);
+    assert.ok(await admin.locator('input[name="display-theme"][value="system"]').isChecked());
+    await admin.locator('input[name="display-theme"][value="dark"]').check();
+    assert.equal(await admin.locator('html').getAttribute('data-theme'),'dark');
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    await admin.locator('input[name="display-theme"][value="system"]').check();
     const [publicTab]=await Promise.all([ctx.waitForEvent('page'),admin.locator('a[href="/switch-workspace"]').click()]);
     await publicTab.waitForURL(publicOrigin+'/public/auth.html');
     await waitStatus(publicTab,'Session vérifiée : Particulier');
