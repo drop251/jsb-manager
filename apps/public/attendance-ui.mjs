@@ -1,4 +1,3 @@
-import './attendance-vault.mjs';
 import {hasAttendanceVault,createAttendanceVault,openAttendanceVault,attendanceVaultKey} from './attendance-vault.mjs';
 const {empty,normalize,merge}=window.JSBAttendance;
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
@@ -25,6 +24,7 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
  async function saveLocal(next){if(!vault)return;await vault.save({owner:vault.value.owner,revision,base,working:next},active);}
  async function change(mutator){
   if(!ready||conflict)return;
+  if(!vault){notify('Activez le coffre local avant de modifier le registre.');return;}
   await task(async()=>{const next=structuredClone(working);mutator(next);const checked=normalize(next);await saveLocal(checked);if(!active())return;working=checked;notify(vault?'Modification enregistrée dans le coffre local.':'Modification en mémoire. Enregistrez sur le serveur avant de quitter.');});
  }
  async function adopt(remote,next=remote.snapshot){
@@ -58,24 +58,28 @@ export function mountAttendance(root,{client=null,account=null,live=()=>root.isC
   }
   if(online){
    controls.append(button('Synchroniser avec le serveur',synchronize,!!conflict));
-   if(!vault)controls.append(pl,button('Préparer les présences hors connexion',()=>{const phrase=p.value;p.value='';return task(async()=>{if(phrase.length<12)throw Error('Phrase secrète de 12 caractères minimum.');await prepareOffline();await createAttendanceVault(phrase,{owner:account.id,revision,base,working},active);const opened=await openAttendanceVault(phrase);if(!active()){opened.close();return;}vault=opened;notify('Registre chiffré disponible dans le lecteur hors connexion.');});}));
+   if(!vault)controls.append(pl,button('Préparer les présences hors connexion',()=>{const phrase=p.value;p.value='';return task(async()=>{if(phrase.length<12)throw Error('Phrase secrète de 12 caractères minimum.');await prepareOffline();const session=await client.session();if(!active()||session.state!=='signed-in'||session.account.id!==account.id||session.account.role!=='coach')throw Error('Compte modifié.');await createAttendanceVault(phrase,{owner:account.id,revision,base,working},active);const opened=await openAttendanceVault(phrase);if(!active()){opened.close();return;}vault=opened;notify('Registre chiffré disponible dans le lecteur hors connexion.');});}));
   }
   if(vault){
    controls.append(button('Verrouiller le registre',()=>{vault.close();vault=null;ready=false;base=working=empty();conflict=null;render();notify('Registre verrouillé.');}));
    controls.append(button('Effacer la copie locale',()=>{if(!confirm('Effacer le registre local et ses modifications non synchronisées ?'))return;return task(async()=>{await vault.remove();vault=null;ready=false;working=base=empty();conflict=null;notify('Copie locale effacée.');});}));
   }
   controls.append(el('p','Révision '+revision+(same(base,working)?' · aucune modification en attente':' · modifications à synchroniser')));
+  if(!vault)controls.append(el('p','Lecture seule. Préparez le coffre local avant de modifier les présences afin de conserver chaque modification. Utilisez une phrase secrète distincte de celle du compte.'));
   if(conflict){
    const {remote,result,choices}=conflict;
    body.append(el('h3','Conflits de synchronisation'),el('p','Les données locales et serveur sont conservées. Choisissez chaque version avant de confirmer.'));
    if(result.state==='invalid-merge')body.append(el('p','Les références du registre sont incompatibles. Choisissez de conserver la version serveur ou reprenez manuellement vos données locales. Aucun écrasement automatique.'));
-   const describe=v=>v===null?'Aucune valeur':v.status?labels[v.status]:v.name||v.label||(v.date+' · '+v.marks.length+' statut(s)');
-   const displayName=key=>{const parts=key.split('/'),last=parts.at(-1),person=[...working.members,...remote.snapshot.members].find(m=>m.id===last);return person?person.name:parts[0]==='calls'?'Appel '+parts[1].slice(0,10):parts[0];};
+   const allGroups=[...working.groups,...remote.snapshot.groups],allSlots=[...working.slots,...remote.snapshot.slots];
+   const groupLabel=k=>allGroups.find(g=>g.id===k)?.name||k;
+   const describe=v=>v===null?'Aucune valeur':v.status?labels[v.status]:Object.hasOwn(v,'active')?v.name+' · '+groupLabel(v.groupId)+' · '+(v.active?'Actif':'Archivé'):v.label?v.label+' · '+groupLabel(v.groupId):v.name||v.date+' · '+v.marks.length+' statut(s)';
+   const displayName=key=>{const parts=key.split('/'),last=parts.at(-1),person=[...working.members,...remote.snapshot.members].find(m=>m.id===last);if(parts[0]==='calls'){const date=parts[1].slice(0,10),slot=allSlots.find(t=>t.id===parts[1].slice(11));return [person?.name,date,slot?.label].filter(Boolean).join(' · ');}return person?.name||allGroups.find(g=>g.id===last)?.name||allSlots.find(t=>t.id===last)?.label||parts[0];};
    for(const c of result.conflicts){
-    const row=el('section');row.append(el('h4',displayName(c.key)));
+    const row=el('section');row.append(el('h4',displayName(c.key)),el('p','Avant : '+describe(c.base)));
     const [l,s]=select('Version à conserver',[['','Choisir…'],['local','Locale : '+describe(c.local)],['remote','Serveur : '+describe(c.remote)]],choices[c.key]||'');s.addEventListener('change',()=>{choices[c.key]=s.value;});row.append(l);body.append(row);
    }
    if(result.conflicts.length)body.append(button('Appliquer les choix',()=>task(async()=>{if(result.conflicts.some(c=>!['local','remote'].includes(choices[c.key])))throw Error('Choisissez une version pour chaque conflit.');const m=merge(base,working,remote.snapshot,choices);if(m.state!=='ready')throw Error('Fusion incompatible : les deux versions sont conservées.');await adopt(remote,m.snapshot);notify('Conflits résolus localement. Confirmez la synchronisation.');})));
+   body.append(button('Revenir au travail local',()=>{conflict=null;render();notify('Travail local conservé. La synchronisation détectera à nouveau les conflits non résolus.');}));
    body.append(button('Conserver la version serveur',()=>{if(!confirm('Abandonner les modifications locales en conflit ?'))return;return task(async()=>{await adopt(remote);notify('Version serveur conservée.');});}));
    return;
   }
