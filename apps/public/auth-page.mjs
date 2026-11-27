@@ -1,5 +1,13 @@
 import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
+// Safari iOS peut ignorer les limites du viewport : annuler uniquement le zoom multipoint.
+// Ne pas intercepter le défilement, le retour tactile à un doigt ni la sélection de texte.
+for(const type of ['gesturestart','gesturechange','gestureend']){
+ document.addEventListener(type,event=>{if(event.cancelable)event.preventDefault();},{passive:false});
+}
+document.addEventListener('touchmove',event=>{
+ if(event.touches.length>1&&event.cancelable)event.preventDefault();
+},{passive:false});
 const form=document.querySelector('#login'),fields=document.querySelector('#fields'),status=document.querySelector('#status'),logout=document.querySelector('#logout');
 let client=null,busy=false,refreshPending=false,session=null,channel=null,panel=null;
 const actions=document.querySelector('#account-actions');

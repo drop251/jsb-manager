@@ -27,6 +27,21 @@ const {createPreproductionHandler}=require('../../preproduction-http.cjs');
 // which is correctly rejected by the production CSP (no unsafe-eval).
 const waitStatus=(page,expected)=>page.locator('#status').filter({hasText:expected}).waitFor({state:'visible',timeout:15000});
 // Dispatch the exact touch sequence consumed by the shared historical engine.
+async function assertFixedScale(page){
+ const result=await page.evaluate(()=>{
+  const viewport=document.querySelector('meta[name="viewport"]').content;
+  function gesture(type,count){
+   const event=new Event(type,{bubbles:true,cancelable:true});
+   Object.defineProperty(event,'touches',{value:Array.from({length:count},(_,i)=>({identifier:i,clientX:10+i*30,clientY:100}))});
+   document.body.dispatchEvent(event);return event.defaultPrevented;
+  }
+  return {viewport,touchAction:getComputedStyle(document.documentElement).touchAction,gestureStart:gesture('gesturestart',2),gestureChange:gesture('gesturechange',2),pinch:gesture('touchmove',2),scroll:gesture('touchmove',1),inputSize:parseFloat(getComputedStyle(document.querySelector('#email')).fontSize)};
+ });
+ assert.match(result.viewport,/minimum-scale=1,maximum-scale=1,user-scalable=no/);
+ assert.equal(result.touchAction,'pan-x pan-y');
+ assert.equal(result.gestureStart,true);assert.equal(result.gestureChange,true);assert.equal(result.pinch,true);assert.equal(result.scroll,false);
+ assert.ok(result.inputSize>=16);
+}
 async function swipe(page,{dx=135,dy=2,startX=18,target='#workspace h3',cancel=false}={}){
  return page.evaluate(({dx,dy,startX,target,cancel})=>{
   const node=document.querySelector(target);
@@ -161,6 +176,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.goto(publicOrigin+'/');
     assert.equal(new URL(page.url()).pathname,'/public/auth.html');
     await waitStatus(page,'Connectez-vous');
+    await assertFixedScale(page);
     assert.ok(await page.locator('#password').isEnabled(),name);
     assert.equal(await page.locator('#workspace').isVisible(),false);
     assert.equal(await page.locator('#workspace').textContent(),'');
@@ -178,6 +194,8 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()),'#f4f5ef');
     await page.locator('input[name="display-text"][value="130"]').check();
+    assert.ok(Math.abs(await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).fontSize))-20.8)<0.1);
+    await assertFixedScale(page);
     assert.equal(await page.locator('html').getAttribute('data-texte-grand'),'');
     await page.locator('#display-contraste').check();
     await page.locator('#display-animations').check();
@@ -344,6 +362,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await admin.goto(adminOrigin+'/');
     assert.equal(new URL(admin.url()).pathname,'/admin/auth.html');
     await waitStatus(admin,'Connectez-vous');
+    await assertFixedScale(admin);
     assert.equal((await ctx.cookies(adminOrigin)).some(c=>c.name==='__Host-jsb-public'),false);
     assert.equal((await admin.evaluate(async()=> (await fetch('/public/auth.html')).status)),404);
     assert.equal((await page.evaluate(async()=> (await fetch('/admin/auth.html')).status)),404);
