@@ -6,7 +6,7 @@ const {createHash}=require('node:crypto');
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
 const MAX_BODY=8192;
 class HttpError extends Error{constructor(status){super('Requête refusée');this.status=status;}}
-function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,privateTaisoDrafts,now=Date.now}={}){
+function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,registration,verification,resend,passwordReset,catalogue,catalogueImport,cataloguePublish,catalogueHistory,catalogueRestore,taisoCandidates,taisoDraft,privateTaisoDrafts,privateAttendance,now=Date.now}={}){
  if(!['public','admin'].includes(app)||typeof origin!=='string'||typeof sourceId!=='function'||typeof now!=='function'||typeof loginService?.login!=='function'||!['resolveSession','revoke'].every(k=>typeof sessions?.[k]==='function'))throw TypeError('Configuration HTTP requise');
  const u=new URL(origin);
  if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw TypeError('Origine HTTPS exacte requise');
@@ -54,6 +54,11 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
   for(const action of ['list','read','save','delete','validate','pdf']){
    const path='/api/private/taiso/drafts/'+action;privateDraftPaths.set(path,action);paths.set(path,'POST');
   }
+ }
+ const attendancePaths=new Map();
+ if(privateAttendance!==undefined){
+  if(app!=='public'||typeof privateAttendance!=='function')throw TypeError('Service Présences privé invalide');
+  for(const action of ['read','save']){const path='/api/private/attendance/'+action;attendancePaths.set(path,action);paths.set(path,'POST');}
  }
  const cookie=(value,age)=>cookieName+'='+value+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+age;
  function readToken(req){
@@ -111,6 +116,20 @@ function createAuthHttpHandler({app,origin,loginService,sessions,sourceId,regist
     const result=await catalogue.read(actor,cataloguePaths.get(req.url));
     if(result?.status!==200||result.ok!==true)return serviceResult(res,result);
     return send(res,200,{ok:true,catalogue:result.catalogue});
+   }
+   if(attendancePaths.has(req.url)){
+    const actor=await actorFor(oldToken);
+    if(!actor)return send(res,401,{ok:false});
+    if(actor.role!=='coach')return send(res,403,{ok:false});
+    const body=await json(req,260000),source=await sourceId(req);
+    if(typeof source!=='string'||!source.trim()||source.length>256)throw Error('Source indisponible');
+    const result=await privateAttendance(actor,attendancePaths.get(req.url),body,source,createHash('sha256').update(oldToken,'utf8').digest('hex'));
+    if(result.status===200||(result.status===409&&result.register)){
+     const confirmed=await actorFor(oldToken);
+     if(!confirmed||confirmed.id!==actor.id||confirmed.role!==actor.role)return send(res,401,{ok:false});
+     return send(res,result.status,{ok:result.ok,register:result.register});
+    }
+    return serviceResult(res,result);
    }
    if(privateDraftPaths.has(req.url)){
     const actor=await actorFor(oldToken);

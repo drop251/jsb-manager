@@ -42,8 +42,8 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
    });
   });
   assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
-  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v2');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
-  assert.deepEqual(cache,['/public/offline-vault.mjs','/public/offline.html','/public/offline.mjs']);
+  const cache=await page.evaluate(async()=>{const c=await caches.open('jsb-manager-offline-reader-v3');return (await c.keys()).map(x=>new URL(x.url).pathname).sort();});
+  assert.deepEqual(cache,['/public/attendance-ui.mjs','/public/attendance-vault.mjs','/public/offline-vault.mjs','/public/offline.html','/public/offline.mjs','/shared/attendance-sync.js']);
   assert.equal((await context.request.get(origin+'/api/session')).status(),401);
   // No fallback on a deliberate gateway denial while online.
   allowed=false;
@@ -67,11 +67,23 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   },{fixture,phrase});
   assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-offline-vault-v1').includes('Fixture hors connexion')),false);
   assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-offline-vault-v1').includes('fixture-owner')),false);
+  const attendance={groups:[{id:'1'.repeat(32),name:'Groupe fictif'}],members:[{id:'2'.repeat(32),name:'Licencié fictif',groupId:'1'.repeat(32),active:true}],slots:[{id:'3'.repeat(32),groupId:'1'.repeat(32),label:'18h'}],calls:[]};
+  await page.evaluate(async({attendance,phrase})=>{
+   const m=await import('/public/attendance-vault.mjs');
+   await m.createAttendanceVault(phrase,{owner:'a'.repeat(32),revision:1,base:attendance,working:attendance});
+  },{attendance,phrase});
+  assert.equal(await page.evaluate(()=>localStorage.getItem('jsb-attendance-vault-v1').includes('Licencié fictif')),false);
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));server=null;
   // The actual listener has been closed. Do not combine this with the
   // Playwright offline emulator, which can suppress worker navigations.
   await page.goto(origin+'/',{timeout:15000});
   await page.getByRole('heading',{name:'Consultation hors connexion'}).waitFor({state:'visible'});
+  const presence=page.locator('#attendance-offline');
+  await presence.getByLabel('Phrase secrète du coffre Présences').fill(phrase);
+  await presence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+  await presence.getByRole('button',{name:'Licencié fictif : Présent',exact:true}).click();
+  await presence.getByRole('button',{name:'Licencié fictif : Présent',exact:true}).waitFor();
+  await presence.getByRole('status').filter({hasText:'Modification enregistrée dans le coffre local'}).waitFor();
   await page.locator('#vault-password').fill('Phrase incorrecte de recette');
   await page.locator('#vault-open').click();
   await page.locator('#vault-status').filter({hasText:'Phrase secrète incorrecte'}).waitFor({state:'visible'});
@@ -84,6 +96,13 @@ for(const [name,launcher] of [['Chromium',chromium],['WebKit',webkit]])test('Lec
   const reopened=await context.newPage();reopened.on('pageerror',e=>errors.push(e.message));
   await reopened.goto(origin+'/',{timeout:15000});
   assert.equal(await reopened.locator('#offline-content').textContent(),'');
+  const restoredPresence=reopened.locator('#attendance-offline');
+  await restoredPresence.getByLabel('Phrase secrète du coffre Présences').fill(phrase);
+  await restoredPresence.getByRole('button',{name:'Déverrouiller le registre local'}).click();
+  await restoredPresence.getByRole('button',{name:'Licencié fictif : Présent',exact:true}).waitFor();
+  assert.equal(await restoredPresence.getByRole('button',{name:'Licencié fictif : Présent',exact:true}).getAttribute('aria-pressed'),'true');
+  await restoredPresence.getByRole('button',{name:'Bilans',exact:true}).click();
+  assert.match(await restoredPresence.textContent(),/1 présent\(s\)/);
   await reopened.locator('#vault-password').fill(phrase);await reopened.locator('#vault-open').click();
   await reopened.locator('#offline-content').filter({hasText:'35 min à organiser'}).waitFor({state:'visible'});
   assert.equal(await reopened.getByRole('button',{name:'Retirer Fixture exercice',exact:true}).count(),0);

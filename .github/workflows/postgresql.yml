@@ -63,7 +63,7 @@ jobs:
       - name: Installer le pilote PostgreSQL de recette
         run: npm install --no-save --no-package-lock --ignore-scripts --prefix "$RUNNER_TEMP/jsb-db-ci" pg@8.16.3 playwright@1.51.1
       - name: Tester la passerelle Render privée
-        run: node --test tests/render-preproduction.test.cjs tests/preproduction-http.test.cjs
+        run: node --test tests/render-preproduction.test.cjs tests/preproduction-http.test.cjs tests/attendance-sync.test.cjs
 
       - name: Tester les sessions avec PostgreSQL réel
         env:
@@ -137,7 +137,7 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/jsb-db-ci/node_modules
         run: |
           set -euo pipefail
-          node --test backend/db/tests/taiso-drafts.integration.cjs
+          node --test backend/db/tests/taiso-drafts.integration.cjs backend/db/tests/attendance.integration.cjs
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_private.taiso_drafts')" = 0
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_auth.accounts')" = 0
           test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM jsb_catalogue.releases')" = 0

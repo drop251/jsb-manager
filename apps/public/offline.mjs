@@ -1,3 +1,4 @@
+import {mountAttendance} from './attendance-ui.mjs';
 // Local-only reader. No network or remote write; optional encrypted storage.
 import {hasVault,openVault} from './offline-vault.mjs';
 const file=document.querySelector('#offline-file'),status=document.querySelector('#offline-status'),content=document.querySelector('#offline-content');
@@ -116,3 +117,5 @@ function render(v){
 
 }
 window.addEventListener('pagehide',clear);
+
+mountAttendance(document.querySelector('#attendance-offline'));
