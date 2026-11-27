@@ -268,7 +268,7 @@ function renderWorkspace(){
    else if(section==='general'){const panel=element('section');panel.append(element('p','Application V36 · préproduction privée.'),element('p','Interface à échelle fixe, navigation tactile et réglages d’affichage propres à cet appareil.'));nodes.push(panel);}
    else if(section==='application'){const panel=element('section');panel.append(element('p',"Les préférences de séance se règlent dans chaque discipline. Les fonctions métier disponibles dépendent du référentiel publié."));nodes.push(panel);}
    else if(section==='offline'){const panel=element('section'),link=element('a','Ouvrir le lecteur hors connexion');link.href='/public/offline.html';panel.append(element('p',hasVault()?'Un coffre chiffré est présent sur cet appareil.':'Aucun coffre chiffré enregistré.'),element('p','Pour préparer une séance hors ligne, utilisez la commande de la séance Taïso enregistrée. Le lecteur ne valide pas les droits de session.'),link);nodes.push(panel);}
-   else if(section==='legal'){const panel=legalView({client,account,admin:false,live:()=>!busy&&workspaceIdentity===identity});protectSwipeEditor(panel);nodes.push(panel);}
+   else if(section==='legal'){const panel=legalView({client,account,admin:false,live:()=>!busy&&workspaceIdentity===identity});nodes.push(panel);}
    setWorkspaceView(...nodes);
   }
   accountTools.hidden=section!=='account';paint(status.textContent);
