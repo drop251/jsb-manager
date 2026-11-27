@@ -154,6 +154,20 @@ main.has-session .workspace-hero{padding:20px;display:grid;gap:6px;border-radius
 @media(max-width:480px){.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.dashboard-grid{grid-template-columns:1fr}}
 :root[data-texte-grand] .dashboard-grid{grid-template-columns:1fr}
+
+/* Bibliothèque : filtres compacts et fiches lisibles, sans modifier la recherche authentifiée. */
+.catalogue-browser{padding:14px;min-width:0}
+.catalogue-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.catalogue-filters>div{min-width:0}
+.catalogue-filters label{margin:0 0 4px}
+.catalogue-filters button{margin:0;width:auto;background:var(--control);color:var(--on-control)}
+.catalogue-pagination{display:flex;gap:8px}
+.catalogue-item{border-radius:14px;padding:10px 12px}
+.catalogue-item>p{font-size:.8125rem;margin:4px 0}
+.catalogue-item summary{overflow-wrap:anywhere}
+@media(max-width:599px){.catalogue-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.catalogue-filters>div:first-child{grid-column:1/-1}.catalogue-filters button{width:100%}.catalogue-browser{padding:10px}}
+@media(max-width:350px){.catalogue-filters{grid-template-columns:1fr}}
+:root[data-texte-grand] .catalogue-filters{grid-template-columns:1fr}
 </style></head>
 <body><header><strong>JSB Manager</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion</h1><p class="login-intro">Accédez à votre espace Coach ou Particulier.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Espace authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><button type="submit">Se connecter / Changer de compte</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir JSB Admin (accès réservé) ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><nav class="account-actions" aria-label="Gestion du compte" id="account-actions" hidden>
 <button type="button" data-panel="register-panel" disabled>Créer un compte</button>
