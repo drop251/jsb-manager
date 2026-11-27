@@ -1,3 +1,4 @@
+import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
 const form=document.querySelector('#login'),fields=document.querySelector('#fields'),status=document.querySelector('#status'),logout=document.querySelector('#logout');
 let client=null,busy=false,refreshPending=false,session=null,channel=null;
@@ -117,11 +118,57 @@ function workspaceTile(key,title,description){
  return [icon,name,desc];
 }
 
+
+let disposeSwipe=null;
+function resetSwipe(){
+ workspace.removeAttribute('data-swipe-moving');
+ workspace.style.removeProperty('--jsb-swipe-x');
+ document.documentElement.removeAttribute('data-jsb-swipe-active');
+}
+function stopSwipe(){
+ if(disposeSwipe){disposeSwipe();disposeSwipe=null;}
+ resetSwipe();workspace.classList.remove('swipe-returned');
+}
+function protectSwipeEditor(editor){
+ editor.dataset.swipeProtected='';
+ for(const name of ['input','change','click'])editor.addEventListener(name,()=>{
+  editor.dataset.swipeDirty='';
+ },true);
+}
+function setWorkspaceView(...nodes){
+ stopSwipe();workspace.replaceChildren(...nodes);
+ const nav=workspace.querySelector('.jsb-nav');
+ if(!nav||nav.querySelector('[aria-current="page"]')?.dataset.navPage==='home')return;
+ const valid=()=>!busy&&session?.state==='signed-in'&&!workspace.hidden&&nav.isConnected&&workspace.contains(nav);
+ const blocked=()=>Boolean(workspace.querySelector('[data-swipe-dirty]')||document.querySelector('[role="dialog"][aria-modal="true"]:not([hidden])')||(!accountTools.hidden&&!form.hidden)||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'));
+ const reduced=()=>display.animations||matchMedia('(prefers-reduced-motion: reduce)').matches;
+ disposeSwipe=window.JSBEdgeSwipe.attach({
+  listenerTarget:document,
+  getRoot:()=>document.querySelector('main'),
+  getEnabled:valid,isBlocked:blocked,
+  canGoBack:()=>Boolean(nav.querySelector('[data-nav-page="home"]')),
+  ignoreSelector:window.JSBEdgeSwipe.IGNORE_SELECTOR+',label,summary,form,.account-tools,.jsb-nav,[data-swipe-protected]',
+  onProgress:({distancePx})=>{
+   if(reduced())return;
+   document.documentElement.dataset.jsbSwipeActive='';
+   workspace.dataset.swipeMoving='';
+   workspace.style.setProperty('--jsb-swipe-x',Math.min(distancePx*.55,64)+'px');
+  },
+  onCancel:resetSwipe,
+  onCommit:()=>{
+   resetSwipe();
+   if(!valid()||blocked())return;
+   nav.querySelector('[data-nav-page="home"]')?.click();
+   if(!reduced())workspace.classList.add('swipe-returned');
+  }
+ });
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy?session.account:null;
  const permitted=account&&account.role==='admin';
  if(!permitted){
-  workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
+  stopSwipe();workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
   document.querySelector('main').classList.remove('has-session');return;
  }
  const identity=account.id+':'+account.role;
@@ -150,7 +197,7 @@ function renderWorkspace(){
   settingsOpen=true;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading,displaySettings(),versionSettings());
+  setWorkspaceView(navigation('settings'),heading,displaySettings(),versionSettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
@@ -158,7 +205,7 @@ function renderWorkspace(){
   if(busy||workspaceIdentity!==identity)return;
   settingsOpen=false;
   accountTools.hidden=true;
-  workspace.replaceChildren(navigation('home'));
+  setWorkspaceView(navigation('home'));
   const heading=element('h2','Tableau de bord Administrateur');heading.tabIndex=-1;
   const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Administration de la plateforme'));workspace.append(intro);
   const summary=element('section');summary.className='workspace-overview';summary.append(element('strong','Préproduction privée'),element('p','Contrôle et publication des catalogues disponibles. Les autres services restent à raccorder.'));workspace.append(summary,element('h3','Services administratifs'));
@@ -173,9 +220,9 @@ function renderWorkspace(){
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Fonctionnalités prévues — API métier non raccordée.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
+    setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
     if(key==='catalogue'){
-     const block=element('section');block.className='workspace-detail';
+     const block=element('section');block.className='workspace-detail';protectSwipeEditor(block);
      block.append(element('h3','Contrôle d’un fichier'),element('p','Analyse JSON ou Excel selon le modèle Judo ou Taïso. Le classeur Taïso provisoire reste réservé à la recette. Toute publication nécessite une confirmation distincte.'));
      const dl=element('label','Discipline');dl.htmlFor='import-discipline';
      const select=element('select');select.id='import-discipline';
