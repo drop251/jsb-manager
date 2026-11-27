@@ -723,7 +723,13 @@ function renderWorkspace(){
        const results=element('div');results.id='catalogue-results';
        const info=element('p');info.setAttribute('role','status');
        const previous=element('button','Précédent'),next=element('button','Suivant');previous.type=next.type='button';previous.hidden=next.hidden=true;
-       browser.append(queryLabel,query,familyLabel,family,search,info,results,previous,next);detail.insertBefore(browser,list);
+       browser.classList.add('catalogue-browser');
+       const filters=element('div');filters.className='catalogue-filters';
+       const queryField=element('div');queryField.append(queryLabel,query);
+       const familyField=element('div');familyField.append(familyLabel,family);
+       filters.append(queryField,familyField,search);
+       const pagination=element('div');pagination.className='catalogue-pagination';pagination.append(previous,next);
+       browser.append(filters,info,results,pagination);detail.insertBefore(browser,list);
        let generation=0,offset=0,criteria={query:'',family:''};
        const live=()=>!busy&&workspaceIdentity===identity&&browser.isConnected;
        async function load(page){
