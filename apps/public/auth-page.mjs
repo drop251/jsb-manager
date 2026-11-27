@@ -1,3 +1,4 @@
+import '../shared/edge-swipe.js';
 import {createAuthClient} from '../shared/auth-client.mjs';
 const form=document.querySelector('#login'),fields=document.querySelector('#fields'),status=document.querySelector('#status'),logout=document.querySelector('#logout');
 let client=null,busy=false,refreshPending=false,session=null,channel=null,panel=null;
@@ -138,11 +139,57 @@ function workspaceTile(key,title,description){
  return [icon,name,desc];
 }
 
+
+let disposeSwipe=null;
+function resetSwipe(){
+ workspace.removeAttribute('data-swipe-moving');
+ workspace.style.removeProperty('--jsb-swipe-x');
+ document.documentElement.removeAttribute('data-jsb-swipe-active');
+}
+function stopSwipe(){
+ if(disposeSwipe){disposeSwipe();disposeSwipe=null;}
+ resetSwipe();workspace.classList.remove('swipe-returned');
+}
+function protectSwipeEditor(editor){
+ editor.dataset.swipeProtected='';
+ for(const name of ['input','change','click'])editor.addEventListener(name,()=>{
+  editor.dataset.swipeDirty='';
+ },true);
+}
+function setWorkspaceView(...nodes){
+ stopSwipe();workspace.replaceChildren(...nodes);
+ const nav=workspace.querySelector('.jsb-nav');
+ if(!nav||nav.querySelector('[aria-current="page"]')?.dataset.navPage==='home')return;
+ const valid=()=>!busy&&session?.state==='signed-in'&&!workspace.hidden&&nav.isConnected&&workspace.contains(nav);
+ const blocked=()=>Boolean(workspace.querySelector('[data-swipe-dirty]')||document.querySelector('[role="dialog"][aria-modal="true"]:not([hidden])')||(!accountTools.hidden&&!form.hidden)||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'));
+ const reduced=()=>display.animations||matchMedia('(prefers-reduced-motion: reduce)').matches;
+ disposeSwipe=window.JSBEdgeSwipe.attach({
+  listenerTarget:document,
+  getRoot:()=>document.querySelector('main'),
+  getEnabled:valid,isBlocked:blocked,
+  canGoBack:()=>Boolean(nav.querySelector('[data-nav-page="home"]')),
+  ignoreSelector:window.JSBEdgeSwipe.IGNORE_SELECTOR+',label,summary,form,.account-tools,.jsb-nav,[data-swipe-protected]',
+  onProgress:({distancePx})=>{
+   if(reduced())return;
+   document.documentElement.dataset.jsbSwipeActive='';
+   workspace.dataset.swipeMoving='';
+   workspace.style.setProperty('--jsb-swipe-x',Math.min(distancePx*.55,64)+'px');
+  },
+  onCancel:resetSwipe,
+  onCommit:()=>{
+   resetSwipe();
+   if(!valid()||blocked())return;
+   nav.querySelector('[data-nav-page="home"]')?.click();
+   if(!reduced())workspace.classList.add('swipe-returned');
+  }
+ });
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy&&!panel?session.account:null;
  const permitted=account&&['coach','individual'].includes(account.role);
  if(!permitted){
-  workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
+  stopSwipe();workspace.hidden=true;workspace.replaceChildren();workspaceIdentity=null;
   document.querySelector('main').classList.remove('has-session');return;
  }
  const identity=account.id+':'+account.role;
@@ -171,7 +218,7 @@ function renderWorkspace(){
   settingsOpen=true;changeOpen=false;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading,displaySettings(),versionSettings());
+  setWorkspaceView(navigation('settings'),heading,displaySettings(),versionSettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
@@ -179,7 +226,7 @@ function renderWorkspace(){
   if(busy||workspaceIdentity!==identity)return;
   settingsOpen=false;changeOpen=false;
   accountTools.hidden=true;
-  workspace.replaceChildren(navigation('home'));
+  setWorkspaceView(navigation('home'));
   const heading=element('h2','Tableau de bord');heading.tabIndex=-1;
   const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Mon espace '+label(account.role)));workspace.append(intro);
   const summary=element('section');summary.className='workspace-overview';summary.setAttribute('aria-label','État des fonctionnalités');
@@ -196,7 +243,7 @@ function renderWorkspace(){
     const h=element('h3',title);h.tabIndex=-1;detail.append(h,element('p','Catalogue en lecture seule lorsque publié. Autres fonctionnalités à raccorder.'));
     const list=element('ul');for(const name of sections)list.append(element('li',name));detail.append(list);
     const back=element('button','Retour à l’accueil');back.type='button';back.id='workspace-back';back.className='workspace-return';back.prepend(navIcon('retour'));back.addEventListener('click',()=>home(true));detail.append(back);
-    workspace.replaceChildren(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
+    setWorkspaceView(navigation(key),detail);window.scrollTo(0,0);h.focus({preventScroll:true});
     if(key==='judo'||key==='taiso'){
      const catalogue=element('p','Chargement du référentiel…');catalogue.setAttribute('role','status');detail.insertBefore(catalogue,list);
      void client.catalogue(key).then(async data=>{
@@ -207,7 +254,7 @@ function renderWorkspace(){
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
-       const preparation=element('section');preparation.className='workspace-detail';preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
+       const preparation=element('section');preparation.className='workspace-detail';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
        preparation.append(element('h3','Préparer une séance Taïso'),element('p','Choisissez le format et vérifiez les exercices compatibles. Chaque proposition reste à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
