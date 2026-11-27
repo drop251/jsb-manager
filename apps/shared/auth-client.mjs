@@ -85,7 +85,34 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
   }
   return e;
  }
- const api={session,login,logout,catalogue,searchCatalogue,exerciseDetail};
+ async function legalDocuments(expectedAccount){
+  async function load(){
+   const r=await request('/api/legal/documents');
+   if(r.status!==200||!Array.isArray(r.data.documents)||r.data.documents.length>2||r.data.documents.some(d=>!d||!['cgu','privacy'].includes(d.type)||!Number.isSafeInteger(d.version)||d.version<1||typeof d.hash!=='string'||!/^[a-f0-9]{64}$/.test(d.hash)||typeof d.body!=='string'||!Number.isSafeInteger(d.effectiveAt)))throw Error('Documents juridiques indisponibles');
+   return r.data.documents;
+  }
+  if(!expectedAccount)return (await load()).map(d=>({...d,kind:null,recordedAt:null}));
+  return exclusive(async()=>{
+   const before=await session();if(before.state!=='signed-in'||before.account.id!==expectedAccount)throw Error('Compte modifié');
+   const docs=await load(),after=await session();
+   if(after.state!=='signed-in'||after.account.id!==expectedAccount||after.account.role!==before.account.role)throw Error('Compte modifié');
+   return docs;
+  });
+ }
+ async function legalAction(action,expectedAccount,body){
+  const admin=roles.size===1&&roles.has('admin');
+  if(!(admin?['draft','history','publish']:['record']).includes(action)||typeof expectedAccount!=='string')throw TypeError('Action juridique invalide');
+  return exclusive(async()=>{
+   const before=await session();if(before.state!=='signed-in'||before.account.id!==expectedAccount)return {state:'account-changed'};
+   const r=await request((admin?'/api/admin/legal/':'/api/legal/')+action,{...body,expectedAccount});
+   const after=await session();if(after.state!=='signed-in'||after.account.id!==expectedAccount||after.account.role!==before.account.role)return {state:'account-changed'};
+   if(r.status===409)return {state:'version-changed'};
+   if(r.status===429)return {state:'rate-limited'};
+   if(r.status!==200)throw Error('Action juridique refusée');
+   return {state:'ready',...r.data};
+  });
+ }
+ const api={session,login,logout,catalogue,searchCatalogue,exerciseDetail,legalDocuments,legalAction};
  if(roles.size===2&&roles.has('coach')&&roles.has('individual')){
   async function taisoCandidates({version,generation,criteria}={}){
    const r=await request('/api/generator/taiso/candidates',{version,generation,criteria});

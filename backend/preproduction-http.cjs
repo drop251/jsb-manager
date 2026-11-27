@@ -18,7 +18,7 @@ async function createPreproductionHandler({app,origin,directory,authHandler,auth
  const root=await realpath(resolve(directory));
  const manifest=JSON.parse(await readFile(join(root,'manifest.json'),'utf8'));
  const entry='/'+app+'/auth.html';
- const types=new Map([[entry,'text/html; charset=utf-8'],['/'+app+'/auth-page.mjs','text/javascript; charset=utf-8'],['/shared/auth-client.mjs','text/javascript; charset=utf-8'],['/shared/edge-swipe.js','text/javascript; charset=utf-8']]);
+ const types=new Map([[entry,'text/html; charset=utf-8'],['/'+app+'/auth-page.mjs','text/javascript; charset=utf-8'],['/shared/auth-client.mjs','text/javascript; charset=utf-8'],['/shared/edge-swipe.js','text/javascript; charset=utf-8'],['/shared/legal-content.mjs','text/javascript; charset=utf-8'],['/shared/legal-ui.mjs','text/javascript; charset=utf-8']]);
  if(app==='public'){types.set('/public/offline.html','text/html; charset=utf-8');types.set('/public/offline.mjs','text/javascript; charset=utf-8');types.set('/public/offline-vault.mjs','text/javascript; charset=utf-8');for(const url of ['/public/attendance-vault.mjs','/public/attendance-ui.mjs','/shared/attendance-sync.js'])types.set(url,'text/javascript; charset=utf-8');types.set('/public/offline-sw.js','text/javascript; charset=utf-8');}
  if(manifest.app!==app||manifest.purpose!=='preproduction-auth-only'||manifest.entrypoint!==entry||Object.keys(manifest.files||{}).length!==types.size)throw Error('Distribution incompatible');
  const assets=new Map();
