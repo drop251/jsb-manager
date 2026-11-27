@@ -1,5 +1,6 @@
 import {mountAttendance} from './attendance-ui.mjs';
-// Local-only reader. No network or remote write; optional encrypted storage.
+// Local reader. Only Présences may sync after server-confirmed owner authentication.
+import {createAuthClient} from '../shared/auth-client.mjs';
 import {hasVault,openVault} from './offline-vault.mjs';
 const file=document.querySelector('#offline-file'),status=document.querySelector('#offline-status'),content=document.querySelector('#offline-content');
 let run=0,working=null,operations=[],vault=null,saving=false;
@@ -118,4 +119,5 @@ function render(v){
 }
 window.addEventListener('pagehide',clear);
 
-mountAttendance(document.querySelector('#attendance-offline'));
+const attendanceClient=location.protocol==='https:'&&navigator.locks?createAuthClient({origin:location.origin,fetchImpl:fetch.bind(window),locks:navigator.locks,allowedRoles:['coach']}):null;
+mountAttendance(document.querySelector('#attendance-offline'),{client:attendanceClient});
