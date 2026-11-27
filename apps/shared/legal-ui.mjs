@@ -12,11 +12,11 @@ export function legalView({client=null,account=null,admin=false,live=()=>true}={
  const status=el('p');status.setAttribute('role','status');
  const documents=el('div');root.append(el('p','Préproduction privée. Les textes en projet ne sont pas des documents publiés et ne déclenchent aucune acceptation.'),status,documents);
  const active=()=>root.isConnected&&live();
- let effective=[],loading=false;
+ let effective=[],loading=!!client;
  async function load(){
   if(!client)return;
   loading=true;status.textContent='Vérification des versions publiées…';
-  try{const values=await client.legalDocuments();if(!active())return;effective=values;status.textContent=values.length?'Versions effectives vérifiées.':'Aucune version juridique effective publiée.';}
+  try{const values=await client.legalDocuments(account?.id);if(!active())return;effective=values;status.textContent=values.length?'Versions effectives vérifiées.':'Aucune version juridique effective publiée.';}
   catch{if(active()){effective=[];status.textContent='Versions serveur non vérifiables. Les projets sont consultables, aucune acceptation possible.';}}
   finally{loading=false;if(active())render();}
  }
@@ -45,7 +45,7 @@ export function legalView({client=null,account=null,admin=false,live=()=>true}={
      });submit.disabled=true;check.addEventListener('change',()=>{submit.disabled=!check.checked;});item.append(label,submit);
     }
    }else{item.append(el('p',type==='cgv'?'Aucune offre commerciale activée.':'Projet de travail — non publié.'),prose(template.body));}
-   if(admin&&account&&client&&type!=='cgv'){
+   if(admin&&account&&client&&!loading&&type!=='cgv'){
     const editor=el('details');editor.append(el('summary','Préparer un brouillon juridique'));
     const label=el('label','Texte du brouillon'),input=el('textarea');input.rows=12;input.maxLength=100000;input.value=template.body;label.append(input);
     const history=el('div');history.className='legal-draft-history';let editing=false;
