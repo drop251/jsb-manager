@@ -33,5 +33,31 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 @media(max-width:759px){html{scroll-padding-top:calc(64px + env(safe-area-inset-top,0px));scroll-padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}.jsb-nav{overflow-x:auto;overscroll-behavior-x:contain;position:fixed;top:auto;bottom:calc(4px + env(safe-area-inset-bottom,0px));left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));margin:0;box-shadow:0 4px 16px rgba(15,20,30,.18)}.jsb-nav button{flex:1 0 64px;min-width:64px}.workspace-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:350px){.workspace-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.workspace-detail{animation:none}}
+
+/* Réglages d'affichage V36 : dimensionnement relatif et préférences explicites. */
+body{font-size:1rem}
+h1{font-size:1.75rem}label{font-size:.875rem}
+.note,.workspace-grid button small,.exercise-group dt{font-size:.8125rem}
+.workspace h2{font-size:clamp(1.5rem,1.2rem + 1vw,2rem)}
+.workspace-detail h3{font-size:1.125rem}.exercise-group h4{font-size:1rem}
+:root[data-theme=light]{--bg:#f4f5ef;--surface:#fff;--ink:#12161d;--muted:#5c6370;--line:#d7dadc;--chip:#e8e9eb;--accent:#76511f;--selected:#f7ecd9;--control:#1f2839;--on-control:#fff;--focus:#1f2839;color-scheme:light}
+:root[data-contraste]{--muted:var(--ink);--line:var(--ink);--focus:var(--ink)}
+:root[data-anim] *, :root[data-anim] *::before,:root[data-anim] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+.display-settings{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;margin:16px 0}
+.display-settings h3{font-size:1.125rem;margin:0 0 16px}
+.display-settings fieldset{border:0;padding:0;margin:0 0 20px;min-width:0}
+.display-settings legend{font-weight:700;margin-bottom:8px}
+.display-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,112px),1fr));gap:8px}
+.display-options label{display:flex;align-items:center;gap:8px;min-height:44px;margin:0;padding:8px;border:1px solid var(--line);border-radius:10px;font-size:.875rem}
+.display-options label:has(input:checked){background:var(--selected);border-color:var(--accent)}
+.display-settings input[type=radio],.display-settings input[type=checkbox]{width:20px;height:20px;min-height:0;padding:0;flex:none;accent-color:var(--accent);margin:0}
+.display-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;margin:0;border-top:1px solid var(--line);min-height:44px}
+.display-toggle small{display:block;color:var(--muted);font-size:.8125rem;font-weight:400;margin-top:4px}
+.display-settings p{font-size:.8125rem;overflow-wrap:anywhere}
+:root[data-texte-grand] .workspace-grid{grid-template-columns:1fr}
+:root[data-texte-grand] header{flex-wrap:wrap}
+:root[data-texte-grand] .jsb-nav{overflow-x:auto;position:static;flex-wrap:wrap}
+:root[data-texte-grand] .jsb-nav button{flex:1 0 90px}
+:root[data-texte-grand] main.has-session{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 </style></head>
 <body><header><strong>JSB Admin</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion administrateur</h1><p class="login-intro">Accès réservé à l’administration de la plateforme. Double authentification obligatoire.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Tableau de bord authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><label for="mfa">Code de double authentification</label><input id="mfa" name="mfa" autocomplete="one-time-code" required maxlength="128"><button type="submit">Se connecter</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir mon espace Coach ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><p class="note">Page de développement. N’utilisez pas vos identifiants réels avant la mise en service sur l’adresse officielle JSB. La navigation authentifiée est disponible ; les données et actions métier ne sont pas encore raccordées.</p></section></section></main><script type="module" src="./auth-page.mjs"></script></body></html>
