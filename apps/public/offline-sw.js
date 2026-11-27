@@ -1,7 +1,7 @@
 'use strict';
 // This cache contains only public, data-free offline reader assets.
 // Never intercept API calls, authentication requests, POSTs or private data.
-const CACHE='jsb-manager-offline-reader-v1',ASSETS=['/public/offline.html','/public/offline.mjs'];
+const CACHE='jsb-manager-offline-reader-v2',ASSETS=['/public/offline.html','/public/offline.mjs','/public/offline-vault.mjs'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
  const cache=await caches.open(CACHE);
  try{
