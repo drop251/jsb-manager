@@ -16,6 +16,55 @@ let settingsOpen=false;
 const workspacePages={"common":[["accounts","Comptes plateforme","Coach et Particulier",["Comptes Coach","Comptes Particulier","Suspension et réactivation — à raccorder"]],["stats","Statistiques","Indicateurs agrégés uniquement",["Comptes actifs","Inscriptions","Usage agrégé"]],["catalogue","Catalogue de référence","Référentiels indépendants",["Judo — base non validée","Taïso — référentiel à raccorder","Historique des versions"]],["legal","Documents légaux","CGU et confidentialité",["CGU","Politique de confidentialité","CGV — désactivées"]],["tests","Tests des générateurs","Recette isolée",["Judo","Taïso"]],["maintenance","Maintenance","Sécurité et messagerie",["État du serveur","Diagnostic e-mail — non raccordé","Journal administratif","Sauvegardes plateforme"]]]};
 let workspaceIdentity=null;
 const element=(tag,txt)=>{const node=document.createElement(tag);if(txt)node.textContent=txt;return node;};
+
+// Préférences visuelles propres à l'appareil et à cette origine; aucune donnée de compte.
+const DISPLAY_KEY='jsb-affichage-v36';
+const TEXT_SIZES=[0,100,115,130,160,200];
+function readDisplay(){
+ let stored={};try{stored=JSON.parse(localStorage.getItem(DISPLAY_KEY)||'{}')||{};}catch{}
+ return {theme:['system','light','dark'].includes(stored.theme)?stored.theme:'system',texte:TEXT_SIZES.includes(stored.texte)?stored.texte:100,contraste:stored.contraste===true,animations:stored.animations===true};
+}
+let display=readDisplay();
+function applyDisplay(){
+ const root=document.documentElement;
+ if(display.theme==='system')root.removeAttribute('data-theme');else root.dataset.theme=display.theme;
+ root.style.font='';root.style.fontSize=display.texte?display.texte+'%':'';
+ if(!display.texte&&CSS.supports('font','-apple-system-body'))root.style.font='-apple-system-body';
+ root.toggleAttribute('data-texte-grand',(parseFloat(getComputedStyle(root).fontSize)||16)>=19);
+ root.toggleAttribute('data-contraste',display.contraste);
+ root.toggleAttribute('data-anim',display.animations);
+}
+function setDisplay(patch){
+ display={...display,...patch};
+ applyDisplay();
+ try{localStorage.setItem(DISPLAY_KEY,JSON.stringify(display));return true;}catch{return false;}
+}
+applyDisplay();
+function displaySettings(){
+ const section=element('section');section.className='display-settings';section.setAttribute('aria-labelledby','display-title');
+ const title=element('h3','Affichage et accessibilité');title.id='display-title';
+ const feedback=element('p');feedback.className='note';feedback.setAttribute('role','status');
+ function update(patch){feedback.textContent=setDisplay(patch)?'Préférence enregistrée sur cet appareil.':'Préférence appliquée pour cette ouverture uniquement.';}
+ function choices(id,legend,values,current,key){
+  const fieldset=element('fieldset');fieldset.append(element('legend',legend));
+  const options=element('div');options.className='display-options';
+  for(const [value,name] of values){
+   const label=element('label'),input=element('input');input.type='radio';input.name=id;input.value=String(value);input.checked=value===current;
+   input.addEventListener('change',()=>{if(input.checked)update({[key]:value});});
+   label.append(input,element('span',name));options.append(label);
+  }
+  fieldset.append(options);return fieldset;
+ }
+ function toggle(key,name,description){
+  const label=element('label');label.className='display-toggle';
+  const text=element('span');text.append(element('strong',name),element('small',description));
+  const input=element('input');input.type='checkbox';input.id='display-'+key;input.checked=display[key];input.addEventListener('change',()=>update({[key]:input.checked}));
+  label.append(text,input);return label;
+ }
+ section.append(title,choices('display-theme','Thème',[['light','Clair'],['dark','Sombre'],['system','Système']],display.theme,'theme'),choices('display-text','Taille du texte',[[0,'Système'],[100,'Standard'],[115,'Grand'],[130,'Très grand'],[160,'Énorme'],[200,'Maximal']],display.texte,'texte'),toggle('contraste','Contraste renforcé','Accentue les textes et les bordures.'),toggle('animations','Réduire les animations','Limite les transitions et les effets visuels.'),element('p','Ces préférences sont locales à cet appareil, indépendantes de votre compte.'),feedback);
+ return section;
+}
+
 function renderWorkspace(){
  const account=session?.state==='signed-in'&&!busy?session.account:null;
  const permitted=account&&account.role==='admin';
@@ -49,7 +98,7 @@ function renderWorkspace(){
   settingsOpen=true;
   clearSecrets();
   const heading=element('h2','Réglages');heading.tabIndex=-1;
-  workspace.replaceChildren(navigation('settings'),heading);
+  workspace.replaceChildren(navigation('settings'),heading,displaySettings());
   accountTools.hidden=false;paint(status.textContent);
   window.scrollTo(0,0);heading.focus({preventScroll:true});
  }
