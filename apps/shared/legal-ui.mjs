@@ -60,10 +60,12 @@ export function legalView({client=null,account=null,admin=false,live=()=>true}={
      if(editing||!active())return;editing=true;list.disabled=true;
      try{const r=await client.legalAction('history',account.id,{type});if(!active())return;if(r.state!=='ready'||!Array.isArray(r.drafts))throw Error();history.replaceChildren();
       if(!r.drafts.length)history.append(el('p','Aucun brouillon enregistré.'));
-      for(const d of r.drafts){const row=el('details');row.append(el('summary','Brouillon du '+date(d.createdAt)+' · '+d.hash.slice(0,12)),prose(d.body),button('Reprendre ce texte dans un nouveau brouillon',()=>{input.value=d.body;input.focus();}));history.append(row);}
+      for(const d of r.drafts){const row=el('details');row.append(el('summary','Brouillon du '+date(d.createdAt)+' · '+d.hash.slice(0,12)),prose(d.body),button('Reprendre ce texte dans un nouveau brouillon',()=>{input.value=d.body;input.focus();}));
+       if(r.publicationEnabled===true&&r.approvedHash===d.hash){const label=el('label'),check=el('input');check.type='checkbox';label.append(check,el('span','Je confirme la publication de ce texte exact, validé par le responsable.'));const publish=button('Publier la version approuvée',async()=>{if(editing||!check.checked||!active())return;editing=true;publish.disabled=true;try{const result=await client.legalAction('publish',account.id,{type,draftId:d.id,hash:d.hash,expectedVersion:r.latestVersion,confirmed:true});if(!active())return;if(result.state==='ready'){await load();status.textContent='Publication confirmée · V'+result.publication.version+'.';}else status.textContent='Publication refusée ou version modifiée. Consultez à nouveau l’historique.';}catch{if(active())status.textContent='Publication non confirmée.';}finally{editing=false;if(active())publish.disabled=!check.checked;}});publish.disabled=true;check.addEventListener('change',()=>{publish.disabled=!check.checked;});row.append(label,publish);}
+       history.append(row);}
      }catch{if(active())status.textContent='Historique indisponible.';}finally{editing=false;if(active())list.disabled=false;}
     });
-    editor.append(el('p','La publication reste verrouillée tant que les informations juridiques et procédures de conservation ne sont pas validées.'),label,save,list,history);
+    editor.append(el('p','La publication reste verrouillée tant que le serveur ne dispose pas de l’empreinte exacte d’un texte validé et des informations juridiques et procédures de conservation approuvées.'),label,save,list,history);
     item.append(editor);
    }
    documents.append(item);
