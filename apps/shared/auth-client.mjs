@@ -101,7 +101,7 @@ export function createAuthClient({origin,fetchImpl,locks,allowedRoles}={}){
  }
  async function legalAction(action,expectedAccount,body){
   const admin=roles.size===1&&roles.has('admin');
-  if(!(admin?['draft','history']:['record']).includes(action)||typeof expectedAccount!=='string')throw TypeError('Action juridique invalide');
+  if(!(admin?['draft','history','publish']:['record']).includes(action)||typeof expectedAccount!=='string')throw TypeError('Action juridique invalide');
   return exclusive(async()=>{
    const before=await session();if(before.state!=='signed-in'||before.account.id!==expectedAccount)return {state:'account-changed'};
    const r=await request((admin?'/api/admin/legal/':'/api/legal/')+action,{...body,expectedAccount});
