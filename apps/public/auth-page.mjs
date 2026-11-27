@@ -782,7 +782,31 @@ function renderWorkspace(){
     }
    });grid.append(button);
   }
-  workspace.append(grid);window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
+  workspace.append(grid);
+  const dashboard=element('section');dashboard.className='dashboard-metrics';dashboard.setAttribute('aria-label','Indicateurs du compte');
+  const metrics=element('div');metrics.className='dashboard-grid';
+  const values={};
+  for(const [key,title] of [['judo','Exercices Judo publiés'],['taiso','Exercices Taïso publiés'],['drafts','Séances Taïso enregistrées']]){
+   const tile=element('div');tile.className='dashboard-tile';const number=element('strong','—');number.dataset.metric=key;values[key]=number;tile.append(number,element('span',title));metrics.append(tile);
+  }
+  const recent=element('div');recent.className='dashboard-recent';recent.append(element('h3','Activité récente'));
+  const activity=element('p','Chargement des séances Taïso enregistrées…');activity.setAttribute('role','status');recent.append(activity);
+  dashboard.append(element('h3','Mes indicateurs'),metrics,recent);workspace.append(dashboard);
+  const live=()=>!busy&&workspaceIdentity===identity&&dashboard.isConnected;
+  async function confirmed(){if(!live())return false;const checked=await client.session();return live()&&checked.state==='signed-in'&&checked.account.id===account.id&&checked.account.role===account.role;}
+  // Published catalogue counts are not personal training statistics.
+  for(const key of ['judo','taiso'])void client.catalogue(key).then(async data=>{
+   if(await confirmed()){values[key].textContent=String(data.count);if(data.state==='unpublished')values[key].title='Aucun catalogue publié';}
+  }).catch(()=>{});
+  void client.privateTaisoDraft('list',account.id,{offset:0}).then(async data=>{
+   if(!await confirmed())return;
+   if(data.state!=='ready'){activity.textContent='Activité indisponible.';return;}
+   values.drafts.textContent=String(data.total);
+   const entries=[...data.items].sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt)).slice(0,3);
+   activity.textContent=entries.length?'Dernières séances enregistrées':'Aucune séance Taïso enregistrée.';
+   for(const entry of entries){const line=element('div');line.className='dashboard-activity';line.append(element('strong',entry.title),element('span',entry.validatedAt?'Validée':'Brouillon'));recent.append(line);}
+  }).catch(()=>{if(live())activity.textContent='Activité indisponible.';});
+  window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
  }
  home();
 }
