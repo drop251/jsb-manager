@@ -23,7 +23,7 @@ function createLegalStore(pool,{approvedHashes={}}={}){
  async function execute(actor,sessionHash,action,body){
   const admin=['draft','history','publish'].includes(action);
   const scope={ownerId:actor?.id};
-  if(admin?!authorize(actor,'legal',action==='draft'?'draft':action==='publish'?'publish':'read'):!authorize(actor,'legalAcceptance','write',scope))return fail(403);
+  if(admin?(actor?.role!=='admin'||!authorize(actor,'legal',action==='draft'?'draft':action==='publish'?'publish':'read')):!authorize(actor,'legalAcceptance','write',scope))return fail(403);
   if(!['draft','history','publish','record'].includes(action)||!body||body.expectedAccount!==actor.id||!id.test(actor.id))return fail(409);
   if(typeof sessionHash!=='string'||!/^[a-f0-9]{64}$/.test(sessionHash))return fail(401);
   const {type}=body;
