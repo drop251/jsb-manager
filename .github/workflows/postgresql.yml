@@ -2,7 +2,7 @@ name: JSB Manager - recette PostgreSQL
 
 on:
   pull_request:
-    branches: [main, ui/administration-v36]
+    branches: [main, ui/administration-v36, deploy/render-v36-private]
   workflow_dispatch:
 
 permissions:
