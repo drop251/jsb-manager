@@ -67,7 +67,7 @@ test('Préproduction : origine, contrôle d’accès, intégrité et fichiers st
    assert.equal((await request('/shared/auth-client.mjs')).status,200);
    assert.equal((await request('/shared/edge-swipe.js')).status,200);
    access=false;assert.equal((await request('/shared/edge-swipe.js')).status,403);access=true;
-   for(const url of ['/public/offline.html','/public/offline.mjs','/public/offline-vault.mjs','/public/offline-sw.js'])assert.equal((await request(url)).status,app==='public'?200:404);
+   for(const url of ['/public/offline.html','/public/offline.mjs','/public/offline-vault.mjs','/public/attendance-vault.mjs','/public/attendance-ui.mjs','/shared/attendance-sync.js','/public/offline-sw.js'])assert.equal((await request(url)).status,app==='public'?200:404);
    for(const url of ['/'+other+'/auth.html','/index.html','/manifest.json','/backend/auth-runtime.cjs','/../backend/auth-runtime.cjs','/%2e%2e/backend/auth-runtime.cjs',entry+'?x=1'])assert.equal((await request(url)).status,404);
    assert.equal((await request(entry,{method:'POST'})).status,405);
    assert.equal((await request('/api/session')).status,401);assert.equal(apiCalls,1);
