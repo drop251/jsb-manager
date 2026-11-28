@@ -123,6 +123,69 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:max(16px,
 .legal-document label:has(input[type=checkbox]){display:flex;align-items:flex-start;gap:12px}
 .legal-document input[type=checkbox]{width:22px;height:22px;flex-shrink:0}
 .legal-document button{white-space:normal;overflow-wrap:anywhere;min-height:44px}
+
+/* Retour à la structure graphique historique : accueil, capsule et surfaces JSB.
+   Les contrôleurs métier, les identités et les routes restent inchangés. */
+main.has-session{max-width:1360px}
+main.has-session .workspace-hero{padding:20px;display:grid;gap:6px;border-radius:20px;background:var(--surface);border:1px solid var(--line);margin:0 0 16px}
+.workspace-hero .accueil-date{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;font-weight:650}
+.workspace-hero h2{font-size:clamp(1.75rem,1.4rem + 1.2vw,2.75rem);letter-spacing:-.035em;line-height:1.12}
+.workspace-hero .accueil-sous{color:var(--accent);font-weight:650}
+.workspace-hero .accueil-preparer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.workspace-hero .accueil-preparer button{margin:0;min-height:50px;border-radius:14px}
+.workspace-grid.blocs .bloc{border-radius:16px;min-height:84px}
+.jsb-nav{isolation:isolate;border-radius:22px}
+.jsb-nav button{position:relative;z-index:1;border-radius:16px}
+.jsb-nav button[aria-current=page]{border-color:transparent;background:var(--selected);color:var(--accent)}
+@media(max-width:759px){.jsb-nav{gap:0;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));padding:4px;box-shadow:0 4px 16px rgba(15,20,30,.12)}.jsb-nav button{flex:1 1 0;min-width:0;padding:4px 1px}.jsb-nav .onglet-txt{font-size:.75rem}.workspace-grid.blocs .bloc{min-height:76px}}
+@media(max-width:360px){main.has-session .workspace-hero{padding:14px}}
+:root[data-texte-grand] .workspace-hero .accueil-preparer{grid-template-columns:1fr}
+:root[data-texte-grand] .jsb-nav button{flex:1 0 90px}
+
+/* Indicateurs réels du tableau de bord; état non chargé représenté par un tiret. */
+.dashboard-metrics{margin-top:16px;padding:16px;border-radius:20px}
+.dashboard-metrics h3{margin:0 0 12px;font-size:1.125rem}
+.dashboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.dashboard-tile{min-width:0;display:grid;gap:4px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow-wrap:anywhere}
+.dashboard-tile strong{font-size:1.65rem;line-height:1.2;color:var(--accent)}
+.dashboard-tile span,.dashboard-activity span{font-size:.8125rem;color:var(--muted)}
+.dashboard-recent{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+.dashboard-activity{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+@media(max-width:480px){.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){.dashboard-grid{grid-template-columns:1fr}}
+:root[data-texte-grand] .dashboard-grid{grid-template-columns:1fr}
+
+/* Bibliothèque : filtres compacts et fiches lisibles, sans modifier la recherche authentifiée. */
+.catalogue-browser{padding:14px;min-width:0}
+.catalogue-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+.catalogue-filters>div{min-width:0}
+.catalogue-filters label{margin:0 0 4px}
+.catalogue-filters button{margin:0;width:auto;background:var(--control);color:var(--on-control)}
+.catalogue-pagination{display:flex;gap:8px}
+.catalogue-item{border-radius:14px;padding:10px 12px}
+.catalogue-item>p{font-size:.8125rem;margin:4px 0}
+.catalogue-item summary{overflow-wrap:anywhere}
+@media(max-width:599px){.catalogue-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.catalogue-filters>div:first-child{grid-column:1/-1}.catalogue-filters button{width:100%}.catalogue-browser{padding:10px}}
+@media(max-width:350px){.catalogue-filters{grid-template-columns:1fr}}
+:root[data-texte-grand] .catalogue-filters{grid-template-columns:1fr}
+
+/* Préparation : cartes et commandes compactes, sans changer les prescriptions. */
+.session-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+.session-form>*{grid-column:1/-1;min-width:0}.session-form>.session-field{grid-column:auto}.session-field label{margin:0 0 5px}.session-check{display:flex;align-items:center;gap:10px;min-height:44px}.session-check label{margin:0}.session-organization{background:var(--bg);border:1px solid var(--line);border-radius:14px}.session-organization:empty{display:none}.session-phase{border:1px solid var(--line);border-radius:14px;margin:12px 0;background:var(--bg)}.session-phase>h4{color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:10px}.session-phase h5{font-size:1rem;margin:16px 0 6px}.session-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 0 12px;border-bottom:1px solid var(--line)}.session-actions button{margin:0;min-width:0;padding:6px;font-size:.8125rem}.session-actions select{grid-column:1/-1}.session-actions select+button{grid-column:1/-1}@media(max-width:350px){.session-form>.session-field{grid-column:1/-1}}:root[data-texte-grand] .session-form>.session-field{grid-column:1/-1}:root[data-texte-grand] .session-actions{grid-template-columns:1fr}
+
+/* Présences : reprise du bandeau compact historique, sans modifier le registre. */
+.workspace-detail[aria-label="Présences"]{padding:12px;margin-inline:0}
+.workspace-detail[aria-label="Présences"] .attendance-tabs{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:3;background:var(--surface);padding:4px;border:1px solid var(--line);border-radius:14px;gap:4px}
+.workspace-detail[aria-label="Présences"] .attendance-tabs button{margin:0;background:transparent;color:var(--muted);border:0;border-radius:10px;min-height:44px}
+.workspace-detail[aria-label="Présences"] .attendance-tabs button[aria-pressed=true]{background:var(--selected);color:var(--accent);outline:1px solid var(--accent)}
+.workspace-detail[aria-label="Présences"] .attendance-tabs~section{margin:8px 0;padding:12px;border-radius:14px;min-width:0}
+.workspace-detail[aria-label="Présences"] .attendance-tabs~section:has(button[aria-pressed]){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.workspace-detail[aria-label="Présences"] .attendance-tabs~section:has(button[aria-pressed])>strong{grid-column:1/-1}
+.workspace-detail[aria-label="Présences"] .attendance-tabs~section:has(button[aria-pressed])>button{margin:0;padding:6px 3px;font-size:.8125rem;overflow-wrap:anywhere}
+.workspace-detail[aria-label="Présences"] .attendance-tabs~section:has(button[aria-pressed])>button:not([aria-pressed]){grid-column:1/-1}
+@media(min-width:760px){.workspace-detail[aria-label="Présences"] .attendance-tabs{top:calc(124px + env(safe-area-inset-top,0px))}}
+:root[data-texte-grand] .workspace-detail[aria-label="Présences"] .attendance-tabs{position:static}
+:root[data-texte-grand] .workspace-detail[aria-label="Présences"] .attendance-tabs~section:has(button[aria-pressed]){grid-template-columns:1fr}
 </style></head>
 <body><header><strong>JSB Manager</strong><small>V36 · Préproduction</small></header><main><section><h1>Connexion</h1><p class="login-intro">Accédez à votre espace Coach ou Particulier.</p><p id="status" role="status" aria-live="polite">Vérification de la disponibilité du serveur…</p><section id="workspace" class="workspace" hidden aria-label="Espace authentifié"></section><section class="account-tools" aria-label="Compte et sécurité"><h2 class="account-heading">Compte et sécurité</h2><form id="login" autocomplete="on"><fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0"><label for="email">Adresse e-mail</label><input type="email" id="email" name="email" autocomplete="username" required maxlength="254"><label for="password">Mot de passe</label><input type="password" id="password" name="password" autocomplete="current-password" required maxlength="1024"><button type="submit">Se connecter / Changer de compte</button></fieldset></form><button type="button" id="logout" hidden disabled>Se déconnecter</button><p class="note"><a href="/switch-workspace" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;min-height:44px;font-weight:650">Ouvrir JSB Admin (accès réservé) ↗</a><br>Ouverture dans un autre onglet, sans déconnecter ce compte. La connexion de l’autre espace reste indépendante.</p><nav class="account-actions" aria-label="Gestion du compte" id="account-actions" hidden>
 <button type="button" data-panel="register-panel" disabled>Créer un compte</button>

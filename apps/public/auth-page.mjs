@@ -280,7 +280,12 @@ function renderWorkspace(){
   accountTools.hidden=true;
   setWorkspaceView(navigation('home'));
   const heading=element('h2','Tableau de bord');heading.tabIndex=-1;
-  const intro=element('div');intro.className='workspace-hero';intro.append(heading,element('p','Mon espace '+label(account.role)));workspace.append(intro);
+  const intro=element('div');intro.className='workspace-hero accueil-intro hero';
+  const date=element('p',new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(new Date()));date.className='accueil-date';
+  const subtitle=element('p','Mon espace '+label(account.role));subtitle.className='accueil-sous';
+  const shortcuts=element('div');shortcuts.className='accueil-preparer';shortcuts.setAttribute('aria-label','Accès aux disciplines');
+  for(const [key,title] of workspacePages.common){const shortcut=element('button','Ouvrir '+title);shortcut.type='button';shortcut.addEventListener('click',()=>{if(!busy&&workspaceIdentity===identity)workspace.querySelector('[data-workspace-page="'+key+'"]')?.click();});shortcuts.append(shortcut);}
+  intro.append(date,heading,subtitle,shortcuts);workspace.append(intro);
   const summary=element('section');summary.className='workspace-overview';summary.setAttribute('aria-label','État des fonctionnalités');
   const heading2=element('h3','Catalogue et espaces');
   summary.append(element('strong','Préproduction privée'),element('p','Les catalogues publiés et les préparations Taïso sont accessibles selon leur disponibilité. Les autres fonctions restent à raccorder.'));workspace.append(summary,heading2);
@@ -313,15 +318,15 @@ function renderWorkspace(){
       if(checked.state!=='signed-in'||checked.account.id!==account.id||checked.account.role!==account.role){void refresh();return;}
       catalogue.textContent=data.state==='unpublished'?'Aucun catalogue publié pour cette discipline.':'Version '+data.version+' · '+data.count+' exercice(s)';
       if(key==='taiso'&&data.state==='published'){
-       const preparation=element('section');preparation.className='workspace-detail';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
+       const preparation=element('section');preparation.className='workspace-detail session-preparation';protectSwipeEditor(preparation);preparation.setAttribute('aria-label','Contrôle de compatibilité Taïso');
        preparation.append(element('h3','Préparer une séance Taïso'),element('p','Choisissez le format et vérifiez les exercices compatibles. Chaque proposition reste à valider avant utilisation.'));
        if(data.journaled!==true||typeof data.generation!=='string')preparation.append(element('p','Le catalogue actif n’est pas encore éligible à la préparation versionnée.'));
        else{
-        const form=element('div');
+        const form=element('div');form.className='session-form';
         const makeSelect=(id,label,options,initial)=>{
          const l=element('label',label),s=element('select');s.id=id;l.htmlFor=id;
          for(const name of options){const option=element('option',name);option.value=name;s.append(option);}
-         s.value=initial;form.append(l,s);return s;
+         s.value=initial;const field=element('div');field.className='session-field';field.append(l,s);form.append(field);return s;
         };
         const group=makeSelect('taiso-group','Groupe',['Gym douce','Training'],'Training');
         const level=makeSelect('taiso-level','Niveau maximal',['Débutant','Intermédiaire','Expert'],'Intermédiaire');
@@ -329,10 +334,10 @@ function renderWorkspace(){
         const duration=makeSelect('taiso-duration','Durée totale (minutes)',['45','60','75','90'],'60');
         const format=makeSelect('taiso-format','Format',['Séries classiques','Circuit','EMOM','Tabata','AMRAP','Pilates / yoga','Mixte'],'Séries classiques');
         function makeCheck(id,label,checked=false){
-         const row=element('div'),input=element('input'),l=element('label',label);input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
+         const row=element('div'),input=element('input'),l=element('label',label);row.className='session-check';input.type='checkbox';input.id=id;input.checked=checked;l.htmlFor=id;row.append(input,l);form.append(row);return input;
         }
         const configure=makeCheck('taiso-configure','Préciser l’organisation du corps de séance');
-        const org=element('section');org.className='exercise-group';form.append(org);
+        const org=element('section');org.className='exercise-group session-organization';form.append(org);
         let settingsReader=()=>undefined;
         function rebuildOrganization(){
          org.replaceChildren();
@@ -435,7 +440,7 @@ function renderWorkspace(){
            result.replaceChildren(element('h4','Proposition à valider · '+answer.minutes+' min'),element('p',answer.format+' · '+answer.mode+' · catalogue '+answer.version));
            if(answer.missing.length)result.append(element('p','Couverture insuffisante : '+answer.missing.join(' ; ')+'. Aucun exercice manquant n’a été inventé.'));
            for(const phase of answer.phases){
-            const section=element('section');section.className='exercise-group';
+            const section=element('section');section.className='exercise-group session-phase';
             section.append(element('h4',phase.name+' · '+phase.minutes+' min'));
             for(const block of phase.blocks){
              const o=block.organization;
@@ -446,7 +451,7 @@ function renderWorkspace(){
             }
             for(const e of phase.exercises){
              section.append(element('h5',e.name),element('p','Budget indicatif : '+e.allocationMinutes+' min'),element('p','Prescription sélectionnée : '+(answer.mode==='Durée'?e.prescription.effortSeconds+' s d’effort':e.prescription.repetitions+' répétitions')),element('p','Dosage source : '+e.dosage),element('p','Sécurité : '+e.safety));
-             const actions=element('div');actions.className='exercise-group';
+             const actions=element('div');actions.className='exercise-group session-actions';
              const block=phase.blocks.find(b=>b.references.includes(e.reference));
              const order=block?block.references:phase.exercises.map(x=>x.reference),position=order.indexOf(e.reference);
              const limit=(planSettings.edits||[]).length>=60;
@@ -718,7 +723,13 @@ function renderWorkspace(){
        const results=element('div');results.id='catalogue-results';
        const info=element('p');info.setAttribute('role','status');
        const previous=element('button','Précédent'),next=element('button','Suivant');previous.type=next.type='button';previous.hidden=next.hidden=true;
-       browser.append(queryLabel,query,familyLabel,family,search,info,results,previous,next);detail.insertBefore(browser,list);
+       browser.classList.add('catalogue-browser');
+       const filters=element('div');filters.className='catalogue-filters';
+       const queryField=element('div');queryField.append(queryLabel,query);
+       const familyField=element('div');familyField.append(familyLabel,family);
+       filters.append(queryField,familyField,search);
+       const pagination=element('div');pagination.className='catalogue-pagination';pagination.append(previous,next);
+       browser.append(filters,info,results,pagination);detail.insertBefore(browser,list);
        let generation=0,offset=0,criteria={query:'',family:''};
        const live=()=>!busy&&workspaceIdentity===identity&&browser.isConnected;
        async function load(page){
@@ -777,7 +788,31 @@ function renderWorkspace(){
     }
    });grid.append(button);
   }
-  workspace.append(grid);window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
+  workspace.append(grid);
+  const dashboard=element('section');dashboard.className='dashboard-metrics';dashboard.setAttribute('aria-label','Indicateurs du compte');
+  const metrics=element('div');metrics.className='dashboard-grid';
+  const values={};
+  for(const [key,title] of [['judo','Exercices Judo publiés'],['taiso','Exercices Taïso publiés'],['drafts','Séances Taïso enregistrées']]){
+   const tile=element('div');tile.className='dashboard-tile';const number=element('strong','—');number.dataset.metric=key;values[key]=number;tile.append(number,element('span',title));metrics.append(tile);
+  }
+  const recent=element('div');recent.className='dashboard-recent';recent.append(element('h3','Activité récente'));
+  const activity=element('p','Chargement des séances Taïso enregistrées…');activity.setAttribute('role','status');recent.append(activity);
+  dashboard.append(element('h3','Mes indicateurs'),metrics,recent);workspace.append(dashboard);
+  const live=()=>!busy&&workspaceIdentity===identity&&dashboard.isConnected;
+  async function confirmed(){if(!live())return false;const checked=await client.session();return live()&&checked.state==='signed-in'&&checked.account.id===account.id&&checked.account.role===account.role;}
+  // Published catalogue counts are not personal training statistics.
+  for(const key of ['judo','taiso'])void client.catalogue(key).then(async data=>{
+   if(await confirmed()){values[key].textContent=String(data.count);if(data.state==='unpublished')values[key].title='Aucun catalogue publié';}
+  }).catch(()=>{});
+  void client.privateTaisoDraft('list',account.id,{offset:0}).then(async data=>{
+   if(!await confirmed())return;
+   if(data.state!=='ready'){activity.textContent='Activité indisponible.';return;}
+   values.drafts.textContent=String(data.total);
+   const entries=[...data.items].sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt)).slice(0,3);
+   activity.textContent=entries.length?'Dernières séances enregistrées':'Aucune séance Taïso enregistrée.';
+   for(const entry of entries){const line=element('div');line.className='dashboard-activity';line.append(element('strong',entry.title),element('span',entry.validatedAt?'Validée':'Brouillon'));recent.append(line);}
+  }).catch(()=>{if(live())activity.textContent='Activité indisponible.';});
+  window.scrollTo(0,0);if(focus)heading.focus({preventScroll:true});
  }
  home();
 }

@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const https=require('node:https');
-const {readFileSync,mkdtempSync,rmSync}=require('node:fs');
+const {readFileSync,mkdtempSync,rmSync,mkdirSync}=require('node:fs');
 const {tmpdir}=require('node:os');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
@@ -58,6 +58,21 @@ async function swipe(page,{dx=135,dy=2,startX=18,target='#workspace h3',cancel=f
   dispatch(cancel?'touchcancel':'touchend',[],[point(startX+dx,180+dy)]);
   return {moving,active:document.querySelector('.jsb-nav [aria-current="page"]')?.dataset.navPage,reset:!document.querySelector('#workspace').hasAttribute('data-swipe-moving')};
  },{dx,dy,startX,target,cancel});
+}
+async function captureManagerPage(page,engine,section){
+ const original=page.viewportSize();
+ try{
+  for(const theme of ['light','dark']){
+   await page.emulateMedia({colorScheme:theme});
+   for(const [viewport,width,height] of [['portrait',390,844],['desktop',1440,900]]){
+    await page.setViewportSize({width,height});
+    const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
+    assert.ok(geometry.scrollWidth<=geometry.width+1,engine+' '+section+' '+viewport+' '+theme+' horizontal overflow');
+    const dir=process.env.JSB_VISUAL_ARTIFACTS;
+    if(dir){mkdirSync(dir,{recursive:true});await page.screenshot({path:path.join(dir,engine+'-'+section+'-'+viewport+'-'+theme+'.png'),animations:'disabled'});}
+   }
+  }
+ }finally{await page.setViewportSize(original);await page.emulateMedia({colorScheme:'light'});}
 }
 async function settingsPage(page,key){
  if(await page.locator('#settings-back').isVisible())await page.locator('#settings-back').click();
@@ -260,6 +275,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.equal(await page.locator('html').getAttribute('data-theme'),null);
     await page.emulateMedia({colorScheme:'light'});
     await settingsPage(page,'version');
+    await captureManagerPage(page,name,'reglages-version');
     const installed=await page.locator('meta[name="jsb-release"]').getAttribute('content');
     assert.match(installed,/^[a-f0-9]{64}$/);
     await page.locator('#version-check').click();
@@ -284,9 +300,28 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.ok(await page.locator('[data-workspace-page="taiso"] .bloc-ico svg').isVisible());
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'home');
+    // Capture authenticated home at representative sizes in both browser engines.
+    for(const theme of ['light','dark']){
+     await page.emulateMedia({colorScheme:theme});
+     for(const [viewport,width,height] of [['compact',320,740],['portrait',390,844],['landscape',844,390],['desktop',1440,900]]){
+      await page.setViewportSize({width,height});
+      const g=await page.evaluate(()=>{
+       const nav=document.querySelector('.jsb-nav'),box=nav.getBoundingClientRect();
+       return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,left:box.left,right:box.right,heights:Array.from(nav.querySelectorAll('button'),b=>b.getBoundingClientRect().height),background:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()};
+      });
+      assert.ok(g.scrollWidth<=g.width+1,name+' '+viewport+' horizontal overflow');
+      assert.ok(g.left>=-1&&g.right<=g.width+1);
+      assert.ok(g.heights.every(h=>h>=44));
+      assert.equal(g.background,theme==='dark'?'#151c29':'#f4f5ef');
+      const dir=process.env.JSB_VISUAL_ARTIFACTS;
+      if(dir){mkdirSync(dir,{recursive:true});await page.screenshot({path:path.join(dir,name+'-accueil-'+viewport+'-'+theme+'.png'),animations:'disabled'});}
+     }
+    }
+    await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'light'});
     await page.locator('[data-nav-page="judo"]').click();
     assert.equal(await page.locator('.jsb-nav [aria-current="page"]').getAttribute('data-nav-page'),'judo');
     assert.match(await page.locator('#workspace').textContent(),/Préparer une séance Judo/);
+    await captureManagerPage(page,name,'judo');
     assert.deepEqual(await swipe(page,{dx:135,dy:100}),{moving:false,active:'judo',reset:true});
     assert.deepEqual(await swipe(page,{startX:90}),{moving:false,active:'judo',reset:true});
     assert.deepEqual(await swipe(page,{dx:40}),{moving:true,active:'judo',reset:true});
@@ -302,6 +337,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await page.locator('[data-nav-page="home"]').click();
     await page.locator('[data-workspace-page="taiso"]').click();
     await page.locator('#catalogue-results summary').filter({hasText:'Fixture Alpha'}).waitFor({state:'visible'});
+    await captureManagerPage(page,name,'taiso');
     await page.getByRole('button',{name:'Vérifier les exercices compatibles'}).click();
     await page.locator('#taiso-candidate-result').filter({hasText:'1 exercice(s) compatible(s) · 2 non retenu(s)'}).waitFor({state:'visible',timeout:15000});
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Fixture compatible/);
@@ -311,6 +347,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/8 répétitions/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Couverture insuffisante/);
     assert.match(await page.locator('#taiso-candidate-result').textContent(),/Aucune séance n’est encore enregistrée/);
+    await captureManagerPage(page,name,'taiso-proposition');
     const draftTitle='Recette privée '+name;
     await page.locator('#taiso-draft-title').fill(draftTitle);
     await page.getByRole('button',{name:'Enregistrer le brouillon',exact:true}).click();
@@ -414,6 +451,7 @@ test('Navigateurs HTTPS : connexion réelle des deux applications, sessions et c
     await pool.query('INSERT INTO jsb_private.attendance_registers(owner_id,revision,snapshot,updated_at) VALUES($1,1,$2,$3)',[ids.coach,JSON.stringify(emptyRegister),Date.now()]);
     await presence.getByRole('button',{name:'Ouvrir le registre en ligne'}).click();
     await presence.getByText('Révision 1 · aucune modification en attente',{exact:true}).waitFor();
+    await captureManagerPage(page,name,'presences');
     const presencePhrase='Phrase de recette Présences seulement';
     await presence.getByLabel('Phrase secrète du coffre Présences').fill(presencePhrase);
     await presence.getByRole('button',{name:'Préparer les présences hors connexion'}).click();
